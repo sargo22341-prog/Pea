@@ -111,6 +111,53 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS cached_intraday_history (
+    cache_key TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    range TEXT NOT NULL,
+    interval TEXT NOT NULL,
+    trading_day TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    last_updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_icons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL UNIQUE,
+    file_path TEXT,
+    mime_type TEXT,
+    size INTEGER,
+    source TEXT NOT NULL DEFAULT 'auto',
+    fetch_status TEXT NOT NULL DEFAULT 'pending',
+    last_attempt_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    profile_icon_url TEXT,
+    profile_icon_path TEXT,
+    profile_icon_mime_type TEXT,
+    profile_icon_size INTEGER,
+    dashboard_default_sort_key TEXT NOT NULL DEFAULT 'name',
+    dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc',
+    default_chart_range TEXT NOT NULL DEFAULT '1d',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS watchlist (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL UNIQUE,
@@ -125,4 +172,38 @@ try {
   db.exec("ALTER TABLE positions ADD COLUMN notes TEXT;");
 } catch {
   // Column already exists in existing SQLite files.
+}
+
+const assetIconColumns = db.prepare("PRAGMA table_info(asset_icons)").all().map((row: any) => String(row.name));
+if (assetIconColumns.includes("icon_url") || !assetIconColumns.includes("file_path")) {
+  db.exec(`
+    DROP TABLE IF EXISTS asset_icons;
+    CREATE TABLE asset_icons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL UNIQUE,
+      file_path TEXT,
+      mime_type TEXT,
+      size INTEGER,
+      source TEXT NOT NULL DEFAULT 'auto',
+      fetch_status TEXT NOT NULL DEFAULT 'pending',
+      last_attempt_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+for (const migration of [
+  "ALTER TABLE users ADD COLUMN profile_icon_path TEXT;",
+  "ALTER TABLE users ADD COLUMN profile_icon_mime_type TEXT;",
+  "ALTER TABLE users ADD COLUMN profile_icon_size INTEGER;",
+  "ALTER TABLE users ADD COLUMN dashboard_default_sort_key TEXT NOT NULL DEFAULT 'name';",
+  "ALTER TABLE users ADD COLUMN dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc';",
+  "ALTER TABLE users ADD COLUMN default_chart_range TEXT NOT NULL DEFAULT '1d';"
+]) {
+  try {
+    db.exec(migration);
+  } catch {
+    // Column already exists in existing SQLite files.
+  }
 }

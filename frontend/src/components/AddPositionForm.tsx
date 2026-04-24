@@ -1,11 +1,10 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Plus, Search } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { money } from "../lib/format";
-import { PeaBadge } from "./PeaBadge";
 
-export function AddPositionForm({ onCreated }: { onCreated: () => void }) {
+export function AddPositionForm({ onCreated, compact = false }: { onCreated: () => void; compact?: boolean }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<EnrichedSearchResult[]>([]);
   const [selected, setSelected] = useState<EnrichedSearchResult | null>(null);
@@ -14,23 +13,38 @@ export function AddPositionForm({ onCreated }: { onCreated: () => void }) {
   const [currency, setCurrency] = useState("EUR");
   const [purchaseDate, setPurchaseDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastQueryRef = useRef("");
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) {
       setResults([]);
+      setSearching(false);
+      lastQueryRef.current = "";
       return;
     }
 
+    if (normalizedQuery === lastQueryRef.current) return;
+    const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
+      setSearching(true);
       try {
-        setResults(await api.enrichedSearch(query));
+        const nextResults = await api.enrichedSearch(normalizedQuery, controller.signal);
+        lastQueryRef.current = normalizedQuery;
+        setResults(nextResults);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Recherche impossible");
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Recherche impossible");
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
       }
-    }, 350);
+    }, 800);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, [query]);
 
   async function submit(event: FormEvent) {
@@ -81,7 +95,7 @@ export function AddPositionForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <form className="card space-y-4 p-4" onSubmit={submit}>
+    <form className={`card space-y-3 p-4 ${compact ? "lg:sticky lg:top-24" : ""}`} onSubmit={submit}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold">Ajouter une position</h2>
         <Plus className="text-mint" size={20} />
@@ -103,6 +117,8 @@ export function AddPositionForm({ onCreated }: { onCreated: () => void }) {
         </div>
       </label>
 
+      {searching && !selected && <div className="rounded-md border border-line bg-ink p-3 text-sm text-slate-400">Recherche...</div>}
+
       {results.length > 0 && !selected && (
         <div className="max-h-72 overflow-y-auto rounded-md border border-line bg-ink">
           {results.map((result) => (
@@ -122,16 +138,13 @@ export function AddPositionForm({ onCreated }: { onCreated: () => void }) {
                   {result.price === undefined ? "Prix n/a" : money(result.price, result.currency ?? "EUR")}
                 </span>
               </span>
-              <span className="flex flex-col items-end gap-1">
-                <PeaBadge status={result.peaEligibility.status} />
-                {result.stale && <span className="rounded bg-amber/15 px-2 py-1 text-[11px] text-amber">Différé</span>}
-              </span>
+              {result.isInPortfolio && <span className="rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">En portefeuille</span>}
             </button>
           ))}
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={`grid gap-3 ${compact ? "" : "sm:grid-cols-2"}`}>
         <label>
           <span className="muted mb-1 block">Quantité</span>
           <input className="input" min="0" onChange={(event) => setQuantity(event.target.value)} required step="any" type="number" value={quantity} />

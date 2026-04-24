@@ -1,5 +1,11 @@
 import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootEnvPath = path.resolve(__dirname, "../../.env");
+
+dotenv.config({ path: rootEnvPath });
 dotenv.config();
 
 export const config = {
@@ -8,5 +14,5 @@ export const config = {
   yahooCacheTtlSeconds: Number(process.env.YAHOO_CACHE_TTL_SECONDS ?? 300),
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
   nodeEnv: process.env.NODE_ENV ?? "development",
-  debugMarketData: process.env.DEBUG_MARKET_DATA === "1" || process.env.DEBUG_MARKET_DATA === "true"
+  logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined
 };

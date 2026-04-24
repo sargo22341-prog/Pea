@@ -32,7 +32,7 @@ function roundDownToStep(minutes: number, step = 30) {
     return Math.floor(minutes / step) * step;
 }
 
-export function buildOneDayChartData(history: any[], step = 30) {
+export function buildOneDayChartData(history: any[], step = 2) {
     const openMinutes = timeToMinutes(PARIS_OPEN);
     const closeMinutes = timeToMinutes(PARIS_CLOSE);
 

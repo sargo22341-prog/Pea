@@ -3,13 +3,13 @@ import { ArrowDownRight, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AssetIcon } from "../components/AssetIcon";
 import { RangeSelector } from "../components/RangeSelector";
 import { PeaBadge } from "../components/PeaBadge";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
-import { formatChartDate, formatChartTime, money, percent, shortDate } from "../lib/format";
-import { buildOneDayChartData } from "../lib/chart"
+import { formatChartDate, formatChartDateTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
 
 export function AssetDetailPage() {
   const { symbol = "" } = useParams();
@@ -17,7 +17,12 @@ export function AssetDetailPage() {
   const [range, setRange] = useState<RangeKey>("1d");
   const [editing, setEditing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const me = useAsync(() => api.me(), []);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
+
+  useEffect(() => {
+    if (me.data?.user?.defaultChartRange) setRange(me.data.user.defaultChartRange);
+  }, [me.data?.user?.defaultChartRange]);
 
   if (asset.loading) return <div className="card p-6">Chargement de {symbol}...</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
@@ -41,7 +46,7 @@ export function AssetDetailPage() {
   }
 
 
-  const chartData = range === "1d" ? buildOneDayChartData(history) : history;
+  const chartData = normalizeHistoryPoints(history);
 
   const validPoints = chartData.filter((p) => p.close != null);
 
@@ -76,7 +81,9 @@ export function AssetDetailPage() {
     <div className="space-y-6">
       <section className="card p-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div>
+          <div className="flex items-start gap-3">
+            <AssetIcon className="h-14 w-14" symbol={quote.symbol} />
+            <div className="min-w-0">
             <p className="muted">{quote.symbol}</p>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-bold">{quote.name}</h1>
@@ -89,6 +96,7 @@ export function AssetDetailPage() {
             <p className="mt-2 text-slate-400">
               {quote.exchange ?? "Marché n/a"} · {quote.currency}
             </p>
+            </div>
           </div>
           <div className="text-left sm:text-right">
             <p className="text-3xl font-bold">{money(quote.price, quote.currency)}</p>
@@ -134,6 +142,11 @@ export function AssetDetailPage() {
                   tick={{ fill: "#94a3b8", fontSize: 12 }}
                   tickLine={false}
                   axisLine={false}
+                  tickFormatter={(value) => {
+                    if (range === "1d") return String(value);
+                    if (range === "1w") return formatChartWeekTick(String(value));
+                    return formatChartDate(String(value));
+                  }}
                 />
 
                 <YAxis hide domain={["dataMin", "dataMax"]} />
@@ -150,6 +163,8 @@ export function AssetDetailPage() {
                   labelFormatter={(value) =>
                     range === "1d"
                       ? String(value)
+                      : range === "1w"
+                        ? formatChartDateTime(String(value))
                       : formatChartDate(String(value))
                   }
                 />
@@ -173,6 +188,9 @@ export function AssetDetailPage() {
               ? "Données intraday indisponibles"
               : "Données de marché indisponibles"}
           </div>
+        )}
+        {range === "1d" && (history.length === 0 || asset.data.stale) && (
+          <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
         )}
       </section>
 
@@ -235,6 +253,15 @@ export function AssetDetailPage() {
       )}
     </div>
   );
+}
+
+function normalizeHistoryPoints<T extends { date: string; close: number }>(points: T[]) {
+  const byDate = new Map<string, T>();
+  for (const point of points) {
+    if (!point.date || !Number.isFinite(new Date(point.date).getTime()) || !Number.isFinite(point.close)) continue;
+    byDate.set(point.date, point);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function Info({ label, value }: { label: string; value: string }) {

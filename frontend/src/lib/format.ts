@@ -1,3 +1,21 @@
+import type { RangeKey } from "@pea/shared";
+
+export type ChartRange = RangeKey | Uppercase<RangeKey>;
+
+const rangeLabels: Record<RangeKey, string> = {
+  "1d": "1 jour",
+  "1w": "1 semaine",
+  "1m": "1 mois",
+  "1y": "1 an",
+  ytd: "YTD",
+  max: "Max"
+};
+
+export function formatRangeLabel(range: ChartRange | string) {
+  const normalized = String(range).toLowerCase() as RangeKey;
+  return rangeLabels[normalized] ?? String(range);
+}
+
 export function money(value: number, currency = "EUR") {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -35,4 +53,28 @@ export function formatChartTime(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+export function formatChartWeekTick(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+export function formatChartDateTime(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  })
+    .format(date)
+    .replace(/\//g, "-");
 }

@@ -17,7 +17,7 @@ export const app = express();
 
 app.set("etag", false);
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(morgan(config.nodeEnv === "production" ? "combined" : "dev"));
 

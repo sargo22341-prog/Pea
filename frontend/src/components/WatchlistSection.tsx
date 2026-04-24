@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { money, percent } from "../lib/format";
+import { AssetIcon } from "./AssetIcon";
 import { MiniChart } from "./MiniChart";
 import { StaleBadge } from "./StaleBadge";
 
@@ -25,12 +26,15 @@ export function WatchlistSection() {
       <div className="divide-y divide-line">
         {watchlist.data.map((item) => (
           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-4" key={item.symbol}>
-            <Link className="min-w-0" to={`/assets/${item.symbol}`}>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate font-semibold">{item.name}</p>
-                <StaleBadge show={item.marketDataUnavailable || item.quote?.stale} />
+            <Link className="flex min-w-0 items-center gap-3" to={`/assets/${item.symbol}`}>
+              <AssetIcon symbol={item.symbol} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-semibold">{item.name}</p>
+                  <StaleBadge show={item.marketDataUnavailable || item.quote?.stale} />
+                </div>
+                <p className="muted">{item.symbol}</p>
               </div>
-              <p className="muted">{item.symbol}</p>
             </Link>
             <div className="hidden text-right sm:block">
               <p className="font-semibold">{item.quote ? money(item.quote.price, item.quote.currency) : "n/a"}</p>

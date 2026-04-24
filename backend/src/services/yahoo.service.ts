@@ -4,21 +4,22 @@ import type { DividendEvent, HistoryPoint, Quote, RangeKey, SearchResult } from 
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
-import { marketDebug } from "../utils/market-debug.js";
-import { buildHistoricalOptions } from "../utils/range.js";
+import { buildHistoricalOptions, getCurrentTradingDay } from "../utils/range.js";
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
-import { evaluatePeaEligibility, rankAssetForPea, safeString, sortAssetsForPea } from "./peaEligibility.js";
+import { safeString } from "./peaEligibility.js";
 
 type CacheTable = "cached_quotes" | "cached_dividends";
 
 const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 const limiter = new Bottleneck({
-  minTime: 1200,
+  minTime: 250,
   maxConcurrent: 1
 });
 
 const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number }>();
+const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
 const nowSeconds = () => Math.floor(Date.now() / 1000);
+export const yahooClient = yahoo;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,8 +43,8 @@ function readCache<T>(table: CacheTable, symbol: string, ttlSeconds: number): Ma
   return { data: JSON.parse(String(row.payload)) as T, stale };
 }
 
-function readHistoryCache(symbol: string, range: RangeKey, ttlSeconds: number): MarketDataResult<HistoryPoint[]> | null {
-  const cacheKey = historyCacheKey(symbol, range);
+function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttlSeconds: number): MarketDataResult<HistoryPoint[]> | null {
+  const cacheKey = historyCacheKey(symbol, range, interval);
   const row = db.prepare("SELECT payload, fetched_at FROM cached_history WHERE cache_key = ?").get(cacheKey) as
     | { payload: string; fetched_at: number }
     | undefined;
@@ -51,6 +52,24 @@ function readHistoryCache(symbol: string, range: RangeKey, ttlSeconds: number): 
   if (!row) return null;
   const stale = nowSeconds() - Number(row.fetched_at) > ttlSeconds;
   return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale };
+}
+
+function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(symbol)): (MarketDataResult<HistoryPoint[]> & { tradingDay: string }) | null {
+  const cacheKey = intradayCacheKey(symbol, tradingDay);
+  const row = db.prepare("SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE cache_key = ?").get(cacheKey) as
+    | { payload: string; trading_day: string; last_updated_at: number }
+    | undefined;
+
+  if (!row) {
+    const fallback = db.prepare(
+      "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '2m' ORDER BY last_updated_at DESC LIMIT 1"
+    ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
+    if (!fallback) return null;
+    return { data: JSON.parse(String(fallback.payload)) as HistoryPoint[], stale: true, tradingDay: String(fallback.trading_day) };
+  }
+
+  const stale = String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90;
+  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale, tradingDay: String(row.trading_day) };
 }
 
 function writeCache(table: CacheTable, symbol: string, payload: unknown) {
@@ -61,88 +80,69 @@ function writeCache(table: CacheTable, symbol: string, payload: unknown) {
   ).run(symbol.toUpperCase(), JSON.stringify(payload), nowSeconds());
 }
 
-function writeHistoryCache(symbol: string, range: RangeKey, payload: HistoryPoint[]) {
+function writeHistoryCache(symbol: string, range: RangeKey, interval: string, payload: HistoryPoint[]) {
   db.prepare(
     `INSERT INTO cached_history (cache_key, symbol, range, payload, fetched_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
-  ).run(historyCacheKey(symbol, range), symbol.toUpperCase(), range, JSON.stringify(payload), nowSeconds());
+  ).run(historyCacheKey(symbol, range, interval), symbol.toUpperCase(), range, JSON.stringify(payload), nowSeconds());
 }
 
-function historyCacheKey(symbol: string, range: RangeKey) {
-  return `${symbol.toUpperCase()}:${range}`;
+function writeIntradayCache(symbol: string, payload: HistoryPoint[], tradingDay = getCurrentTradingDay(symbol)) {
+  db.prepare(
+    `INSERT INTO cached_intraday_history (cache_key, symbol, range, interval, trading_day, payload, last_updated_at)
+     VALUES (?, ?, '1d', '2m', ?, ?, ?)
+     ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, last_updated_at = excluded.last_updated_at`
+  ).run(intradayCacheKey(symbol, tradingDay), symbol.toUpperCase(), tradingDay, JSON.stringify(payload), nowSeconds());
 }
 
-function resampleTo30Minutes(rows: any[], period2: Date): HistoryPoint[] {
-  const buckets = new Map<number, { date: Date; open: number; high: number; low: number; close: number; volume: number }>();
-  const end = period2.getTime();
+function historyCacheKey(symbol: string, range: RangeKey, interval: string) {
+  return `${symbol.toUpperCase()}:${range}:${interval}`;
+}
 
-  for (const row of rows) {
-    const date = new Date(row.date);
-    const time = date.getTime();
-    const close = Number(row.close);
-    if (!Number.isFinite(time) || !Number.isFinite(close) || time > end) continue;
+function intradayCacheKey(symbol: string, tradingDay: string) {
+  return `${symbol.toUpperCase()}:1d:2m:${tradingDay}`;
+}
 
-    const bucketStart = Math.floor(time / (30 * 60 * 1000)) * 30 * 60 * 1000;
-    const open = Number.isFinite(Number(row.open)) ? Number(row.open) : close;
-    const high = Number.isFinite(Number(row.high)) ? Number(row.high) : close;
-    const low = Number.isFinite(Number(row.low)) ? Number(row.low) : close;
-    const volume = Number.isFinite(Number(row.volume)) ? Number(row.volume) : 0;
-    const bucket = buckets.get(bucketStart);
+function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoint[] {
+  const end = period2 ? new Date(period2).getTime() : Date.now();
+  return rows
+    .filter((row: any) => row.date && Number.isFinite(Number(row.close)) && new Date(row.date).getTime() <= end)
+    .map((row: any) => ({
+      date: new Date(row.date).toISOString(),
+      open: Number.isFinite(Number(row.open)) ? Number(row.open) : undefined,
+      high: Number.isFinite(Number(row.high)) ? Number(row.high) : undefined,
+      low: Number.isFinite(Number(row.low)) ? Number(row.low) : undefined,
+      volume: Number.isFinite(Number(row.volume)) ? Number(row.volume) : undefined,
+      close: Number(row.close)
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
-    if (!bucket) {
-      buckets.set(bucketStart, { date: new Date(bucketStart), open, high, low, close, volume });
+function sanitizeIntradayPoints(symbol: string, points: HistoryPoint[]): HistoryPoint[] {
+  const byDate = new Map<string, HistoryPoint>();
+  for (const point of points) {
+    const time = new Date(point.date).getTime();
+    const close = Number(point.close);
+    if (!Number.isFinite(time) || !Number.isFinite(close) || close <= 0) {
+      console.info(`[intraday-sanitize] ${symbol} removed invalid point close=${point.close} date=${point.date}`);
       continue;
     }
-
-    bucket.high = Math.max(bucket.high, high);
-    bucket.low = Math.min(bucket.low, low);
-    bucket.close = close;
-    bucket.volume += volume;
+    byDate.set(new Date(point.date).toISOString(), { ...point, date: new Date(point.date).toISOString(), close });
   }
 
-  return [...buckets.values()]
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .map((bucket) => ({
-      date: bucket.date.toISOString(),
-      open: bucket.open,
-      high: bucket.high,
-      low: bucket.low,
-      close: bucket.close,
-      volume: bucket.volume
-    }));
-}
+  const sanitized = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  if (sanitized.length >= 2) {
+    const previous = sanitized[sanitized.length - 2];
+    const last = sanitized[sanitized.length - 1];
+    const delta = Math.abs(last.close - previous.close) / previous.close;
+    if (Number.isFinite(delta) && delta > 0.2) {
+      console.info(`[intraday-sanitize] ${symbol} removed invalid last point close=${last.close} previous=${previous.close}`);
+      sanitized.pop();
+    }
+  }
 
-function logIntradayChart(symbol: string, options: unknown, rawRows: any[], resampled: HistoryPoint[]) {
-  if (!config.debugMarketData) return;
-
-  const previewRaw = rawRows.slice(0, 3).map((row: any) => ({
-    date: row.date,
-    open: row.open,
-    high: row.high,
-    low: row.low,
-    close: row.close,
-    volume: row.volume
-  }));
-  const tailRaw = rawRows.slice(-3).map((row: any) => ({
-    date: row.date,
-    open: row.open,
-    high: row.high,
-    low: row.low,
-    close: row.close,
-    volume: row.volume
-  }));
-
-  marketDebug("market-data:intraday", {
-    symbol,
-    options,
-    rawCount: rawRows.length,
-    resampledCount: resampled.length,
-    rawFirst: previewRaw,
-    rawLast: tailRaw,
-    resampledFirst: resampled.slice(0, 3),
-    resampledLast: resampled.slice(-3)
-  });
+  return sanitized;
 }
 
 function errorMessage(error: unknown) {
@@ -230,7 +230,7 @@ async function safeYahooCall<T>(
     return { data, stale: false };
   } catch (error) {
     console.warn(`[market-data:yahoo] ${key}: ${errorMessage(error)}`);
-    if (cached && isTemporaryYahooError(error)) {
+    if (cached) {
       return { data: cached.data, stale: true };
     }
 
@@ -244,7 +244,7 @@ export class YahooService implements MarketDataProvider {
     if (!normalizedQuery) return { data: [], stale: false };
 
     const cached = searchCache.get(normalizedQuery);
-    if (cached && nowSeconds() - cached.fetchedAt < 60 * 60) {
+    if (cached && nowSeconds() - cached.fetchedAt < 24 * 60 * 60) {
       return { data: cached.payload, stale: false };
     }
 
@@ -253,7 +253,7 @@ export class YahooService implements MarketDataProvider {
         yahoo.search(normalizedQuery, { quotesCount: 10, newsCount: 0 })
       )) as any;
 
-      const payload = sortAssetsForPea((result.quotes ?? [])
+      const payload = (result.quotes ?? [])
         .map((item: any) => ({
           symbol: safeString(item?.symbol),
           name: safeString(item?.shortname) || safeString(item?.longname) || safeString(item?.name) || safeString(item?.symbol),
@@ -261,11 +261,7 @@ export class YahooService implements MarketDataProvider {
           quoteType: safeString(item?.quoteType),
           currency: safeString(item?.currency)
         }))
-        .filter((item: any) => item.symbol)).map((item) => ({
-        ...item,
-        peaEligibility: evaluatePeaEligibility(item),
-        peaRank: rankAssetForPea(item)
-      }));
+        .filter((item: any) => item.symbol);
 
       searchCache.set(normalizedQuery, { payload, fetchedAt: nowSeconds() });
       return { data: payload, stale: false };
@@ -314,34 +310,75 @@ export class YahooService implements MarketDataProvider {
     return { data: markStale(result.data, result.stale), stale: result.stale };
   }
 
+  async quoteCombine(symbols: string[]): Promise<MarketDataResult<Quote[]>> {
+    const keys = [...new Set(symbols.map((symbol) => String(symbol ?? "").trim().toUpperCase()).filter(Boolean))];
+    if (!keys.length) return { data: [], stale: false };
+
+    const cacheKey = keys.sort().join(",");
+    const cached = quoteCombineCache.get(cacheKey);
+    if (cached && nowSeconds() - cached.fetchedAt < 60) return { data: cached.payload, stale: false };
+
+    try {
+      const rows = (await retryTemporary(`quoteCombine:${cacheKey}`, () => Promise.all(keys.map((key) => yahoo.quoteCombine(key))))) as any[];
+      const payload: Quote[] = rows
+        .filter((item) => item?.symbol)
+        .map((item) => {
+          const price = Number(item.regularMarketPrice ?? item.postMarketPrice ?? item.preMarketPrice ?? 0);
+          const previousClose = item.regularMarketPreviousClose ? Number(item.regularMarketPreviousClose) : undefined;
+          return {
+            symbol: String(item.symbol).toUpperCase(),
+            name: item.longName ?? item.shortName ?? item.symbol,
+            price,
+            previousClose,
+            change: item.regularMarketChange ? Number(item.regularMarketChange) : price - (previousClose ?? price),
+            changePercent: item.regularMarketChangePercent ? Number(item.regularMarketChangePercent) : undefined,
+            currency: item.currency ?? "EUR",
+            exchange: item.fullExchangeName ?? item.exchange,
+            quoteType: item.quoteType,
+            marketState: item.marketState
+          };
+        });
+      quoteCombineCache.set(cacheKey, { payload, fetchedAt: nowSeconds() });
+      return { data: payload, stale: false };
+    } catch (error) {
+      console.warn(`[market-data:yahoo] quoteCombine:${cacheKey}: ${errorMessage(error)}`);
+      if (cached) return { data: cached.payload, stale: true };
+      throw toYahooHttpError(error);
+    }
+  }
+
   async history(symbol: string, range: RangeKey): Promise<MarketDataResult<HistoryPoint[]>> {
     const key = symbol.toUpperCase();
-    const historicalOptions = buildHistoricalOptions(range);
+    let quoteForRange: Quote | undefined;
+    if (range === "1d") {
+      try {
+        quoteForRange = (await this.quote(key)).data;
+      } catch {
+        quoteForRange = undefined;
+      }
+    }
+    const historicalOptions = buildHistoricalOptions(range, {
+      symbol: key,
+      exchange: quoteForRange?.exchange,
+      fullExchangeName: quoteForRange?.exchange
+    });
+    const interval = String(historicalOptions.interval);
+    const historyTtlSeconds = range === "1w" ? 15 * 60 : 60 * 60;
+    const cacheReader = range === "1d" ? () => readIntradayCache(key, historicalOptions.tradingDay) : () => readHistoryCache(key, range, interval, historyTtlSeconds);
+    const cacheWriter =
+      range === "1d" ? (data: HistoryPoint[]) => writeIntradayCache(key, data, historicalOptions.tradingDay) : (data: HistoryPoint[]) => writeHistoryCache(key, range, interval, data);
 
     const result = await safeYahooCall<HistoryPoint[]>(
       `history:${key}:${range}`,
       async () => {
-        const rows = ((await yahoo.chart(key, { ...historicalOptions, return: "array" } as any)) as any).quotes ?? [];
-        if (range === "1d") {
-          const resampled = resampleTo30Minutes(rows, historicalOptions.period2 instanceof Date ? historicalOptions.period2 : new Date());
-          logIntradayChart(key, historicalOptions, rows, resampled);
-          return resampled;
-        }
-
-        const history: HistoryPoint[] = rows
-          .filter((row: any) => row.date && row.close)
-          .map((row: any) => ({
-            date: new Date(row.date).toISOString(),
-            open: Number.isFinite(Number(row.open)) ? Number(row.open) : undefined,
-            high: Number.isFinite(Number(row.high)) ? Number(row.high) : undefined,
-            low: Number.isFinite(Number(row.low)) ? Number(row.low) : undefined,
-            volume: Number.isFinite(Number(row.volume)) ? Number(row.volume) : undefined,
-            close: Number(row.close)
-          }));
+        const { tradingDay: _tradingDay, marketHours: _marketHours, ...yahooOptions } = historicalOptions;
+        const rows = ((await yahoo.chart(key, { ...yahooOptions, return: "array" } as any)) as any).quotes ?? [];
+        const mapped = mapChartRows(rows, historicalOptions.period2);
+        const history = range === "1d" ? sanitizeIntradayPoints(key, mapped) : mapped;
         return history;
       },
-      () => readHistoryCache(key, range, 60 * 60),
-      (data) => writeHistoryCache(key, range, data)
+      cacheReader,
+      cacheWriter
     );
 
     return { data: markStaleList(result.data, result.stale), stale: result.stale };

@@ -1,4 +1,4 @@
-import type { PortfolioPerformancePoint } from "@pea/shared";
+import type { PortfolioPerformancePoint, RangeKey } from "@pea/shared";
 import {
   Area,
   AreaChart,
@@ -7,15 +7,27 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { money } from "../lib/format";
+import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money } from "../lib/format";
 import { getTrend } from "../lib/chart";
+
+export function normalizePortfolioPerformanceData(data: PortfolioPerformancePoint[]) {
+  const byDate = new Map<string, PortfolioPerformancePoint>();
+  for (const point of data) {
+    if (!point.date || !Number.isFinite(new Date(point.date).getTime()) || !Number.isFinite(point.value)) continue;
+    byDate.set(point.date, point);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
 
 export function PortfolioChart({
   data,
+  range,
 }: {
   data: PortfolioPerformancePoint[];
+  range: RangeKey;
 }) {
-  const chartData = data.map((point) => ({
+  const normalizedData = normalizePortfolioPerformanceData(data);
+  const chartData = normalizedData.map((point) => ({
     date: point.date,
     close: point.value,
     value: point.value,
@@ -37,7 +49,7 @@ export function PortfolioChart({
     <div className="h-72 w-full">
       <ResponsiveContainer>
         <AreaChart
-          data={data}
+          data={normalizedData}
           margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
         >
           <defs>
@@ -75,7 +87,18 @@ export function PortfolioChart({
             </linearGradient>
           </defs>
 
-          <XAxis dataKey="date" hide />
+          <XAxis
+            dataKey="date"
+            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tickFormatter={(value) => {
+              if (range === "1d") return formatChartTime(String(value));
+              if (range === "1w") return formatChartWeekTick(String(value));
+              return formatChartDate(String(value));
+            }}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={28}
+          />
           <YAxis hide domain={["dataMin", "dataMax"]} />
 
           <Tooltip
@@ -85,6 +108,11 @@ export function PortfolioChart({
               borderRadius: 8,
             }}
             formatter={(value) => money(Number(value))}
+            labelFormatter={(value) => {
+              if (range === "1d") return formatChartTime(String(value));
+              if (range === "1w") return formatChartDateTime(String(value));
+              return formatChartDate(String(value));
+            }}
             labelStyle={{ color: "#cbd5e1" }}
           />
 

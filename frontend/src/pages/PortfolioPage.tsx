@@ -6,23 +6,26 @@ import { api } from "../lib/api";
 
 export function PortfolioPage() {
   const portfolio = useAsync(() => api.portfolio(), []);
+  const positionsPerformance = useAsync(() => api.positionsPerformance("max"), []);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      <div className="space-y-4">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <aside className="order-first lg:order-last">
+        <AddPositionForm compact onCreated={() => { void portfolio.reload(); void positionsPerformance.reload(); }} />
+      </aside>
+      <div className="min-w-0 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">Portefeuille</h1>
-          <p className="muted">Ajoutez vos actions et ETF éligibles ou à vérifier pour suivre la valorisation.</p>
+          <p className="muted">Ajoutez vos actions et ETF eligibles ou a verifier pour suivre la valorisation.</p>
         </div>
-        {portfolio.loading ? (
+        {portfolio.loading || positionsPerformance.loading ? (
           <div className="card p-6">Chargement...</div>
-        ) : portfolio.data && portfolio.data.positions.length > 0 ? (
-          <PositionList positions={portfolio.data.positions} />
+        ) : positionsPerformance.data && positionsPerformance.data.length > 0 ? (
+          <PositionList positions={positionsPerformance.data} range="max" />
         ) : (
           <EmptyState />
         )}
       </div>
-      <AddPositionForm onCreated={portfolio.reload} />
     </div>
   );
 }

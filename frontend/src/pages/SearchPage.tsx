@@ -1,10 +1,7 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Search, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { MiniChart } from "../components/MiniChart";
-import { PeaBadge } from "../components/PeaBadge";
-import { StaleBadge } from "../components/StaleBadge";
 import { api } from "../lib/api";
 import { money, percent } from "../lib/format";
 
@@ -13,26 +10,38 @@ export function SearchPage() {
   const [results, setResults] = useState<EnrichedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastQueryRef = useRef("");
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) {
       setResults([]);
+      setLoading(false);
+      lastQueryRef.current = "";
       return;
     }
 
+    if (normalizedQuery === lastQueryRef.current) return;
+
+    const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
-        setResults(await api.enrichedSearch(query));
+        const nextResults = await api.enrichedSearch(normalizedQuery, controller.signal);
+        lastQueryRef.current = normalizedQuery;
+        setResults(nextResults);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Recherche impossible");
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Recherche impossible");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
-    }, 350);
+    }, 800);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, [query]);
 
   async function toggle(item: EnrichedSearchResult) {
@@ -50,7 +59,7 @@ export function SearchPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Chercher</h1>
-        <p className="muted">Recherchez des actions ou ETF et ajoutez-les à votre liste de suivi.</p>
+        <p className="muted">Recherchez des actions ou ETF et ajoutez-les a votre liste de suivi.</p>
       </div>
 
       <label className="relative block">
@@ -59,20 +68,17 @@ export function SearchPage() {
       </label>
 
       {error && <div className="card border-coral p-4 text-coral">{error}</div>}
-      {loading && <div className="card p-4 text-slate-400">Recherche en cours...</div>}
+      {loading && <SearchSkeleton />}
 
       <div className="card divide-y divide-line overflow-hidden">
         {results.map((item) => (
-          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 p-4" key={`${item.symbol}-${item.exchange}`}>
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-4" key={`${item.symbol}-${item.exchange}`}>
             <Link className="min-w-0" to={`/assets/${item.symbol}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="truncate font-semibold">{item.name}</p>
-                <PeaBadge status={item.peaEligibility.status} />
-                <StaleBadge show={item.marketDataUnavailable || item.stale} />
+                {item.isInPortfolio && <span className="rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">En portefeuille</span>}
               </div>
-              <p className="muted">
-                {item.symbol} {item.isInPortfolio ? "· En portefeuille" : ""}
-              </p>
+              <p className="muted">{item.symbol}</p>
             </Link>
             <div className="hidden text-right sm:block">
               <p className="font-semibold">{item.price === undefined ? "n/a" : money(item.price, item.currency ?? "EUR")}</p>
@@ -80,14 +86,29 @@ export function SearchPage() {
                 {item.regularMarketChangePercent === undefined ? "n/a" : percent(item.regularMarketChangePercent)}
               </p>
             </div>
-            <MiniChart data={item.history} />
             <button className="text-amber" onClick={() => void toggle(item)} title="Liste de suivi" type="button">
               <Star fill={item.isInWatchlist ? "currentColor" : "none"} size={22} />
             </button>
           </div>
         ))}
-        {!loading && query.length >= 2 && results.length === 0 && <p className="p-4 text-slate-400">Aucun résultat.</p>}
+        {!loading && query.trim().length >= 2 && results.length === 0 && <p className="p-4 text-slate-400">Aucun resultat.</p>}
       </div>
+    </div>
+  );
+}
+
+function SearchSkeleton() {
+  return (
+    <div className="card divide-y divide-line overflow-hidden">
+      {[0, 1, 2].map((item) => (
+        <div className="grid grid-cols-[1fr_auto] gap-3 p-4" key={item}>
+          <div className="space-y-2">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-panel2" />
+            <div className="h-3 w-24 animate-pulse rounded bg-panel2" />
+          </div>
+          <div className="h-8 w-16 animate-pulse rounded bg-panel2" />
+        </div>
+      ))}
     </div>
   );
 }

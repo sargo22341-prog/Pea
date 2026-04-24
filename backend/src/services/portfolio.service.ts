@@ -1,4 +1,4 @@
-import type { CreatePositionInput, PortfolioPerformancePoint, PortfolioSummary, Position, PositionWithMarket, RangeKey, UpdatePositionInput } from "@pea/shared";
+import type { CreatePositionInput, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionWithMarket, RangeKey, UpdatePositionInput } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
@@ -137,9 +137,45 @@ export class PortfolioService {
     const histories = await Promise.all(
       positions.map(async (position) => ({
         position,
-        history: await this.safeHistory(position.symbol, range)
+        history: await this.safeHistory(position.symbol, range),
+        fallbackPrice: await this.safeCurrentPrice(position)
       }))
     );
+    if (range === "1d" || range === "1w") {
+      const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
+        .filter((date) => new Date(date).getTime() <= Date.now())
+        .sort((a, b) => a.localeCompare(b));
+
+      if (!timeline.length) {
+        const fallbackValue = histories.reduce((sum, item) => sum + item.fallbackPrice * item.position.quantity, 0);
+        return [{ date: new Date().toISOString(), value: fallbackValue, stale: true }];
+      }
+
+      const cursors = new Map<string, number>();
+      const lastPrices = new Map<string, number>();
+      for (const item of histories) {
+        cursors.set(item.position.symbol, 0);
+        lastPrices.set(item.position.symbol, item.fallbackPrice);
+      }
+
+      return timeline.map((date) => {
+        const time = new Date(date).getTime();
+        let value = 0;
+
+        for (const item of histories) {
+          const symbol = item.position.symbol;
+          let cursor = cursors.get(symbol) ?? 0;
+          while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= time) {
+            lastPrices.set(symbol, item.history[cursor].close);
+            cursor += 1;
+          }
+          cursors.set(symbol, cursor);
+          value += (lastPrices.get(symbol) ?? item.fallbackPrice) * item.position.quantity;
+        }
+
+        return { date, value, stale: histories.some((item) => item.history.some((point) => point.stale)) };
+      });
+    }
 
     const byDate = new Map<string, number>();
     for (const { position, history } of histories) {
@@ -152,6 +188,11 @@ export class PortfolioService {
     return [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, value]) => ({ date, value }));
+  }
+
+  async positionsPerformance(range: RangeKey): Promise<PositionRangePerformance[]> {
+    const positions = this.listPositions();
+    return Promise.all(positions.map((position) => this.positionRangePerformance(position, range)));
   }
 
   private async enrichPosition(position: Position): Promise<PositionWithMarket> {
@@ -191,6 +232,68 @@ export class PortfolioService {
       throw error;
     }
   }
+
+  private async safeCurrentPrice(position: Position) {
+    try {
+      const quote = await yahooService.quote(position.symbol);
+      return quote.data.price || position.averageBuyPrice;
+    } catch (error) {
+      if (isMarketDataUnavailable(error)) return position.averageBuyPrice;
+      throw error;
+    }
+  }
+
+  private async positionRangePerformance(position: Position, range: RangeKey): Promise<PositionRangePerformance> {
+    const [history, quoteResult] = await Promise.all([
+      this.safeHistory(position.symbol, range),
+      this.safeQuote(position)
+    ]);
+    const quote = quoteResult.quote;
+    const validHistory = history.filter((point) => Number.isFinite(point.close)).sort((a, b) => a.date.localeCompare(b.date));
+    const firstPoint = validHistory[0];
+    const lastPoint = validHistory[validHistory.length - 1];
+    const fallbackCurrentPrice = quote?.price || position.averageBuyPrice;
+    const currentPrice = lastPoint?.close || fallbackCurrentPrice;
+    const intervalStartPrice =
+      firstPoint?.close ||
+      (range === "1d" && quote?.previousClose ? quote.previousClose : undefined) ||
+      currentPrice ||
+      position.averageBuyPrice;
+
+    const currentMarketValue = position.quantity * currentPrice;
+    const intervalStartMarketValue = position.quantity * intervalStartPrice;
+    const intervalPerformanceValue = currentMarketValue - intervalStartMarketValue;
+    const intervalPerformancePercent = intervalStartMarketValue ? (intervalPerformanceValue / intervalStartMarketValue) * 100 : 0;
+    const totalCost = position.quantity * position.averageBuyPrice;
+    const totalPerformanceValue = currentMarketValue - totalCost;
+    const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
+    const incompleteData = !firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale);
+
+    return {
+      ...position,
+      currentPrice,
+      currentMarketValue,
+      intervalStartPrice,
+      intervalStartMarketValue,
+      intervalPerformanceValue,
+      intervalPerformancePercent,
+      totalPerformanceValue,
+      totalPerformancePercent,
+      stale: incompleteData,
+      incompleteData
+    };
+  }
+
+  private async safeQuote(position: Position) {
+    try {
+      const result = await yahooService.quote(position.symbol);
+      return { quote: result.data, stale: result.stale || result.data.stale || result.data.unavailable };
+    } catch (error) {
+      if (isMarketDataUnavailable(error)) return { quote: undefined, stale: true };
+      throw error;
+    }
+  }
+
 }
 
 export const portfolioService = new PortfolioService();

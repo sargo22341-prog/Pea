@@ -8,8 +8,11 @@ import { portfolioService } from "../services/portfolio.service.js";
 import { isMarketDataUnavailable, yahooService } from "../services/yahoo.service.js";
 import { watchlistService } from "../services/watchlist.service.js";
 import { db } from "../db.js";
-import { evaluatePeaEligibility, rankAssetForPea, sortAssetsForPea } from "../services/peaEligibility.js";
-import { marketDebug, marketDebugLogPath } from "../utils/market-debug.js";
+import { evaluatePeaEligibility, rankAssetForPea } from "../services/peaEligibility.js";
+import { attachUser, clearAuthCookie, readCookie, requireAuth, setAuthCookie } from "../middleware/auth.js";
+import { authCookieName, authService } from "../services/auth.service.js";
+import { iconService } from "../services/icon.service.js";
+import { confirmBoursoramaImport, previewBoursoramaImport } from "../services/importBoursorama.service.js";
 
 export const apiRouter = express.Router();
 
@@ -19,60 +22,164 @@ const asyncRoute =
     Promise.resolve(handler(req, res, next)).catch(next);
   };
 
+function parseMultipartIcon(req: express.Request) {
+  const contentType = req.headers["content-type"] ?? "";
+  const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
+  if (!boundary || !Buffer.isBuffer(req.body)) throw new HttpError(400, "Fichier image requis.");
+
+  const body = req.body as Buffer;
+  const marker = Buffer.from(`--${boundary}`);
+  const parts: Buffer[] = [];
+  let start = body.indexOf(marker);
+  while (start !== -1) {
+    const next = body.indexOf(marker, start + marker.length);
+    if (next === -1) break;
+    parts.push(body.subarray(start + marker.length, next));
+    start = next;
+  }
+
+  for (const rawPart of parts) {
+    const part = trimMultipartPart(rawPart);
+    const separator = part.indexOf(Buffer.from("\r\n\r\n"));
+    if (separator === -1) continue;
+    const headers = part.subarray(0, separator).toString("utf8");
+    if (!/name="icon"/i.test(headers) && !/filename="/i.test(headers)) continue;
+    const mimeType = /content-type:\s*([^\r\n]+)/i.exec(headers)?.[1]?.trim().toLowerCase() ?? "application/octet-stream";
+    const buffer = part.subarray(separator + 4);
+    if (!buffer.length) throw new HttpError(400, "Fichier image vide.");
+    return { buffer, mimeType };
+  }
+
+  throw new HttpError(400, "Fichier image requis.");
+}
+
+function trimMultipartPart(part: Buffer) {
+  let start = 0;
+  let end = part.length;
+  while (start < end && (part[start] === 13 || part[start] === 10)) start += 1;
+  while (end > start && (part[end - 1] === 13 || part[end - 1] === 10 || part[end - 1] === 45)) end -= 1;
+  return part.subarray(start, end);
+}
+
+apiRouter.use(attachUser);
+
+apiRouter.get("/auth/me", asyncRoute(async (req, res) => {
+  res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers() });
+}));
+
+apiRouter.post("/auth/setup", asyncRoute(async (req, res) => {
+  const body = z.object({
+    username: z.string().trim().min(1),
+    password: z.string().min(1),
+    confirmPassword: z.string().min(1),
+    profileIconUrl: z.string().url().optional().or(z.literal(""))
+  }).parse(req.body);
+  if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
+  const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
+  setAuthCookie(res, result.token);
+  res.status(201).json(result.user);
+}));
+
+apiRouter.post("/auth/login", asyncRoute(async (req, res) => {
+  const body = z.object({ username: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
+  const result = await authService.login(body.username, body.password);
+  setAuthCookie(res, result.token);
+  res.json(result.user);
+}));
+
+apiRouter.post("/auth/logout", asyncRoute(async (req, res) => {
+  authService.logout(readCookie(req, authCookieName));
+  clearAuthCookie(res);
+  res.status(204).send();
+}));
+
+apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
+  const body = z.object({
+    username: z.string().trim().min(1).optional(),
+    password: z.string().min(1).optional(),
+    confirmPassword: z.string().optional(),
+    profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
+    dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
+    dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
+    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional()
+  }).parse(req.body);
+  if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
+  res.json(await authService.updateUser(req.user!.id, body));
+}));
+
+apiRouter.get("/auth/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
+  const icon = authService.getProfileIconFile(req.user!.id);
+  if (!icon) {
+    res.status(404).json({ message: "Icone de profil absente." });
+    return;
+  }
+  res.type(icon.mimeType).sendFile(icon.filePath);
+}));
+
+apiRouter.post(
+  "/auth/me/profile-icon",
+  requireAuth,
+  express.raw({ type: "multipart/form-data", limit: "1100kb" }),
+  asyncRoute(async (req, res) => {
+    const upload = parseMultipartIcon(req);
+    if (!authService.isAllowedProfileIconMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
+    if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
+    res.json(authService.saveProfileIcon(req.user!.id, upload.buffer, upload.mimeType));
+  })
+);
+
+apiRouter.delete("/auth/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
+  authService.deleteProfileIcon(req.user!.id);
+  res.status(204).send();
+}));
+
+apiRouter.use(requireAuth);
+
 apiRouter.get("/search/enriched", asyncRoute(async (req, res) => {
+  const totalStartedAt = performance.now();
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (!q) throw new HttpError(400, "Le paramètre q est requis");
 
+  const searchStartedAt = performance.now();
   const result = await yahooService.search(q);
-  const enriched = await Promise.all(
-    result.data.filter((item) => typeof item.symbol === "string" && item.symbol.trim()).map(async (item): Promise<EnrichedSearchResult> => {
-      const symbol = item.symbol.toUpperCase();
-      let quote: Quote | undefined;
-      let history: HistoryPoint[] = [];
-      let marketDataUnavailable = false;
+  const searchMs = performance.now() - searchStartedAt;
+  const items = result.data.filter((item) => typeof item.symbol === "string" && item.symbol.trim());
+  const symbols = items.map((item) => item.symbol.trim().toUpperCase());
 
-      try {
-        quote = (await yahooService.quote(symbol)).data;
-      } catch (error) {
-        if (!isMarketDataUnavailable(error)) throw error;
-        marketDataUnavailable = true;
-      }
+  const quoteStartedAt = performance.now();
+  const quotes = await yahooService.quoteCombine(symbols);
+  const quoteMs = performance.now() - quoteStartedAt;
+  const quoteBySymbol = new Map(quotes.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
 
-      try {
-        history = (await yahooService.history(symbol, "1d")).data;
-      } catch (error) {
-        if (!isMarketDataUnavailable(error)) throw error;
-        marketDataUnavailable = true;
-      }
+  const dbStartedAt = performance.now();
+  const watchlistSymbols = new Set(db.prepare("SELECT symbol FROM watchlist").all().map((row: any) => String(row.symbol).toUpperCase()));
+  const portfolioSymbols = new Set(db.prepare("SELECT symbol FROM positions").all().map((row: any) => String(row.symbol).toUpperCase()));
+  const dbMs = performance.now() - dbStartedAt;
 
-      const asset = {
-        ...item,
-        currency: quote?.currency ?? item.currency,
-        exchange: quote?.exchange ?? item.exchange,
-        name: quote?.name ?? item.name
-      };
+  const enriched: EnrichedSearchResult[] = items.map((item) => {
+    const symbol = item.symbol.trim().toUpperCase();
+    const quote = quoteBySymbol.get(symbol);
+    return {
+      symbol,
+      name: quote?.name ?? item.name,
+      exchange: quote?.exchange ?? item.exchange,
+      quoteType: quote?.quoteType ?? item.quoteType,
+      currency: quote?.currency ?? item.currency,
+      price: quote?.price,
+      regularMarketChangePercent: quote?.changePercent,
+      isInWatchlist: watchlistSymbols.has(symbol),
+      isInPortfolio: portfolioSymbols.has(symbol)
+    };
+  });
 
-      return {
-        ...asset,
-        price: quote?.price,
-        regularMarketChangePercent: quote?.changePercent,
-        isInWatchlist: Boolean(db.prepare("SELECT 1 FROM watchlist WHERE symbol = ?").get(symbol)),
-        isInPortfolio: Boolean(db.prepare("SELECT 1 FROM positions WHERE symbol = ?").get(symbol)),
-        peaEligibility: evaluatePeaEligibility(asset),
-        peaRank: rankAssetForPea(asset),
-        history,
-        stale: result.stale || quote?.stale || history.some((point) => point.stale),
-        marketDataUnavailable: marketDataUnavailable || quote?.unavailable
-      };
-    })
-  );
+  console.info(`[search] q=${q} search=${Math.round(searchMs)}ms quote=${Math.round(quoteMs)}ms db=${Math.round(dbMs)}ms total=${Math.round(performance.now() - totalStartedAt)}ms`);
 
-  res.json(sortAssetsForPea(enriched));
+  res.json(enriched);
 }));
 
 apiRouter.get("/search", asyncRoute(async (req, res) => {
   const result = await yahooService.search(String(req.query.q ?? ""));
-  res.json(sortAssetsForPea(result.data).map((item) => ({ ...item, stale: result.stale })));
+  res.json(result.data.map((item) => ({ ...item, stale: result.stale })));
 }));
 
 apiRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
@@ -88,6 +195,37 @@ apiRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
 apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
   const result = await yahooService.dividends(req.params.symbol);
   res.json(result.data);
+}));
+
+apiRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
+  const icon = iconService.getIconFile(req.params.symbol);
+  if (icon?.filePath && icon.mimeType) {
+    res.type(icon.mimeType).sendFile(icon.filePath);
+    return;
+  }
+
+  iconService.getAssetIcon(req.params.symbol);
+  res.type("image/svg+xml").send(iconService.placeholder(req.params.symbol));
+}));
+
+apiRouter.post(
+  "/assets/:symbol/icon",
+  express.raw({ type: "multipart/form-data", limit: "1100kb" }),
+  asyncRoute(async (req, res) => {
+    const upload = parseMultipartIcon(req);
+    if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
+    if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
+    res.json(await iconService.saveIconFromBuffer(req.params.symbol, upload.buffer, upload.mimeType, "manual"));
+  })
+);
+
+apiRouter.delete("/assets/:symbol/icon", asyncRoute(async (req, res) => {
+  iconService.resetIcon(req.params.symbol);
+  res.status(204).send();
+}));
+
+apiRouter.get("/asset-icons", asyncRoute(async (_req, res) => {
+  res.json(iconService.listKnownAssets());
 }));
 
 apiRouter.get("/portfolio", asyncRoute(async (_req, res) => {
@@ -135,8 +273,22 @@ apiRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
   res.json(await portfolioService.performance(parseRange(req.query.range)));
 }));
 
+apiRouter.get("/portfolio/positions/performance", asyncRoute(async (req, res) => {
+  res.json(await portfolioService.positionsPerformance(parseRange(req.query.range)));
+}));
+
 apiRouter.get("/portfolio/dividends", asyncRoute(async (_req, res) => {
   res.json(await dividendService.portfolioDividends());
+}));
+
+apiRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
+  const body = z.object({ content: z.string().min(1) }).parse(req.body);
+  res.json(await previewBoursoramaImport(body.content));
+}));
+
+apiRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
+  const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
+  res.json(await confirmBoursoramaImport(body.rows));
 }));
 
 apiRouter.get("/watchlist", asyncRoute(async (_req, res) => {
@@ -190,18 +342,6 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   } catch (error) {
     if (!isMarketDataUnavailable(error)) throw error;
     marketUnavailable = true;
-  }
-
-  if (range === "1d") {
-    marketDebug("api:assets:history", {
-      symbol,
-      range,
-      historyCount: history.length,
-      first: history.slice(0, 3),
-      last: history.slice(-3),
-      marketUnavailable,
-      logFile: marketDebugLogPath()
-    });
   }
 
   let dividends: DividendEvent[] = [];

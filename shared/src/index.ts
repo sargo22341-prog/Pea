@@ -1,4 +1,6 @@
 export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "max";
+export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
+export type SortDirection = "asc" | "desc";
 
 export type CurrencyCode = "EUR" | "USD" | "GBP" | "CHF" | string;
 
@@ -34,18 +36,21 @@ export interface SearchResult {
   exchange?: string;
   quoteType?: string;
   currency?: CurrencyCode;
-  peaEligibility: PeaEligibilityResult;
+  peaEligibility?: PeaEligibilityResult;
   peaRank?: PeaRankingResult;
   stale?: boolean;
 }
 
-export interface EnrichedSearchResult extends SearchResult {
+export interface EnrichedSearchResult {
+  symbol: string;
+  name: string;
+  exchange?: string;
+  quoteType?: string;
+  currency?: CurrencyCode;
   price?: number;
   regularMarketChangePercent?: number;
   isInWatchlist: boolean;
   isInPortfolio: boolean;
-  history: HistoryPoint[];
-  marketDataUnavailable?: boolean;
 }
 
 export interface Quote {
@@ -106,6 +111,20 @@ export interface PositionWithMarket extends Position {
   performancePercent: number;
   estimatedAnnualDividend?: number;
   marketDataUnavailable?: boolean;
+}
+
+export interface PositionRangePerformance extends Position {
+  currentPrice: number;
+  currentMarketValue: number;
+  intervalStartPrice: number;
+  intervalStartMarketValue: number;
+  intervalPerformanceValue: number;
+  intervalPerformancePercent: number;
+  totalPerformanceValue: number;
+  totalPerformancePercent: number;
+  currency: CurrencyCode;
+  stale?: boolean;
+  incompleteData?: boolean;
 }
 
 export interface WatchlistItem {
@@ -190,4 +209,49 @@ export interface AssetDetails {
   peaEligibility: PeaEligibilityResult;
   peaRank: PeaRankingResult;
   stale?: boolean;
+}
+
+export interface AssetIcon {
+  symbol: string;
+  filePath?: string;
+  mimeType?: string;
+  size?: number;
+  source: "manual" | "auto";
+  fetchStatus: "success" | "failed" | "pending";
+  lastAttemptAt?: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  profileIconUrl?: string;
+  hasProfileIcon?: boolean;
+  dashboardDefaultSortKey: DashboardSortKey;
+  dashboardDefaultSortDirection: SortDirection;
+  defaultChartRange: RangeKey;
+  createdAt: string;
+}
+
+export interface AuthMe {
+  user: User | null;
+  setupRequired: boolean;
+}
+
+export interface BoursoramaImportRow {
+  line: number;
+  name: string;
+  isin: string;
+  quantity: number;
+  buyingPrice: number;
+  lastPrice: number;
+  intradayVariation: number;
+  amount: number;
+  amountVariation: number;
+  variation: number;
+  symbol: string | null;
+  peaEligibility?: PeaEligibilityResult;
+  needsReview: boolean;
+  errors: string[];
+  existingPositionId?: number;
+  action?: "replace" | "merge" | "ignore";
 }

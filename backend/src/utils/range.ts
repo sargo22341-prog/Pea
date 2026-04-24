@@ -1,5 +1,13 @@
 import type { RangeKey } from "@pea/shared";
 
+type Interval = "2m" | "1h" | "1d" | "1wk" | "1mo";
+
+export interface MarketHours {
+  timezone: string;
+  openTime: string;
+  closeTime: string;
+}
+
 export function parseRange(value: unknown): RangeKey {
   const range = String(value ?? "1m").toLowerCase();
   if (["1d", "1w", "1m", "1y", "ytd", "max"].includes(range)) {
@@ -8,16 +16,19 @@ export function parseRange(value: unknown): RangeKey {
   return "1m";
 }
 
-export function yahooRange(range: RangeKey): { period1: Date; period2?: Date; interval: "15m" | "1d" | "1wk" | "1mo" } {
+export function yahooRange(
+  range: RangeKey,
+  market: { symbol?: string; exchange?: string; fullExchangeName?: string } = {}
+): { period1: Date; period2?: Date; interval: Interval; tradingDay?: string; marketHours?: MarketHours } {
   const now = new Date();
   const start = new Date(now);
 
   switch (range) {
     case "1d":
-      return { ...getMarketHours(), interval: "15m" };
+      return { ...getMarketSession(market.symbol, market.exchange, market.fullExchangeName, now), interval: "2m" };
     case "1w":
       start.setDate(now.getDate() - 7);
-      return { period1: start, interval: "1d" };
+      return { period1: start, period2: now, interval: "1h" };
     case "1m":
       start.setMonth(now.getMonth() - 1);
       return { period1: start, interval: "1d" };
@@ -42,14 +53,30 @@ export function isValidHistoricalDate(value: unknown): value is Date | string | 
 
 export function buildHistoricalOptions(
   range: RangeKey,
-  options: { period1?: Date | string | number | null; period2?: Date | string | number | null; events?: "history" | "dividends" } = {}
+  options: {
+    period1?: Date | string | number | null;
+    period2?: Date | string | number | null;
+    events?: "history" | "dividends";
+    symbol?: string;
+    exchange?: string;
+    fullExchangeName?: string;
+  } = {}
 ) {
-  const rangeOptions = yahooRange(range);
+  const rangeOptions = yahooRange(range, options);
   const period1 = options.period1 ?? rangeOptions.period1;
   const period2 = options.period2 ?? rangeOptions.period2;
-  const built: { period1: Date | string | number; period2?: Date | string | number; interval: "15m" | "1d" | "1wk" | "1mo"; events?: "history" | "dividends" } = {
+  const built: {
+    period1: Date | string | number;
+    period2?: Date | string | number;
+    interval: Interval;
+    events?: "history" | "dividends";
+    tradingDay?: string;
+    marketHours?: MarketHours;
+  } = {
     period1: isValidHistoricalDate(period1) ? period1 : rangeOptions.period1,
-    interval: rangeOptions.interval
+    interval: rangeOptions.interval,
+    tradingDay: rangeOptions.tradingDay,
+    marketHours: rangeOptions.marketHours
   };
 
   if (isValidHistoricalDate(period2)) {
@@ -63,28 +90,73 @@ export function buildHistoricalOptions(
   return built;
 }
 
-export function getMarketHours(_symbol?: string, _exchange?: string) {
-  const now = new Date();
-  const paris = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Paris",
+export function getMarketHours(symbol?: string, exchange?: string, fullExchangeName?: string): MarketHours {
+  const normalizedSymbol = String(symbol ?? "").toUpperCase();
+  const normalizedExchange = `${exchange ?? ""} ${fullExchangeName ?? ""}`.toUpperCase();
+
+  if (normalizedSymbol.endsWith(".PA") || normalizedExchange.includes("PARIS")) return { timezone: "Europe/Paris", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".AS") || normalizedExchange.includes("AMSTERDAM")) return { timezone: "Europe/Amsterdam", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".BR") || normalizedExchange.includes("BRUSSELS")) return { timezone: "Europe/Brussels", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".MI") || normalizedExchange.includes("MILAN") || normalizedExchange.includes("ITALIANA")) return { timezone: "Europe/Rome", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".DE") || normalizedExchange.includes("XETRA") || normalizedExchange.includes("FRANKFURT")) return { timezone: "Europe/Berlin", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".MC") || normalizedExchange.includes("MADRID")) return { timezone: "Europe/Madrid", openTime: "09:00", closeTime: "17:30" };
+  if (normalizedSymbol.endsWith(".LS") || normalizedExchange.includes("LISBON")) return { timezone: "Europe/Lisbon", openTime: "08:00", closeTime: "16:30" };
+  if (normalizedSymbol.endsWith(".L") || normalizedExchange.includes("LONDON")) return { timezone: "Europe/London", openTime: "08:00", closeTime: "16:30" };
+  if (normalizedSymbol.endsWith(".TO") || normalizedExchange.includes("TORONTO")) return { timezone: "America/Toronto", openTime: "09:30", closeTime: "16:00" };
+  if (
+    !normalizedSymbol.includes(".") ||
+    normalizedExchange.includes("NASDAQ") ||
+    normalizedExchange.includes("NYSE") ||
+    normalizedExchange.includes("AMEX") ||
+    normalizedExchange.includes("NEW YORK")
+  ) {
+    return { timezone: "America/New_York", openTime: "09:30", closeTime: "16:00" };
+  }
+
+  return { timezone: "Europe/Paris", openTime: "09:00", closeTime: "17:30" };
+}
+
+export function getCurrentTradingDay(symbol?: string, exchange?: string, fullExchangeName?: string) {
+  return getMarketSession(symbol, exchange, fullExchangeName).tradingDay;
+}
+
+function getMarketSession(symbol?: string, exchange?: string, fullExchangeName?: string, now = new Date()) {
+  const marketHours = getMarketHours(symbol, exchange, fullExchangeName);
+  const local = getLocalDateParts(now, marketHours.timezone);
+  const [openHour, openMinute] = marketHours.openTime.split(":").map(Number);
+  const [closeHour, closeMinute] = marketHours.closeTime.split(":").map(Number);
+
+  const localToday = new Date(Date.UTC(local.year, local.month - 1, local.day));
+  const todayOpen = zonedTimeToUtc(local.year, local.month, local.day, openHour, openMinute, marketHours.timezone);
+  const daysBack = local.weekday === "Sat" ? 1 : local.weekday === "Sun" ? 2 : now < todayOpen ? 1 : 0;
+  const marketDay = new Date(localToday);
+  marketDay.setUTCDate(localToday.getUTCDate() - daysBack);
+  if (marketDay.getUTCDay() === 0) marketDay.setUTCDate(marketDay.getUTCDate() - 2);
+  if (marketDay.getUTCDay() === 6) marketDay.setUTCDate(marketDay.getUTCDate() - 1);
+
+  const period1 = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), openHour, openMinute, marketHours.timezone);
+  const close = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), closeHour, closeMinute, marketHours.timezone);
+  const period2 = now < period1 ? period1 : now > close ? close : now;
+  const tradingDay = `${marketDay.getUTCFullYear()}-${String(marketDay.getUTCMonth() + 1).padStart(2, "0")}-${String(marketDay.getUTCDate()).padStart(2, "0")}`;
+
+  return { period1, period2, tradingDay, marketHours };
+}
+
+function getLocalDateParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     weekday: "short"
-  }).formatToParts(now);
-  const value = (type: string) => paris.find((part) => part.type === type)?.value ?? "";
-  const year = Number(value("year"));
-  const month = Number(value("month"));
-  const day = Number(value("day"));
-  const weekday = value("weekday");
-
-  const daysBack = weekday === "Sat" ? 1 : weekday === "Sun" ? 2 : 0;
-  const marketDay = new Date(Date.UTC(year, month - 1, day - daysBack));
-  const open = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), 9, 0, "Europe/Paris");
-  const close = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), 17, 30, "Europe/Paris");
-  const period2 = now < open ? open : now > close ? close : now;
-
-  return { period1: open, period2 };
+  }).formatToParts(date);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: Number(value("year")),
+    month: Number(value("month")),
+    day: Number(value("day")),
+    weekday: value("weekday")
+  };
 }
 
 function zonedTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string) {

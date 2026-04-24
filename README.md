@@ -79,6 +79,8 @@ L'application est pensee en mode cache-first:
 - Le backend lit SQLite en priorite.
 - Yahoo Finance sert uniquement a rafraichir progressivement les donnees.
 - Les quotes, historiques et dividendes sont mis en cache dans SQLite.
+- La vue historique `1J` utilise `yahooFinance.chart` en intervalle `2m`, bornee a la seance Euronext Paris courante ou precedente, sans demander de donnees futures.
+- Le cache intraday est journalier (`symbol`, `range=1d`, `interval=2m`, `tradingDay`) et peut servir de fallback stale si Yahoo echoue.
 - Les appels Yahoo passent par Bottleneck avec `maxConcurrent=1` et `minTime=1200ms`.
 - Les erreurs temporaires utilisent un retry avec backoff exponentiel.
 - Si Yahoo retourne `429`, `401`, `Invalid Crumb`, `User is not logged in` ou `Edge: Too Many Requests`, le backend renvoie les dernieres donnees en cache si elles existent.
@@ -93,15 +95,29 @@ Les informations d'eligibilite PEA ne sont pas verifiees par Yahoo Finance: les 
 
 ## API
 
+- `POST /api/auth/setup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PATCH /api/auth/me`
 - `GET /api/search?q=`
 - `GET /api/quote/:symbol`
 - `GET /api/history/:symbol?range=`
 - `GET /api/dividends/:symbol`
+- `GET /api/assets/:symbol/icon`
+- `POST /api/assets/:symbol/icon`
+- `DELETE /api/assets/:symbol/icon`
 - `GET /api/portfolio`
 - `POST /api/portfolio/positions`
 - `GET /api/portfolio/performance?range=`
 - `GET /api/portfolio/dividends`
+- `POST /api/import/boursorama/preview`
+- `POST /api/import/boursorama/confirm`
 
 ## Notes
 
-Cette premiere version privilegie le dashboard, l'ajout de position, les donnees Yahoo Finance, le graphique de portefeuille et la page dividendes. Le code est decoupe en services pour permettre l'ajout ulterieur d'une base locale d'eligibilite PEA, d'authentification ou d'imports de transactions.
+Le premier lancement affiche la creation du compte local. Les mots de passe sont hashes avec bcrypt et l'acces API prive passe par un cookie de session `httpOnly`.
+
+Les icones d'actifs sont chargees en lazy: l'app cherche d'abord une icone manuelle, puis le cache, puis le site `assetProfile.website` via Yahoo pour generer un favicon. En cas d'echec, l'UI affiche les initiales du ticker.
+
+L'import CSV Boursorama accepte les nombres francais, les noms entre guillemets et une preview corrigeable avant confirmation. Les lignes invalides remontent leurs erreurs sans interrompre toute la preview.

@@ -2,6 +2,7 @@
   "name": "pea-portfolio-app",
   "private": true,
   "version": "0.1.4",
+  "type": "module",
   "workspaces": [
     "backend",
     "frontend",
@@ -14,11 +15,17 @@
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
-    "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend"
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
+    "lint": "eslint backend frontend shared"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "concurrently": "^8.2.2",
-    "typescript": "^5.4.5"
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.59.0"
   },
   "dependencies": {
     "vite": "^8.0.10"
