@@ -1,0 +1,111 @@
+import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends } from "@pea/shared";
+import { HttpError } from "../utils/http-error.js";
+import { portfolioService } from "./portfolio.service.js";
+import { yahooService } from "./yahoo.service.js";
+
+function addOneYear(date: string): string {
+  const next = new Date(date);
+  next.setFullYear(next.getFullYear() + 1);
+  return next.toISOString();
+}
+
+export class DividendService {
+  async portfolioDividends(): Promise<PortfolioDividends> {
+    const positions = await portfolioService.summary();
+    const upcoming: PortfolioDividendEvent[] = [];
+    const past: PortfolioDividendEvent[] = [];
+    const currentYear = new Date().getFullYear();
+    let stale = positions.positions.some((position) => position.quote?.stale);
+
+    for (const position of positions.positions) {
+      let dividends: DividendEvent[] = [];
+      try {
+        const dividendResult = await yahooService.dividends(position.symbol);
+        dividends = dividendResult.data;
+        stale = stale || dividendResult.stale;
+      } catch (error) {
+        if (!(error instanceof HttpError && [429, 502].includes(error.status))) {
+          throw error;
+        }
+        stale = true;
+      }
+
+      const lastYear = currentYear - 1;
+      const lastYearDividends = dividends.filter((event) => new Date(event.date).getFullYear() === lastYear);
+
+      for (const event of dividends) {
+        const year = new Date(event.date).getFullYear();
+        const amountPerShare = event.amount;
+        past.push({
+          symbol: position.symbol,
+          name: position.name,
+          date: event.date,
+          year,
+          amountPerShare,
+          quantity: position.quantity,
+          totalAmount: amountPerShare * position.quantity,
+          currency: event.currency,
+          status: "real",
+          stale: event.stale
+        });
+      }
+
+      for (const event of lastYearDividends) {
+        const date = addOneYear(event.date);
+        const amountPerShare = event.amount;
+        upcoming.push({
+          symbol: position.symbol,
+          name: position.name,
+          date,
+          year: new Date(date).getFullYear(),
+          amountPerShare,
+          quantity: position.quantity,
+          totalAmount: amountPerShare * position.quantity,
+          currency: event.currency,
+          status: "estimated",
+          stale: event.stale
+        });
+      }
+
+      if (!lastYearDividends.length && position.estimatedAnnualDividend) {
+        const amountPerShare = position.quantity ? position.estimatedAnnualDividend / position.quantity : 0;
+        upcoming.push({
+          symbol: position.symbol,
+          name: position.name,
+          date: new Date(currentYear, 11, 31).toISOString(),
+          year: currentYear,
+          amountPerShare,
+          quantity: position.quantity,
+          totalAmount: position.estimatedAnnualDividend,
+          currency: position.currency,
+          status: "estimated"
+        });
+      }
+    }
+
+    const nextEvents = upcoming
+      .filter((event) => new Date(event.date).getFullYear() >= currentYear)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const months = Array.from({ length: 12 }, (_, index) => {
+      const month = `${currentYear}-${String(index + 1).padStart(2, "0")}`;
+      return {
+        month,
+        amount: nextEvents
+          .filter((event) => event.date.startsWith(month))
+          .reduce((sum, event) => sum + event.totalAmount, 0)
+      };
+    });
+
+    return {
+      annualEstimatedTotal: months.reduce((sum, month) => sum + month.amount, 0),
+      currency: "EUR",
+      months,
+      upcoming: nextEvents,
+      past: past.sort((a, b) => b.date.localeCompare(a.date)),
+      stale
+    };
+  }
+}
+
+export const dividendService = new DividendService();

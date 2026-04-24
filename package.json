@@ -1,0 +1,26 @@
+{
+  "name": "pea-portfolio-app",
+  "private": true,
+  "version": "0.1.1",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "node scripts/ensure-port-free.mjs 4000 && concurrently -k \"npm run dev:backend\" \"node scripts/wait-for-health.mjs http://127.0.0.1:4000/health && npm run dev:frontend\"",
+    "dev:clear": "node scripts/clear-market-cache.mjs && npm run dev",
+    "cache:clear": "node scripts/clear-market-cache.mjs",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "vite": "^8.0.10"
+  }
+}

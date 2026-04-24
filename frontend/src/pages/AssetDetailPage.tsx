@@ -1,0 +1,350 @@
+import type { PositionWithMarket, RangeKey } from "@pea/shared";
+import { ArrowDownRight, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { RangeSelector } from "../components/RangeSelector";
+import { PeaBadge } from "../components/PeaBadge";
+import { StaleBadge } from "../components/StaleBadge";
+import { useAsync } from "../hooks/useAsync";
+import { api } from "../lib/api";
+import { formatChartDate, formatChartTime, money, percent, shortDate } from "../lib/format";
+import { buildOneDayChartData } from "../lib/chart"
+
+export function AssetDetailPage() {
+  const { symbol = "" } = useParams();
+  const navigate = useNavigate();
+  const [range, setRange] = useState<RangeKey>("1d");
+  const [editing, setEditing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
+
+  if (asset.loading) return <div className="card p-6">Chargement de {symbol}...</div>;
+  if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
+  if (!asset.data) return null;
+
+  const { quote, history, dividends, position } = asset.data;
+  const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
+
+  async function deletePosition() {
+    if (!position) return;
+    if (!window.confirm(`Supprimer la position ${position.symbol} ?`)) return;
+    await api.deletePosition(position.id);
+    setToast("Position supprimée");
+    navigate("/portfolio");
+  }
+
+  async function refreshAfterEdit() {
+    await asset.reload();
+    setToast("Position mise à jour");
+    window.setTimeout(() => setToast(null), 3000);
+  }
+
+
+  const chartData = range === "1d" ? buildOneDayChartData(history) : history;
+
+  const validPoints = chartData.filter((p) => p.close != null);
+
+  const firstClose = validPoints[0]?.close;
+  const lastClose = validPoints[validPoints.length - 1]?.close;
+
+  const rangeChange =
+    firstClose != null && lastClose != null
+      ? lastClose - firstClose
+      : 0;
+
+  const rangeChangePercent =
+    firstClose != null && lastClose != null && firstClose !== 0
+      ? ((lastClose - firstClose) / firstClose) * 100
+      : 0;
+
+  const positive = rangeChange >= 0;
+  const Icon = positive ? ArrowUpRight : ArrowDownRight;
+
+
+
+  const isPositive =
+    firstClose != null && lastClose != null
+      ? lastClose >= firstClose
+      : true;
+
+  const chartColor = isPositive ? "#22c55e" : "#ef4444";
+  const gradientId = isPositive ? "positiveGradient" : "negativeGradient";
+
+
+  return (
+    <div className="space-y-6">
+      <section className="card p-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div>
+            <p className="muted">{quote.symbol}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold">{quote.name}</h1>
+              <PeaBadge status={asset.data.peaEligibility.status} />
+              <StaleBadge
+                show={asset.data.stale || quote.stale || marketUnavailable}
+                label={marketUnavailable ? "Données de marché indisponibles" : "Données différées"}
+              />
+            </div>
+            <p className="mt-2 text-slate-400">
+              {quote.exchange ?? "Marché n/a"} · {quote.currency}
+            </p>
+          </div>
+          <div className="text-left sm:text-right">
+            <p className="text-3xl font-bold">{money(quote.price, quote.currency)}</p>
+            <p className={`mt-1 flex items-center gap-1 font-semibold sm:justify-end ${positive ? "text-mint" : "text-coral"}`}>
+              <Icon size={18} />
+              {money(rangeChange, quote.currency)} ({percent(rangeChangePercent)})
+            </p>
+            {position && (
+              <button className="btn-ghost mt-3" onClick={() => setEditing(true)} type="button">
+                <Pencil size={17} />
+                Éditer
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
+
+      <section className="card p-4">
+        <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h2 className="font-semibold">Historique</h2>
+          <RangeSelector onChange={setRange} value={range} />
+        </div>
+        {history.length > 1 ? (
+          <div className="h-80">
+            <ResponsiveContainer>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="positiveGradient" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.42} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                  </linearGradient>
+
+                  <linearGradient id="negativeGradient" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.42} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+
+                <Tooltip
+                  contentStyle={{
+                    background: "#10181f",
+                    border: "1px solid #263844",
+                    borderRadius: 8,
+                  }}
+                  formatter={(value) =>
+                    value == null ? "" : money(Number(value), quote.currency)
+                  }
+                  labelFormatter={(value) =>
+                    range === "1d"
+                      ? String(value)
+                      : formatChartDate(String(value))
+                  }
+                />
+
+                <Area
+                  dataKey="close"
+                  fill={`url(#${gradientId})`}
+                  stroke={chartColor}
+                  strokeWidth={3}
+                  type="monotone"
+                  connectNulls={false}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-slate-400">
+            {range === "1d"
+              ? "Données intraday indisponibles"
+              : "Données de marché indisponibles"}
+          </div>
+        )}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="card p-4">
+          <h2 className="mb-4 font-semibold">Ma position</h2>
+          {position ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Info label="Quantité" value={String(position.quantity)} />
+              <Info label="Valeur" value={money(position.marketValue, position.currency)} />
+              <Info label="Valeur d'achat" value={money(position.costBasis, position.currency)} />
+              <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
+              <Info label="Date d'achat" value={position.purchaseDate ?? "n/a"} />
+              <Info label="Performance" value={`${money(position.performance, position.currency)} (${percent(position.performancePercent)})`} />
+            </div>
+          ) : (
+            <p className="text-slate-400">Aucune position détenue pour ce symbole.</p>
+          )}
+        </div>
+
+        <div className="card p-4">
+          <h2 className="mb-4 font-semibold">Informations marché</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <Info label="Marché" value={quote.marketState ?? "n/a"} />
+            <Info label="Dividende annuel" value={quote.dividendRate ? money(quote.dividendRate, quote.currency) : "n/a"} />
+            <Info label="Rendement" value={quote.dividendYield ? percent(quote.dividendYield * 100) : "n/a"} />
+            <Info label="Bourse" value={quote.exchange ?? "n/a"} />
+          </div>
+        </div>
+      </section>
+
+      <section className="card overflow-hidden">
+        <div className="border-b border-line p-4">
+          <h2 className="font-semibold">Dividendes connus</h2>
+        </div>
+        <div className="divide-y divide-line">
+          {dividends.length === 0 && <p className="p-4 text-slate-400">Aucun historique de dividende fourni.</p>}
+          {dividends.slice(-20).reverse().map((event) => {
+            const total = event.amount * (position?.quantity ?? 0);
+            return (
+              <div className="grid grid-cols-[1fr_auto] gap-2 p-4 sm:grid-cols-5" key={`${event.date}-${event.amount}`}>
+                <span className="font-semibold">{new Date(event.date).getFullYear()}</span>
+                <span>{shortDate(event.date)}</span>
+                <span>{money(event.amount, event.currency)} / action</span>
+                <span>{position ? money(total, event.currency) : "n/a"}</span>
+                <span className={event.status === "real" ? "text-mint" : "text-amber"}>{event.status === "real" ? "Réel" : "Estimé"}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {editing && position && (
+        <EditPositionModal
+          onClose={() => setEditing(false)}
+          onDeleted={() => void deletePosition()}
+          onSaved={() => void refreshAfterEdit()}
+          position={position}
+        />
+      )}
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-line bg-ink p-3">
+      <p className="muted">{label}</p>
+      <p className="mt-1 font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function EditPositionModal({
+  position,
+  onClose,
+  onSaved,
+  onDeleted
+}: {
+  position: PositionWithMarket;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+}) {
+  const [quantity, setQuantity] = useState(String(position.quantity));
+  const [averageBuyPrice, setAverageBuyPrice] = useState(String(position.averageBuyPrice));
+  const [currency, setCurrency] = useState(position.currency);
+  const [purchaseDate, setPurchaseDate] = useState(position.purchaseDate ?? "");
+  const [notes, setNotes] = useState(position.notes ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setQuantity(String(position.quantity));
+    setAverageBuyPrice(String(position.averageBuyPrice));
+    setCurrency(position.currency);
+    setPurchaseDate(position.purchaseDate ?? "");
+    setNotes(position.notes ?? "");
+  }, [position]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSaving(true);
+    try {
+      await api.updatePosition(position.id, {
+        quantity: Number(quantity),
+        averageBuyPrice: Number(averageBuyPrice),
+        currency,
+        purchaseDate: purchaseDate || undefined,
+        notes: notes || undefined
+      });
+      onClose();
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Modification impossible");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center">
+      <form className="card w-full max-w-lg space-y-4 p-4" onSubmit={submit}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Éditer {position.symbol}</h2>
+          <button className="btn-ghost" onClick={onClose} type="button">Fermer</button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label>
+            <span className="muted mb-1 block">Quantité</span>
+            <input className="input" min="0" onChange={(event) => setQuantity(event.target.value)} required step="any" type="number" value={quantity} />
+          </label>
+          <label>
+            <span className="muted mb-1 block">Prix d’achat moyen</span>
+            <input className="input" min="0" onChange={(event) => setAverageBuyPrice(event.target.value)} required step="any" type="number" value={averageBuyPrice} />
+          </label>
+          <label>
+            <span className="muted mb-1 block">Devise</span>
+            <select className="input" onChange={(event) => setCurrency(event.target.value)} value={currency}>
+              <option>EUR</option>
+              <option>USD</option>
+              <option>GBP</option>
+              <option>CHF</option>
+            </select>
+          </label>
+          <label>
+            <span className="muted mb-1 block">Date d’achat</span>
+            <input className="input" onChange={(event) => setPurchaseDate(event.target.value)} type="date" value={purchaseDate} />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="muted mb-1 block">Notes</span>
+          <textarea className="input min-h-24" onChange={(event) => setNotes(event.target.value)} value={notes} />
+        </label>
+
+        {error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p>}
+
+        <div className="rounded-md border border-coral/40 bg-coral/10 p-3">
+          <p className="mb-3 text-sm font-semibold text-coral">Zone danger</p>
+          <button className="btn-ghost text-coral" onClick={onDeleted} type="button">
+            <Trash2 size={17} />
+            Supprimer l’action
+          </button>
+        </div>
+
+        <button className="btn-primary w-full" disabled={saving} type="submit">
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      </form>
+    </div>
+  );
+}
