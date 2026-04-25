@@ -74,7 +74,6 @@ db.exec(`
     quantity REAL NOT NULL,
     average_buy_price REAL NOT NULL,
     currency TEXT NOT NULL DEFAULT 'EUR',
-    purchase_date TEXT,
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

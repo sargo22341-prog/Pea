@@ -54,8 +54,8 @@ export function DashboardPage({ user }: { user: User }) {
         />
       </section>
 
-      <section className="card p-4">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <section className="card p-0 sm:p-4">
+        <div className="flex flex-col justify-between gap-4 px-2 pb-3 sm:flex-row sm:items-center sm:px-0 sm:pb-0">
           <div>
             <h1 className="text-xl font-bold">Evolution du portefeuille</h1>
             <p className="muted">Valorisation agregee depuis les historiques Yahoo Finance.</p>

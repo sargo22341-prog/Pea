@@ -23,7 +23,12 @@ export function PortfolioPage({ user }: { user: User }) {
         {portfolio.loading || positionsPerformance.loading ? (
           <div className="card p-6">Chargement...</div>
         ) : positionsPerformance.data && positionsPerformance.data.length > 0 ? (
-          <PositionList positions={positionsPerformance.data} range={range} />
+          <PositionList
+            defaultSortDirection={user.dashboardDefaultSortDirection}
+            defaultSortKey={user.dashboardDefaultSortKey}
+            positions={positionsPerformance.data}
+            range={range}
+          />
         ) : (
           <EmptyState />
         )}

@@ -13,7 +13,6 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
   const [quantity, setQuantity] = useState("");
   const [averageBuyPrice, setAverageBuyPrice] = useState("");
   const [currency, setCurrency] = useState("EUR");
-  const [purchaseDate, setPurchaseDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,15 +78,13 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
         name: selected?.name,
         quantity: parsedQuantity,
         averageBuyPrice: parsedAverageBuyPrice,
-        currency,
-        purchaseDate: purchaseDate || undefined
+        currency
       });
       setQuery("");
       setResults([]);
       setSelected(null);
       setQuantity("");
       setAverageBuyPrice("");
-      setPurchaseDate("");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ajout impossible");
@@ -176,10 +173,6 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
             <option>GBP</option>
             <option>CHF</option>
           </select>
-        </label>
-        <label>
-          <span className="muted mb-1 block">Date d’achat</span>
-          <input className="input" onChange={(event) => setPurchaseDate(event.target.value)} type="date" value={purchaseDate} />
         </label>
       </div>
 

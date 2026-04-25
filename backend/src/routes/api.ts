@@ -296,8 +296,7 @@ apiRouter.post("/portfolio/positions", asyncRoute(async (req, res) => {
       name: z.string().optional(),
       quantity: z.coerce.number().positive(),
       averageBuyPrice: z.coerce.number().nonnegative(),
-      currency: z.string().default("EUR"),
-      purchaseDate: z.string().optional()
+      currency: z.string().default("EUR")
     })
     .parse(req.body);
 
@@ -311,7 +310,6 @@ apiRouter.put("/portfolio/positions/:id", asyncRoute(async (req, res) => {
       quantity: z.coerce.number().positive(),
       averageBuyPrice: z.coerce.number().nonnegative(),
       currency: z.string().default("EUR"),
-      purchaseDate: z.string().optional(),
       notes: z.string().optional()
     })
     .parse(req.body);

@@ -107,7 +107,6 @@ export interface Position {
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
-  purchaseDate?: string;
   notes?: string;
   createdAt: string;
 }
@@ -202,14 +201,12 @@ export interface CreatePositionInput {
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
-  purchaseDate?: string;
 }
 
 export interface UpdatePositionInput {
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
-  purchaseDate?: string;
   notes?: string;
 }
 

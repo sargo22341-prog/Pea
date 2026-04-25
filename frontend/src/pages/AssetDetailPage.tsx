@@ -155,26 +155,26 @@ export function AssetDetailPage({ user }: { user: User }) {
 
       {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
 
-      <section className="card p-4">
-        <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <section className="card p-0 sm:p-4">
+        <div className="mb-3 flex flex-col justify-between gap-4 px-2 sm:mb-4 sm:flex-row sm:items-center sm:px-0">
           <h2 className="font-semibold">Historique</h2>
           <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
         </div>
         {asset.loading ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
         ) : history.length > 1 ? (
-          <div className="h-80">
+          <div className="chart-fade h-80">
             <ResponsiveContainer>
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="positiveGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.42} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
                   </linearGradient>
 
                   <linearGradient id="negativeGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.42} />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
 
@@ -194,9 +194,10 @@ export function AssetDetailPage({ user }: { user: User }) {
 
                 <Tooltip
                   contentStyle={{
-                    background: "#10181f",
-                    border: "1px solid #263844",
+                    background: "rgba(7, 16, 20, 0.72)",
+                    border: "0",
                     borderRadius: 8,
+                    backdropFilter: "blur(6px)",
                   }}
                   formatter={(value) =>
                     value == null ? "" : money(Number(value), quote.currency)
@@ -244,7 +245,6 @@ export function AssetDetailPage({ user }: { user: User }) {
               <Info label="Valeur" value={money(position.marketValue, position.currency)} />
               <Info label="Valeur d'achat" value={money(position.costBasis, position.currency)} />
               <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
-              <Info label="Date d'achat" value={position.purchaseDate ?? "n/a"} />
               <Info label="Performance" value={`${money(position.performance, position.currency)} (${percent(position.performancePercent)})`} />
             </div>
           ) : (
@@ -455,7 +455,6 @@ function EditPositionModal({
   const [quantity, setQuantity] = useState(String(position.quantity));
   const [averageBuyPrice, setAverageBuyPrice] = useState(String(position.averageBuyPrice));
   const [currency, setCurrency] = useState(position.currency);
-  const [purchaseDate, setPurchaseDate] = useState(position.purchaseDate ?? "");
   const [notes, setNotes] = useState(position.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -464,7 +463,6 @@ function EditPositionModal({
     setQuantity(String(position.quantity));
     setAverageBuyPrice(String(position.averageBuyPrice));
     setCurrency(position.currency);
-    setPurchaseDate(position.purchaseDate ?? "");
     setNotes(position.notes ?? "");
   }, [position]);
 
@@ -477,7 +475,6 @@ function EditPositionModal({
         quantity: Number(quantity),
         averageBuyPrice: Number(averageBuyPrice),
         currency,
-        purchaseDate: purchaseDate || undefined,
         notes: notes || undefined
       });
       onClose();
@@ -514,10 +511,6 @@ function EditPositionModal({
               <option>GBP</option>
               <option>CHF</option>
             </select>
-          </label>
-          <label>
-            <span className="muted mb-1 block">Date d’achat</span>
-            <input className="input" onChange={(event) => setPurchaseDate(event.target.value)} type="date" value={purchaseDate} />
           </label>
         </div>
 

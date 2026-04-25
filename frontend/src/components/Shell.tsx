@@ -89,7 +89,7 @@ export function Shell({ user, onLogout }: { user: User; onLogout: () => void }) 
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl min-w-0 px-4 py-6">
+      <main className="mx-auto max-w-6xl min-w-0 px-2 py-4 sm:px-4 sm:py-6">
         <Outlet />
       </main>
 

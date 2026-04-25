@@ -41,8 +41,46 @@ textarea {
 
 @layer components {
   .card {
-    @apply rounded-lg border border-line bg-panel/90 shadow-glow;
+    @apply rounded-lg;
+    position: relative;
+    isolation: isolate;
+    background: transparent;
+    border-color: transparent !important;
+    box-shadow: none;
+    backdrop-filter: blur(6px);
+    transition: all 0.3s ease;
   }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .card > [class*="border-b"],
+  .card > [class*="border-t"] {
+    border-color: transparent;
+  }
+
+  .card .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: transparent;
+  }
+
+  .card.divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: transparent;
+  }
+
+  .chart-fade {
+    position: relative;
+    overflow: hidden;
+  }
+
+   .chart-fade .recharts-xAxis .recharts-cartesian-axis-tick {
+      display: none;
+    }
 
   .muted {
     @apply text-sm text-slate-400;

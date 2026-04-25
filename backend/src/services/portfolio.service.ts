@@ -11,7 +11,6 @@ const createPositionSchema = z.object({
   quantity: z.number().positive(),
   averageBuyPrice: z.number().nonnegative(),
   currency: z.string().trim().min(3).max(8).default("EUR"),
-  purchaseDate: z.string().trim().optional(),
   notes: z.string().trim().optional()
 });
 
@@ -23,7 +22,6 @@ function mapPosition(row: any): Position {
     quantity: row.quantity,
     averageBuyPrice: row.average_buy_price,
     currency: row.currency,
-    purchaseDate: row.purchase_date ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at
   };
@@ -70,21 +68,21 @@ export class PortfolioService {
 
       db.prepare(
         `UPDATE positions
-         SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, purchase_date = COALESCE(?, purchase_date), updated_at = CURRENT_TIMESTAMP
+         SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
          WHERE symbol = ?`
-      ).run(newQuantity, weightedAverage, name, parsed.currency, parsed.purchaseDate ?? null, parsed.symbol);
+      ).run(newQuantity, weightedAverage, name, parsed.currency, parsed.symbol);
     } else {
       db.prepare(
-        `INSERT INTO positions (symbol, name, quantity, average_buy_price, currency, purchase_date)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(parsed.symbol, name, parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.purchaseDate ?? null);
+        `INSERT INTO positions (symbol, name, quantity, average_buy_price, currency)
+         VALUES (?, ?, ?, ?, ?)`
+      ).run(parsed.symbol, name, parsed.quantity, parsed.averageBuyPrice, parsed.currency);
     }
 
     const position = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(parsed.symbol) as any;
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
-       VALUES (?, 'buy', ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`
-    ).run(position.id, parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.purchaseDate ?? null);
+       VALUES (?, 'buy', ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).run(position.id, parsed.quantity, parsed.averageBuyPrice, parsed.currency);
 
     return this.enrichPosition(mapPosition(position));
   }
@@ -105,9 +103,9 @@ export class PortfolioService {
 
     db.prepare(
       `UPDATE positions
-       SET quantity = ?, average_buy_price = ?, currency = ?, purchase_date = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+       SET quantity = ?, average_buy_price = ?, currency = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
-    ).run(parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.purchaseDate ?? null, parsed.notes ?? null, id);
+    ).run(parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.notes ?? null, id);
 
     const row = db.prepare("SELECT * FROM positions WHERE id = ?").get(id) as any;
     return this.enrichPosition(mapPosition(row));

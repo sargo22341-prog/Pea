@@ -37,7 +37,7 @@ export function PortfolioChart({
         : "portfolioNeutralGradient";
 
   return (
-    <div className="h-72 w-full">
+    <div className="chart-fade h-72 w-full">
       <ResponsiveContainer>
         <AreaChart
           data={normalizedData}
@@ -51,8 +51,8 @@ export function PortfolioChart({
               y1="0"
               y2="1"
             >
-              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#22c55e" stopOpacity={0} />
+              <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
             </linearGradient>
 
             <linearGradient
@@ -62,8 +62,8 @@ export function PortfolioChart({
               y1="0"
               y2="1"
             >
-              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#ef4444" stopOpacity={0} />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
             </linearGradient>
 
             <linearGradient
@@ -73,8 +73,8 @@ export function PortfolioChart({
               y1="0"
               y2="1"
             >
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.08} />
+              <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -94,9 +94,10 @@ export function PortfolioChart({
 
           <Tooltip
             contentStyle={{
-              background: "#10181f",
-              border: "1px solid #263844",
+              background: "rgba(7, 16, 20, 0.72)",
+              border: "0",
               borderRadius: 8,
+              backdropFilter: "blur(6px)",
             }}
             formatter={(value) => money(Number(value))}
             labelFormatter={(value) => {

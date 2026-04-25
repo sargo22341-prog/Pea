@@ -122,14 +122,13 @@ function AccountSection() {
     });
   }
 
-  if (me.loading) return <div className="card p-4">Chargement du compte...</div>;
+  if (me.loading) return <Collapsible title="Compte"><p className="text-slate-400">Chargement du compte...</p></Collapsible>;
   const user = me.data?.user;
   const initial = user?.username.slice(0, 1).toUpperCase() || "?";
 
   return (
-    <section className="card space-y-4 p-4">
+    <Collapsible title="Compte">
       <form className="space-y-4" onSubmit={submit}>
-        <h2 className="font-semibold">Compte</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <label>
             <span className="muted mb-1 block">Username</span>
@@ -184,7 +183,7 @@ function AccountSection() {
           </button>
         </div>
       </div>
-    </section>
+    </Collapsible>
   );
 }
 
