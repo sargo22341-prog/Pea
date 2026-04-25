@@ -1,9 +1,9 @@
+import { logger } from "./logger.service.js";
+
 const inFlight = new Map<string, Promise<unknown>>();
 
 function logDebug(message: string, key: string) {
-  if (process.env.DEBUG_CACHE === "true") {
-    console.log(`[dedupe] ${message} key=${key}`);
-  }
+  logger.debug("cache", `dedupe ${message.toLowerCase()}`, { key });
 }
 
 export async function dedupeInFlight<T>(key: string, fn: () => Promise<T>): Promise<T> {

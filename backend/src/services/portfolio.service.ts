@@ -2,6 +2,7 @@ import type { CreatePositionInput, PortfolioPerformancePoint, PortfolioSummary, 
 import { z } from "zod";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
+import { logger } from "./logger.service.js";
 import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
 
 const createPositionSchema = z.object({
@@ -133,6 +134,7 @@ export class PortfolioService {
   async performance(range: RangeKey): Promise<PortfolioPerformancePoint[]> {
     const positions = this.listPositions();
     if (!positions.length) return [];
+    logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 
     const histories = await Promise.all(
       positions.map(async (position) => ({
@@ -192,6 +194,7 @@ export class PortfolioService {
 
   async positionsPerformance(range: RangeKey): Promise<PositionRangePerformance[]> {
     const positions = this.listPositions();
+    logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
     return Promise.all(positions.map((position) => this.positionRangePerformance(position, range)));
   }
 

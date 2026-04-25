@@ -2,6 +2,7 @@ import type { SearchResult } from "@pea/shared";
 import type { BoursoramaUpdateRow } from "@pea/shared";
 import { db } from "../db.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "./peaEligibility.js";
+import { logger } from "./logger.service.js";
 import { portfolioService } from "./portfolio.service.js";
 import { yahooService } from "./yahoo.service.js";
 
@@ -58,7 +59,7 @@ function splitCsvLine(line: string) {
 export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "symbol" | "needsReview">> {
   const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
   const start = lines[0]?.toLowerCase().includes("isin") ? 1 : 0;
-  return lines.slice(start).map((line, index) => {
+  const parsed = lines.slice(start).map((line, index) => {
     const cells = splitCsvLine(line);
     const errors: string[] = [];
     if (cells.length < headers.length) errors.push("Ligne incomplete.");
@@ -82,6 +83,8 @@ export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "
       errors
     };
   });
+  logger.debug("import", "rows parsed", { rows: parsed.length, rowsFailed: parsed.filter((row) => row.errors.length).length });
+  return parsed;
 }
 
 export async function resolveYahooSymbolFromIsin(isin: string, name: string) {

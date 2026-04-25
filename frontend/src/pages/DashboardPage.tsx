@@ -11,18 +11,9 @@ import { api } from "../lib/api";
 import { normalizePortfolioPerformanceData } from "../lib/chart";
 import { formatRangeLabel, money, percent } from "../lib/format";
 
-function logDashboardRange(source: string, previousRange: RangeKey | undefined, nextRange: RangeKey) {
-  console.debug("[dashboard-range]", {
-    source,
-    previousRange,
-    nextRange,
-  });
-}
-
 export function DashboardPage({ user }: { user: User }) {
   const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
     const initialRange = user.defaultChartRange ?? "1d";
-    logDashboardRange("initial-preference", undefined, initialRange);
     return initialRange;
   });
   const portfolio = useAsync((signal) => api.portfolio(selectedRange, signal), [selectedRange]);
@@ -31,7 +22,8 @@ export function DashboardPage({ user }: { user: User }) {
 
   function setSelectedRange(source: string, nextRange: RangeKey) {
     setSelectedRangeState((previousRange) => {
-      logDashboardRange(source, previousRange, nextRange);
+      void source;
+      void previousRange;
       return nextRange;
     });
   }

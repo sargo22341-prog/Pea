@@ -14,6 +14,7 @@ import { authCookieName, authService } from "../services/auth.service.js";
 import { iconService } from "../services/icon.service.js";
 import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../services/importBoursorama.service.js";
 import { localPeaSearchService } from "../services/local-pea-search.service.js";
+import { logger } from "../services/logger.service.js";
 
 export const apiRouter = express.Router();
 
@@ -77,19 +78,28 @@ apiRouter.post("/auth/setup", asyncRoute(async (req, res) => {
   }).parse(req.body);
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
+  logger.debug("auth", "setup success", { username: result.user.username, userId: result.user.id });
   setAuthCookie(res, result.token);
   res.status(201).json(result.user);
 }));
 
 apiRouter.post("/auth/login", asyncRoute(async (req, res) => {
   const body = z.object({ username: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
-  const result = await authService.login(body.username, body.password);
+  let result: Awaited<ReturnType<typeof authService.login>>;
+  try {
+    result = await authService.login(body.username, body.password);
+    logger.debug("auth", "login success", { username: result.user.username, userId: result.user.id });
+  } catch (error) {
+    logger.debug("auth", "login fail", { username: body.username, error: error instanceof Error ? error.message : "unknown error" });
+    throw error;
+  }
   setAuthCookie(res, result.token);
   res.json(result.user);
 }));
 
 apiRouter.post("/auth/logout", asyncRoute(async (req, res) => {
   authService.logout(readCookie(req, authCookieName));
+  logger.debug("auth", "logout", { userId: req.user?.id, username: req.user?.username });
   clearAuthCookie(res);
   res.status(204).send();
 }));
@@ -106,7 +116,14 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     localPeaSearchEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
-  res.json(await authService.updateUser(req.user!.id, body));
+  const updated = await authService.updateUser(req.user!.id, body);
+  logger.debug("auth", "user updated", {
+    userId: updated.id,
+    username: updated.username,
+    passwordChanged: Boolean(body.password),
+    localPeaSearchEnabled: updated.localPeaSearchEnabled
+  });
+  res.json(updated);
 }));
 
 apiRouter.get("/auth/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
@@ -126,12 +143,14 @@ apiRouter.post(
     const upload = parseMultipartIcon(req);
     if (!authService.isAllowedProfileIconMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
+    logger.debug("auth", "profile icon upload", { userId: req.user!.id, mimeType: upload.mimeType, size: upload.buffer.length });
     res.json(authService.saveProfileIcon(req.user!.id, upload.buffer, upload.mimeType));
   })
 );
 
 apiRouter.delete("/auth/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
   authService.deleteProfileIcon(req.user!.id);
+  logger.debug("auth", "profile icon delete", { userId: req.user!.id });
   res.status(204).send();
 }));
 
@@ -145,7 +164,7 @@ apiRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   if (req.user?.localPeaSearchEnabled) {
     const localStartedAt = performance.now();
     const enriched = localPeaSearchService.search(q);
-    console.info(`[search:local-pea] q=${q} results=${enriched.length} total=${Math.round(performance.now() - localStartedAt)}ms`);
+    logger.debug("search", "local PEA search", { q, results: enriched.length, totalMs: Math.round(performance.now() - localStartedAt) });
     res.json(enriched);
     return;
   }
@@ -182,7 +201,14 @@ apiRouter.get("/search/enriched", asyncRoute(async (req, res) => {
     };
   });
 
-  console.info(`[search] q=${q} search=${Math.round(searchMs)}ms quote=${Math.round(quoteMs)}ms db=${Math.round(dbMs)}ms total=${Math.round(performance.now() - totalStartedAt)}ms`);
+  logger.debug("search", "search timing", {
+    q,
+    results: enriched.length,
+    searchMs: Math.round(searchMs),
+    quoteMs: Math.round(quoteMs),
+    dbMs: Math.round(dbMs),
+    totalMs: Math.round(performance.now() - totalStartedAt)
+  });
 
   res.json(enriched);
 }));
@@ -231,12 +257,14 @@ apiRouter.post(
     const upload = parseMultipartIcon(req);
     if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
+    logger.debug("icons", "icon upload", { symbol: req.params.symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
     res.json(await iconService.saveIconFromBuffer(req.params.symbol, upload.buffer, upload.mimeType, "manual"));
   })
 );
 
 apiRouter.delete("/assets/:symbol/icon", asyncRoute(async (req, res) => {
   iconService.resetIcon(req.params.symbol);
+  logger.debug("icons", "icon delete", { symbol: req.params.symbol.toUpperCase() });
   res.status(204).send();
 }));
 
@@ -246,6 +274,7 @@ apiRouter.get("/asset-icons", asyncRoute(async (_req, res) => {
 
 apiRouter.get("/portfolio", asyncRoute(async (req, res) => {
   const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
+  logger.debug("portfolio", "summary requested", { range, userId: req.user!.id });
   res.json(await portfolioService.summary(range));
 }));
 
@@ -287,11 +316,15 @@ apiRouter.delete("/portfolio/positions/:id", asyncRoute(async (req, res) => {
 }));
 
 apiRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
-  res.json(await portfolioService.performance(parseRange(req.query.range)));
+  const range = parseRange(req.query.range);
+  logger.debug("portfolio", "performance requested", { range, userId: req.user!.id });
+  res.json(await portfolioService.performance(range));
 }));
 
 apiRouter.get("/portfolio/positions/performance", asyncRoute(async (req, res) => {
-  res.json(await portfolioService.positionsPerformance(parseRange(req.query.range)));
+  const range = parseRange(req.query.range);
+  logger.debug("portfolio", "positions performance requested", { range, userId: req.user!.id });
+  res.json(await portfolioService.positionsPerformance(range));
 }));
 
 apiRouter.get("/portfolio/dividends", asyncRoute(async (_req, res) => {
@@ -300,22 +333,37 @@ apiRouter.get("/portfolio/dividends", asyncRoute(async (_req, res) => {
 
 apiRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
   const body = z.object({ content: z.string().min(1) }).parse(req.body);
-  res.json(await previewBoursoramaImport(body.content));
+  const preview = await previewBoursoramaImport(body.content);
+  logger.debug("import", "CSV preview", { rows: preview.length, rowsFailed: preview.filter((row) => row.errors.length).length });
+  res.json(preview);
 }));
 
 apiRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
-  res.json(await confirmBoursoramaImport(body.rows));
+  const result = await confirmBoursoramaImport(body.rows);
+  logger.debug("import", "CSV confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
+  res.json(result);
 }));
 
 apiRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, res) => {
   const body = z.object({ content: z.string().min(1) }).parse(req.body);
-  res.json(await previewBoursoramaUpdate(body.content));
+  const preview = await previewBoursoramaUpdate(body.content);
+  logger.debug("import", "CSV update preview", {
+    rows: preview.length,
+    rowsFailed: preview.filter((row) => row.errors.length).length,
+    actions: preview.reduce<Record<string, number>>((counts, row) => {
+      counts[row.proposedAction] = (counts[row.proposedAction] ?? 0) + 1;
+      return counts;
+    }, {})
+  });
+  res.json(preview);
 }));
 
 apiRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) => {
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
-  res.json(await confirmBoursoramaUpdate(body.rows));
+  const result = await confirmBoursoramaUpdate(body.rows);
+  logger.debug("import", "CSV update confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
+  res.json(result);
 }));
 
 apiRouter.get("/watchlist", asyncRoute(async (req, res) => {

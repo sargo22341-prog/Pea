@@ -1,16 +1,17 @@
 import { app } from "./app.js";
 import { config } from "./config.js";
+import { logger } from "./services/logger.service.js";
 
 const server = app.listen(config.port, () => {
-  console.log(`PEA Portfolio API listening on http://127.0.0.1:${config.port}`);
+  logger.info("api", "PEA Portfolio API listening", { url: `http://127.0.0.1:${config.port}` });
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
-    console.error(`Port ${config.port} is already in use. Stop the existing API process or set another PORT in .env.`);
+    logger.error("api", "Port already in use", { port: config.port });
     process.exit(1);
   }
 
-  console.error(error);
+  logger.error("api", "Server error", { error });
   process.exit(1);
 });

@@ -6,6 +6,7 @@ import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
 import { buildHistoricalOptions, getCurrentTradingDay, type ChartDisplayInterval } from "../utils/range.js";
 import { dedupeInFlight } from "./inFlightDeduper.js";
+import { logger } from "./logger.service.js";
 import { getLastTradingDay, shouldRefreshMarketData } from "./marketCalendar.service.js";
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
@@ -33,10 +34,7 @@ function symbolFromKey(key: string) {
 }
 
 function logMarketData(message: string, details: Record<string, string | number | boolean | undefined>) {
-  const parts = Object.entries(details)
-    .filter(([, value]) => value !== undefined)
-    .map(([name, value]) => `${name}=${value}`);
-  console.info(`[market-data] ${message} ${parts.join(" ")}`.trim());
+  logger.debug("market-data", message, details);
 }
 
 function sleep(ms: number) {
@@ -207,9 +205,7 @@ function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryP
     const close = Number(point.close);
     if (!Number.isFinite(time) || !Number.isFinite(close)) {
       removedPoints += 1;
-      if (config.debugChartData) {
-        console.info(`[history-sanitize] ${symbol} ${range} removed invalid point close=${point.close} date=${point.date}`);
-      }
+      logger.debug("chart", "history sanitize removed invalid point", { symbol, range, close: point.close, date: point.date });
       continue;
     }
     byDate.set(new Date(point.date).toISOString(), { ...point, date: new Date(point.date).toISOString(), close });
@@ -226,24 +222,20 @@ function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryP
       if (previous && next) {
         interpolatedPoints += 1;
         sanitized.push(interpolatePoint(point, previous, next));
-        if (config.debugChartData) {
-          console.info(`[history-sanitize] ${symbol} ${range} interpolated aberrant point close=${point.close} previous=${previous.close} next=${next.close} date=${point.date}`);
-        }
+        logger.debug("chart", "history sanitize interpolated aberrant point", { symbol, range, close: point.close, previous: previous.close, next: next.close, date: point.date });
         continue;
       }
 
       removedPoints += 1;
-      if (config.debugChartData) {
-        console.info(`[history-sanitize] ${symbol} ${range} removed aberrant edge point close=${point.close} date=${point.date}`);
-      }
+      logger.debug("chart", "history sanitize removed aberrant edge point", { symbol, range, close: point.close, date: point.date });
       continue;
     }
 
     sanitized.push(point);
   }
 
-  if (config.debugChartData && (removedPoints > 0 || interpolatedPoints > 0)) {
-    console.info(`[history-sanitize] ${symbol} ${range} removed=${removedPoints} interpolated=${interpolatedPoints}`);
+  if (removedPoints > 0 || interpolatedPoints > 0) {
+    logger.debug("chart", "history sanitize summary", { symbol, range, removedPoints, interpolatedPoints });
   }
 
   return sanitized;
@@ -345,7 +337,7 @@ async function retryTemporary<T>(key: string, fn: () => Promise<T>, attempts = 3
       lastError = error;
       if (!isTemporaryYahooError(error) || attempt === attempts - 1) break;
       const delay = 600 * 2 ** attempt;
-      console.warn(`[market-data:yahoo] temporary error on ${key}, retrying in ${delay}ms: ${errorMessage(error)}`);
+      logger.warn("market-data", "Yahoo temporary error, retrying", { key, delayMs: delay, error: errorMessage(error) });
       await sleep(delay);
     }
   }
@@ -379,7 +371,7 @@ async function safeYahooCall<T>(
     return { data, stale: false };
   } catch (error) {
     logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key), durationMs: roundMs(yahooStartedAt) });
-    console.warn(`[market-data:yahoo] ${key}: ${errorMessage(error)}`);
+    logger.warn("market-data", "Yahoo fetch error", { key, error: errorMessage(error) });
     if (cached) {
       logMarketData("cache-hit", { provider: "local-cache", method: key, symbol: symbolFromKey(key), stale: true, reason: "yahoo-error", durationMs: cacheMs });
       return { data: cached.data, stale: true };
@@ -425,7 +417,7 @@ export class YahooService implements MarketDataProvider {
       return { data: payload, stale: false };
     } catch (error) {
       logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
-      console.warn(`[market-data:yahoo] search:${normalizedQuery}: ${errorMessage(error)}`);
+      logger.warn("market-data", "Yahoo search error", { query: normalizedQuery, error: errorMessage(error) });
       if (cached && isTemporaryYahooError(error)) {
         logMarketData("cache-hit", { provider: "memory-cache", method: "search", symbol: normalizedQuery, stale: true, reason: "yahoo-error", durationMs: 0 });
         return { data: cached.payload, stale: true };
@@ -511,7 +503,7 @@ export class YahooService implements MarketDataProvider {
       return { data: payload, stale: false };
     } catch (error) {
       logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
-      console.warn(`[market-data:yahoo] quoteCombine:${cacheKey}: ${errorMessage(error)}`);
+      logger.warn("market-data", "Yahoo quote batch error", { symbols: cacheKey, error: errorMessage(error) });
       if (cached) {
         logMarketData("cache-hit", { provider: "memory-cache", method: "quoteCombine", symbol: cacheKey, stale: true, reason: "yahoo-error", durationMs: 0 });
         return { data: cached.payload, stale: true };
@@ -544,6 +536,7 @@ export class YahooService implements MarketDataProvider {
       historicalOptions.period2 = new Date(Math.min(marketSession.period2.getTime(), Date.now()));
     }
     const displayInterval = String(historicalOptions.displayInterval);
+    logger.debug("chart", "history fetch requested", { symbol: key, range, interval: historicalOptions.interval, displayInterval, tradingDay: historicalOptions.tradingDay });
     const historyTtlSeconds = range === "1w" ? 15 * 60 : 60 * 60;
     const cacheReader = range === "1d" ? () => readIntradayCache(key, historicalOptions.tradingDay) : () => readHistoryCache(key, range, displayInterval, historyTtlSeconds);
     const cacheWriter =
@@ -570,6 +563,14 @@ export class YahooService implements MarketDataProvider {
         const mapped = sanitizeHistoryPoints(key, range, mapChartRows(rows, historicalOptions.period2));
         const aggregated = range === "1d" ? mapped : aggregateHistoryPoints(mapped, historicalOptions.displayInterval);
         const history = sanitizeHistoryPoints(key, range, aggregated);
+        logger.debug("chart", "history fetch mapped", {
+          symbol: key,
+          range,
+          interval: historicalOptions.interval,
+          points: history.length,
+          firstPoint: history[0],
+          lastPoint: history[history.length - 1]
+        });
         return history;
       },
       cacheReader,

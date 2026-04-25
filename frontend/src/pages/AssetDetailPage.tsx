@@ -11,20 +11,11 @@ import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
 
-function logAssetRange(source: string, previousRange: RangeKey | undefined, nextRange: RangeKey) {
-  console.debug("[asset-range]", {
-    source,
-    previousRange,
-    nextRange,
-  });
-}
-
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
   const navigate = useNavigate();
   const [range, setRangeState] = useState<RangeKey>(() => {
     const initialRange = user.defaultChartRange ?? "1d";
-    logAssetRange("initial-preference", undefined, initialRange);
     return initialRange;
   });
   const [editing, setEditing] = useState(false);
@@ -35,7 +26,8 @@ export function AssetDetailPage({ user }: { user: User }) {
 
   function setRange(source: string, nextRange: RangeKey) {
     setRangeState((previousRange) => {
-      logAssetRange(source, previousRange, nextRange);
+      void source;
+      void previousRange;
       return nextRange;
     });
   }

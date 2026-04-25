@@ -3,6 +3,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { dedupeInFlight } from "./inFlightDeduper.js";
+import { logger } from "./logger.service.js";
 import { yahooClient } from "./yahoo.service.js";
 
 export interface AssetIcon {
@@ -116,8 +117,14 @@ export class IconService {
   getAssetIcon(symbol: string): AssetIcon | undefined {
     const key = normalizeSymbol(symbol);
     const icon = this.getCached(key);
-    if (icon?.filePath && fs.existsSync(icon.filePath)) return icon;
-    if (this.isEtf(key)) return icon;
+    if (icon?.filePath && fs.existsSync(icon.filePath)) {
+      logger.debug("icons", "icon cache hit", { symbol: key, source: icon.source, mimeType: icon.mimeType, size: icon.size });
+      return icon;
+    }
+    if (this.isEtf(key)) {
+      logger.debug("icons", "icon fetch skipped ETF", { symbol: key });
+      return icon;
+    }
     if (!this.hasRecentFailure(key) && !this.hasRecentPending(key)) void this.fetchAndStoreIcon(key);
     return icon;
   }
@@ -152,6 +159,7 @@ export class IconService {
         last_attempt_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP`
     ).run(key, filePath, cleanMime, buffer.length, source);
+    logger.debug("icons", "icon saved", { symbol: key, source, mimeType: cleanMime, size: buffer.length });
     return this.getCached(key)!;
   }
 
@@ -173,12 +181,12 @@ export class IconService {
         if (logo) return this.saveIconFromBuffer(key, logo.buffer, logo.mimeType, "auto");
       }
 
-      if (!website) console.info(`[icons] ${key}: recherche website via Yahoo assetProfile pour logo.dev website`);
+      if (!website) logger.debug("icons", "website lookup via Yahoo assetProfile", { symbol: key });
       website = website ?? (await this.getWebsiteFromYahooAssetProfile(key));
-      console.info(`[icons] ${key}: website ${website ? `trouve (${domainFromWebsite(website)})` : "introuvable"}`);
+      logger.debug("icons", "website lookup result", { symbol: key, domain: domainFromWebsite(website), found: Boolean(website) });
       if (config.logoDevApiKey) {
         const domainCandidates = this.buildLogoDevDomainCandidates(website);
-        if (!domainCandidates.length) console.info(`[icons] ${key}: logo.dev website non tente - aucun domaine disponible`);
+        if (!domainCandidates.length) logger.debug("icons", "logo.dev website skipped, no domain", { symbol: key });
         const logo = await this.fetchFirstAllowedImage(key, domainCandidates);
         if (logo) return this.saveIconFromBuffer(key, logo.buffer, logo.mimeType, "auto");
       }
@@ -186,8 +194,10 @@ export class IconService {
       const candidates = this.buildFaviconCandidates(website);
       const favicon = await this.fetchFirstAllowedImage(key, candidates);
       if (favicon) return this.saveIconFromBuffer(key, favicon.buffer, favicon.mimeType, "auto");
+      logger.debug("icons", "icon fetch failed", { symbol: key, reason: "no candidate succeeded" });
       this.markIconAsFailed(key);
-    } catch {
+    } catch (error) {
+      logger.debug("icons", "icon fetch failed", { symbol: key, error: error instanceof Error ? error.message : "requete impossible" });
       this.markIconAsFailed(key);
     }
     return this.getCached(key);
@@ -231,6 +241,7 @@ export class IconService {
         last_attempt_at = NULL,
         updated_at = CURRENT_TIMESTAMP`
     ).run(key);
+    logger.debug("icons", "icon deleted", { symbol: key });
   }
 
   placeholder(symbol: string) {
@@ -283,9 +294,9 @@ export class IconService {
     logoDevConfigLogged = true;
     const key = config.logoDevApiKey;
     const keyKind = key?.startsWith("pk_") ? "publishable" : key?.startsWith("sk_") ? "secret" : key ? "format inconnu" : "absente";
-    console.info(`[icons] logo.dev ${key ? `actif: LOGO_DEV_API_KEY chargee (${keyKind})` : "inactif: LOGO_DEV_API_KEY absente"}`);
+    logger.debug("icons", "logo.dev config", { active: Boolean(key), keyKind });
     if (key?.startsWith("sk_")) {
-      console.info("[icons] logo.dev: attention, img.logo.dev attend une cle publishable pk_...; une cle secret sk_... provoque HTTP 401 sur les images");
+      logger.warn("icons", "logo.dev expects a publishable key for image fetches", { keyKind });
     }
   }
 
@@ -336,32 +347,31 @@ export class IconService {
 
   private async fetchFirstAllowedImage(symbol: string, candidates: LogoCandidate[]) {
     for (const candidate of candidates) {
-      console.info(`[icons] ${symbol}: tentative ${candidate.source} (${candidate.label})`);
+      logger.debug("icons", "icon fetch attempt", { symbol, source: candidate.source, label: candidate.label });
       const response = await fetchWithTimeout(candidate.url).catch((error) => {
-        console.info(`[icons] ${symbol}: echec ${candidate.source} (${candidate.label}) - ${error instanceof Error ? error.message : "requete impossible"}`);
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, error: error instanceof Error ? error.message : "requete impossible" });
         return undefined;
       });
       if (!response) continue;
       if (!response.ok) {
-        const authHint = response.status === 401 ? " (verifie que LOGO_DEV_API_KEY est une cle publishable pk_..., pas sk_...)" : "";
-        console.info(`[icons] ${symbol}: echec ${candidate.source} (${candidate.label}) - HTTP ${response.status}${authHint}`);
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, status: response.status, authHint: response.status === 401 });
         continue;
       }
       const mimeType = response.headers.get("content-type")?.split(";")[0]?.toLowerCase() ?? "image/png";
       if (!this.isAllowedImageMime(mimeType)) {
-        console.info(`[icons] ${symbol}: echec ${candidate.source} (${candidate.label}) - type ${mimeType} non supporte`);
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, mimeType, reason: "unsupported mime type" });
         continue;
       }
       const buffer = Buffer.from(await response.arrayBuffer());
       if (buffer.length <= 0) {
-        console.info(`[icons] ${symbol}: echec ${candidate.source} (${candidate.label}) - image vide`);
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "empty image" });
         continue;
       }
       if (buffer.length > 1024 * 1024) {
-        console.info(`[icons] ${symbol}: echec ${candidate.source} (${candidate.label}) - image trop lourde (${buffer.length} octets)`);
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, size: buffer.length, reason: "image too large" });
         continue;
       }
-      console.info(`[icons] ${symbol}: succes ${candidate.source} (${candidate.label}) - ${mimeType}, ${buffer.length} octets`);
+      logger.debug("icons", "icon fetch ok", { symbol, source: candidate.source, label: candidate.label, mimeType, size: buffer.length });
       return { buffer, mimeType };
     }
     return undefined;

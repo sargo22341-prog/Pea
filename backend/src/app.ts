@@ -9,6 +9,7 @@ import { config } from "./config.js";
 import "./db.js";
 import { createRateLimit } from "./middleware/rate-limit.js";
 import { apiRouter } from "./routes/api.js";
+import { logger } from "./services/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,7 +20,13 @@ app.set("etag", false);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
-app.use(morgan(config.nodeEnv === "production" ? "combined" : "dev"));
+if (config.debug) {
+  app.use(
+    morgan(config.nodeEnv === "production" ? "combined" : "dev", {
+      stream: { write: (message) => logger.debug("api", "request timing", { message: message.trim() }) }
+    })
+  );
+}
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", (_req, res, next) => {
@@ -42,15 +49,19 @@ if (config.nodeEnv === "production") {
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof ZodError) {
+    logger.warn("api", "validation error", { details: error.flatten() });
     res.status(400).json({ message: "Données invalides", details: error.flatten() });
     return;
   }
 
   if (error instanceof HttpError) {
+    if (error.status >= 500) logger.error("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
+    else logger.warn("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
     res.status(error.status).json({ message: error.message, details: error.details });
     return;
   }
 
   const message = error instanceof Error ? error.message : "Erreur inconnue";
+  logger.error("api", "Unhandled error", { error });
   res.status(500).json({ message });
 });
