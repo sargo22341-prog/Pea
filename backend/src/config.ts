@@ -12,6 +12,7 @@ export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
   yahooCacheTtlSeconds: Number(process.env.YAHOO_CACHE_TTL_SECONDS ?? 300),
+  debugChartData: process.env.DEBUG_CHART_DATA === "true",
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
   nodeEnv: process.env.NODE_ENV ?? "development",
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined

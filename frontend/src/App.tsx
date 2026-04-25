@@ -30,11 +30,11 @@ export function App() {
   return (
     <Routes>
       <Route element={<Shell user={me.data.user} onLogout={me.reload} />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={<DashboardPage user={me.data.user} />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
-        <Route path="/assets/:symbol" element={<AssetDetailPage />} />
+        <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate replace to="/" />} />
       </Route>

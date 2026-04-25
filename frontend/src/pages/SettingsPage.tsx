@@ -42,7 +42,7 @@ function AccountSection() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profileFile, setProfileFile] = useState<File | undefined>();
   const [profilePreview, setProfilePreview] = useState("");
-  const [profileCacheBust, setProfileCacheBust] = useState(Date.now());
+  const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [profileFailed, setProfileFailed] = useState(false);
   const [toast, setToast] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 

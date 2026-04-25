@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useState } from "react";
 
 export function useAsync<T>(loader: () => Promise<T>, deps: React.DependencyList) {

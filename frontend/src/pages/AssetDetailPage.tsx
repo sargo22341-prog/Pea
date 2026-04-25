@@ -1,4 +1,4 @@
-import type { PositionWithMarket, RangeKey } from "@pea/shared";
+import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,18 +11,32 @@ import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { formatChartDate, formatChartDateTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
 
-export function AssetDetailPage() {
+function logAssetRange(source: string, previousRange: RangeKey | undefined, nextRange: RangeKey) {
+  console.debug("[asset-range]", {
+    source,
+    previousRange,
+    nextRange,
+  });
+}
+
+export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
   const navigate = useNavigate();
-  const [range, setRange] = useState<RangeKey>("1d");
+  const [range, setRangeState] = useState<RangeKey>(() => {
+    const initialRange = user.defaultChartRange ?? "1d";
+    logAssetRange("initial-preference", undefined, initialRange);
+    return initialRange;
+  });
   const [editing, setEditing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const me = useAsync(() => api.me(), []);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
 
-  useEffect(() => {
-    if (me.data?.user?.defaultChartRange) setRange(me.data.user.defaultChartRange);
-  }, [me.data?.user?.defaultChartRange]);
+  function setRange(source: string, nextRange: RangeKey) {
+    setRangeState((previousRange) => {
+      logAssetRange(source, previousRange, nextRange);
+      return nextRange;
+    });
+  }
 
   if (asset.loading) return <div className="card p-6">Chargement de {symbol}...</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
@@ -119,7 +133,7 @@ export function AssetDetailPage() {
       <section className="card p-4">
         <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <h2 className="font-semibold">Historique</h2>
-          <RangeSelector onChange={setRange} value={range} />
+          <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
         </div>
         {history.length > 1 ? (
           <div className="h-80">

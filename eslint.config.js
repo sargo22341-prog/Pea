@@ -22,6 +22,23 @@ export default tseslint.config(
     // 🔥 Pour tout le projet (backend + shared + scripts)
     {
         files: ["**/*.{ts,js}"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "off",
+            "@typescript-eslint/no-namespace": "off",
+            "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+        },
+    },
+
+    {
+        files: ["frontend/public/sw.js"],
+        languageOptions: {
+            globals: {
+                caches: "readonly",
+                fetch: "readonly",
+                self: "readonly",
+                URL: "readonly",
+            },
+        },
     },
 
     // ⚛️ Spécifique React (frontend seulement)
@@ -34,6 +51,9 @@ export default tseslint.config(
         rules: {
             ...reactHooks.configs.recommended.rules,
             "react-refresh/only-export-components": "warn",
+            "react-hooks/purity": "off",
+            "react-hooks/set-state-in-effect": "off",
+            "react-hooks/use-memo": "off",
         },
     }
 );

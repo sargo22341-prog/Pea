@@ -1,25 +1,40 @@
-import type { RangeKey } from "@pea/shared";
+import type { RangeKey, User } from "@pea/shared";
 import { Activity, Briefcase, LineChart, Wallet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EmptyState } from "../components/EmptyState";
-import { normalizePortfolioPerformanceData, PortfolioChart } from "../components/PortfolioChart";
+import { PortfolioChart } from "../components/PortfolioChart";
 import { PositionList } from "../components/PositionList";
 import { RangeSelector } from "../components/RangeSelector";
 import { WatchlistSection } from "../components/WatchlistSection";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
+import { normalizePortfolioPerformanceData } from "../lib/chart";
 import { formatRangeLabel, money, percent } from "../lib/format";
 
-export function DashboardPage() {
-  const me = useAsync(() => api.me(), []);
-  const [range, setRange] = useState<RangeKey>("1d");
-  const portfolio = useAsync(() => api.portfolio(), []);
-  const performance = useAsync(() => api.performance(range), [range]);
-  const positionsPerformance = useAsync(() => api.positionsPerformance(range), [range]);
+function logDashboardRange(source: string, previousRange: RangeKey | undefined, nextRange: RangeKey) {
+  console.debug("[dashboard-range]", {
+    source,
+    previousRange,
+    nextRange,
+  });
+}
 
-  useEffect(() => {
-    if (me.data?.user?.defaultChartRange) setRange(me.data.user.defaultChartRange);
-  }, [me.data?.user?.defaultChartRange]);
+export function DashboardPage({ user }: { user: User }) {
+  const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
+    const initialRange = user.defaultChartRange ?? "1d";
+    logDashboardRange("initial-preference", undefined, initialRange);
+    return initialRange;
+  });
+  const portfolio = useAsync(() => api.portfolio(), []);
+  const performance = useAsync(() => api.performance(selectedRange), [selectedRange]);
+  const positionsPerformance = useAsync(() => api.positionsPerformance(selectedRange), [selectedRange]);
+
+  function setSelectedRange(source: string, nextRange: RangeKey) {
+    setSelectedRangeState((previousRange) => {
+      logDashboardRange(source, previousRange, nextRange);
+      return nextRange;
+    });
+  }
 
   if (portfolio.loading) return <div className="card p-6">Chargement du portefeuille...</div>;
   if (portfolio.error) return <div className="card border-coral p-6 text-coral">{portfolio.error}</div>;
@@ -41,7 +56,7 @@ export function DashboardPage() {
         />
         <Metric
           icon={Activity}
-          label={`Performance sur ${formatRangeLabel(range)}`}
+          label={`Performance sur ${formatRangeLabel(selectedRange)}`}
           tone={rangePerformance == null ? undefined : rangePerformance.value >= 0 ? "positive" : "negative"}
           value={performance.loading || rangePerformance == null ? "—" : `${money(rangePerformance.value, summary.currency)} · ${percent(rangePerformance.percent)}`}
         />
@@ -53,19 +68,19 @@ export function DashboardPage() {
             <h1 className="text-xl font-bold">Evolution du portefeuille</h1>
             <p className="muted">Valorisation agregee depuis les historiques Yahoo Finance.</p>
           </div>
-          <RangeSelector onChange={setRange} value={range} />
+          <RangeSelector onChange={(nextRange) => setSelectedRange("user-click", nextRange)} value={selectedRange} />
         </div>
-        {performance.loading ? <div className="h-72 p-6 text-slate-400">Chargement du graphique...</div> : <PortfolioChart data={performance.data ?? []} range={range} />}
+        {performance.loading ? <div className="h-72 p-6 text-slate-400">Chargement du graphique...</div> : <PortfolioChart data={performance.data ?? []} range={selectedRange} />}
       </section>
 
       {positionsPerformance.loading ? (
         <div className="card p-6 text-slate-400">Chargement des positions...</div>
       ) : (
         <PositionList
-          defaultSortDirection={me.data?.user?.dashboardDefaultSortDirection}
-          defaultSortKey={me.data?.user?.dashboardDefaultSortKey}
+          defaultSortDirection={user.dashboardDefaultSortDirection}
+          defaultSortKey={user.dashboardDefaultSortKey}
           positions={positionsPerformance.data ?? []}
-          range={range}
+          range={selectedRange}
         />
       )}
       <WatchlistSection />

@@ -121,11 +121,15 @@ function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoi
 
 function sanitizeIntradayPoints(symbol: string, points: HistoryPoint[]): HistoryPoint[] {
   const byDate = new Map<string, HistoryPoint>();
+  let removedInvalidPoints = 0;
   for (const point of points) {
     const time = new Date(point.date).getTime();
     const close = Number(point.close);
     if (!Number.isFinite(time) || !Number.isFinite(close) || close <= 0) {
-      console.info(`[intraday-sanitize] ${symbol} removed invalid point close=${point.close} date=${point.date}`);
+      removedInvalidPoints += 1;
+      if (config.debugChartData) {
+        console.info(`[intraday-sanitize] ${symbol} removed invalid point close=${point.close} date=${point.date}`);
+      }
       continue;
     }
     byDate.set(new Date(point.date).toISOString(), { ...point, date: new Date(point.date).toISOString(), close });
@@ -137,9 +141,16 @@ function sanitizeIntradayPoints(symbol: string, points: HistoryPoint[]): History
     const last = sanitized[sanitized.length - 1];
     const delta = Math.abs(last.close - previous.close) / previous.close;
     if (Number.isFinite(delta) && delta > 0.2) {
-      console.info(`[intraday-sanitize] ${symbol} removed invalid last point close=${last.close} previous=${previous.close}`);
+      removedInvalidPoints += 1;
+      if (config.debugChartData) {
+        console.info(`[intraday-sanitize] ${symbol} removed invalid last point close=${last.close} previous=${previous.close}`);
+      }
       sanitized.pop();
     }
+  }
+
+  if (config.debugChartData && removedInvalidPoints > 0) {
+    console.info(`[intraday-sanitize] ${symbol} removed=${removedInvalidPoints} invalid points`);
   }
 
   return sanitized;
@@ -392,10 +403,8 @@ export class YahooService implements MarketDataProvider {
       async () => {
         const period1 = new Date();
         period1.setFullYear(period1.getFullYear() - 5);
-        const chart = (await yahoo.chart(
-          key,
-          { ...buildHistoricalOptions("max", { period1 }), events: "div", return: "array" } as any
-        )) as any;
+        const { tradingDay: _tradingDay, marketHours: _marketHours, ...yahooOptions } = buildHistoricalOptions("max", { period1 });
+        const chart = (await yahoo.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)) as any;
         const rows = chart.events?.dividends ?? [];
 
         const quote = await this.quote(key);

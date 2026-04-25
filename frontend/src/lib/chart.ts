@@ -1,5 +1,10 @@
 import { formatChartTime } from "./format";
 
+export type PerformancePoint = {
+    date: string;
+    value: number;
+};
+
 const PARIS_OPEN = "09:00";
 const PARIS_CLOSE = "17:30";
 
@@ -82,4 +87,13 @@ export function getTrend(chartData: ChartPoint[]): "up" | "down" | "neutral" {
     if (last < first) return "down";
 
     return "neutral";
+}
+
+export function normalizePortfolioPerformanceData<T extends PerformancePoint>(data: T[]) {
+    const byDate = new Map<string, T>();
+    for (const point of data) {
+        if (!point.date || !Number.isFinite(new Date(point.date).getTime()) || !Number.isFinite(point.value)) continue;
+        byDate.set(point.date, point);
+    }
+    return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }

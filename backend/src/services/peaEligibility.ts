@@ -1,7 +1,6 @@
 import type {
   InstrumentKind,
   PeaEligibilityResult,
-  PeaEligibilityStatus,
   PeaRankingResult,
   Quote,
   SearchResult
@@ -102,7 +101,6 @@ export function sortAssetsForPea<T extends SearchAsset | QuoteAsset>(assets: T[]
 export function evaluatePeaEligibility(asset: SearchAsset | QuoteAsset): PeaEligibilityResult {
   const symbol = normalizeYahooSymbol(asset.symbol);
   const name = asset.name;
-  const quoteType = safeString(asset.quoteType).toUpperCase();
   const exchange = safeString(asset.exchange);
   const reasons: string[] = [];
   const warnings: string[] = [];

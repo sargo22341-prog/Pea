@@ -8,16 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money } from "../lib/format";
-import { getTrend } from "../lib/chart";
-
-export function normalizePortfolioPerformanceData(data: PortfolioPerformancePoint[]) {
-  const byDate = new Map<string, PortfolioPerformancePoint>();
-  for (const point of data) {
-    if (!point.date || !Number.isFinite(new Date(point.date).getTime()) || !Number.isFinite(point.value)) continue;
-    byDate.set(point.date, point);
-  }
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-}
+import { getTrend, normalizePortfolioPerformanceData } from "../lib/chart";
 
 export function PortfolioChart({
   data,

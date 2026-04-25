@@ -1,5 +1,5 @@
 import type { User } from "@pea/shared";
-import { Briefcase, CalendarDays, Home, LogOut, Search, Settings } from "lucide-react";
+import { Briefcase, CalendarDays, Home, LogOut, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
@@ -13,7 +13,7 @@ const links = [
 
 export function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const navigate = useNavigate();
-  const [profileCacheBust, setProfileCacheBust] = useState(Date.now());
+  const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [profileFailed, setProfileFailed] = useState(false);
 
   useEffect(() => {
@@ -82,6 +82,9 @@ export function Shell({ user, onLogout }: { user: User; onLogout: () => void }) 
               )}
               {user.username}
             </NavLink>
+            <button className="btn-ghost" onClick={logout} title="Deconnexion" type="button">
+              <LogOut size={17} />
+            </button>
           </nav>
         </div>
       </header>
