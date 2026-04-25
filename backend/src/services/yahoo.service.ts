@@ -7,7 +7,7 @@ import { HttpError } from "../utils/http-error.js";
 import { buildHistoricalOptions, getCurrentTradingDay, type ChartDisplayInterval } from "../utils/range.js";
 import { dedupeInFlight } from "./inFlightDeduper.js";
 import { logger } from "./logger.service.js";
-import { getLastTradingDay, shouldRefreshMarketData } from "./marketCalendar.service.js";
+import { getLastTradingDay, isMarketOpen, shouldRefreshMarketData } from "./marketCalendar.service.js";
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
 
@@ -49,14 +49,28 @@ function markStaleList<T extends object>(data: T[], stale: boolean): Array<T & {
   return data.map((item) => markStale(item, stale));
 }
 
+function cacheIsStale(symbol: string, exchange: string | undefined, fetchedAtSeconds: number, ttlSeconds: number) {
+  if (!isMarketOpen(symbol, exchange)) return false;
+  return nowSeconds() - fetchedAtSeconds > ttlSeconds;
+}
+
+function exchangeFromCachedPayload(payload: unknown) {
+  if (payload && typeof payload === "object" && "exchange" in payload) {
+    const exchange = (payload as { exchange?: unknown }).exchange;
+    return typeof exchange === "string" ? exchange : undefined;
+  }
+  return undefined;
+}
+
 function readCache<T>(table: CacheTable, symbol: string, ttlSeconds: number): MarketDataResult<T> | null {
   const row = db.prepare(`SELECT payload, fetched_at FROM ${table} WHERE symbol = ?`).get(symbol.toUpperCase()) as
     | { payload: string; fetched_at: number }
     | undefined;
 
   if (!row) return null;
-  const stale = nowSeconds() - Number(row.fetched_at) > ttlSeconds;
-  return { data: JSON.parse(String(row.payload)) as T, stale };
+  const data = JSON.parse(String(row.payload)) as T;
+  const stale = cacheIsStale(symbol, exchangeFromCachedPayload(data), Number(row.fetched_at), ttlSeconds);
+  return { data, stale };
 }
 
 function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttlSeconds: number): MarketDataResult<HistoryPoint[]> | null {
@@ -66,7 +80,7 @@ function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttl
     | undefined;
 
   if (!row) return null;
-  const stale = nowSeconds() - Number(row.fetched_at) > ttlSeconds;
+  const stale = cacheIsStale(symbol, undefined, Number(row.fetched_at), ttlSeconds);
   return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(String(row.payload)) as HistoryPoint[]), stale };
 }
 
@@ -89,7 +103,7 @@ function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(sym
     };
   }
 
-  const stale = String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90;
+  const stale = isMarketOpen(symbol) && (String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90);
   return {
     data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
     stale,
@@ -545,7 +559,7 @@ export class YahooService implements MarketDataProvider {
     if (range === "1d") {
       const cached = readIntradayCache(key, historicalOptions.tradingDay);
       const latest = cached ?? readLatestIntradayCache(key);
-      const updatedAt = latest?.lastUpdatedAt;
+      const updatedAt = latest?.lastUpdatedAt ? latest.lastUpdatedAt * 1000 : undefined;
       if (latest && !shouldRefreshMarketData(key, quoteForRange?.exchange, updatedAt, range)) {
         logMarketData("cache-hit", { provider: "local-cache", method: `history:${key}:${range}`, symbol: key, stale: latest.stale, durationMs: 0 });
         return { data: markStaleList(latest.data, latest.stale), stale: latest.stale };

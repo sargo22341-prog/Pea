@@ -126,7 +126,7 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
 }
 
 export function shouldRefreshMarketData(symbol: string, exchange: string | undefined, cacheUpdatedAt: number | undefined, range: RangeKey) {
-  if (range !== "1d") return !cacheUpdatedAt || Date.now() - cacheUpdatedAt > 60 * 60 * 1000;
   if (!isMarketOpen(symbol, exchange)) return false;
+  if (range !== "1d") return !cacheUpdatedAt || Date.now() - cacheUpdatedAt > 60 * 60 * 1000;
   return !cacheUpdatedAt || Date.now() - cacheUpdatedAt > 90 * 1000;
 }

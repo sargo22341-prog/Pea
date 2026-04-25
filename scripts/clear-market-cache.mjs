@@ -28,7 +28,7 @@ if (!fs.existsSync(sqlitePath)) {
 }
 
 const database = new SQL.Database(fs.readFileSync(sqlitePath));
-for (const table of ["cached_quotes", "cached_history", "cached_dividends"]) {
+for (const table of ["cached_quotes", "cached_history", "cached_intraday_history", "cached_dividends"]) {
   try {
     database.run(`DELETE FROM ${table}`);
     console.log(`Cache vidé: ${table}`);
