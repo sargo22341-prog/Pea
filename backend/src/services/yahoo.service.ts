@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
 import { buildHistoricalOptions, getCurrentTradingDay, type ChartDisplayInterval } from "../utils/range.js";
+import { dedupeInFlight } from "./inFlightDeduper.js";
 import { getLastTradingDay, shouldRefreshMarketData } from "./marketCalendar.service.js";
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
@@ -68,7 +69,7 @@ function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttl
 
   if (!row) return null;
   const stale = nowSeconds() - Number(row.fetched_at) > ttlSeconds;
-  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale };
+  return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(String(row.payload)) as HistoryPoint[]), stale };
 }
 
 function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(symbol)): (MarketDataResult<HistoryPoint[]> & { tradingDay: string; lastUpdatedAt: number }) | null {
@@ -82,11 +83,21 @@ function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(sym
       "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '5m' ORDER BY last_updated_at DESC LIMIT 1"
     ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
     if (!fallback) return null;
-    return { data: JSON.parse(String(fallback.payload)) as HistoryPoint[], stale: true, tradingDay: String(fallback.trading_day), lastUpdatedAt: Number(fallback.last_updated_at) };
+    return {
+      data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(fallback.payload)) as HistoryPoint[]),
+      stale: true,
+      tradingDay: String(fallback.trading_day),
+      lastUpdatedAt: Number(fallback.last_updated_at)
+    };
   }
 
   const stale = String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90;
-  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale, tradingDay: String(row.trading_day), lastUpdatedAt: Number(row.last_updated_at) };
+  return {
+    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
+    stale,
+    tradingDay: String(row.trading_day),
+    lastUpdatedAt: Number(row.last_updated_at)
+  };
 }
 
 function readLatestIntradayCache(symbol: string): (MarketDataResult<HistoryPoint[]> & { tradingDay: string; lastUpdatedAt: number }) | null {
@@ -94,7 +105,12 @@ function readLatestIntradayCache(symbol: string): (MarketDataResult<HistoryPoint
     "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '5m' ORDER BY trading_day DESC, last_updated_at DESC LIMIT 1"
   ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
   if (!row) return null;
-  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale: true, tradingDay: String(row.trading_day), lastUpdatedAt: Number(row.last_updated_at) };
+  return {
+    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
+    stale: true,
+    tradingDay: String(row.trading_day),
+    lastUpdatedAt: Number(row.last_updated_at)
+  };
 }
 
 function writeCache(table: CacheTable, symbol: string, payload: unknown) {
@@ -144,38 +160,90 @@ function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoi
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function sanitizeIntradayPoints(symbol: string, points: HistoryPoint[]): HistoryPoint[] {
+function interpolatePoint(point: HistoryPoint, previous: HistoryPoint, next: HistoryPoint): HistoryPoint {
+  const close = (previous.close + next.close) / 2;
+  return {
+    ...point,
+    close,
+    open: Number.isFinite(Number(point.open)) && Number(point.open) > 0 ? point.open : close,
+    high: Number.isFinite(Number(point.high)) && Number(point.high) > 0 ? Math.max(Number(point.high), close) : Math.max(previous.close, close, next.close),
+    low: Number.isFinite(Number(point.low)) && Number(point.low) > 0 ? Math.min(Number(point.low), close) : Math.min(previous.close, close, next.close)
+  };
+}
+
+function findPreviousValid(points: HistoryPoint[], index: number): HistoryPoint | undefined {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (Number.isFinite(points[i].close) && points[i].close > 0) return points[i];
+  }
+  return undefined;
+}
+
+function findNextValid(points: HistoryPoint[], index: number): HistoryPoint | undefined {
+  for (let i = index + 1; i < points.length; i += 1) {
+    if (Number.isFinite(points[i].close) && points[i].close > 0) return points[i];
+  }
+  return undefined;
+}
+
+function isAberrantPoint(point: HistoryPoint, previous?: HistoryPoint, next?: HistoryPoint) {
+  if (!Number.isFinite(point.close) || point.close <= 0) return true;
+  if (!previous || !next || previous.close <= 0 || next.close <= 0) return false;
+
+  const expected = (previous.close + next.close) / 2;
+  if (!Number.isFinite(expected) || expected <= 0) return false;
+
+  const pointDeviation = Math.abs(point.close - expected) / expected;
+  const neighborDeviation = Math.abs(previous.close - next.close) / expected;
+  return pointDeviation > 0.2 && neighborDeviation < 0.12;
+}
+
+function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryPoint[]): HistoryPoint[] {
   const byDate = new Map<string, HistoryPoint>();
-  let removedInvalidPoints = 0;
+  let removedPoints = 0;
+  let interpolatedPoints = 0;
+
   for (const point of points) {
     const time = new Date(point.date).getTime();
     const close = Number(point.close);
-    if (!Number.isFinite(time) || !Number.isFinite(close) || close <= 0) {
-      removedInvalidPoints += 1;
+    if (!Number.isFinite(time) || !Number.isFinite(close)) {
+      removedPoints += 1;
       if (config.debugChartData) {
-        console.info(`[intraday-sanitize] ${symbol} removed invalid point close=${point.close} date=${point.date}`);
+        console.info(`[history-sanitize] ${symbol} ${range} removed invalid point close=${point.close} date=${point.date}`);
       }
       continue;
     }
     byDate.set(new Date(point.date).toISOString(), { ...point, date: new Date(point.date).toISOString(), close });
   }
 
-  const sanitized = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-  if (sanitized.length >= 2) {
-    const previous = sanitized[sanitized.length - 2];
-    const last = sanitized[sanitized.length - 1];
-    const delta = Math.abs(last.close - previous.close) / previous.close;
-    if (Number.isFinite(delta) && delta > 0.2) {
-      removedInvalidPoints += 1;
-      if (config.debugChartData) {
-        console.info(`[intraday-sanitize] ${symbol} removed invalid last point close=${last.close} previous=${previous.close}`);
+  const sorted = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const sanitized: HistoryPoint[] = [];
+  for (let index = 0; index < sorted.length; index += 1) {
+    const point = sorted[index];
+    const previous = findPreviousValid(sorted, index);
+    const next = findNextValid(sorted, index);
+
+    if (isAberrantPoint(point, previous, next)) {
+      if (previous && next) {
+        interpolatedPoints += 1;
+        sanitized.push(interpolatePoint(point, previous, next));
+        if (config.debugChartData) {
+          console.info(`[history-sanitize] ${symbol} ${range} interpolated aberrant point close=${point.close} previous=${previous.close} next=${next.close} date=${point.date}`);
+        }
+        continue;
       }
-      sanitized.pop();
+
+      removedPoints += 1;
+      if (config.debugChartData) {
+        console.info(`[history-sanitize] ${symbol} ${range} removed aberrant edge point close=${point.close} date=${point.date}`);
+      }
+      continue;
     }
+
+    sanitized.push(point);
   }
 
-  if (config.debugChartData && removedInvalidPoints > 0) {
-    console.info(`[intraday-sanitize] ${symbol} removed=${removedInvalidPoints} invalid points`);
+  if (config.debugChartData && (removedPoints > 0 || interpolatedPoints > 0)) {
+    console.info(`[history-sanitize] ${symbol} ${range} removed=${removedPoints} interpolated=${interpolatedPoints}`);
   }
 
   return sanitized;
@@ -301,9 +369,12 @@ async function safeYahooCall<T>(
 
   const yahooStartedAt = performance.now();
   try {
-    logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key) });
-    const data = await retryTemporary(key, fn);
-    logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key), durationMs: roundMs(yahooStartedAt) });
+    const data = await dedupeInFlight(key, async () => {
+      logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key) });
+      const payload = await retryTemporary(key, fn);
+      logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key), durationMs: roundMs(yahooStartedAt) });
+      return payload;
+    });
     setCached(data);
     return { data, stale: false };
   } catch (error) {
@@ -331,11 +402,14 @@ export class YahooService implements MarketDataProvider {
 
     const yahooStartedAt = performance.now();
     try {
-      logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery });
-      const result = (await retryTemporary(`search:${normalizedQuery}`, () =>
-        yahoo.search(normalizedQuery, { quotesCount: 10, newsCount: 0 })
-      )) as any;
-      logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
+      const result = (await dedupeInFlight(`search:${normalizedQuery}`, async () => {
+        logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery });
+        const payload = await retryTemporary(`search:${normalizedQuery}`, () =>
+          yahoo.search(normalizedQuery, { quotesCount: 10, newsCount: 0 })
+        );
+        logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
+        return payload;
+      })) as any;
 
       const payload = (result.quotes ?? [])
         .map((item: any) => ({
@@ -409,9 +483,12 @@ export class YahooService implements MarketDataProvider {
 
     const yahooStartedAt = performance.now();
     try {
-      logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey });
-      const rows = (await retryTemporary(`quoteCombine:${cacheKey}`, () => Promise.all(keys.map((key) => yahoo.quoteCombine(key))))) as any[];
-      logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
+      const rows = (await dedupeInFlight(`quoteCombine:${cacheKey}`, async () => {
+        logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey });
+        const payload = await retryTemporary(`quoteCombine:${cacheKey}`, () => Promise.all(keys.map((key) => yahoo.quoteCombine(key))));
+        logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
+        return payload;
+      })) as any[];
       const payload: Quote[] = rows
         .filter((item) => item?.symbol)
         .map((item) => {
@@ -486,9 +563,13 @@ export class YahooService implements MarketDataProvider {
       `history:${key}:${range}`,
       async () => {
         const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = historicalOptions;
-        const rows = ((await yahoo.chart(key, { ...yahooOptions, return: "array" } as any)) as any).quotes ?? [];
-        const mapped = mapChartRows(rows, historicalOptions.period2);
-        const history = range === "1d" ? sanitizeIntradayPoints(key, mapped) : aggregateHistoryPoints(mapped, historicalOptions.displayInterval);
+        const chart = (await dedupeInFlight(`chart:${key}:${range}:${historicalOptions.interval}`, () =>
+          yahoo.chart(key, { ...yahooOptions, return: "array" } as any)
+        )) as any;
+        const rows = chart.quotes ?? [];
+        const mapped = sanitizeHistoryPoints(key, range, mapChartRows(rows, historicalOptions.period2));
+        const aggregated = range === "1d" ? mapped : aggregateHistoryPoints(mapped, historicalOptions.displayInterval);
+        const history = sanitizeHistoryPoints(key, range, aggregated);
         return history;
       },
       cacheReader,
@@ -507,7 +588,9 @@ export class YahooService implements MarketDataProvider {
         const period1 = new Date();
         period1.setFullYear(period1.getFullYear() - 5);
         const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = buildHistoricalOptions("max", { period1 });
-        const chart = (await yahoo.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)) as any;
+        const chart = (await dedupeInFlight(`chart:${key}:dividends:${yahooOptions.interval}`, () =>
+          yahoo.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)
+        )) as any;
         const rows = chart.events?.dividends ?? [];
 
         const quote = await this.quote(key);

@@ -25,7 +25,7 @@ export function DashboardPage({ user }: { user: User }) {
     logDashboardRange("initial-preference", undefined, initialRange);
     return initialRange;
   });
-  const portfolio = useAsync(() => api.portfolio(), []);
+  const portfolio = useAsync((signal) => api.portfolio(selectedRange, signal), [selectedRange]);
   const performance = useAsync(() => api.performance(selectedRange), [selectedRange]);
   const positionsPerformance = useAsync(() => api.positionsPerformance(selectedRange), [selectedRange]);
 

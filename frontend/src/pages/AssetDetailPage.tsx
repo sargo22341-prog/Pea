@@ -192,7 +192,7 @@ export function AssetDetailPage({ user }: { user: User }) {
                   axisLine={false}
                   tickFormatter={(value) => {
                     if (range === "1d") return formatChartTime(String(value));
-                    if (range === "1w") return formatChartWeekTick(String(value));
+                    if (range === "1w" || range === "1m") return formatChartWeekTick(String(value));
                     return formatChartDate(String(value));
                   }}
                 />
@@ -211,7 +211,7 @@ export function AssetDetailPage({ user }: { user: User }) {
                   labelFormatter={(value) =>
                     range === "1d"
                       ? formatChartDateTime(String(value))
-                      : range === "1w"
+                      : range === "1w" || range === "1m"
                         ? formatChartDateTime(String(value))
                       : formatChartDate(String(value))
                   }

@@ -31,7 +31,7 @@ export function App() {
     <Routes>
       <Route element={<Shell user={me.data.user} onLogout={me.reload} />}>
         <Route index element={<DashboardPage user={me.data.user} />} />
-        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/portfolio" element={<PortfolioPage user={me.data.user} />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />

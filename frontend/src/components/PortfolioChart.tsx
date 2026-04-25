@@ -83,7 +83,7 @@ export function PortfolioChart({
             tick={{ fill: "#94a3b8", fontSize: 12 }}
             tickFormatter={(value) => {
               if (range === "1d") return formatChartTime(String(value));
-              if (range === "1w") return formatChartWeekTick(String(value));
+              if (range === "1w" || range === "1m") return formatChartWeekTick(String(value));
               return formatChartDate(String(value));
             }}
             tickLine={false}
@@ -101,7 +101,7 @@ export function PortfolioChart({
             formatter={(value) => money(Number(value))}
             labelFormatter={(value) => {
               if (range === "1d") return formatChartTime(String(value));
-              if (range === "1w") return formatChartDateTime(String(value));
+              if (range === "1w" || range === "1m") return formatChartDateTime(String(value));
               return formatChartDate(String(value));
             }}
             labelStyle={{ color: "#cbd5e1" }}

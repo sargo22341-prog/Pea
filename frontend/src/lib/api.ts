@@ -23,6 +23,35 @@ import type {
 } from "@pea/shared";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+function abortError() {
+  return new DOMException("Requete annulee", "AbortError");
+}
+
+function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      signal.addEventListener("abort", () => reject(abortError()), { once: true });
+    })
+  ]);
+}
+
+function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
+  let existing = inFlightRequests.get(path) as Promise<T> | undefined;
+  if (!existing) {
+    existing = request<T>(path).finally(() => {
+      inFlightRequests.delete(path);
+    });
+    inFlightRequests.set(path, existing);
+  }
+
+  return withAbort(existing, signal);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = init?.body instanceof FormData ? init?.headers : { "Content-Type": "application/json", ...init?.headers };
@@ -52,7 +81,8 @@ export const api = {
   history: (symbol: string, range: RangeKey) =>
     request<HistoryPoint[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
-  portfolio: () => request<PortfolioSummary>("/api/portfolio"),
+  portfolio: (range?: RangeKey, signal?: AbortSignal) =>
+    dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   addPosition: (input: CreatePositionInput) =>
     request("/api/portfolio/positions", { method: "POST", body: JSON.stringify(input) }),
   updatePosition: (id: number, input: UpdatePositionInput) =>
@@ -63,7 +93,10 @@ export const api = {
     request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),
-  watchlist: (range: RangeKey = "1d") => request<WatchlistItem[]>(`/api/watchlist?range=${range}`),
+  watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => {
+    const path = `/api/watchlist?range=${range}`;
+    return dedupedRequest<WatchlistItem[]>(path, signal);
+  },
   addWatchlist: (item: Pick<SearchResult, "symbol" | "name" | "exchange" | "currency">) =>
     request<WatchlistItem>(`/api/watchlist/${encodeURIComponent(item.symbol)}`, { method: "POST", body: JSON.stringify(item) }),
   removeWatchlist: (symbol: string) => request<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" }),

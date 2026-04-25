@@ -112,7 +112,7 @@ export class PortfolioService {
     return this.enrichPosition(mapPosition(row));
   }
 
-  async summary(): Promise<PortfolioSummary> {
+  async summary(_range: RangeKey = "1d"): Promise<PortfolioSummary> {
     const positions = await Promise.all(this.listPositions().map((position) => this.enrichPosition(position)));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
@@ -141,7 +141,7 @@ export class PortfolioService {
         fallbackPrice: await this.safeCurrentPrice(position)
       }))
     );
-    if (range === "1d" || range === "1w") {
+    if (range === "1d" || range === "1w" || range === "1m") {
       const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
         .filter((date) => new Date(date).getTime() <= Date.now())
         .sort((a, b) => a.localeCompare(b));

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
 import { db } from "../db.js";
+import { dedupeInFlight } from "./inFlightDeduper.js";
 import { yahooClient } from "./yahoo.service.js";
 
 export interface AssetIcon {
@@ -297,7 +298,10 @@ export class IconService {
   }
 
   private async getWebsiteFromYahooAssetProfile(symbol: string): Promise<string | undefined> {
-    const summary = (await yahooClient.quoteSummary(symbol.toUpperCase(), { modules: ["assetProfile"] } as any)) as any;
+    const key = symbol.toUpperCase();
+    const summary = (await dedupeInFlight(`icon:${key}`, () =>
+      yahooClient.quoteSummary(key, { modules: ["assetProfile"] } as any)
+    )) as any;
     return normalizeWebsite(summary?.assetProfile?.website);
   }
 

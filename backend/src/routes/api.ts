@@ -244,8 +244,9 @@ apiRouter.get("/asset-icons", asyncRoute(async (_req, res) => {
   res.json(iconService.listKnownAssets());
 }));
 
-apiRouter.get("/portfolio", asyncRoute(async (_req, res) => {
-  res.json(await portfolioService.summary());
+apiRouter.get("/portfolio", asyncRoute(async (req, res) => {
+  const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
+  res.json(await portfolioService.summary(range));
 }));
 
 apiRouter.post("/portfolio/positions", asyncRoute(async (req, res) => {
