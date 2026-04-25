@@ -1,4 +1,4 @@
-import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends } from "@pea/shared";
+import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
 import { HttpError } from "../utils/http-error.js";
 import { portfolioService } from "./portfolio.service.js";
 import { yahooService } from "./yahoo.service.js";
@@ -7,6 +7,21 @@ function addOneYear(date: string): string {
   const next = new Date(date);
   next.setFullYear(next.getFullYear() + 1);
   return next.toISOString();
+}
+
+function dividendMetrics(position: PositionWithMarket) {
+  const annualDividendRate = position.quote?.dividendRate;
+  const hasAnnualDividendRate = Number.isFinite(annualDividendRate);
+  const dividendPercent =
+    hasAnnualDividendRate && position.currentPrice ? (Number(annualDividendRate) / position.currentPrice) * 100 : undefined;
+  const yieldOnCostPercent =
+    hasAnnualDividendRate && position.averageBuyPrice ? (Number(annualDividendRate) / position.averageBuyPrice) * 100 : undefined;
+
+  return {
+    annualDividendRate,
+    dividendPercent,
+    yieldOnCostPercent
+  };
 }
 
 export class DividendService {
@@ -18,6 +33,7 @@ export class DividendService {
     let stale = positions.positions.some((position) => position.quote?.stale);
 
     for (const position of positions.positions) {
+      const metrics = dividendMetrics(position);
       let dividends: DividendEvent[] = [];
       try {
         const dividendResult = await yahooService.dividends(position.symbol);
@@ -46,6 +62,7 @@ export class DividendService {
           totalAmount: amountPerShare * position.quantity,
           currency: event.currency,
           status: "real",
+          ...metrics,
           stale: event.stale
         });
       }
@@ -63,6 +80,7 @@ export class DividendService {
           totalAmount: amountPerShare * position.quantity,
           currency: event.currency,
           status: "estimated",
+          ...metrics,
           stale: event.stale
         });
       }
@@ -78,7 +96,8 @@ export class DividendService {
           quantity: position.quantity,
           totalAmount: position.estimatedAnnualDividend,
           currency: position.currency,
-          status: "estimated"
+          status: "estimated",
+          ...metrics
         });
       }
     }

@@ -171,6 +171,9 @@ export interface PortfolioDividendEvent {
   totalAmount: number;
   currency: CurrencyCode;
   status: "real" | "estimated";
+  annualDividendRate?: number;
+  dividendPercent?: number;
+  yieldOnCostPercent?: number;
   stale?: boolean;
 }
 
