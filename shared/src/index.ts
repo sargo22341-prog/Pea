@@ -205,6 +205,7 @@ export interface AssetDetails {
   history: HistoryPoint[];
   dividends: DividendEvent[];
   position?: PositionWithMarket;
+  isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
   peaEligibility: PeaEligibilityResult;
   peaRank: PeaRankingResult;
@@ -219,6 +220,8 @@ export interface AssetIcon {
   source: "manual" | "auto";
   fetchStatus: "success" | "failed" | "pending";
   lastAttemptAt?: string;
+  updatedAt?: string;
+  hasIcon?: boolean;
 }
 
 export interface User {
@@ -229,6 +232,7 @@ export interface User {
   dashboardDefaultSortKey: DashboardSortKey;
   dashboardDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
+  localPeaSearchEnabled: boolean;
   createdAt: string;
 }
 
@@ -254,4 +258,14 @@ export interface BoursoramaImportRow {
   errors: string[];
   existingPositionId?: number;
   action?: "replace" | "merge" | "ignore";
+}
+
+export interface BoursoramaUpdateRow extends BoursoramaImportRow {
+  currentQuantity?: number;
+  csvQuantity: number;
+  quantityDiff: number;
+  currentAverageBuyPrice?: number;
+  csvAverageBuyPrice: number;
+  proposedAction: "add" | "update" | "reduce" | "delete" | "unchanged" | "ignore";
+  positionId?: number;
 }

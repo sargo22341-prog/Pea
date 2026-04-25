@@ -1,4 +1,5 @@
 import type { SearchResult } from "@pea/shared";
+import type { BoursoramaUpdateRow } from "@pea/shared";
 import { db } from "../db.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "./peaEligibility.js";
 import { portfolioService } from "./portfolio.service.js";
@@ -162,10 +163,118 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
   return { imported, skipped, errors };
 }
 
+export async function previewBoursoramaUpdate(content: string): Promise<BoursoramaUpdateRow[]> {
+  const previewRows = await previewBoursoramaImport(content);
+  const csvSymbols = new Set(previewRows.map((row) => row.symbol).filter(Boolean).map((symbol) => String(symbol).toUpperCase()));
+  const rows: BoursoramaUpdateRow[] = [];
+
+  for (const row of previewRows) {
+    const existing = row.symbol ? db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any : undefined;
+    const currentQuantity = existing ? Number(existing.quantity) : undefined;
+    const currentAverageBuyPrice = existing ? Number(existing.average_buy_price) : undefined;
+    const quantityDiff = row.quantity - (currentQuantity ?? 0);
+    const proposedAction =
+      !row.symbol || row.errors.length
+        ? "ignore"
+        : !existing
+          ? "add"
+          : Math.abs(quantityDiff) < 0.000001 && Math.abs(row.buyingPrice - (currentAverageBuyPrice ?? row.buyingPrice)) < 0.000001
+            ? "unchanged"
+            : quantityDiff < 0
+              ? "reduce"
+              : "update";
+    rows.push({
+      ...row,
+      currentQuantity,
+      csvQuantity: row.quantity,
+      quantityDiff,
+      currentAverageBuyPrice,
+      csvAverageBuyPrice: row.buyingPrice,
+      proposedAction,
+      positionId: existing?.id
+    });
+  }
+
+  const existingRows = db.prepare("SELECT * FROM positions ORDER BY symbol ASC").all() as any[];
+  for (const existing of existingRows) {
+    const symbol = String(existing.symbol).toUpperCase();
+    if (csvSymbols.has(symbol)) continue;
+    rows.push({
+      line: 0,
+      name: String(existing.name),
+      isin: "",
+      quantity: 0,
+      buyingPrice: 0,
+      lastPrice: 0,
+      intradayVariation: 0,
+      amount: 0,
+      amountVariation: 0,
+      variation: 0,
+      symbol,
+      needsReview: true,
+      errors: [],
+      existingPositionId: Number(existing.id),
+      currentQuantity: Number(existing.quantity),
+      csvQuantity: 0,
+      quantityDiff: -Number(existing.quantity),
+      currentAverageBuyPrice: Number(existing.average_buy_price),
+      csvAverageBuyPrice: 0,
+      proposedAction: "delete",
+      positionId: Number(existing.id)
+    });
+  }
+
+  return rows;
+}
+
+export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
+  const imported: string[] = [];
+  const skipped: string[] = [];
+  const errors: Array<{ line: number; message: string }> = [];
+
+  for (const row of rows) {
+    try {
+      if (row.proposedAction === "ignore" || row.proposedAction === "unchanged" || !row.symbol) {
+        skipped.push(row.name);
+        continue;
+      }
+      if (row.proposedAction === "delete") {
+        if (!row.positionId) throw new Error("Position introuvable pour suppression.");
+        portfolioService.deletePosition(row.positionId);
+        imported.push(row.symbol);
+        continue;
+      }
+      const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any;
+      if (existing) {
+        db.prepare(
+          `UPDATE positions
+           SET name = ?, quantity = ?, average_buy_price = ?, currency = 'EUR', updated_at = CURRENT_TIMESTAMP
+           WHERE symbol = ?`
+        ).run(row.name, row.csvQuantity, row.csvAverageBuyPrice, row.symbol);
+      } else {
+        await portfolioService.createPosition({
+          symbol: row.symbol,
+          name: row.name,
+          quantity: row.csvQuantity,
+          averageBuyPrice: row.csvAverageBuyPrice,
+          currency: "EUR"
+        });
+      }
+      imported.push(row.symbol);
+    } catch (error) {
+      errors.push({ line: row.line, message: error instanceof Error ? error.message : "Mise a jour impossible." });
+    }
+  }
+
+  return { imported, skipped, errors };
+}
+
 export const importBoursoramaService = {
   parseBoursoramaCsv,
   normalizeFrenchNumber,
   resolveYahooSymbolFromIsin,
   previewBoursoramaImport,
-  confirmBoursoramaImport
+  confirmBoursoramaImport,
+  previewBoursoramaUpdate,
+  confirmBoursoramaUpdate
 };

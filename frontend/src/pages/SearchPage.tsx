@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { money, percent } from "../lib/format";
+import { useAsync } from "../hooks/useAsync";
 
 export function SearchPage() {
+  const me = useAsync(() => api.me(), []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<EnrichedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,13 +38,13 @@ export function SearchPage() {
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, 800);
+    }, me.data?.user?.localPeaSearchEnabled ? 150 : 800);
 
     return () => {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [query]);
+  }, [me.data?.user?.localPeaSearchEnabled, query]);
 
   async function toggle(item: EnrichedSearchResult) {
     if (item.isInWatchlist) {
@@ -79,6 +81,7 @@ export function SearchPage() {
                 {item.isInPortfolio && <span className="rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">En portefeuille</span>}
               </div>
               <p className="muted">{item.symbol}</p>
+              {item.quoteType && <p className="text-xs text-slate-500">{item.quoteType}</p>}
             </Link>
             <div className="hidden text-right sm:block">
               <p className="font-semibold">{item.price === undefined ? "n/a" : money(item.price, item.currency ?? "EUR")}</p>
@@ -91,7 +94,11 @@ export function SearchPage() {
             </button>
           </div>
         ))}
-        {!loading && query.trim().length >= 2 && results.length === 0 && <p className="p-4 text-slate-400">Aucun resultat.</p>}
+        {!loading && query.trim().length >= 2 && results.length === 0 && (
+          <p className="p-4 text-slate-400">
+            {me.data?.user?.localPeaSearchEnabled ? "Aucun resultat dans la liste locale PEA." : "Aucun resultat."}
+          </p>
+        )}
       </div>
     </div>
   );

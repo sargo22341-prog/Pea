@@ -1,6 +1,8 @@
 node_modules
 dist
 data
+!backend/src/data/
+!backend/src/data/*.json
 .env
 .env.*
 !.env.example

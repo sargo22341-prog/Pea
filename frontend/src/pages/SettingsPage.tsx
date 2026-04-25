@@ -1,6 +1,7 @@
-import type { BoursoramaImportRow, DashboardSortKey, RangeKey, SortDirection } from "@pea/shared";
+import type { BoursoramaImportRow, BoursoramaUpdateRow, DashboardSortKey, RangeKey, SortDirection } from "@pea/shared";
 import { ChevronDown, Database, Save, Trash2, Upload } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AssetIcon } from "../components/AssetIcon";
 import { PeaBadge } from "../components/PeaBadge";
 import { useAsync } from "../hooks/useAsync";
@@ -206,6 +207,7 @@ function PreferencesSection() {
   const me = useAsync(() => api.me(), []);
   const [sortValue, setSortValue] = useState("name:asc");
   const [range, setRange] = useState<RangeKey>("1d");
+  const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [toast, setToast] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
@@ -213,13 +215,14 @@ function PreferencesSection() {
     if (!user) return;
     setSortValue(`${user.dashboardDefaultSortKey}:${user.dashboardDefaultSortDirection}`);
     setRange(user.defaultChartRange);
+    setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
   }, [me.data?.user]);
 
   async function save() {
     const [dashboardDefaultSortKey, dashboardDefaultSortDirection] = sortValue.split(":") as [DashboardSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled });
       setToast({ tone: "success", text: "Preferences enregistrees." });
       await me.reload();
     } catch (error) {
@@ -249,6 +252,24 @@ function PreferencesSection() {
           </select>
         </label>
       </div>
+      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
+        <button
+          aria-checked={localPeaSearchEnabled}
+          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${localPeaSearchEnabled ? "bg-mint" : "bg-panel2"}`}
+          onClick={() => setLocalPeaSearchEnabled((current) => !current)}
+          role="switch"
+          type="button"
+        >
+          <span className={`h-4 w-4 rounded-full bg-white transition ${localPeaSearchEnabled ? "translate-x-5" : ""}`} />
+        </button>
+        <span>
+          <span className="block font-semibold">Utiliser la recherche locale PEA</span>
+          <span className="muted block">Utilise la liste locale d'actions et ETF PEA pour accelerer la recherche et eviter les appels API.</span>
+          <span className="mt-2 block text-sm text-slate-300">
+            Si cette option est activee, seules les valeurs eligibles PEA seront proposees. Pour rechercher toutes les actions et ETF, desactivez cette option.
+          </span>
+        </span>
+      </label>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex justify-end">
         <button className="btn-primary" disabled={me.loading} onClick={() => void save()} type="button">
@@ -291,7 +312,9 @@ function IconSection() {
         previewsRef.current = next;
         return next;
       });
-      setCacheBusts((current) => ({ ...current, [symbol]: Date.now() }));
+      const version = Date.now();
+      setCacheBusts((current) => ({ ...current, [symbol]: version }));
+      window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
       setToast({ tone: "success", text: `Icone ${symbol} mise a jour.` });
       await icons.reload();
     } catch (error) {
@@ -311,7 +334,9 @@ function IconSection() {
         previewsRef.current = next;
         return next;
       });
-      setCacheBusts((current) => ({ ...current, [symbol]: Date.now() }));
+      const version = Date.now();
+      setCacheBusts((current) => ({ ...current, [symbol]: version }));
+      window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
       setToast({ tone: "success", text: `Icone ${symbol} supprimee.` });
       await icons.reload();
     } catch (error) {
@@ -400,6 +425,205 @@ function Toast({ tone, children }: { tone: "success" | "error"; children: ReactN
 }
 
 function ImportSection() {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState<BoursoramaImportRow[]>([]);
+  const [updateRows, setUpdateRows] = useState<BoursoramaUpdateRow[]>([]);
+  const [showUnchanged, setShowUnchanged] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function readCsv(file?: File) {
+    if (!file) return undefined;
+    const buffer = await file.arrayBuffer();
+    const utf8 = new TextDecoder("utf-8").decode(buffer);
+    return utf8.includes("Ã¯Â¿Â½") ? new TextDecoder("windows-1252").decode(buffer) : utf8;
+  }
+
+  async function importCsv(file?: File) {
+    const content = await readCsv(file);
+    if (!content) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      const rows = await api.previewBoursorama(content);
+      setRows(rows);
+      setUpdateRows([]);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Import impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function previewUpdate(file?: File) {
+    const content = await readCsv(file);
+    if (!content) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      setUpdateRows(await api.previewBoursoramaUpdate(content));
+      setRows([]);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Preview impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmUpdate() {
+    if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm("Confirmer les suppressions de positions absentes du CSV ?")) return;
+    setLoading(true);
+    const result = await api.confirmBoursoramaUpdate(updateRows);
+    setMessage(`${result.imported.length} changement(s) applique(s), ${result.skipped.length} ignore(s), ${result.errors.length} erreur(s).`);
+    setLoading(false);
+    if (result.errors.length === 0) navigate("/");
+  }
+
+  async function confirmImport() {
+    setLoading(true);
+    const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
+    setMessage(`${result.imported.length} ligne(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
+    setLoading(false);
+    if (result.errors.length === 0) navigate("/");
+  }
+
+  function updateImportRow(index: number, patch: Partial<BoursoramaImportRow>) {
+    setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  }
+
+  const visibleRows = showUnchanged ? updateRows : updateRows.filter((row) => row.proposedAction !== "unchanged");
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Import CSV Boursorama</h2>
+          <p className="muted">Importer ou synchroniser l'etat total du portefeuille.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label className="btn-ghost cursor-pointer">
+            <Upload size={17} />
+            Importer CSV
+            <input accept=".csv,text/csv" className="hidden" onChange={(event) => void importCsv(event.target.files?.[0])} type="file" />
+          </label>
+          <label className="btn-ghost cursor-pointer">
+            <Upload size={17} />
+            Mettre a jour via CSV
+            <input accept=".csv,text/csv" className="hidden" onChange={(event) => void previewUpdate(event.target.files?.[0])} type="file" />
+          </label>
+        </div>
+      </div>
+      {message && <p className="p-4 text-sm text-mint">{message}</p>}
+      {loading && <p className="p-4 text-slate-400">Traitement...</p>}
+      {rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead className="bg-ink text-left text-slate-400">
+              <tr>
+                <th className="p-3">Nom</th>
+                <th className="p-3">ISIN</th>
+                <th className="p-3">Qte</th>
+                <th className="p-3">PRU</th>
+                <th className="p-3">Ticker</th>
+                <th className="p-3">Action</th>
+                <th className="p-3">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((row, index) => (
+                <tr key={`${row.line}-${row.isin}`}>
+                  <td className="p-3">{row.name}</td>
+                  <td className="p-3">{row.isin}</td>
+                  <td className="p-3">{row.quantity}</td>
+                  <td className="p-3">{row.buyingPrice}</td>
+                  <td className="p-3"><input className="input" onChange={(event) => updateImportRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false })} value={row.symbol ?? ""} /></td>
+                  <td className="p-3">
+                    <select className="input" onChange={(event) => updateImportRow(index, { action: event.target.value as BoursoramaImportRow["action"] })} value={row.action ?? "merge"}>
+                      <option value="merge">Fusionner</option>
+                      <option value="replace">Remplacer</option>
+                      <option value="ignore">Ignorer</option>
+                    </select>
+                  </td>
+                  <td className={`p-3 ${row.needsReview || row.errors.length ? "text-amber" : "text-mint"}`}>{row.errors.length ? row.errors.join(", ") : row.needsReview ? "A verifier" : "OK"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex justify-end p-4">
+            <button className="btn-primary" disabled={loading} onClick={() => void confirmImport()} type="button">
+              <Database size={17} />
+              Importer
+            </button>
+          </div>
+        </div>
+      )}
+      {updateRows.length > 0 && (
+        <div className="overflow-x-auto">
+          <label className="flex items-center gap-2 p-4 text-sm text-slate-400">
+            <input checked={showUnchanged} onChange={(event) => setShowUnchanged(event.target.checked)} type="checkbox" />
+            Afficher les lignes inchangees
+          </label>
+          <table className="w-full min-w-[1120px] text-sm">
+            <thead className="bg-ink text-left text-slate-400">
+              <tr>
+                <th className="p-3">Nom</th>
+                <th className="p-3">ISIN</th>
+                <th className="p-3">Ticker</th>
+                <th className="p-3">Qte app</th>
+                <th className="p-3">Qte CSV</th>
+                <th className="p-3">Diff</th>
+                <th className="p-3">PRU app</th>
+                <th className="p-3">PRU CSV</th>
+                <th className="p-3">Diff PRU</th>
+                <th className="p-3">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {visibleRows.map((row, index) => {
+                const averageBuyPriceDiff = row.csvAverageBuyPrice - (row.currentAverageBuyPrice ?? row.csvAverageBuyPrice);
+                const averageBuyPriceChanged = Math.abs(averageBuyPriceDiff) >= 0.000001 && row.proposedAction !== "delete";
+
+                return (
+                  <tr key={`${row.symbol}-${row.line}-${index}`}>
+                    <td className="p-3">{row.name}</td>
+                    <td className="p-3">{row.isin || "n/a"}</td>
+                    <td className="p-3">
+                      <input className="input" onChange={(event) => setUpdateRows((current) => current.map((item) => (item === row ? { ...item, symbol: event.target.value.toUpperCase() } : item)))} value={row.symbol ?? ""} />
+                    </td>
+                    <td className="p-3">{row.currentQuantity ?? 0}</td>
+                    <td className="p-3">{row.csvQuantity}</td>
+                    <td className={`p-3 ${row.quantityDiff >= 0 ? "text-mint" : "text-coral"}`}>{row.quantityDiff}</td>
+                    <td className="p-3">{row.currentAverageBuyPrice ?? "n/a"}</td>
+                    <td className="p-3">{row.csvAverageBuyPrice}</td>
+                    <td className={`p-3 ${averageBuyPriceDiff >= 0 ? "text-mint" : "text-coral"}`}>
+                      {averageBuyPriceChanged ? averageBuyPriceDiff.toLocaleString("fr-FR", { maximumFractionDigits: 4 }) : "0"}
+                      {averageBuyPriceChanged && (
+                        <span className="ml-2 rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">
+                          PRU mis a jour
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3">{row.proposedAction}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="flex justify-end p-4">
+            <button className="btn-primary" disabled={loading} onClick={() => void confirmUpdate()} type="button">
+              <Database size={17} />
+              Valider la mise a jour
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+void LegacyImportSection;
+
+function LegacyImportSection() {
   const [rows, setRows] = useState<BoursoramaImportRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

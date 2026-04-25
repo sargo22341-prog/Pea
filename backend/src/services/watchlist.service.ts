@@ -1,4 +1,4 @@
-import type { SearchResult, WatchlistItem } from "@pea/shared";
+import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { db } from "../db.js";
 import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
 
@@ -15,9 +15,9 @@ function mapWatchlistRow(row: any): WatchlistItem {
 }
 
 export class WatchlistService {
-  async list(): Promise<WatchlistItem[]> {
+  async list(range: RangeKey = "1d"): Promise<WatchlistItem[]> {
     const rows = db.prepare("SELECT * FROM watchlist ORDER BY created_at DESC").all();
-    return Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row))));
+    return Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
   }
 
   async add(symbol: string, input?: Partial<SearchResult>): Promise<WatchlistItem> {
@@ -42,7 +42,7 @@ export class WatchlistService {
     ).run(key, name, exchange ?? null, currency ?? null);
 
     const row = db.prepare("SELECT * FROM watchlist WHERE symbol = ?").get(key);
-    return this.enrich(mapWatchlistRow(row));
+    return this.enrich(mapWatchlistRow(row), "1d");
   }
 
   remove(symbol: string): boolean {
@@ -53,9 +53,9 @@ export class WatchlistService {
     return true;
   }
 
-  private async enrich(item: WatchlistItem): Promise<WatchlistItem> {
+  private async enrich(item: WatchlistItem, range: RangeKey): Promise<WatchlistItem> {
     try {
-      const [quote, history] = await Promise.all([yahooService.quote(item.symbol), yahooService.history(item.symbol, "1d")]);
+      const [quote, history] = await Promise.all([yahooService.quote(item.symbol), yahooService.history(item.symbol, range)]);
       return {
         ...item,
         name: item.name || quote.data.name,

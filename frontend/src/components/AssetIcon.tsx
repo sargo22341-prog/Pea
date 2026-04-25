@@ -2,10 +2,23 @@ import { useEffect, useState } from "react";
 
 export function AssetIcon({ symbol, className = "h-10 w-10", cacheBust }: { symbol: string; className?: string; cacheBust?: number }) {
   const [failed, setFailed] = useState(false);
+  const [globalCacheBust, setGlobalCacheBust] = useState(0);
 
   useEffect(() => {
     setFailed(false);
   }, [symbol, cacheBust]);
+
+  useEffect(() => {
+    const onAssetIconUpdated = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (!detail || detail.symbol === symbol) {
+        setFailed(false);
+        setGlobalCacheBust(typeof detail?.version === "number" ? detail.version : Date.now());
+      }
+    };
+    window.addEventListener("asset-icon-updated", onAssetIconUpdated);
+    return () => window.removeEventListener("asset-icon-updated", onAssetIconUpdated);
+  }, [symbol]);
 
   if (failed) {
     return (
@@ -21,7 +34,7 @@ export function AssetIcon({ symbol, className = "h-10 w-10", cacheBust }: { symb
       className={`${className} shrink-0 rounded-md object-contain p-1`}
       loading="lazy"
       onError={() => setFailed(true)}
-      src={`/api/assets/${encodeURIComponent(symbol)}/icon${cacheBust ? `?v=${cacheBust}` : ""}`}
+      src={`/api/assets/${encodeURIComponent(symbol)}/icon?v=${cacheBust ?? globalCacheBust}`}
     />
   );
 }

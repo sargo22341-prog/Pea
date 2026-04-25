@@ -1,5 +1,5 @@
 import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -9,7 +9,7 @@ import { PeaBadge } from "../components/PeaBadge";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
-import { formatChartDate, formatChartDateTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
+import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
 
 function logAssetRange(source: string, previousRange: RangeKey | undefined, nextRange: RangeKey) {
   console.debug("[asset-range]", {
@@ -28,6 +28,8 @@ export function AssetDetailPage({ user }: { user: User }) {
     return initialRange;
   });
   const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
 
@@ -38,7 +40,11 @@ export function AssetDetailPage({ user }: { user: User }) {
     });
   }
 
-  if (asset.loading) return <div className="card p-6">Chargement de {symbol}...</div>;
+  useEffect(() => {
+    if (asset.data) setWatchlisted(Boolean(asset.data.isInWatchlist));
+  }, [asset.data]);
+
+  if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
@@ -59,6 +65,21 @@ export function AssetDetailPage({ user }: { user: User }) {
     window.setTimeout(() => setToast(null), 3000);
   }
 
+
+  async function toggleWatchlist() {
+    const next = !watchlisted;
+    setWatchlisted(next);
+    try {
+      if (next) {
+        await api.addWatchlist({ symbol: quote.symbol, name: quote.name, exchange: quote.exchange, currency: quote.currency });
+      } else {
+        await api.removeWatchlist(quote.symbol);
+      }
+    } catch (error) {
+      setWatchlisted(!next);
+      setToast(error instanceof Error ? error.message : "Liste de suivi impossible");
+    }
+  }
 
   const chartData = normalizeHistoryPoints(history);
 
@@ -124,6 +145,17 @@ export function AssetDetailPage({ user }: { user: User }) {
                 Éditer
               </button>
             )}
+            {!position && (
+              <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+                <button className="btn-primary" onClick={() => setAdding(true)} type="button">
+                  <Plus size={17} />
+                  Ajouter
+                </button>
+                <button className={watchlisted ? "btn bg-amber text-ink" : "btn-ghost"} onClick={() => void toggleWatchlist()} type="button">
+                  <Star fill={watchlisted ? "currentColor" : "none"} size={17} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -135,7 +167,9 @@ export function AssetDetailPage({ user }: { user: User }) {
           <h2 className="font-semibold">Historique</h2>
           <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
         </div>
-        {history.length > 1 ? (
+        {asset.loading ? (
+          <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
+        ) : history.length > 1 ? (
           <div className="h-80">
             <ResponsiveContainer>
               <AreaChart data={chartData}>
@@ -157,7 +191,7 @@ export function AssetDetailPage({ user }: { user: User }) {
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => {
-                    if (range === "1d") return String(value);
+                    if (range === "1d") return formatChartTime(String(value));
                     if (range === "1w") return formatChartWeekTick(String(value));
                     return formatChartDate(String(value));
                   }}
@@ -176,7 +210,7 @@ export function AssetDetailPage({ user }: { user: User }) {
                   }
                   labelFormatter={(value) =>
                     range === "1d"
-                      ? String(value)
+                      ? formatChartDateTime(String(value))
                       : range === "1w"
                         ? formatChartDateTime(String(value))
                       : formatChartDate(String(value))
@@ -265,6 +299,63 @@ export function AssetDetailPage({ user }: { user: User }) {
           position={position}
         />
       )}
+      {adding && (
+        <AddAssetPositionModal
+          currency={quote.currency}
+          name={quote.name}
+          onClose={() => setAdding(false)}
+          onSaved={async () => {
+            setAdding(false);
+            await asset.reload();
+          }}
+          symbol={quote.symbol}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddAssetPositionModal({ symbol, name, currency, onClose, onSaved }: { symbol: string; name: string; currency: string; onClose: () => void; onSaved: () => void }) {
+  const [quantity, setQuantity] = useState("");
+  const [averageBuyPrice, setAverageBuyPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await api.addPosition({ symbol, name, quantity: Number(quantity), averageBuyPrice: Number(averageBuyPrice), currency });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ajout impossible");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center">
+      <form className="card w-full max-w-md space-y-4 p-4" onSubmit={submit}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Ajouter {symbol}</h2>
+          <button className="btn-ghost" onClick={onClose} type="button">Fermer</button>
+        </div>
+        <label className="block">
+          <span className="muted mb-1 block">Quantite</span>
+          <input className="input" min="0" onChange={(event) => setQuantity(event.target.value)} required step="any" type="number" value={quantity} />
+        </label>
+        <label className="block">
+          <span className="muted mb-1 block">Prix d'achat moyen</span>
+          <input className="input" min="0" onChange={(event) => setAverageBuyPrice(event.target.value)} required step="any" type="number" value={averageBuyPrice} />
+        </label>
+        {error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p>}
+        <button className="btn-primary w-full" disabled={saving} type="submit">
+          <Plus size={17} />
+          {saving ? "Ajout..." : "Ajouter"}
+        </button>
+      </form>
     </div>
   );
 }

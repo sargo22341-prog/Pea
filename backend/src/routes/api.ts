@@ -12,7 +12,8 @@ import { evaluatePeaEligibility, rankAssetForPea } from "../services/peaEligibil
 import { attachUser, clearAuthCookie, readCookie, requireAuth, setAuthCookie } from "../middleware/auth.js";
 import { authCookieName, authService } from "../services/auth.service.js";
 import { iconService } from "../services/icon.service.js";
-import { confirmBoursoramaImport, previewBoursoramaImport } from "../services/importBoursorama.service.js";
+import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../services/importBoursorama.service.js";
+import { localPeaSearchService } from "../services/local-pea-search.service.js";
 
 export const apiRouter = express.Router();
 
@@ -101,7 +102,8 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
-    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional()
+    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional(),
+    localPeaSearchEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   res.json(await authService.updateUser(req.user!.id, body));
@@ -139,6 +141,14 @@ apiRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   const totalStartedAt = performance.now();
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (!q) throw new HttpError(400, "Le paramètre q est requis");
+
+  if (req.user?.localPeaSearchEnabled) {
+    const localStartedAt = performance.now();
+    const enriched = localPeaSearchService.search(q);
+    console.info(`[search:local-pea] q=${q} results=${enriched.length} total=${Math.round(performance.now() - localStartedAt)}ms`);
+    res.json(enriched);
+    return;
+  }
 
   const searchStartedAt = performance.now();
   const result = await yahooService.search(q);
@@ -198,13 +208,19 @@ apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
 }));
 
 apiRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
-  const icon = iconService.getIconFile(req.params.symbol);
+  let icon = iconService.getIconFile(req.params.symbol);
   if (icon?.filePath && icon.mimeType) {
     res.type(icon.mimeType).sendFile(icon.filePath);
     return;
   }
 
-  iconService.getAssetIcon(req.params.symbol);
+  await iconService.fetchAndStoreIcon(req.params.symbol);
+  icon = iconService.getIconFile(req.params.symbol);
+  if (icon?.filePath && icon.mimeType) {
+    res.type(icon.mimeType).sendFile(icon.filePath);
+    return;
+  }
+
   res.type("image/svg+xml").send(iconService.placeholder(req.params.symbol));
 }));
 
@@ -291,8 +307,18 @@ apiRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
   res.json(await confirmBoursoramaImport(body.rows));
 }));
 
-apiRouter.get("/watchlist", asyncRoute(async (_req, res) => {
-  res.json(await watchlistService.list());
+apiRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, res) => {
+  const body = z.object({ content: z.string().min(1) }).parse(req.body);
+  res.json(await previewBoursoramaUpdate(body.content));
+}));
+
+apiRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) => {
+  const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
+  res.json(await confirmBoursoramaUpdate(body.rows));
+}));
+
+apiRouter.get("/watchlist", asyncRoute(async (req, res) => {
+  res.json(await watchlistService.list(parseRange(req.query.range)));
 }));
 
 apiRouter.post("/watchlist/:symbol", asyncRoute(async (req, res) => {
@@ -318,6 +344,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = req.params.symbol.toUpperCase();
   const position = await portfolioService.getPosition(symbol);
+  const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE symbol = ?").get(symbol);
   let marketUnavailable = false;
 
   let quote: Quote;
@@ -357,6 +384,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     history,
     dividends,
     position,
+    isInWatchlist: Boolean(watchlistRow),
     stale: marketUnavailable || quote.stale || history.some((point) => point.stale) || dividends.some((event) => event.stale) || position?.quote?.stale,
     peaEligibility: evaluatePeaEligibility({ ...quote, quoteType: String(quote.quoteType ?? "") }),
     peaRank: rankAssetForPea({ ...quote, quoteType: String(quote.quoteType ?? "") }),

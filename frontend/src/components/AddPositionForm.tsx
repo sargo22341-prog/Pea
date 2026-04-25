@@ -1,10 +1,12 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Plus, Search } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { money } from "../lib/format";
 
 export function AddPositionForm({ onCreated, compact = false }: { onCreated: () => void; compact?: boolean }) {
+  const me = useAsync(() => api.me(), []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<EnrichedSearchResult[]>([]);
   const [selected, setSelected] = useState<EnrichedSearchResult | null>(null);
@@ -39,13 +41,13 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
       } finally {
         if (!controller.signal.aborted) setSearching(false);
       }
-    }, 800);
+    }, me.data?.user?.localPeaSearchEnabled ? 150 : 800);
 
     return () => {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [query]);
+  }, [me.data?.user?.localPeaSearchEnabled, query]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -134,6 +136,7 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
               <span>
                 <span className="block font-semibold">{result.symbol}</span>
                 <span className="text-xs text-slate-400">{result.name}</span>
+                {result.quoteType && <span className="mt-1 block text-xs text-slate-500">{result.quoteType}</span>}
                 <span className="mt-1 block text-xs text-slate-500">
                   {result.price === undefined ? "Prix n/a" : money(result.price, result.currency ?? "EUR")}
                 </span>
@@ -142,6 +145,10 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
             </button>
           ))}
         </div>
+      )}
+
+      {!searching && !selected && query.trim().length >= 2 && results.length === 0 && me.data?.user?.localPeaSearchEnabled && (
+        <div className="rounded-md border border-line bg-ink p-3 text-sm text-slate-400">Aucune correspondance dans la liste locale PEA.</div>
       )}
 
       <div className={`grid gap-3 ${compact ? "" : "sm:grid-cols-2"}`}>

@@ -1,5 +1,4 @@
 import { FormEvent, useState } from "react";
-import { BarChart3 } from "lucide-react";
 
 export function AuthPage({
   mode,
@@ -34,9 +33,7 @@ export function AuthPage({
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <form className="card w-full max-w-md space-y-4 p-5" onSubmit={submit}>
         <div className="flex items-center gap-3">
-          <div className="rounded-md bg-mint p-2 text-ink">
-            <BarChart3 size={22} />
-          </div>
+          <img alt="" className="h-12 w-12 rounded-md object-cover shadow-glow" src="/pea-icon.png" />
           <div>
             <h1 className="text-xl font-bold">{mode === "setup" ? "Creer le premier compte" : "Connexion"}</h1>
             <p className="muted">Acces personnel au portefeuille PEA.</p>

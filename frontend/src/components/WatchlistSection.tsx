@@ -1,54 +1,223 @@
-import { Star } from "lucide-react";
+import type { RangeKey, SortDirection, WatchlistItem } from "@pea/shared";
+import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight, Star } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { money, percent } from "../lib/format";
 import { AssetIcon } from "./AssetIcon";
-import { MiniChart } from "./MiniChart";
 import { StaleBadge } from "./StaleBadge";
 
-export function WatchlistSection() {
-  const watchlist = useAsync(() => api.watchlist(), []);
+type WatchlistSortKey = "name" | "price" | "performancePercent";
 
-  if (watchlist.loading) return <div className="card p-4 text-slate-400">Chargement de la liste de suivi...</div>;
-  if (!watchlist.data || watchlist.data.length === 0) return null;
+const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
+  { label: "Nom A -> Z", key: "name", direction: "asc" },
+  { label: "Nom Z -> A", key: "name", direction: "desc" },
+  { label: "Prix croissant", key: "price", direction: "asc" },
+  { label: "Prix decroissant", key: "price", direction: "desc" },
+  { label: "Performance croissante", key: "performancePercent", direction: "asc" },
+  { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
+];
+
+export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
+  const watchlist = useAsync(() => api.watchlist(range), [range]);
+  const [sortKey, setSortKey] = useState<WatchlistSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!sortOpen) return undefined;
+
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!sortMenuRef.current?.contains(event.target as Node)) {
+        setSortOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [sortOpen]);
+
+  const sortedItems = useMemo(() => {
+    return (watchlist.data ?? [])
+      .map((item) => ({ item, metrics: watchlistMetrics(item) }))
+      .sort((a, b) => {
+        const direction = sortDirection === "asc" ? 1 : -1;
+
+        if (sortKey === "name") {
+          return a.item.name.localeCompare(b.item.name, "fr") * direction;
+        }
+
+        return (metricValue(a.metrics[sortKey]) - metricValue(b.metrics[sortKey])) * direction;
+      });
+  }, [sortDirection, sortKey, watchlist.data]);
+
+  if (watchlist.loading) {
+    return <div className="card p-4 text-slate-400">Chargement de la liste de suivi...</div>;
+  }
+
+  if (!watchlist.data || watchlist.data.length === 0) {
+    return null;
+  }
 
   async function remove(symbol: string) {
     await api.removeWatchlist(symbol);
     await watchlist.reload();
   }
 
+  function updateSort(value: string) {
+    const [key, direction] = value.split(":") as [WatchlistSortKey, SortDirection];
+    setSortKey(key);
+    setSortDirection(direction);
+    setSortOpen(false);
+  }
+
+  const activeSort =
+    watchlistSortOptions.find((option) => option.key === sortKey && option.direction === sortDirection) ??
+    watchlistSortOptions[0];
+
+  const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
+
   return (
     <section className="card overflow-hidden">
-      <div className="border-b border-line p-4">
-        <h2 className="font-semibold">Liste de suivi</h2>
-      </div>
-      <div className="divide-y divide-line">
-        {watchlist.data.map((item) => (
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-4" key={item.symbol}>
-            <Link className="flex min-w-0 items-center gap-3" to={`/assets/${item.symbol}`}>
-              <AssetIcon symbol={item.symbol} />
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-semibold">{item.name}</p>
-                  <StaleBadge show={item.marketDataUnavailable || item.quote?.stale} />
-                </div>
-                <p className="muted">{item.symbol}</p>
-              </div>
-            </Link>
-            <div className="hidden text-right sm:block">
-              <p className="font-semibold">{item.quote ? money(item.quote.price, item.quote.currency) : "n/a"}</p>
-              <p className={(item.quote?.change ?? 0) >= 0 ? "text-sm text-mint" : "text-sm text-coral"}>
-                {item.quote?.changePercent === undefined ? "n/a" : percent(item.quote.changePercent)}
-              </p>
+      <div className="flex items-center justify-between gap-3 border-b border-line p-4">
+        <div className="min-w-0">
+          <h2 className="truncate font-semibold">Liste de suivi</h2>
+          <p className="mt-1 truncate text-xs text-slate-400">Tri actif: {activeSort.label}</p>
+        </div>
+
+        <div className="relative shrink-0" ref={sortMenuRef}>
+          <button
+            aria-expanded={sortOpen}
+            aria-haspopup="menu"
+            className="btn-ghost px-2.5 sm:px-3"
+            onClick={() => setSortOpen((current) => !current)}
+            title={sortDirection === "asc" ? "Trier vers le haut" : "Trier vers le bas"}
+            type="button"
+          >
+            <SortIcon size={17} />
+            <span className="hidden sm:inline">Trier</span>
+          </button>
+
+          {sortOpen && (
+            <div
+              className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-md border border-line bg-panel shadow-glow"
+              role="menu"
+            >
+              {watchlistSortOptions.map((option) => {
+                const active = option.key === sortKey && option.direction === sortDirection;
+
+                return (
+                  <button
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-panel2 ${active ? "bg-sky/15 text-sky" : "text-slate-100"
+                      }`}
+                    key={`${option.key}:${option.direction}`}
+                    onClick={() => updateSort(`${option.key}:${option.direction}`)}
+                    role="menuitemradio"
+                    type="button"
+                  >
+                    <span>{option.label}</span>
+                    {active && <span className="text-xs font-semibold">actif</span>}
+                  </button>
+                );
+              })}
             </div>
-            <MiniChart data={item.history} />
-            <button className="text-amber" onClick={() => void remove(item.symbol)} title="Retirer de la liste de suivi" type="button">
-              <Star fill="currentColor" size={20} />
-            </button>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
-    </section>
+
+      <div className="divide-y divide-line">
+        {sortedItems.map(({ item, metrics }) => {
+          const { performanceValue, performancePercent } = metrics;
+          const positive = (performanceValue ?? 0) >= 0;
+          const Icon = positive ? ArrowUpRight : ArrowDownRight;
+
+          return (
+            <div
+              className="grid min-w-0 grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4" key={item.symbol}
+            >
+              <Link className="flex min-w-0 items-center gap-3 overflow-hidden" to={`/assets/${item.symbol}`}>
+                <AssetIcon symbol={item.symbol} />
+
+                <div className="min-w-0 w-full overflow-hidden leading-tight">
+                  <div className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden">
+                    <p className="min-w-0 truncate text-sm font-semibold sm:text-base">{item.name}</p>
+
+                    <span className="hidden shrink-0 sm:inline">
+                      <StaleBadge show={item.marketDataUnavailable || item.quote?.stale} />
+                    </span>
+                  </div>
+
+                  <p className="truncate text-[11px] text-slate-400 sm:text-sm">{item.symbol}</p>
+                </div>
+              </Link>
+
+              <div className="min-w-0 justify-self-center text-center leading-tight">
+                <p className="text-[10px] font-semibold text-slate-400 sm:text-xs">
+                  Prix actuel
+                </p>
+                <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums sm:text-base">
+                  {item.quote ? money(item.quote.price, item.quote.currency) : "n/a"}
+                </p>
+              </div>
+
+              <div className="min-w-0 justify-self-end text-right leading-tight">
+                <p className="hidden text-sm text-slate-400 sm:block">Valeur | Perf</p>
+
+                <p
+                  className={`flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums sm:text-sm ${positive ? "text-mint" : "text-coral"
+                    }`}
+                >
+                  <Icon size={12} className="shrink-0 sm:hidden" />
+                  <Icon size={16} className="hidden shrink-0 sm:block" />
+
+                  <span className="min-w-0 truncate">
+                    {performanceValue === undefined || !item.quote
+                      ? "n/a"
+                      : money(performanceValue, item.quote.currency)}{" "}
+                    | {performancePercent === undefined ? "n/a" : percent(performancePercent)}
+                  </span>
+                </p>
+              </div>
+
+              <button
+                className="justify-self-end text-amber"
+                onClick={() => void remove(item.symbol)}
+                title="Retirer de la liste de suivi"
+                type="button"
+              >
+                <Star fill="currentColor" size={20} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section >
   );
+}
+
+function watchlistMetrics(item: WatchlistItem) {
+  const first = item.history[0]?.close;
+  const last = item.history[item.history.length - 1]?.close ?? item.quote?.price;
+
+  const performanceValue =
+    Number.isFinite(first) && Number.isFinite(last)
+      ? Number(last) - Number(first)
+      : item.quote?.change;
+
+  const performancePercent =
+    Number.isFinite(first) && first
+      ? ((Number(last) - Number(first)) / Number(first)) * 100
+      : item.quote?.changePercent;
+
+  return {
+    price: item.quote?.price,
+    performanceValue,
+    performancePercent
+  };
+}
+
+function metricValue(value: number | undefined) {
+  return Number.isFinite(value) ? Number(value) : Number.NEGATIVE_INFINITY;
 }

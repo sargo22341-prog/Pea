@@ -3,6 +3,7 @@ import type {
   AssetIcon,
   AuthMe,
   BoursoramaImportRow,
+  BoursoramaUpdateRow,
   CreatePositionInput,
   DashboardSortKey,
   DividendEvent,
@@ -62,7 +63,7 @@ export const api = {
     request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),
-  watchlist: () => request<WatchlistItem[]>("/api/watchlist"),
+  watchlist: (range: RangeKey = "1d") => request<WatchlistItem[]>(`/api/watchlist?range=${range}`),
   addWatchlist: (item: Pick<SearchResult, "symbol" | "name" | "exchange" | "currency">) =>
     request<WatchlistItem>(`/api/watchlist/${encodeURIComponent(item.symbol)}`, { method: "POST", body: JSON.stringify(item) }),
   removeWatchlist: (symbol: string) => request<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" }),
@@ -80,6 +81,7 @@ export const api = {
     dashboardDefaultSortKey?: DashboardSortKey;
     dashboardDefaultSortDirection?: SortDirection;
     defaultChartRange?: RangeKey;
+    localPeaSearchEnabled?: boolean;
   }) =>
     request<User>("/api/auth/me", { method: "PATCH", body: JSON.stringify(input) }),
   uploadProfileIcon: (file: File) => {
@@ -99,6 +101,13 @@ export const api = {
     request<BoursoramaImportRow[]>("/api/import/boursorama/preview", { method: "POST", body: JSON.stringify({ content }) }),
   confirmBoursorama: (rows: BoursoramaImportRow[]) =>
     request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/boursorama/confirm", {
+      method: "POST",
+      body: JSON.stringify({ rows })
+    }),
+  previewBoursoramaUpdate: (content: string) =>
+    request<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", { method: "POST", body: JSON.stringify({ content }) }),
+  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) =>
+    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/boursorama/update-confirm", {
       method: "POST",
       body: JSON.stringify({ rows })
     })

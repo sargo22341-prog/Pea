@@ -1,6 +1,7 @@
 import type { RangeKey } from "@pea/shared";
 
-type Interval = "2m" | "1h" | "1d" | "1wk" | "1mo";
+type YahooInterval = "5m" | "1h" | "1d";
+export type ChartDisplayInterval = "5m" | "2h" | "4h" | "1d";
 
 export interface MarketHours {
   timezone: string;
@@ -19,28 +20,28 @@ export function parseRange(value: unknown): RangeKey {
 export function yahooRange(
   range: RangeKey,
   market: { symbol?: string; exchange?: string; fullExchangeName?: string } = {}
-): { period1: Date; period2?: Date; interval: Interval; tradingDay?: string; marketHours?: MarketHours } {
+): { period1: Date; period2?: Date; interval: YahooInterval; displayInterval: ChartDisplayInterval; tradingDay?: string; marketHours?: MarketHours } {
   const now = new Date();
   const start = new Date(now);
 
   switch (range) {
     case "1d":
-      return { ...getMarketSession(market.symbol, market.exchange, market.fullExchangeName, now), interval: "2m" };
+      return { ...getMarketSession(market.symbol, market.exchange, market.fullExchangeName, now), interval: "5m", displayInterval: "5m" };
     case "1w":
       start.setDate(now.getDate() - 7);
-      return { period1: start, period2: now, interval: "1h" };
+      return { period1: start, period2: now, interval: "1h", displayInterval: "2h" };
     case "1m":
       start.setMonth(now.getMonth() - 1);
-      return { period1: start, interval: "1d" };
+      return { period1: start, interval: "1h", displayInterval: "4h" };
     case "1y":
       start.setFullYear(now.getFullYear() - 1);
-      return { period1: start, interval: "1d" };
+      return { period1: start, interval: "1d", displayInterval: "1d" };
     case "ytd":
-      return { period1: new Date(now.getFullYear(), 0, 1), interval: "1d" };
+      return { period1: new Date(now.getFullYear(), 0, 1), interval: "1d", displayInterval: "1d" };
     case "max":
-      return { period1: new Date("2000-01-01"), interval: "1mo" };
+      return { period1: new Date("2000-01-01"), interval: "1d", displayInterval: "1d" };
     default:
-      return { period1: start, interval: "1d" };
+      return { period1: start, interval: "1d", displayInterval: "1d" };
   }
 }
 
@@ -68,13 +69,15 @@ export function buildHistoricalOptions(
   const built: {
     period1: Date | string | number;
     period2?: Date | string | number;
-    interval: Interval;
+    interval: YahooInterval;
+    displayInterval: ChartDisplayInterval;
     events?: "history" | "dividends";
     tradingDay?: string;
     marketHours?: MarketHours;
   } = {
     period1: isValidHistoricalDate(period1) ? period1 : rangeOptions.period1,
     interval: rangeOptions.interval,
+    displayInterval: rangeOptions.displayInterval,
     tradingDay: rangeOptions.tradingDay,
     marketHours: rangeOptions.marketHours
   };

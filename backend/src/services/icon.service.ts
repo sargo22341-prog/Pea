@@ -12,6 +12,8 @@ export interface AssetIcon {
   source: "auto" | "manual";
   fetchStatus: "success" | "failed" | "pending";
   lastAttemptAt?: string;
+  updatedAt?: string;
+  hasIcon?: boolean;
 }
 
 const iconsDir = path.resolve(path.dirname(config.sqlitePath), "icons");
@@ -40,7 +42,9 @@ function mapIcon(row: any): AssetIcon {
     size: row.size === null || row.size === undefined ? undefined : Number(row.size),
     source: row.source === "manual" ? "manual" : "auto",
     fetchStatus: row.fetch_status === "success" || row.fetch_status === "failed" ? row.fetch_status : "pending",
-    lastAttemptAt: row.last_attempt_at ? String(row.last_attempt_at) : undefined
+    lastAttemptAt: row.last_attempt_at ? String(row.last_attempt_at) : undefined,
+    updatedAt: row.updated_at ? String(row.updated_at) : undefined,
+    hasIcon: Boolean(row.file_path)
   };
 }
 

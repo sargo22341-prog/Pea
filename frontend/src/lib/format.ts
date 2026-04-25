@@ -11,9 +11,18 @@ const rangeLabels: Record<RangeKey, string> = {
   max: "Max"
 };
 
-export function formatRangeLabel(range: ChartRange | string) {
+const compactRangeLabels: Record<RangeKey, string> = {
+  "1d": "1 j.",
+  "1w": "1 sem.",
+  "1m": "1 mois",
+  "1y": "1 an",
+  ytd: "YTD",
+  max: "Max"
+};
+
+export function formatRangeLabel(range: ChartRange | string, options: { compact?: boolean } = {}) {
   const normalized = String(range).toLowerCase() as RangeKey;
-  return rangeLabels[normalized] ?? String(range);
+  return (options.compact ? compactRangeLabels[normalized] : rangeLabels[normalized]) ?? String(range);
 }
 
 export function money(value: number, currency = "EUR") {

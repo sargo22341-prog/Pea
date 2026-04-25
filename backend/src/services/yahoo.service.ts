@@ -4,7 +4,8 @@ import type { DividendEvent, HistoryPoint, Quote, RangeKey, SearchResult } from 
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
-import { buildHistoricalOptions, getCurrentTradingDay } from "../utils/range.js";
+import { buildHistoricalOptions, getCurrentTradingDay, type ChartDisplayInterval } from "../utils/range.js";
+import { getLastTradingDay, shouldRefreshMarketData } from "./marketCalendar.service.js";
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
 
@@ -20,6 +21,22 @@ const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number
 const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 export const yahooClient = yahoo;
+
+function roundMs(startedAt: number) {
+  return Math.round(performance.now() - startedAt);
+}
+
+function symbolFromKey(key: string) {
+  const [, symbol] = key.split(":");
+  return symbol ? symbol.toUpperCase() : "n/a";
+}
+
+function logMarketData(message: string, details: Record<string, string | number | boolean | undefined>) {
+  const parts = Object.entries(details)
+    .filter(([, value]) => value !== undefined)
+    .map(([name, value]) => `${name}=${value}`);
+  console.info(`[market-data] ${message} ${parts.join(" ")}`.trim());
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,7 +71,7 @@ function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttl
   return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale };
 }
 
-function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(symbol)): (MarketDataResult<HistoryPoint[]> & { tradingDay: string }) | null {
+function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(symbol)): (MarketDataResult<HistoryPoint[]> & { tradingDay: string; lastUpdatedAt: number }) | null {
   const cacheKey = intradayCacheKey(symbol, tradingDay);
   const row = db.prepare("SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE cache_key = ?").get(cacheKey) as
     | { payload: string; trading_day: string; last_updated_at: number }
@@ -62,14 +79,22 @@ function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(sym
 
   if (!row) {
     const fallback = db.prepare(
-      "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '2m' ORDER BY last_updated_at DESC LIMIT 1"
+      "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '5m' ORDER BY last_updated_at DESC LIMIT 1"
     ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
     if (!fallback) return null;
-    return { data: JSON.parse(String(fallback.payload)) as HistoryPoint[], stale: true, tradingDay: String(fallback.trading_day) };
+    return { data: JSON.parse(String(fallback.payload)) as HistoryPoint[], stale: true, tradingDay: String(fallback.trading_day), lastUpdatedAt: Number(fallback.last_updated_at) };
   }
 
   const stale = String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90;
-  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale, tradingDay: String(row.trading_day) };
+  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale, tradingDay: String(row.trading_day), lastUpdatedAt: Number(row.last_updated_at) };
+}
+
+function readLatestIntradayCache(symbol: string): (MarketDataResult<HistoryPoint[]> & { tradingDay: string; lastUpdatedAt: number }) | null {
+  const row = db.prepare(
+    "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '5m' ORDER BY trading_day DESC, last_updated_at DESC LIMIT 1"
+  ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
+  if (!row) return null;
+  return { data: JSON.parse(String(row.payload)) as HistoryPoint[], stale: true, tradingDay: String(row.trading_day), lastUpdatedAt: Number(row.last_updated_at) };
 }
 
 function writeCache(table: CacheTable, symbol: string, payload: unknown) {
@@ -91,7 +116,7 @@ function writeHistoryCache(symbol: string, range: RangeKey, interval: string, pa
 function writeIntradayCache(symbol: string, payload: HistoryPoint[], tradingDay = getCurrentTradingDay(symbol)) {
   db.prepare(
     `INSERT INTO cached_intraday_history (cache_key, symbol, range, interval, trading_day, payload, last_updated_at)
-     VALUES (?, ?, '1d', '2m', ?, ?, ?)
+     VALUES (?, ?, '1d', '5m', ?, ?, ?)
      ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, last_updated_at = excluded.last_updated_at`
   ).run(intradayCacheKey(symbol, tradingDay), symbol.toUpperCase(), tradingDay, JSON.stringify(payload), nowSeconds());
 }
@@ -101,7 +126,7 @@ function historyCacheKey(symbol: string, range: RangeKey, interval: string) {
 }
 
 function intradayCacheKey(symbol: string, tradingDay: string) {
-  return `${symbol.toUpperCase()}:1d:2m:${tradingDay}`;
+  return `${symbol.toUpperCase()}:1d:5m:${tradingDay}`;
 }
 
 function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoint[] {
@@ -154,6 +179,40 @@ function sanitizeIntradayPoints(symbol: string, points: HistoryPoint[]): History
   }
 
   return sanitized;
+}
+
+function aggregateHistoryPoints(points: HistoryPoint[], displayInterval: ChartDisplayInterval): HistoryPoint[] {
+  const bucketMs = displayInterval === "2h" ? 2 * 60 * 60 * 1000 : displayInterval === "4h" ? 4 * 60 * 60 * 1000 : 0;
+  if (!bucketMs) return points;
+
+  const buckets = new Map<number, HistoryPoint[]>();
+  for (const point of points) {
+    const time = new Date(point.date).getTime();
+    if (!Number.isFinite(time)) continue;
+    const bucketTime = Math.floor(time / bucketMs) * bucketMs;
+    const bucket = buckets.get(bucketTime) ?? [];
+    bucket.push(point);
+    buckets.set(bucketTime, bucket);
+  }
+
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([bucketTime, bucket]) => {
+      const sorted = bucket.sort((a, b) => a.date.localeCompare(b.date));
+      const closes = sorted.map((point) => Number(point.close)).filter(Number.isFinite);
+      const highs = sorted.map((point) => Number(point.high ?? point.close)).filter(Number.isFinite);
+      const lows = sorted.map((point) => Number(point.low ?? point.close)).filter(Number.isFinite);
+      const volumes = sorted.map((point) => Number(point.volume ?? 0)).filter(Number.isFinite);
+      return {
+        date: new Date(bucketTime).toISOString(),
+        open: sorted.find((point) => Number.isFinite(Number(point.open)))?.open ?? sorted[0]?.close,
+        high: highs.length ? Math.max(...highs) : undefined,
+        low: lows.length ? Math.min(...lows) : undefined,
+        close: closes[closes.length - 1] ?? sorted[sorted.length - 1]?.close ?? 0,
+        volume: volumes.length ? volumes.reduce((sum, volume) => sum + volume, 0) : undefined
+      };
+    })
+    .filter((point) => Number.isFinite(point.close));
 }
 
 function errorMessage(error: unknown) {
@@ -232,16 +291,26 @@ async function safeYahooCall<T>(
   getCached: () => MarketDataResult<T> | null,
   setCached: (data: T) => void
 ): Promise<MarketDataResult<T>> {
+  const cacheStartedAt = performance.now();
   const cached = getCached();
-  if (cached && !cached.stale) return cached;
+  const cacheMs = roundMs(cacheStartedAt);
+  if (cached && !cached.stale) {
+    logMarketData("cache-hit", { provider: "local-cache", method: key, symbol: symbolFromKey(key), stale: false, durationMs: cacheMs });
+    return cached;
+  }
 
+  const yahooStartedAt = performance.now();
   try {
+    logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key) });
     const data = await retryTemporary(key, fn);
+    logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key), durationMs: roundMs(yahooStartedAt) });
     setCached(data);
     return { data, stale: false };
   } catch (error) {
+    logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: key, symbol: symbolFromKey(key), durationMs: roundMs(yahooStartedAt) });
     console.warn(`[market-data:yahoo] ${key}: ${errorMessage(error)}`);
     if (cached) {
+      logMarketData("cache-hit", { provider: "local-cache", method: key, symbol: symbolFromKey(key), stale: true, reason: "yahoo-error", durationMs: cacheMs });
       return { data: cached.data, stale: true };
     }
 
@@ -256,13 +325,17 @@ export class YahooService implements MarketDataProvider {
 
     const cached = searchCache.get(normalizedQuery);
     if (cached && nowSeconds() - cached.fetchedAt < 24 * 60 * 60) {
+      logMarketData("cache-hit", { provider: "memory-cache", method: "search", symbol: normalizedQuery, stale: false, durationMs: 0 });
       return { data: cached.payload, stale: false };
     }
 
+    const yahooStartedAt = performance.now();
     try {
+      logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery });
       const result = (await retryTemporary(`search:${normalizedQuery}`, () =>
         yahoo.search(normalizedQuery, { quotesCount: 10, newsCount: 0 })
       )) as any;
+      logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
 
       const payload = (result.quotes ?? [])
         .map((item: any) => ({
@@ -277,8 +350,10 @@ export class YahooService implements MarketDataProvider {
       searchCache.set(normalizedQuery, { payload, fetchedAt: nowSeconds() });
       return { data: payload, stale: false };
     } catch (error) {
+      logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
       console.warn(`[market-data:yahoo] search:${normalizedQuery}: ${errorMessage(error)}`);
       if (cached && isTemporaryYahooError(error)) {
+        logMarketData("cache-hit", { provider: "memory-cache", method: "search", symbol: normalizedQuery, stale: true, reason: "yahoo-error", durationMs: 0 });
         return { data: cached.payload, stale: true };
       }
 
@@ -327,10 +402,16 @@ export class YahooService implements MarketDataProvider {
 
     const cacheKey = keys.sort().join(",");
     const cached = quoteCombineCache.get(cacheKey);
-    if (cached && nowSeconds() - cached.fetchedAt < 60) return { data: cached.payload, stale: false };
+    if (cached && nowSeconds() - cached.fetchedAt < 60) {
+      logMarketData("cache-hit", { provider: "memory-cache", method: "quoteCombine", symbol: cacheKey, stale: false, durationMs: 0 });
+      return { data: cached.payload, stale: false };
+    }
 
+    const yahooStartedAt = performance.now();
     try {
+      logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey });
       const rows = (await retryTemporary(`quoteCombine:${cacheKey}`, () => Promise.all(keys.map((key) => yahoo.quoteCombine(key))))) as any[];
+      logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
       const payload: Quote[] = rows
         .filter((item) => item?.symbol)
         .map((item) => {
@@ -352,8 +433,12 @@ export class YahooService implements MarketDataProvider {
       quoteCombineCache.set(cacheKey, { payload, fetchedAt: nowSeconds() });
       return { data: payload, stale: false };
     } catch (error) {
+      logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
       console.warn(`[market-data:yahoo] quoteCombine:${cacheKey}: ${errorMessage(error)}`);
-      if (cached) return { data: cached.payload, stale: true };
+      if (cached) {
+        logMarketData("cache-hit", { provider: "memory-cache", method: "quoteCombine", symbol: cacheKey, stale: true, reason: "yahoo-error", durationMs: 0 });
+        return { data: cached.payload, stale: true };
+      }
       throw toYahooHttpError(error);
     }
   }
@@ -368,24 +453,42 @@ export class YahooService implements MarketDataProvider {
         quoteForRange = undefined;
       }
     }
+    const marketSession = range === "1d" ? getLastTradingDay(key, quoteForRange?.exchange) : undefined;
     const historicalOptions = buildHistoricalOptions(range, {
       symbol: key,
       exchange: quoteForRange?.exchange,
-      fullExchangeName: quoteForRange?.exchange
+      fullExchangeName: quoteForRange?.exchange,
+      period1: marketSession?.period1,
+      period2: marketSession?.period2
     });
-    const interval = String(historicalOptions.interval);
+    if (marketSession) {
+      historicalOptions.tradingDay = marketSession.date;
+      historicalOptions.period1 = marketSession.period1;
+      historicalOptions.period2 = new Date(Math.min(marketSession.period2.getTime(), Date.now()));
+    }
+    const displayInterval = String(historicalOptions.displayInterval);
     const historyTtlSeconds = range === "1w" ? 15 * 60 : 60 * 60;
-    const cacheReader = range === "1d" ? () => readIntradayCache(key, historicalOptions.tradingDay) : () => readHistoryCache(key, range, interval, historyTtlSeconds);
+    const cacheReader = range === "1d" ? () => readIntradayCache(key, historicalOptions.tradingDay) : () => readHistoryCache(key, range, displayInterval, historyTtlSeconds);
     const cacheWriter =
-      range === "1d" ? (data: HistoryPoint[]) => writeIntradayCache(key, data, historicalOptions.tradingDay) : (data: HistoryPoint[]) => writeHistoryCache(key, range, interval, data);
+      range === "1d" ? (data: HistoryPoint[]) => writeIntradayCache(key, data, historicalOptions.tradingDay) : (data: HistoryPoint[]) => writeHistoryCache(key, range, displayInterval, data);
+
+    if (range === "1d") {
+      const cached = readIntradayCache(key, historicalOptions.tradingDay);
+      const latest = cached ?? readLatestIntradayCache(key);
+      const updatedAt = latest?.lastUpdatedAt;
+      if (latest && !shouldRefreshMarketData(key, quoteForRange?.exchange, updatedAt, range)) {
+        logMarketData("cache-hit", { provider: "local-cache", method: `history:${key}:${range}`, symbol: key, stale: latest.stale, durationMs: 0 });
+        return { data: markStaleList(latest.data, latest.stale), stale: latest.stale };
+      }
+    }
 
     const result = await safeYahooCall<HistoryPoint[]>(
       `history:${key}:${range}`,
       async () => {
-        const { tradingDay: _tradingDay, marketHours: _marketHours, ...yahooOptions } = historicalOptions;
+        const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = historicalOptions;
         const rows = ((await yahoo.chart(key, { ...yahooOptions, return: "array" } as any)) as any).quotes ?? [];
         const mapped = mapChartRows(rows, historicalOptions.period2);
-        const history = range === "1d" ? sanitizeIntradayPoints(key, mapped) : mapped;
+        const history = range === "1d" ? sanitizeIntradayPoints(key, mapped) : aggregateHistoryPoints(mapped, historicalOptions.displayInterval);
         return history;
       },
       cacheReader,
@@ -403,7 +506,7 @@ export class YahooService implements MarketDataProvider {
       async () => {
         const period1 = new Date();
         period1.setFullYear(period1.getFullYear() - 5);
-        const { tradingDay: _tradingDay, marketHours: _marketHours, ...yahooOptions } = buildHistoricalOptions("max", { period1 });
+        const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = buildHistoricalOptions("max", { period1 });
         const chart = (await yahoo.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)) as any;
         const rows = chart.events?.dividends ?? [];
 

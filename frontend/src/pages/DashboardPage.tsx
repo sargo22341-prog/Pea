@@ -83,7 +83,7 @@ export function DashboardPage({ user }: { user: User }) {
           range={selectedRange}
         />
       )}
-      <WatchlistSection />
+      <WatchlistSection range={selectedRange} />
     </div>
   );
 }
