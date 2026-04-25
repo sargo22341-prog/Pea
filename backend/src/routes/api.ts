@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import type { AssetDetails, DividendEvent, EnrichedSearchResult, HistoryPoint, Quote } from "@pea/shared";
+import type { AssetDetails, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, Quote } from "@pea/shared";
 import { HttpError } from "../utils/http-error.js";
 import { parseRange } from "../utils/range.js";
 import { dividendService } from "../services/dividend.service.js";
@@ -113,7 +113,8 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
     defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional(),
-    localPeaSearchEnabled: z.boolean().optional()
+    localPeaSearchEnabled: z.boolean().optional(),
+    assetNewsEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const updated = await authService.updateUser(req.user!.id, body);
@@ -121,7 +122,8 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     userId: updated.id,
     username: updated.username,
     passwordChanged: Boolean(body.password),
-    localPeaSearchEnabled: updated.localPeaSearchEnabled
+    localPeaSearchEnabled: updated.localPeaSearchEnabled,
+    assetNewsEnabled: updated.assetNewsEnabled
   });
   res.json(updated);
 }));
@@ -230,6 +232,15 @@ apiRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
 
 apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
   const result = await yahooService.dividends(req.params.symbol);
+  res.json(result.data);
+}));
+
+apiRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
+  if (!req.user!.assetNewsEnabled) {
+    res.json([]);
+    return;
+  }
+  const result = await yahooService.news(req.params.symbol);
   res.json(result.data);
 }));
 
@@ -428,10 +439,20 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     marketUnavailable = true;
   }
 
+  let news: NewsArticle[] = [];
+  if (req.user!.assetNewsEnabled) {
+    try {
+      news = (await yahooService.news(symbol)).data;
+    } catch (error) {
+      logger.warn("news", "asset news fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   const details: AssetDetails = {
     quote,
     history,
     dividends,
+    news,
     position,
     isInWatchlist: Boolean(watchlistRow),
     stale: marketUnavailable || quote.stale || history.some((point) => point.stale) || dividends.some((event) => event.stale) || position?.quote?.stale,

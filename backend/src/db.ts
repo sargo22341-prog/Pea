@@ -103,6 +103,12 @@ db.exec(`
     fetched_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS cached_news (
+    symbol TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS cached_history (
     cache_key TEXT PRIMARY KEY,
     symbol TEXT NOT NULL,
@@ -146,6 +152,7 @@ db.exec(`
     dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc',
     default_chart_range TEXT NOT NULL DEFAULT '1d',
     local_pea_search_enabled INTEGER NOT NULL DEFAULT 1,
+    asset_news_enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -201,7 +208,8 @@ for (const migration of [
   "ALTER TABLE users ADD COLUMN dashboard_default_sort_key TEXT NOT NULL DEFAULT 'name';",
   "ALTER TABLE users ADD COLUMN dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc';",
   "ALTER TABLE users ADD COLUMN default_chart_range TEXT NOT NULL DEFAULT '1d';",
-  "ALTER TABLE users ADD COLUMN local_pea_search_enabled INTEGER NOT NULL DEFAULT 1;"
+  "ALTER TABLE users ADD COLUMN local_pea_search_enabled INTEGER NOT NULL DEFAULT 1;",
+  "ALTER TABLE users ADD COLUMN asset_news_enabled INTEGER NOT NULL DEFAULT 1;"
 ]) {
   try {
     db.exec(migration);

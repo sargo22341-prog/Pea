@@ -19,7 +19,7 @@ const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: Sort
 
 const chartRanges: RangeKey[] = ["1d", "1w", "1m", "1y", "ytd", "max"];
 
-export function SettingsPage() {
+export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
   return (
     <div className="space-y-6">
       <div>
@@ -27,7 +27,7 @@ export function SettingsPage() {
         <p className="muted">Compte, preferences, icones et import Boursorama.</p>
       </div>
       <AccountSection />
-      <PreferencesSection />
+      <PreferencesSection onUserUpdated={onUserUpdated} />
       <IconSection />
       <ImportSection />
       <LogoutSection />
@@ -203,11 +203,12 @@ function LogoutSection() {
   );
 }
 
-function PreferencesSection() {
+function PreferencesSection({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
   const me = useAsync(() => api.me(), []);
   const [sortValue, setSortValue] = useState("name:asc");
   const [range, setRange] = useState<RangeKey>("1d");
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
+  const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
   const [toast, setToast] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
@@ -216,15 +217,17 @@ function PreferencesSection() {
     setSortValue(`${user.dashboardDefaultSortKey}:${user.dashboardDefaultSortDirection}`);
     setRange(user.defaultChartRange);
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
+    setAssetNewsEnabled(user.assetNewsEnabled);
   }, [me.data?.user]);
 
   async function save() {
     const [dashboardDefaultSortKey, dashboardDefaultSortDirection] = sortValue.split(":") as [DashboardSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled });
       setToast({ tone: "success", text: "Preferences enregistrees." });
       await me.reload();
+      await onUserUpdated?.();
     } catch (error) {
       setToast({ tone: "error", text: error instanceof Error ? error.message : "Enregistrement impossible." });
     }
@@ -267,6 +270,24 @@ function PreferencesSection() {
           <span className="muted block">Utilise la liste locale d'actions et ETF PEA pour accelerer la recherche et eviter les appels API.</span>
           <span className="mt-2 block text-sm text-slate-300">
             Si cette option est activee, seules les valeurs eligibles PEA seront proposees. Pour rechercher toutes les actions et ETF, desactivez cette option.
+          </span>
+        </span>
+      </label>
+      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
+        <button
+          aria-checked={assetNewsEnabled}
+          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${assetNewsEnabled ? "bg-mint" : "bg-panel2"}`}
+          onClick={() => setAssetNewsEnabled((current) => !current)}
+          role="switch"
+          type="button"
+        >
+          <span className={`h-4 w-4 rounded-full bg-white transition ${assetNewsEnabled ? "translate-x-5" : ""}`} />
+        </button>
+        <span>
+          <span className="block font-semibold">Afficher les articles Yahoo Finance</span>
+          <span className="muted block">Affiche les articles lies au ticker sur la page detail d'un actif.</span>
+          <span className="mt-2 block text-sm text-slate-300">
+            Si cette option est desactivee, aucun bloc article n'est affiche et aucun appel news n'est effectue cote backend.
           </span>
         </span>
       </label>

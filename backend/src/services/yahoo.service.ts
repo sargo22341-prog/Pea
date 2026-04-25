@@ -1,6 +1,6 @@
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
-import type { DividendEvent, HistoryPoint, Quote, RangeKey, SearchResult } from "@pea/shared";
+import type { DividendEvent, HistoryPoint, NewsArticle, Quote, RangeKey, SearchResult } from "@pea/shared";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
@@ -11,7 +11,7 @@ import { getLastTradingDay, isMarketOpen, shouldRefreshMarketData } from "./mark
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
 
-type CacheTable = "cached_quotes" | "cached_dividends";
+type CacheTable = "cached_quotes" | "cached_dividends" | "cached_news";
 
 const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 const limiter = new Bottleneck({
@@ -133,6 +133,21 @@ function writeCache(table: CacheTable, symbol: string, payload: unknown) {
   ).run(symbol.toUpperCase(), JSON.stringify(payload), nowSeconds());
 }
 
+function readNewsCache(symbol: string): MarketDataResult<NewsArticle[]> | null {
+  const row = db.prepare("SELECT payload, fetched_at FROM cached_news WHERE symbol = ?").get(newsCacheKey(symbol)) as
+    | { payload: string; fetched_at: number }
+    | undefined;
+
+  if (!row) return null;
+  const data = JSON.parse(String(row.payload)) as NewsArticle[];
+  if (data.some((article) => !article.publishedAt)) return { data, stale: true };
+  return { data, stale: nowSeconds() - Number(row.fetched_at) >= 6 * 60 * 60 };
+}
+
+function writeNewsCache(symbol: string, payload: NewsArticle[]) {
+  writeCache("cached_news", newsCacheKey(symbol), payload);
+}
+
 function writeHistoryCache(symbol: string, range: RangeKey, interval: string, payload: HistoryPoint[]) {
   db.prepare(
     `INSERT INTO cached_history (cache_key, symbol, range, payload, fetched_at)
@@ -155,6 +170,10 @@ function historyCacheKey(symbol: string, range: RangeKey, interval: string) {
 
 function intradayCacheKey(symbol: string, tradingDay: string) {
   return `${symbol.toUpperCase()}:1d:5m:${tradingDay}`;
+}
+
+function newsCacheKey(symbol: string) {
+  return `news:${symbol.toUpperCase()}`;
 }
 
 function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoint[] {
@@ -297,6 +316,116 @@ function errorCode(error: unknown) {
   if (typeof error !== "object" || !error) return undefined;
   const candidate = error as { code?: unknown; status?: unknown; statusCode?: unknown };
   return candidate.status ?? candidate.statusCode ?? candidate.code;
+}
+
+function newsPublishedAt(item: any) {
+  const value = item?.providerPublishTime ?? item?.publishTime ?? item?.publishedAt ?? item?.pubDate;
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+  if (typeof value === "number" && Number.isFinite(value)) return new Date(value * 1000).toISOString();
+  if (typeof value === "string") {
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
+  }
+  return undefined;
+}
+
+function newsImageUrl(item: any) {
+  const direct = safeString(item?.thumbnail?.originalUrl) || safeString(item?.thumbnail?.url) || safeString(item?.imageUrl);
+  if (direct) return direct;
+
+  const resolutions = Array.isArray(item?.thumbnail?.resolutions) ? item.thumbnail.resolutions : [];
+  const image = resolutions.find((resolution: any) => safeString(resolution?.url)) ?? resolutions[0];
+  return safeString(image?.url) || undefined;
+}
+
+function normalizeRelatedTickers(item: any) {
+  const tickers = Array.isArray(item?.relatedTickers) ? item.relatedTickers : [];
+  const normalized = tickers.map((ticker: unknown) => safeString(ticker).toUpperCase()).filter((ticker: string) => Boolean(ticker));
+  return [...new Set<string>(normalized)];
+}
+
+function normalizeNewsArticle(item: any): NewsArticle | null {
+  const title = safeString(item?.title);
+  const url = safeString(item?.link) || safeString(item?.url);
+  if (!title || !url) return null;
+
+  const publisher = safeString(item?.publisher) || safeString(item?.provider);
+  const publishedAt = newsPublishedAt(item);
+  return {
+    title,
+    description: safeString(item?.summary) || safeString(item?.description),
+    url,
+    imageUrl: newsImageUrl(item),
+    publisher: publisher || undefined,
+    publishedAt,
+    relatedTickers: normalizeRelatedTickers(item)
+  };
+}
+
+function normalizeNewsArticles(news: unknown): NewsArticle[] {
+  if (!Array.isArray(news)) return [];
+
+  const seen = new Set<string>();
+  return news.reduce<NewsArticle[]>((articles, item) => {
+    const article = normalizeNewsArticle(item);
+    if (!article || seen.has(article.url)) return articles;
+    seen.add(article.url);
+    articles.push(article);
+    return articles;
+  }, []);
+}
+
+function symbolBase(symbol: string) {
+  return symbol.toUpperCase().split(".")[0] ?? symbol.toUpperCase();
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function meaningfulCompanyKeywords(name: string) {
+  const normalized = normalizeSearchText(name);
+  return normalized
+    .split(/[^a-z0-9]+/i)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 4 && !["actions", "stock", "company", "groupe", "group", "société", "societe", "sponsored", "ordinary"].includes(part));
+}
+
+function articleText(article: NewsArticle) {
+  return normalizeSearchText(`${article.title} ${article.description}`);
+}
+
+function articleHasExactRelatedTicker(article: NewsArticle, symbol: string) {
+  return article.relatedTickers?.some((ticker) => ticker.toUpperCase() === symbol.toUpperCase()) ?? false;
+}
+
+function filterNewsByExactTicker(symbol: string, articles: NewsArticle[]) {
+  return articles.filter((article) => articleHasExactRelatedTicker(article, symbol));
+}
+
+function filterNewsByFallbackKeywords(symbol: string, companyName: string, articles: NewsArticle[]) {
+  const base = symbolBase(symbol);
+  const keywords = new Set([normalizeSearchText(base), ...meaningfulCompanyKeywords(companyName)]);
+  const strongKeywords = [...keywords].filter((keyword) => keyword.length >= 3);
+  if (!strongKeywords.length) return [];
+
+  return articles.filter((article) => {
+    if (articleHasExactRelatedTicker(article, symbol)) return true;
+    const text = articleText(article);
+    return strongKeywords.some((keyword) => new RegExp(`(^|[^a-z0-9])${escapeRegExp(keyword)}([^a-z0-9]|$)`, "i").test(text));
+  });
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function searchQuoteName(result: any) {
+  const quote = Array.isArray(result?.quotes) ? result.quotes[0] : undefined;
+  return safeString(quote?.shortname) || safeString(quote?.longname) || safeString(quote?.name) || safeString(quote?.symbol);
 }
 
 export function isTemporaryYahooError(error: unknown) {
@@ -625,6 +754,62 @@ export class YahooService implements MarketDataProvider {
     );
 
     return { data: markStaleList(result.data, result.stale), stale: result.stale };
+  }
+
+  async news(symbol: string): Promise<MarketDataResult<NewsArticle[]>> {
+    const key = symbol.trim().toUpperCase();
+    if (!key) return { data: [], stale: false };
+
+    const cached = readNewsCache(key);
+    if (cached && !cached.stale) {
+      logger.debug("news", "cache-hit", { symbol: key, count: cached.data.length });
+      return cached;
+    }
+
+    logger.debug("news", "cache-miss", { symbol: key });
+    const options = {
+      newsCount: 20,
+      quotesCount: 1,
+      region: "FR",
+      lang: "fr-FR",
+      enableFuzzyQuery: false,
+      enableEnhancedTrivialQuery: false,
+      enableCb: false
+    };
+
+    try {
+      const result = (await dedupeInFlight(`news:${key}`, async () => {
+        logger.debug("news", "yahoo-call", { symbol: key, query: key, options });
+        return retryTemporary(`news:${key}`, () => yahoo.search(key, options as any));
+      })) as any;
+
+      const primaryArticles = normalizeNewsArticles(result?.news);
+      let payload = filterNewsByExactTicker(key, primaryArticles);
+      logger.debug("news", "filtered", { symbol: key, beforeCount: primaryArticles.length, afterCount: payload.length });
+
+      if (!payload.length) {
+        const companyName = searchQuoteName(result);
+        if (companyName && companyName.toUpperCase() !== key) {
+          const fallbackResult = (await dedupeInFlight(`news:${key}:${companyName}`, async () => {
+            logger.debug("news", "yahoo-call", { symbol: key, query: companyName, options });
+            return retryTemporary(`news:${key}:${companyName}`, () => yahoo.search(companyName, options as any));
+          })) as any;
+          const fallbackArticles = normalizeNewsArticles(fallbackResult?.news);
+          payload = filterNewsByFallbackKeywords(key, companyName, fallbackArticles);
+          logger.debug("news", "filtered", { symbol: key, beforeCount: fallbackArticles.length, afterCount: payload.length });
+        }
+      }
+
+      if (!payload.length) {
+        logger.debug("news", "no-related-articles", { symbol: key });
+      }
+
+      writeNewsCache(key, payload);
+      return { data: payload, stale: false };
+    } catch (error) {
+      logger.warn("news", "Yahoo news error", { symbol: key, error: errorMessage(error) });
+      return { data: [], stale: false };
+    }
   }
 }
 

@@ -9,6 +9,7 @@ import type {
   DividendEvent,
   EnrichedSearchResult,
   HistoryPoint,
+  NewsArticle,
   PortfolioDividends,
   PortfolioPerformancePoint,
   PositionRangePerformance,
@@ -81,6 +82,7 @@ export const api = {
   history: (symbol: string, range: RangeKey) =>
     request<HistoryPoint[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
+  news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
   portfolio: (range?: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   addPosition: (input: CreatePositionInput) =>
@@ -115,6 +117,7 @@ export const api = {
     dashboardDefaultSortDirection?: SortDirection;
     defaultChartRange?: RangeKey;
     localPeaSearchEnabled?: boolean;
+    assetNewsEnabled?: boolean;
   }) =>
     request<User>("/api/auth/me", { method: "PATCH", body: JSON.stringify(input) }),
   uploadProfileIcon: (file: File) => {

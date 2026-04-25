@@ -16,6 +16,7 @@ export interface AuthUser {
   dashboardDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
+  assetNewsEnabled: boolean;
   createdAt: string;
 }
 
@@ -52,6 +53,7 @@ function mapUser(row: any): AuthUser {
     dashboardDefaultSortDirection: isSortDirection(row.dashboard_default_sort_direction) ? row.dashboard_default_sort_direction : "asc",
     defaultChartRange: isRangeKey(row.default_chart_range) ? row.default_chart_range : "1d",
     localPeaSearchEnabled: row.local_pea_search_enabled === undefined || row.local_pea_search_enabled === null ? true : Boolean(row.local_pea_search_enabled),
+    assetNewsEnabled: row.asset_news_enabled === undefined || row.asset_news_enabled === null ? true : Boolean(row.asset_news_enabled),
     createdAt: String(row.created_at)
   };
 }
@@ -114,6 +116,7 @@ export class AuthService {
       dashboardDefaultSortDirection?: SortDirection;
       defaultChartRange?: RangeKey;
       localPeaSearchEnabled?: boolean;
+      assetNewsEnabled?: boolean;
     }
   ) {
     const current = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
@@ -127,6 +130,7 @@ export class AuthService {
     const defaultChartRange = input.defaultChartRange ?? current.default_chart_range ?? "1d";
     const localPeaSearchEnabled =
       input.localPeaSearchEnabled === undefined ? Number(current.local_pea_search_enabled ?? 1) : input.localPeaSearchEnabled ? 1 : 0;
+    const assetNewsEnabled = input.assetNewsEnabled === undefined ? Number(current.asset_news_enabled ?? 1) : input.assetNewsEnabled ? 1 : 0;
 
     try {
       db.prepare(
@@ -138,9 +142,10 @@ export class AuthService {
              dashboard_default_sort_direction = ?,
              default_chart_range = ?,
              local_pea_search_enabled = ?,
+             asset_news_enabled = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`
-      ).run(username, passwordHash, profileIconUrl, dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange, localPeaSearchEnabled, userId);
+      ).run(username, passwordHash, profileIconUrl, dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange, localPeaSearchEnabled, assetNewsEnabled, userId);
     } catch {
       throw new HttpError(409, "Ce username est deja utilise.");
     }

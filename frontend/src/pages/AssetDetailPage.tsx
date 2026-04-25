@@ -1,5 +1,6 @@
-import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import type { NewsArticle, PositionWithMarket, RangeKey, User } from "@pea/shared";
+import { ArrowDownRight, ArrowUpRight, Newspaper, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import type { CSSProperties } from "react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -40,7 +41,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
-  const { quote, history, dividends, position } = asset.data;
+  const { quote, history, dividends, news, position } = asset.data;
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
 
   async function deletePosition() {
@@ -283,6 +284,8 @@ export function AssetDetailPage({ user }: { user: User }) {
         </div>
       </section>
 
+      {user.assetNewsEnabled && <NewsArticleList articles={news} />}
+
       {editing && position && (
         <EditPositionModal
           onClose={() => setEditing(false)}
@@ -305,6 +308,74 @@ export function AssetDetailPage({ user }: { user: User }) {
       )}
     </div>
   );
+}
+
+function NewsArticleList({ articles }: { articles: NewsArticle[] }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="border-b border-line p-4">
+        <h2 className="font-semibold">Articles Yahoo Finance</h2>
+      </div>
+      <div className="space-y-3 p-4">
+        {articles.length === 0 && <p className="text-slate-400">Aucun article lié à ce titre pour le moment.</p>}
+        {articles.map((article) => (
+          <ArticleBlock article={article} key={article.url} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const clampTwoLines: CSSProperties = {
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: 2,
+  overflow: "hidden"
+};
+
+function ArticleBlock({ article }: { article: NewsArticle }) {
+  const detail = article.description || article.publisher || formatArticleDate(article.publishedAt);
+  const publishedDate = formatArticleDate(article.publishedAt);
+
+  return (
+    <a
+      className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-md border border-line bg-ink p-3 transition hover:border-sky sm:grid-cols-[96px_minmax(0,1fr)]"
+      href={article.url}
+      rel="noreferrer"
+      target="_blank"
+    >
+      {article.imageUrl ? (
+        <img
+          alt=""
+          className="h-16 w-[72px] rounded-md object-cover sm:h-20 sm:w-24"
+          loading="lazy"
+          src={article.imageUrl}
+        />
+      ) : (
+        <div className="flex h-16 w-[72px] items-center justify-center rounded-md border border-line bg-panel2 text-slate-500 sm:h-20 sm:w-24">
+          <Newspaper size={24} />
+        </div>
+      )}
+      <div className="min-w-0 self-center">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <p className="font-semibold text-slate-100" style={clampTwoLines}>
+            {article.title}
+          </p>
+          {publishedDate && <span className="shrink-0 text-xs text-slate-500">{publishedDate}</span>}
+        </div>
+        <p className="mt-1 text-sm text-slate-400" style={clampTwoLines}>
+          {detail || "Yahoo Finance"}
+        </p>
+      </div>
+    </a>
+  );
+}
+
+function formatArticleDate(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }
 
 function AddAssetPositionModal({ symbol, name, currency, onClose, onSaved }: { symbol: string; name: string; currency: string; onClose: () => void; onSaved: () => void }) {

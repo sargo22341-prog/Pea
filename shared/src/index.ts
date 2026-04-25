@@ -90,6 +90,16 @@ export interface DividendEvent {
   stale?: boolean;
 }
 
+export interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  imageUrl?: string;
+  publisher?: string;
+  publishedAt?: string;
+  relatedTickers?: string[];
+}
+
 export interface Position {
   id: number;
   symbol: string;
@@ -207,6 +217,7 @@ export interface AssetDetails {
   quote: Quote;
   history: HistoryPoint[];
   dividends: DividendEvent[];
+  news: NewsArticle[];
   position?: PositionWithMarket;
   isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
@@ -236,6 +247,7 @@ export interface User {
   dashboardDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
+  assetNewsEnabled: boolean;
   createdAt: string;
 }
 

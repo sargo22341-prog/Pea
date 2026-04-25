@@ -10,6 +10,7 @@ export type LogCategory =
   | "portfolio"
   | "import"
   | "icons"
+  | "news"
   | "auth"
   | "api"
   | "general";
@@ -24,6 +25,7 @@ const categories = new Set<LogCategory>([
   "portfolio",
   "import",
   "icons",
+  "news",
   "auth",
   "api",
   "general"

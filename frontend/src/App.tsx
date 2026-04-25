@@ -35,7 +35,7 @@ export function App() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/dividends" element={<DividendsPage />} />
         <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} />} />
         <Route path="*" element={<Navigate replace to="/" />} />
       </Route>
     </Routes>
