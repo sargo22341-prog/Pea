@@ -1,10 +1,9 @@
-import type { AssetDetails, NewsArticle, PositionWithMarket, Quote, RangeKey, User } from "@pea/shared";
+import type { AssetDetails, DividendEvent, NewsArticle, PositionWithMarket, Quote, RangeKey, User } from "@pea/shared";
 import {
   ArrowDownRight,
   ArrowUpRight,
   BadgeEuro,
   BarChart3,
-  Building2,
   CalendarDays,
   CircleDollarSign,
   Coins,
@@ -23,7 +22,8 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { Props as LabelProps } from "recharts/types/component/Label";
 import { AssetIcon } from "../components/AssetIcon";
 import { FinancialComboChart } from "../components/charts/FinancialComboChart";
 import { RangeSelector } from "../components/RangeSelector";
@@ -31,7 +31,7 @@ import { PeaBadge } from "../components/PeaBadge";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
-import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatRangeLabel, money, percent, shortDate } from "../lib/format";
+import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatRangeLabel, money, percent } from "../lib/format";
 
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
@@ -280,27 +280,11 @@ export function AssetDetailPage({ user }: { user: User }) {
         </section>
       ) : null}
 
-      {dividends.length > 0 ? (
-        <section className="card overflow-hidden">
-          <div className="border-b border-line p-4">
-            <h2 className="font-semibold">Dividendes connus</h2>
-          </div>
-          <div className="divide-y divide-line">
-            {dividends.slice(-20).reverse().map((event) => {
-              const total = event.amount * (position?.quantity ?? 0);
-              return (
-                <div className="grid grid-cols-[1fr_auto] gap-2 p-4 sm:grid-cols-5" key={`${event.date}-${event.amount}`}>
-                  <span className="font-semibold">{new Date(event.date).getFullYear()}</span>
-                  <span>{shortDate(event.date)}</span>
-                  <span>{money(event.amount, event.currency)} / action</span>
-                  <span>{position ? money(total, event.currency) : "n/a"}</span>
-                  <span className={event.status === "real" ? "text-mint" : "text-amber"}>{event.status === "real" ? "Réel" : "Estimé"}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      <DividendLineChartSection
+        averageBuyPrice={position?.averageBuyPrice}
+        currentPrice={marketInfo?.regularMarketPrice ?? quote.price}
+        dividends={dividends}
+      />
 
       {user.assetNewsEnabled && <NewsArticleList articles={news} />}
 
@@ -448,6 +432,114 @@ function normalizeHistoryPoints<T extends { date: string; close: number }>(point
     byDate.set(point.date, point);
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+type DividendChartPoint = {
+  date: string;
+  amount: number;
+  currency: string;
+};
+
+function DividendLineChartSection({
+  dividends,
+  currentPrice,
+  averageBuyPrice
+}: {
+  dividends: DividendEvent[];
+  currentPrice?: number;
+  averageBuyPrice?: number;
+}) {
+  const currentYear = new Date().getFullYear();
+  const fiveYearsAgo = new Date();
+  fiveYearsAgo.setFullYear(currentYear - 5);
+
+  const chartData = dividends
+    .filter((event) => {
+      const date = new Date(event.date);
+      return Number.isFinite(date.getTime()) && date >= fiveYearsAgo && Number.isFinite(event.amount);
+    })
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((event) => ({
+      date: event.date,
+      amount: event.amount,
+      currency: event.currency
+    }));
+
+  if (chartData.length === 0) return null;
+
+  const annualDividendPerShare = dividends.reduce((total, event) => {
+    const date = new Date(event.date);
+    if (!Number.isFinite(date.getTime()) || date.getFullYear() !== currentYear || !Number.isFinite(event.amount)) return total;
+    return total + event.amount;
+  }, 0);
+
+  const marketYield = currentPrice && currentPrice > 0 ? (annualDividendPerShare / currentPrice) * 100 : undefined;
+  const personalYield = averageBuyPrice && averageBuyPrice > 0 ? (annualDividendPerShare / averageBuyPrice) * 100 : undefined;
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex flex-col gap-1 border-b border-white/[0.06] p-4">
+        <h2 className="text-2xl font-bold text-white">
+          {formatPlainPercent(marketYield)}
+          <span className="ml-2 text-base font-semibold text-amber">({formatPlainPercent(personalYield)} sur PRU)</span>
+        </h2>
+      </div>
+      <div className="h-[320px] min-w-0 px-1 py-4 sm:h-[360px] sm:px-3">
+        <ResponsiveContainer>
+          <LineChart data={chartData} margin={{ bottom: 8, left: 0, right: 20, top: 36 }}>
+            <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 3" vertical={false} />
+
+            <XAxis
+              dataKey="date"
+              padding={{ left: 20, right: 20 }}
+              tick={{ fill: "#94a3b8", fontSize: 12 }}
+              tickFormatter={(value) => formatDividendMonthYear(String(value))}
+              tickLine={false}
+              axisLine={false}
+            />
+
+            <YAxis hide domain={["auto", "auto"]} />
+
+            <Tooltip
+              contentStyle={{
+                background: "rgba(7, 16, 20, 0.9)",
+                border: "1px solid rgba(212, 175, 55, 0.22)",
+                borderRadius: 8,
+                boxShadow: "0 18px 40px rgba(0,0,0,0.35)"
+              }}
+              formatter={(value, _name, item) => money(Number(value), (item.payload as DividendChartPoint).currency)}
+              labelFormatter={(value) => formatMaybeDate(String(value))}
+              labelStyle={{ color: "#f8fafc" }}
+            />
+
+            <Line
+              dataKey="amount"
+              name="Dividende / action"
+              stroke="#d4af37"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={3}
+              type="monotone"
+              dot={false}
+              activeDot={false}
+              label={<DividendPointLabel />}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+function DividendPointLabel({ x, y, value, payload }: LabelProps & { payload?: DividendChartPoint }) {
+  if (x === undefined || y === undefined || value === undefined) return null;
+  const currency = payload?.currency ?? "EUR";
+
+  return (
+    <text fill="#f8fafc" fontSize={11} fontWeight={700} textAnchor="middle" x={Number(x)} y={Number(y) - 14}>
+      {money(Number(value), currency)}
+    </text>
+  );
 }
 
 function PositionSection({
@@ -736,6 +828,17 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 6 }).format(value);
 }
 
+function formatPlainPercent(value?: number) {
+  if (value == null || !Number.isFinite(value)) return "n/a";
+  return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} %`;
+}
+
+function formatDividendMonthYear(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat("fr-FR", { month: "short", year: "2-digit" }).format(date);
+}
+
 function formatMaybeInteger(value?: number) {
   if (value == null || !Number.isFinite(value)) return "n/a";
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
@@ -754,11 +857,6 @@ function formatChange(value: number | undefined, percentValue: number | undefine
   const amount = value == null || !Number.isFinite(value) ? "n/a" : formatSignedMoney(value, currency);
   const pct = percentValue == null || !Number.isFinite(percentValue) ? "n/a" : percent(percentValue);
   return `${amount} (${pct})`;
-}
-
-function formatRangeMoney(low: number | undefined, high: number | undefined, currency: string) {
-  if ((low == null || !Number.isFinite(low)) && (high == null || !Number.isFinite(high))) return "n/a";
-  return `${formatMaybeMoney(low, currency)} / ${formatMaybeMoney(high, currency)}`;
 }
 
 function formatMaybeDate(value?: string) {
