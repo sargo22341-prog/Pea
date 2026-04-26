@@ -121,8 +121,8 @@ export class PortfolioService {
 
   recomputePositionFromDatedTransactions(positionId: number) {
     const rows = db
-      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
     if (!rows.length) return;
 
     let quantity = 0;
@@ -130,8 +130,7 @@ export class PortfolioService {
     for (const row of rows) {
       const rowQuantity = Number(row.quantity);
       if (row.type === "buy") {
-        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
-        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
         quantity += rowQuantity;
         costBasis += buyCost;
       } else if (row.type === "sell") {
@@ -172,11 +171,7 @@ export class PortfolioService {
       quantity: Number(row.quantity),
       executedPrice: Number(row.price),
       price: Number(row.price),
-      grossAmount: row.gross_amount == null ? undefined : Number(row.gross_amount),
-      commission: row.commission == null ? undefined : Number(row.commission),
-      fees: row.fees == null ? undefined : Number(row.fees),
       totalFees: row.total_fees == null ? undefined : Number(row.total_fees),
-      netAmount: row.net_amount == null ? undefined : Number(row.net_amount),
       currency: row.currency,
       rawTextSnippet: row.raw_text_snippet ?? undefined,
       createdAt: row.traded_at
@@ -188,14 +183,14 @@ export class PortfolioService {
     return calculateTransactionStats(rows, totalDividendsReceived, currency);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: { tradedAt: string; quantity: number; price: number; fees?: number; currency: string }) {
+  updateTransaction(positionId: number, transactionId: number, input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }) {
     const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
     if (!existing) throw new HttpError(404, "Transaction introuvable");
     db.prepare(
       `UPDATE transactions
-       SET traded_at = ?, quantity = ?, price = ?, fees = ?, total_fees = ?, currency = ?
+       SET traded_at = ?, type = ?, quantity = ?, price = ?, total_fees = ?, currency = ?
        WHERE id = ? AND position_id = ?`
-    ).run(input.tradedAt, input.quantity, input.price, input.fees ?? 0, input.fees ?? 0, input.currency, transactionId, positionId);
+    ).run(input.tradedAt, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, transactionId, positionId);
     this.recomputePositionFromAnyTransactions(positionId);
     return this.listTransactions(positionId);
   }
@@ -207,8 +202,8 @@ export class PortfolioService {
 
   recomputePositionFromAnyTransactions(positionId: number) {
     const rows = db
-      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
     if (!rows.length) return;
 
     let quantity = 0;
@@ -216,8 +211,7 @@ export class PortfolioService {
     for (const row of rows) {
       const rowQuantity = Number(row.quantity);
       if (row.type === "buy") {
-        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
-        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
         quantity += rowQuantity;
         costBasis += buyCost;
       } else if (row.type === "sell") {
@@ -375,8 +369,8 @@ export class PortfolioService {
 
   private positionFromDatedTransactions(position: Position): Position {
     const rows = db
-      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
-      .all(position.id) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .all(position.id) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
     if (!rows.length) return position;
 
     let quantity = 0;
@@ -384,8 +378,7 @@ export class PortfolioService {
     for (const row of rows) {
       const rowQuantity = Number(row.quantity);
       if (row.type === "buy") {
-        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
-        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
         quantity += rowQuantity;
         costBasis += buyCost;
       } else if (row.type === "sell") {

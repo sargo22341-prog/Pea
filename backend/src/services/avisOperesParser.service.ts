@@ -2,17 +2,9 @@ import type { ParsedAvisOperation } from "@pea/shared";
 import { z } from "zod";
 
 const moneyLabels = {
-  grossAmount: [
-    "Montant brut",
-    "Montant transaction brut",
-    "Montant transaction brut Intérêts",
-    "Montant transaction",
-    "total brut Courtages"
-  ],
   commission: ["Commission"],
   fees: ["Frais divers", "Frais"],
-  totalFees: ["Montant total des frais"],
-  netAmount: ["Montant net au débit de votre compte", "Montant net au credit de votre compte", "Montant transaction net"]
+  totalFees: ["Montant total des frais"]
 };
 
 export const parsedAvisOperationSchema = z.object({
@@ -24,11 +16,7 @@ export const parsedAvisOperationSchema = z.object({
   quantite: z.number().positive().optional(),
   sensOperation: z.enum(["achat", "vente", "inconnu"]),
   coursExecute: z.number().nonnegative().optional(),
-  montantBrut: z.number().nonnegative().optional(),
-  commission: z.number().nonnegative().optional(),
-  frais: z.number().nonnegative().optional(),
   montantTotalFrais: z.number().nonnegative().optional(),
-  montantNet: z.number().nonnegative().optional(),
   devise: z.string().min(3).default("EUR"),
   sourceFileName: z.string().optional(),
   rawTextSnippet: z.string().optional(),
@@ -118,9 +106,21 @@ export function extractQuantity(text: string) {
 export function extractFees(text: string) {
   const oldTable = amountsAfterHeader(text, /Montant brut\s+Commission\s+Frais/i);
   const modernFeesTable = amountsAfterHeader(text, /Commission\s+Frais divers\s+Montant total des frais/i);
-  const commission = modernFeesTable[0] ?? oldTable[1] ?? parseFrenchMoney(extractFieldByLabels(text, moneyLabels.commission));
-  const fees = modernFeesTable[1] ?? oldTable[2] ?? parseFrenchMoney(extractFieldByLabels(text, moneyLabels.fees));
-  const totalFees = modernFeesTable[2] ?? parseFrenchMoney(extractFieldByLabels(text, moneyLabels.totalFees));
+
+  const commission =
+    modernFeesTable[0] ??
+    oldTable[1] ??
+    parseFrenchMoney(extractFieldByLabels(text, moneyLabels.commission));
+
+  const fees =
+    modernFeesTable[1] ??
+    (oldTable.length >= 4 ? oldTable[2] : undefined) ??
+    parseFrenchMoney(extractFieldByLabels(text, moneyLabels.fees));
+
+  const totalFees =
+    modernFeesTable[2] ??
+    parseFrenchMoney(extractFieldByLabels(text, moneyLabels.totalFees));
+
   return { commission, fees, totalFees };
 }
 
@@ -134,29 +134,6 @@ function extractDateExecution(text: string) {
 function extractCurrency(text: string) {
   const currency = /\b(EUR|USD|GBP|CHF)\b/.exec(text)?.[1];
   return currency ?? (text.includes("€") ? "EUR" : "EUR");
-}
-
-function extractGrossAmount(text: string) {
-  const oldTable = amountsAfterHeader(text, /Montant brut\s+Commission\s+Frais/i);
-  if (oldTable[0] !== undefined) return oldTable[0];
-  const modernTransactionTable = amountsAfterHeader(text, /Montant transaction brut/i);
-  if (modernTransactionTable[0] !== undefined) return modernTransactionTable[0];
-  if (/Montant transaction brut/i.test(text)) {
-    const start = text.search(/Montant transaction brut/i);
-    const end = text.search(/Commission\s+Frais divers/i);
-    const transactionBlock = text.slice(start, end > start ? end : undefined);
-    const amounts = [...transactionBlock.matchAll(/([\d\s]+,\d{2})\s*(EUR|€)/g)].map((match) => parseFrenchMoney(match[1]));
-    return amounts.find((amount) => amount !== undefined && amount > 0);
-  }
-  return parseFrenchMoney(extractFieldByLabels(text, moneyLabels.grossAmount));
-}
-
-function extractNetAmount(text: string) {
-  const oldTable = amountsAfterHeader(text, /Montant brut\s+Commission\s+Frais/i);
-  if (oldTable[3] !== undefined) return oldTable[3];
-  const debit = /Montant net au d[ée]bit de votre compte\s*\n?\s*([\d\s.,]+)\s*([A-Z]{3}|€)?/i.exec(text);
-  if (debit?.[1]) return parseFrenchMoney(debit[1]);
-  return parseFrenchMoney(extractFieldByLabels(text, moneyLabels.netAmount));
 }
 
 function amountsAfterHeader(text: string, header: RegExp) {
@@ -181,7 +158,6 @@ function buildWarnings(operation: Omit<ParsedAvisOperation, "warnings">) {
   if (!operation.nomValeur) warnings.push("Nom de valeur non detecte.");
   if (operation.sensOperation === "inconnu") warnings.push("Sens achat/vente incertain.");
   if (operation.coursExecute === undefined) warnings.push("Cours execute non detecte.");
-  if (operation.montantNet === undefined) warnings.push("Montant net non detecte.");
   return warnings;
 }
 
@@ -199,11 +175,7 @@ export function parseAvisOperesText(text: string, fileName?: string): ParsedAvis
     quantite: quantity,
     sensOperation: detectOperationType(normalized),
     coursExecute: extractExecutedPrice(normalized),
-    montantBrut: extractGrossAmount(normalized),
-    commission: fees.commission,
-    frais: fees.fees,
     montantTotalFrais: fees.totalFees ?? sumFees(fees.commission, fees.fees),
-    montantNet: extractNetAmount(normalized),
     devise: extractCurrency(normalized),
     sourceFileName: fileName,
     rawTextSnippet: rawSnippet(normalized)

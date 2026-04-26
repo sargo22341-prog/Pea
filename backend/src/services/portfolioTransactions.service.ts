@@ -1,13 +1,13 @@
 import type { EditablePortfolioTransaction, PositionTransactionStats, Position } from "@pea/shared";
 
 export function calculateTransactionStats(
-  transactions: Array<Pick<EditablePortfolioTransaction, "totalFees" | "commission" | "fees">>,
+  transactions: Array<Pick<EditablePortfolioTransaction, "totalFees">>,
   totalDividendsReceived = 0,
   currency = "EUR"
 ): PositionTransactionStats {
   return {
     transactionCount: transactions.length,
-    totalFees: transactions.reduce((sum, row) => sum + (row.totalFees ?? ((row.commission ?? 0) + (row.fees ?? 0))), 0),
+    totalFees: transactions.reduce((sum, row) => sum + (row.totalFees ?? 0), 0),
     totalDividendsReceived,
     currency
   };
@@ -27,7 +27,6 @@ export function legacyTransactionFromPosition(position: Position): EditablePortf
     quantity: position.quantity,
     executedPrice: position.averageBuyPrice,
     price: position.averageBuyPrice,
-    fees: 0,
     totalFees: 0,
     currency: position.currency,
     createdAt: position.createdAt
@@ -36,7 +35,7 @@ export function legacyTransactionFromPosition(position: Position): EditablePortf
 
 export function applyEditableTransactionPatch(
   transaction: EditablePortfolioTransaction,
-  patch: Partial<Pick<EditablePortfolioTransaction, "tradedAt" | "quantity" | "price" | "fees" | "totalFees" | "currency">>
+  patch: Partial<Pick<EditablePortfolioTransaction, "tradedAt" | "type" | "quantity" | "price" | "totalFees" | "currency">>
 ): EditablePortfolioTransaction {
   return {
     ...transaction,

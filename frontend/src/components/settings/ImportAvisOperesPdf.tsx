@@ -48,19 +48,25 @@ function AvisOperesPreview({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2 p-4 text-sm text-slate-400">
-        <FileText size={16} />
-        {"Extraction -> previsualisation -> resolution actif -> correction -> validation"}
+      <div className="flex flex-col gap-2 p-4 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex items-center gap-2">
+          <FileText size={16} />
+          {"Extraction -> previsualisation -> correction -> validation"}
+        </span>
       </div>
       <div className="space-y-4 p-4 pt-0">
         {rows.map((row, index) => (
           <div className={`rounded-md border p-4 ${row.potentialDuplicate ? "border-amber/60 bg-amber/5" : "border-line bg-ink/40"}`} key={`${row.sourceFileName}-${index}`}>
-            <div className="grid gap-3 lg:grid-cols-[minmax(190px,1.2fr)_minmax(220px,1.4fr)_minmax(150px,1fr)_minmax(220px,1.4fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)]">
-              <TextField label="Date execution" onChange={(value) => onUpdateRow(index, { dateExecution: value })} value={row.dateExecution ?? ""} />
-              <TextField label="Valeur" onChange={(value) => onUpdateRow(index, { nomValeur: value })} value={row.nomValeur ?? ""} />
-              <TextField label="ISIN" onChange={(value) => onUpdateRow(index, { isin: value.toUpperCase() })} value={row.isin ?? ""} />
-              <ReadField label="Actif detecte" value={row.resolvedAsset ? `${row.resolvedAsset.name} (${Math.round(row.resolvedAsset.confidenceScore * 100)}%)` : "A choisir"} />
-              <TextField label="Ticker choisi" onChange={(value) => onUpdateRow(index, { selectedSymbol: value.toUpperCase() })} value={row.selectedSymbol ?? ""} />
+            <div className="mb-3 text-sm text-slate-300">
+              Actif detecte : {row.resolvedAsset ? `${row.resolvedAsset.name} ${Math.round(row.resolvedAsset.confidenceScore * 100)}%` : "a choisir"}
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(210px,1.1fr)_minmax(180px,0.8fr)_minmax(150px,0.7fr)]">
+              <label>
+                <span className="muted mb-1 block">Date execution</span>
+                <input className="input" onChange={(event) => onUpdateRow(index, { dateExecution: event.target.value })} type="datetime-local" value={toDateTimeLocal(row.dateExecution)} />
+              </label>
+              <TextField label="Ticker" onChange={(value) => onUpdateRow(index, { selectedSymbol: value.toUpperCase() })} placeholder={row.isin ?? row.nomValeur ?? ""} value={row.selectedSymbol ?? row.ticker ?? ""} />
               <label>
                 <span className="muted mb-1 block">Sens</span>
                 <select className="input min-w-36" onChange={(event) => onUpdateRow(index, { sensOperation: event.target.value as ParsedAvisOperation["sensOperation"] })} value={row.sensOperation}>
@@ -71,14 +77,10 @@ function AvisOperesPreview({
               </label>
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-              <NumberField field="quantite" index={index} label="Qte" onUpdateRow={onUpdateRow} row={row} />
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <NumberField field="quantite" index={index} label="Quantite" onUpdateRow={onUpdateRow} row={row} />
               <NumberField field="coursExecute" index={index} label="Cours" onUpdateRow={onUpdateRow} row={row} />
-              <NumberField field="montantBrut" index={index} label="Brut" onUpdateRow={onUpdateRow} row={row} />
-              <NumberField field="commission" index={index} label="Commission" onUpdateRow={onUpdateRow} row={row} />
-              <NumberField field="frais" index={index} label="Frais" onUpdateRow={onUpdateRow} row={row} />
               <NumberField field="montantTotalFrais" index={index} label="Total frais" onUpdateRow={onUpdateRow} row={row} />
-              <NumberField field="montantNet" index={index} label="Net" onUpdateRow={onUpdateRow} row={row} />
             </div>
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -103,21 +105,17 @@ function AvisOperesPreview({
   );
 }
 
-function TextField({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+function toDateTimeLocal(value?: string) {
+  if (!value) return "";
+  return value.slice(0, 16);
+}
+
+function TextField({ label, onChange, placeholder, value }: { label: string; onChange: (value: string) => void; placeholder?: string; value: string }) {
   return (
     <label>
       <span className="muted mb-1 block">{label}</span>
-      <input className="input min-w-0" onChange={(event) => onChange(event.target.value)} value={value} />
+      <input className="input min-w-0" onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
     </label>
-  );
-}
-
-function ReadField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="muted mb-1 block">{label}</span>
-      <div className="input min-h-10 truncate text-slate-300">{value}</div>
-    </div>
   );
 }
 
@@ -128,7 +126,7 @@ function NumberField({
   onUpdateRow,
   row
 }: {
-  field: keyof Pick<ParsedAvisOperation, "quantite" | "coursExecute" | "montantBrut" | "commission" | "frais" | "montantTotalFrais" | "montantNet">;
+  field: keyof Pick<ParsedAvisOperation, "quantite" | "coursExecute" | "montantTotalFrais">;
   index: number;
   label: string;
   onUpdateRow: (index: number, patch: Partial<ParsedAvisOperation>) => void;

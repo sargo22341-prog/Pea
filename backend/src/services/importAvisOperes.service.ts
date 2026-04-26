@@ -21,12 +21,8 @@ const confirmOperationSchema = z.object({
   ticker: z.string().optional(),
   quantite: z.coerce.number().positive(),
   sensOperation: z.enum(["achat", "vente", "inconnu"]),
-  coursExecute: z.coerce.number().nonnegative().optional(),
-  montantBrut: z.coerce.number().nonnegative().optional(),
-  commission: z.coerce.number().nonnegative().optional(),
-  frais: z.coerce.number().nonnegative().optional(),
+  coursExecute: z.coerce.number().nonnegative(),
   montantTotalFrais: z.coerce.number().nonnegative().optional(),
-  montantNet: z.coerce.number().nonnegative().optional(),
   devise: z.string().default("EUR"),
   rawTextSnippet: z.string().optional(),
   selectedSymbol: z.string().optional(),
@@ -168,29 +164,24 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
       const name = row.selectedAssetName || row.nomValeur || symbol;
       const position = await portfolioService.ensurePosition(symbol, name, row.devise);
       const type = row.sensOperation === "vente" ? "sell" : "buy";
-      const executedPrice = row.coursExecute ?? (row.montantBrut !== undefined ? Number(row.montantBrut) / row.quantite : 0);
 
       db.prepare(
         `INSERT INTO transactions (
           position_id, type, quantity, price, currency, traded_at, source, source_file_name,
-          asset_name, isin, ticker, gross_amount, commission, fees, total_fees, net_amount, raw_text_snippet
-        ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          asset_name, isin, ticker, total_fees, raw_text_snippet
+        ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?)`
       ).run(
         position.id,
         type,
         row.quantite,
-        executedPrice,
+        row.coursExecute,
         row.devise,
         row.dateExecution ?? new Date().toISOString(),
         row.sourceFileName ?? null,
         row.nomValeur ?? name,
         row.isin ?? null,
-        row.ticker ?? symbol,
-        row.montantBrut ?? null,
-        row.commission ?? null,
-        row.frais ?? null,
+        symbol,
         row.montantTotalFrais ?? null,
-        row.montantNet ?? null,
         row.rawTextSnippet ?? null
       );
 

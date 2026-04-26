@@ -395,11 +395,7 @@ export interface PortfolioTransaction {
   type: PortfolioTransactionType;
   quantity: number;
   executedPrice?: number;
-  grossAmount?: number;
-  commission?: number;
-  fees?: number;
   totalFees?: number;
-  netAmount?: number;
   currency: CurrencyCode;
   rawTextSnippet?: string;
   createdAt: string;
@@ -420,11 +416,7 @@ export interface ParsedAvisOperation {
   quantite?: number;
   sensOperation: "achat" | "vente" | "inconnu";
   coursExecute?: number;
-  montantBrut?: number;
-  commission?: number;
-  frais?: number;
   montantTotalFrais?: number;
-  montantNet?: number;
   devise: CurrencyCode;
   sourceFileName?: string;
   rawTextSnippet?: string;

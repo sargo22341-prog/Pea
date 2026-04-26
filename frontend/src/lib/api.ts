@@ -101,7 +101,7 @@ export const api = {
   updatePositionTransaction: (
     positionId: number,
     transactionId: string,
-    input: { tradedAt: string; quantity: number; price: number; fees?: number; currency: string }
+    input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }
   ) =>
     request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, {
       method: "PUT",

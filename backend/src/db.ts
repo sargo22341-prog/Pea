@@ -233,16 +233,25 @@ for (const migration of [
   "ALTER TABLE transactions ADD COLUMN asset_name TEXT;",
   "ALTER TABLE transactions ADD COLUMN isin TEXT;",
   "ALTER TABLE transactions ADD COLUMN ticker TEXT;",
-  "ALTER TABLE transactions ADD COLUMN gross_amount REAL;",
-  "ALTER TABLE transactions ADD COLUMN commission REAL;",
-  "ALTER TABLE transactions ADD COLUMN fees REAL;",
   "ALTER TABLE transactions ADD COLUMN total_fees REAL;",
-  "ALTER TABLE transactions ADD COLUMN net_amount REAL;",
   "ALTER TABLE transactions ADD COLUMN raw_text_snippet TEXT;"
 ]) {
   try {
     db.exec(migration);
   } catch {
     // Column already exists in existing SQLite files.
+  }
+}
+
+for (const migration of [
+  "ALTER TABLE transactions DROP COLUMN gross_amount;",
+  "ALTER TABLE transactions DROP COLUMN commission;",
+  "ALTER TABLE transactions DROP COLUMN fees;",
+  "ALTER TABLE transactions DROP COLUMN net_amount;"
+]) {
+  try {
+    db.exec(migration);
+  } catch {
+    // Column does not exist, or SQLite cannot drop it in this environment.
   }
 }

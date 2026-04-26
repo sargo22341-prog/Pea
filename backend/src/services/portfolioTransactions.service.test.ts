@@ -17,8 +17,7 @@ describe("portfolio transaction helpers", () => {
     quantity: 339,
     executedPrice: 5.888,
     price: 5.888,
-    commission: 1,
-    fees: 2,
+    totalFees: 3,
     currency: "EUR",
     createdAt: "2026-03-27T15:08:41"
   };
@@ -34,7 +33,7 @@ describe("portfolio transaction helpers", () => {
   });
 
   it("calculates transaction count and total fees", () => {
-    const stats = calculateTransactionStats([transaction, { ...transaction, id: "2", totalFees: 4, commission: undefined, fees: undefined }], 12, "EUR");
+    const stats = calculateTransactionStats([transaction, { ...transaction, id: "2", totalFees: 4 }], 12, "EUR");
     assert.equal(stats.transactionCount, 2);
     assert.equal(stats.totalFees, 7);
     assert.equal(stats.totalDividendsReceived, 12);

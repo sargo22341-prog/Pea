@@ -19,11 +19,7 @@ describe("avis operes parser", () => {
     assert.equal(operation.isin, "FR0000120644");
     assert.equal(operation.sensOperation, "achat");
     assert.equal(operation.coursExecute, 60.1);
-    assert.equal(operation.montantBrut, 60.1);
-    assert.equal(operation.commission, 0.3);
-    assert.equal(operation.frais, 0.18);
     assert.equal(operation.montantTotalFrais, 0.48);
-    assert.equal(operation.montantNet, 60.58);
   });
 
   it("parses the iShares avis format", () => {
@@ -36,11 +32,7 @@ describe("avis operes parser", () => {
     assert.equal(operation.isin, "IE0002XZSHO1");
     assert.equal(operation.sensOperation, "achat");
     assert.equal(operation.coursExecute, 5.888);
-    assert.equal(operation.montantBrut, 1996.03);
-    assert.equal(operation.commission, 0);
-    assert.equal(operation.frais, 0);
     assert.equal(operation.montantTotalFrais, 0);
-    assert.equal(operation.montantNet, 1996.03);
   });
 
   it("parses French numbers and dates", () => {
@@ -56,8 +48,6 @@ describe("avis operes parser", () => {
     assert.equal(operation.sensOperation, "vente");
     assert.equal(operation.quantite, 1);
     assert.equal(operation.nomValeur, "TEST");
-    assert.equal(operation.montantNet, undefined);
     assert.ok(operation.warnings.includes("Date d'execution non detectee."));
-    assert.ok(operation.warnings.includes("Montant net non detecte."));
   });
 });

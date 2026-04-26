@@ -425,9 +425,10 @@ apiRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute
   const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
   const body = z.object({
     tradedAt: z.string().min(1),
+    type: z.enum(["buy", "sell"]),
     quantity: z.coerce.number().nonnegative(),
     price: z.coerce.number().nonnegative(),
-    fees: z.coerce.number().nonnegative().optional(),
+    totalFees: z.coerce.number().nonnegative().optional(),
     currency: z.string().min(3).max(8).default("EUR")
   }).parse(req.body);
   res.json(portfolioService.updateTransaction(id, transactionId, body));

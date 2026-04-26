@@ -45,9 +45,10 @@ export function EditPositionModal({
     setError(null);
     const nextRows = await api.updatePositionTransaction(position.id, row.id, {
       tradedAt: row.tradedAt,
+      type: row.type === "sell" ? "sell" : "buy",
       quantity: row.quantity,
       price: row.price,
-      fees: row.totalFees ?? row.fees ?? 0,
+      totalFees: row.totalFees ?? 0,
       currency: row.currency
     });
     setRows(nextRows);
@@ -64,7 +65,7 @@ export function EditPositionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center">
-      <div className="card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0">
+      <div className="card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0 bg-ink/85">
         <div className="flex items-center justify-between gap-3 border-b border-line p-4">
           <div>
             <h2 className="text-lg font-semibold">Transactions {position.symbol}</h2>
@@ -80,10 +81,17 @@ export function EditPositionModal({
           <div className="space-y-3">
             {rows.map((row, index) => (
               <div className="rounded-md border border-line bg-ink/60 p-3" key={row.id}>
-                <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_1fr_1fr_1fr_110px_auto_auto] md:items-end">
+                <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_120px_1fr_1fr_1fr_110px_auto_auto] md:items-end">
                   <label>
                     <span className="muted mb-1 block">Date</span>
                     <input className="input" onChange={(event) => patchRow(index, { tradedAt: event.target.value, dateExecution: event.target.value })} value={row.tradedAt ?? ""} />
+                  </label>
+                  <label>
+                    <span className="muted mb-1 block">Sens</span>
+                    <select className="input" onChange={(event) => patchRow(index, { type: event.target.value as EditablePortfolioTransaction["type"] })} value={row.type}>
+                      <option value="buy">Achat</option>
+                      <option value="sell">Vente</option>
+                    </select>
                   </label>
                   <label>
                     <span className="muted mb-1 block">Quantite</span>
@@ -95,7 +103,7 @@ export function EditPositionModal({
                   </label>
                   <label>
                     <span className="muted mb-1 block">Frais</span>
-                    <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: Number(event.target.value), fees: Number(event.target.value) })} step="any" type="number" value={row.totalFees ?? row.fees ?? 0} />
+                    <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: Number(event.target.value) })} step="any" type="number" value={row.totalFees ?? 0} />
                   </label>
                   <label>
                     <span className="muted mb-1 block">Devise</span>
