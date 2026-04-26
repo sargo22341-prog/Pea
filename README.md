@@ -113,6 +113,8 @@ Les informations d'eligibilite PEA ne sont pas verifiees par Yahoo Finance: les 
 - `GET /api/portfolio/dividends`
 - `POST /api/import/boursorama/preview`
 - `POST /api/import/boursorama/confirm`
+- `POST /api/import/avis-operes/preview`
+- `POST /api/import/avis-operes/confirm`
 
 ## Notes
 
@@ -121,3 +123,5 @@ Le premier lancement affiche la creation du compte local. Les mots de passe sont
 Les icones d'actifs sont chargees en lazy: l'app cherche d'abord une icone manuelle, puis le cache, puis le site `assetProfile.website` via Yahoo pour generer un favicon. En cas d'echec, l'UI affiche les initiales du ticker.
 
 L'import CSV Boursorama accepte les nombres francais, les noms entre guillemets et une preview corrigeable avant confirmation. Les lignes invalides remontent leurs erreurs sans interrompre toute la preview.
+
+L'import PDF d'avis d'operes est optionnel et conserve le flux CSV existant. Le backend extrait le texte des PDF non scannes avec `pdf-parse`, parse les operations dans `avisOperesParser.service.ts`, puis renvoie une preview editable avant validation. Les operations validees sont stockees comme transactions datees (`source = pdf_avis_opere`) ; les calculs les utilisent lorsqu'elles existent pour un actif, sinon le mode legacy CSV sans dates reste applique.

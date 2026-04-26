@@ -1,6 +1,7 @@
-import type { PositionWithMarket } from "@pea/shared";
-import { Trash2 } from "lucide-react";
-import { useEditPositionForm } from "../hooks/useAssetPositionModalForm";
+import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
+import { Save, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api } from "../lib/api";
 
 export function EditPositionModal({
   position,
@@ -13,55 +14,114 @@ export function EditPositionModal({
   onSaved: () => void;
   onDeleted: () => void;
 }) {
-  const form = useEditPositionForm({ position, onClose, onSaved });
+  const [rows, setRows] = useState<EditablePortfolioTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api.positionTransactions(position.id)
+      .then((transactions) => {
+        if (alive) setRows(transactions);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Chargement impossible."))
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [position.id]);
+
+  function patchRow(index: number, patch: Partial<EditablePortfolioTransaction>) {
+    setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  }
+
+  async function save(row: EditablePortfolioTransaction) {
+    if (row.id.startsWith("legacy-")) {
+      setError("Cette ligne legacy vient de la position CSV. Ajoute une transaction datee pour l'editer finement.");
+      return;
+    }
+    setError(null);
+    const nextRows = await api.updatePositionTransaction(position.id, row.id, {
+      tradedAt: row.tradedAt,
+      quantity: row.quantity,
+      price: row.price,
+      fees: row.totalFees ?? row.fees ?? 0,
+      currency: row.currency
+    });
+    setRows(nextRows);
+    onSaved();
+  }
+
+  async function remove(row: EditablePortfolioTransaction) {
+    if (row.id.startsWith("legacy-")) return;
+    if (!window.confirm("Supprimer cette transaction ?")) return;
+    await api.deletePositionTransaction(position.id, row.id);
+    setRows((current) => current.filter((item) => item.id !== row.id));
+    onSaved();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center">
-      <form className="card w-full max-w-lg space-y-4 p-4" onSubmit={form.submit}>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Ã‰diter {position.symbol}</h2>
+      <div className="card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-3 border-b border-line p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Transactions {position.symbol}</h2>
+            <p className="muted">Modifier les transactions qui alimentent la quantite, le PRU et les frais.</p>
+          </div>
           <button className="btn-ghost" onClick={onClose} type="button">Fermer</button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label>
-            <span className="muted mb-1 block">QuantitÃ©</span>
-            <input className="input" min="0" onChange={(event) => form.setQuantity(event.target.value)} required step="any" type="number" value={form.quantity} />
-          </label>
-          <label>
-            <span className="muted mb-1 block">Prix dâ€™achat moyen</span>
-            <input className="input" min="0" onChange={(event) => form.setAverageBuyPrice(event.target.value)} required step="any" type="number" value={form.averageBuyPrice} />
-          </label>
-          <label>
-            <span className="muted mb-1 block">Devise</span>
-            <select className="input" onChange={(event) => form.setCurrency(event.target.value)} value={form.currency}>
-              <option>EUR</option>
-              <option>USD</option>
-              <option>GBP</option>
-              <option>CHF</option>
-            </select>
-          </label>
+        {loading ? <p className="p-4 text-slate-400">Chargement...</p> : null}
+        {error ? <p className="m-4 rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
+
+        <div className="max-h-[58vh] overflow-y-auto p-4">
+          <div className="space-y-3">
+            {rows.map((row, index) => (
+              <div className="rounded-md border border-line bg-ink/60 p-3" key={row.id}>
+                <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_1fr_1fr_1fr_110px_auto_auto] md:items-end">
+                  <label>
+                    <span className="muted mb-1 block">Date</span>
+                    <input className="input" onChange={(event) => patchRow(index, { tradedAt: event.target.value, dateExecution: event.target.value })} value={row.tradedAt ?? ""} />
+                  </label>
+                  <label>
+                    <span className="muted mb-1 block">Quantite</span>
+                    <input className="input" min="0" onChange={(event) => patchRow(index, { quantity: Number(event.target.value) })} step="any" type="number" value={row.quantity} />
+                  </label>
+                  <label>
+                    <span className="muted mb-1 block">Prix</span>
+                    <input className="input" min="0" onChange={(event) => patchRow(index, { price: Number(event.target.value), executedPrice: Number(event.target.value) })} step="any" type="number" value={row.price} />
+                  </label>
+                  <label>
+                    <span className="muted mb-1 block">Frais</span>
+                    <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: Number(event.target.value), fees: Number(event.target.value) })} step="any" type="number" value={row.totalFees ?? row.fees ?? 0} />
+                  </label>
+                  <label>
+                    <span className="muted mb-1 block">Devise</span>
+                    <input className="input" onChange={(event) => patchRow(index, { currency: event.target.value.toUpperCase() })} value={row.currency} />
+                  </label>
+                  <button className="btn-primary" disabled={row.id.startsWith("legacy-")} onClick={() => void save(row)} type="button">
+                    <Save size={16} />
+                    Sauver
+                  </button>
+                  <button className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => void remove(row)} type="button">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <label className="block">
-          <span className="muted mb-1 block">Notes</span>
-          <textarea className="input min-h-24" onChange={(event) => form.setNotes(event.target.value)} value={form.notes} />
-        </label>
-
-        {form.error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{form.error}</p>}
-
-        <div className="rounded-md border border-coral/40 bg-coral/10 p-3">
-          <p className="mb-3 text-sm font-semibold text-coral">Zone danger</p>
+        <div className="flex justify-between gap-3 border-t border-line p-4">
           <button className="btn-ghost text-coral" onClick={onDeleted} type="button">
             <Trash2 size={17} />
-            Supprimer lâ€™action
+            Supprimer l'action
           </button>
+          <button className="btn-primary" onClick={onClose} type="button">Terminer</button>
         </div>
-
-        <button className="btn-primary w-full" disabled={form.saving} type="submit">
-          {form.saving ? "Enregistrement..." : "Enregistrer"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 }

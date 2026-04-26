@@ -7,6 +7,7 @@ import type {
   CreatePositionInput,
   DashboardSortKey,
   DividendEvent,
+  EditablePortfolioTransaction,
   EnrichedSearchResult,
   HistoryPoint,
   NewsArticle,
@@ -17,6 +18,7 @@ import type {
   PortfolioPerformancePoint,
   PositionRangePerformance,
   PortfolioSummary,
+  ParsedAvisOperation,
   Quote,
   RangeKey,
   SearchResult,
@@ -95,6 +97,18 @@ export const api = {
   updatePosition: (id: number, input: UpdatePositionInput) =>
     request(`/api/portfolio/positions/${id}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePosition: (id: number) => request<void>(`/api/portfolio/positions/${id}`, { method: "DELETE" }),
+  positionTransactions: (id: number) => request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${id}/transactions`),
+  updatePositionTransaction: (
+    positionId: number,
+    transactionId: string,
+    input: { tradedAt: string; quantity: number; price: number; fees?: number; currency: string }
+  ) =>
+    request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, {
+      method: "PUT",
+      body: JSON.stringify(input)
+    }),
+  deletePositionTransaction: (positionId: number, transactionId: string) =>
+    request<void>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, { method: "DELETE" }),
   performance: (range: RangeKey) => request<PortfolioPerformancePoint[]>(`/api/portfolio/performance?range=${range}`),
   positionsPerformance: (range: RangeKey) =>
     request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
@@ -151,6 +165,16 @@ export const api = {
     request<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", { method: "POST", body: JSON.stringify({ content }) }),
   confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) =>
     request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/boursorama/update-confirm", {
+      method: "POST",
+      body: JSON.stringify({ rows })
+    }),
+  previewAvisOperesPdf: (files: File[]) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+    return request<ParsedAvisOperation[]>("/api/import/avis-operes/preview", { method: "POST", body: formData });
+  },
+  confirmAvisOperesPdf: (rows: ParsedAvisOperation[]) =>
+    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/avis-operes/confirm", {
       method: "POST",
       body: JSON.stringify({ rows })
     })

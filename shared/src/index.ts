@@ -152,6 +152,13 @@ export interface PositionWithMarket extends Position {
   marketDataUnavailable?: boolean;
 }
 
+export interface PositionTransactionStats {
+  transactionCount: number;
+  totalFees: number;
+  totalDividendsReceived: number;
+  currency: CurrencyCode;
+}
+
 export interface PositionRangePerformance extends Position {
   currentPrice: number;
   currentMarketValue: number;
@@ -301,6 +308,7 @@ export interface AssetDetails {
   dividends: DividendEvent[];
   news: NewsArticle[];
   position?: PositionWithMarket;
+  positionStats?: PositionTransactionStats;
   isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
   marketInfo?: AssetMarketInfo;
@@ -369,4 +377,65 @@ export interface BoursoramaUpdateRow extends BoursoramaImportRow {
   csvAverageBuyPrice: number;
   proposedAction: "add" | "update" | "reduce" | "delete" | "unchanged" | "ignore";
   positionId?: number;
+}
+
+export type PortfolioTransactionSource = "csv" | "pdf_avis_opere" | "manual";
+export type PortfolioTransactionType = "buy" | "sell" | "dividend" | "fee" | "unknown";
+
+export interface PortfolioTransaction {
+  id: string;
+  assetId?: string;
+  source: PortfolioTransactionSource;
+  sourceFileName?: string;
+  dateExecution?: string;
+  valueDate?: string;
+  assetName?: string;
+  isin?: string;
+  ticker?: string;
+  type: PortfolioTransactionType;
+  quantity: number;
+  executedPrice?: number;
+  grossAmount?: number;
+  commission?: number;
+  fees?: number;
+  totalFees?: number;
+  netAmount?: number;
+  currency: CurrencyCode;
+  rawTextSnippet?: string;
+  createdAt: string;
+}
+
+export interface EditablePortfolioTransaction extends PortfolioTransaction {
+  positionId: number;
+  price: number;
+  tradedAt: string;
+}
+
+export interface ParsedAvisOperation {
+  id: string;
+  dateExecution?: string;
+  nomValeur?: string;
+  isin?: string;
+  ticker?: string;
+  quantite?: number;
+  sensOperation: "achat" | "vente" | "inconnu";
+  coursExecute?: number;
+  montantBrut?: number;
+  commission?: number;
+  frais?: number;
+  montantTotalFrais?: number;
+  montantNet?: number;
+  devise: CurrencyCode;
+  sourceFileName?: string;
+  rawTextSnippet?: string;
+  warnings: string[];
+  potentialDuplicate?: boolean;
+  resolvedAsset?: {
+    symbol: string;
+    name: string;
+    confidenceScore: number;
+  };
+  selectedSymbol?: string;
+  selectedAssetName?: string;
+  action?: "import" | "ignore";
 }

@@ -52,14 +52,17 @@ export class DividendService {
       for (const event of dividends) {
         const year = new Date(event.date).getFullYear();
         const amountPerShare = event.amount;
+        const quantity = portfolioService.hasDatedTransactions(position.id)
+          ? portfolioService.getQuantityHeldAtDate(position.id, event.date)
+          : position.quantity;
         past.push({
           symbol: position.symbol,
           name: position.name,
           date: event.date,
           year,
           amountPerShare,
-          quantity: position.quantity,
-          totalAmount: amountPerShare * position.quantity,
+          quantity,
+          totalAmount: amountPerShare * quantity,
           currency: event.currency,
           status: "real",
           ...metrics,
@@ -70,14 +73,17 @@ export class DividendService {
       for (const event of lastYearDividends) {
         const date = addOneYear(event.date);
         const amountPerShare = event.amount;
+        const quantity = portfolioService.hasDatedTransactions(position.id)
+          ? portfolioService.getQuantityHeldAtDate(position.id, date)
+          : position.quantity;
         upcoming.push({
           symbol: position.symbol,
           name: position.name,
           date,
           year: new Date(date).getFullYear(),
           amountPerShare,
-          quantity: position.quantity,
-          totalAmount: amountPerShare * position.quantity,
+          quantity,
+          totalAmount: amountPerShare * quantity,
           currency: event.currency,
           status: "estimated",
           ...metrics,

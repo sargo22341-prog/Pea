@@ -1,0 +1,24 @@
+Boursorama S.A. au capital de 53 576 889,20 € - RCS Nanterre 351 058 151
+OPERATION DE BOURSE
+le 27/03/2026
+ACHAT COMPTANT ETR
+ACTION
+Date et heure
+locale d'exécution Quantité Informations sur la valeur Informations sur l'exécution
+27/03/2026
+15:08:41
+339 ISHS VI-ISMWSPE EOA Référence : 170149237829
+Type d'ordre : à cours limite
+Cours demandé : 5,8880 EUR
+Code ISIN : IE0002XZSHO1 Cours exécuté : 5,8880 EUR
+Lieu d'exécution : EURONEXT PARIS
+Montant transaction brut Intérêts
+Montant transaction
+total brut Courtages Montant transaction net
+1 996,03 EUR 0,00 EUR
+000 jours
+1 996,03 EUR 0,00 EUR 0,00 EUR
+Commission Frais divers Montant total des frais
+0,00 EUR 0,00 EUR 0,00 EUR
+Montant net au débit de votre compte
+1 996,03 EUR

@@ -20,6 +20,7 @@
     "express": "^4.18.3",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
+    "pdf-parse": "^2.4.5",
     "sql.js": "^1.10.3",
     "yahoo-finance2": "3.14.0",
     "zod": "^3.23.8"

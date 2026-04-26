@@ -1,6 +1,7 @@
 import { AccountSettingsSection } from "../components/settings/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "../components/settings/AssetIconsSettingsSection";
 import { CsvImportSection } from "../components/settings/CsvImportSection";
+import { ImportAvisOperesPdf } from "../components/settings/ImportAvisOperesPdf";
 import { UserPreferencesSection } from "../components/settings/UserPreferencesSection";
 import { api } from "../lib/api";
 
@@ -15,6 +16,7 @@ export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
       <AssetIconsSettingsSection />
       <CsvImportSection />
+      <ImportAvisOperesPdf />
       <LogoutSection />
     </div>
   );

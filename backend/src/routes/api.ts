@@ -14,6 +14,7 @@ import { attachUser, clearAuthCookie, readCookie, requireAuth, setAuthCookie } f
 import { authCookieName, authService } from "../services/auth.service.js";
 import { iconService } from "../services/icon.service.js";
 import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../services/importBoursorama.service.js";
+import { confirmAvisOperesImport, previewAvisOperesImport } from "../services/importAvisOperes.service.js";
 import { localPeaSearchService } from "../services/local-pea-search.service.js";
 import { logger } from "../services/logger.service.js";
 
@@ -54,6 +55,34 @@ function parseMultipartIcon(req: express.Request) {
   }
 
   throw new HttpError(400, "Fichier image requis.");
+}
+
+function parseMultipartFiles(req: express.Request, fieldName: string) {
+  const contentType = req.headers["content-type"] ?? "";
+  const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
+  if (!boundary || !Buffer.isBuffer(req.body)) throw new HttpError(400, "Fichier requis.");
+
+  const body = req.body as Buffer;
+  const marker = Buffer.from(`--${boundary}`);
+  const files: Array<{ fileName: string; buffer: Buffer }> = [];
+  let start = body.indexOf(marker);
+  while (start !== -1) {
+    const next = body.indexOf(marker, start + marker.length);
+    if (next === -1) break;
+    const part = trimMultipartPart(body.subarray(start + marker.length, next));
+    const separator = part.indexOf(Buffer.from("\r\n\r\n"));
+    if (separator !== -1) {
+      const headers = part.subarray(0, separator).toString("utf8");
+      const field = /name="([^"]+)"/i.exec(headers)?.[1];
+      const fileName = /filename="([^"]+)"/i.exec(headers)?.[1];
+      if (field === fieldName && fileName) {
+        files.push({ fileName, buffer: part.subarray(separator + 4) });
+      }
+    }
+    start = next;
+  }
+  if (!files.length) throw new HttpError(400, "Aucun PDF fourni.");
+  return files;
 }
 
 function trimMultipartPart(part: Buffer) {
@@ -386,6 +415,31 @@ apiRouter.put("/portfolio/positions/:id", asyncRoute(async (req, res) => {
   res.json(await portfolioService.updatePosition(id, body));
 }));
 
+apiRouter.get("/portfolio/positions/:id/transactions", asyncRoute(async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  res.json(portfolioService.listTransactions(id));
+}));
+
+apiRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute(async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
+  const body = z.object({
+    tradedAt: z.string().min(1),
+    quantity: z.coerce.number().nonnegative(),
+    price: z.coerce.number().nonnegative(),
+    fees: z.coerce.number().nonnegative().optional(),
+    currency: z.string().min(3).max(8).default("EUR")
+  }).parse(req.body);
+  res.json(portfolioService.updateTransaction(id, transactionId, body));
+}));
+
+apiRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute(async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
+  portfolioService.deleteTransaction(id, transactionId);
+  res.status(204).send();
+}));
+
 apiRouter.delete("/portfolio/positions/:id", asyncRoute(async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const deleted = portfolioService.deletePosition(id);
@@ -441,6 +495,24 @@ apiRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) 
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
   const result = await confirmBoursoramaUpdate(body.rows);
   logger.debug("import", "CSV update confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
+  res.json(result);
+}));
+
+apiRouter.post(
+  "/import/avis-operes/preview",
+  express.raw({ type: "multipart/form-data", limit: "10mb" }),
+  asyncRoute(async (req, res) => {
+    const files = parseMultipartFiles(req, "files");
+    const preview = await previewAvisOperesImport(files);
+    logger.debug("import", "PDF avis preview", { files: files.length, rows: preview.length, rowsWithWarnings: preview.filter((row) => row.warnings.length).length });
+    res.json(preview);
+  })
+);
+
+apiRouter.post("/import/avis-operes/confirm", asyncRoute(async (req, res) => {
+  const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
+  const result = await confirmAvisOperesImport(body.rows);
+  logger.debug("import", "PDF avis confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
   res.json(result);
 }));
 
@@ -526,6 +598,15 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const marketInfo = marketInfoResult.data;
   const financials = assetFinancialsResult.financials;
   const isEtf = assetFinancialsResult.isEtf;
+  const dividendsReceived = position
+    ? dividends.reduce((sum, event) => {
+        if (new Date(event.date).getTime() > Date.now()) return sum;
+        const quantity = portfolioService.hasDatedTransactions(position.id)
+          ? portfolioService.getQuantityHeldAtDate(position.id, event.date)
+          : position.quantity;
+        return sum + quantity * event.amount;
+      }, 0)
+    : 0;
 
   const details: AssetDetails = {
     quote,
@@ -533,6 +614,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     dividends,
     news,
     position,
+    positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined,
     isInWatchlist: Boolean(watchlistRow),
     stale: marketUnavailable || quote.stale || history.some((point) => point.stale) || dividends.some((event) => event.stale) || position?.quote?.stale,
     peaEligibility: evaluatePeaEligibility({ ...quote, quoteType: String(quote.quoteType ?? "") }),

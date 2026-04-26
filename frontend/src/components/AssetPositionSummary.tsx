@@ -1,5 +1,5 @@
-import type { PositionWithMarket, RangeKey } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins } from "lucide-react";
+import type { PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins, ReceiptText, WalletCards } from "lucide-react";
 import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../lib/format";
 import { toneClass, toneFromNumber } from "../utils/assetTone";
 import { AssetInfoTile } from "./AssetInfoTile";
@@ -8,12 +8,14 @@ export function AssetPositionSummary({
   position,
   currentPrice,
   firstPriceOfRange,
-  range
+  range,
+  stats
 }: {
   position: PositionWithMarket;
   currentPrice: number;
   firstPriceOfRange?: number;
   range: RangeKey;
+  stats?: PositionTransactionStats;
 }) {
   const safeCurrentPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : position.currentPrice;
   const currentValue = position.quantity * safeCurrentPrice;
@@ -94,6 +96,11 @@ export function AssetPositionSummary({
             )
           }
         />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <AssetInfoTile icon={<ReceiptText size={18} />} iconTone="sky" label="Nb de transaction" value={formatNumber(stats?.transactionCount ?? 0)} />
+        <AssetInfoTile icon={<WalletCards size={18} />} iconTone="cyan" label="Total frais" value={money(stats?.totalFees ?? 0, stats?.currency ?? position.currency)} />
+        <AssetInfoTile icon={<Coins size={18} />} iconTone="green" label="Total dividende recus" value={money(stats?.totalDividendsReceived ?? 0, stats?.currency ?? position.currency)} />
       </div>
     </div>
   );

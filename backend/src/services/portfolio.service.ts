@@ -1,9 +1,10 @@
-import type { CreatePositionInput, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionWithMarket, RangeKey, UpdatePositionInput } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, RangeKey, UpdatePositionInput } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
 import { logger } from "./logger.service.js";
 import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
+import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
 const createPositionSchema = z.object({
   symbol: z.string().trim().min(1).max(24),
@@ -85,6 +86,149 @@ export class PortfolioService {
     ).run(position.id, parsed.quantity, parsed.averageBuyPrice, parsed.currency);
 
     return this.enrichPosition(mapPosition(position));
+  }
+
+  async ensurePosition(symbol: string, name: string, currency = "EUR"): Promise<Position> {
+    const normalizedSymbol = symbol.toUpperCase();
+    const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(normalizedSymbol) as any;
+    if (existing) return mapPosition(existing);
+    db.prepare(
+      `INSERT INTO positions (symbol, name, quantity, average_buy_price, currency)
+       VALUES (?, ?, 0, 0, ?)`
+    ).run(normalizedSymbol, name, currency);
+    const created = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(normalizedSymbol) as any;
+    return mapPosition(created);
+  }
+
+  hasDatedTransactions(positionId: number): boolean {
+    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' AND traded_at IS NOT NULL").get(positionId) as any;
+    return Number(row?.count ?? 0) > 0;
+  }
+
+  getQuantityHeldAtDate(assetId: number | string, date: string): number {
+    const time = new Date(date).getTime();
+    if (!Number.isFinite(time)) return 0;
+    const rows = db
+      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC")
+      .all(assetId) as Array<{ type: string; quantity: number; traded_at: string }>;
+    return rows.reduce((quantity, row) => {
+      if (new Date(row.traded_at).getTime() > time) return quantity;
+      if (row.type === "buy") return quantity + Number(row.quantity);
+      if (row.type === "sell") return quantity - Number(row.quantity);
+      return quantity;
+    }, 0);
+  }
+
+  recomputePositionFromDatedTransactions(positionId: number) {
+    const rows = db
+      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+    if (!rows.length) return;
+
+    let quantity = 0;
+    let costBasis = 0;
+    for (const row of rows) {
+      const rowQuantity = Number(row.quantity);
+      if (row.type === "buy") {
+        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
+        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        quantity += rowQuantity;
+        costBasis += buyCost;
+      } else if (row.type === "sell") {
+        const averageCost = quantity > 0 ? costBasis / quantity : 0;
+        quantity -= rowQuantity;
+        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+      }
+    }
+
+    const averageBuyPrice = quantity > 0 ? costBasis / quantity : 0;
+    db.prepare(
+      `UPDATE positions
+       SET quantity = ?, average_buy_price = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(quantity, averageBuyPrice, positionId);
+  }
+
+  listTransactions(positionId: number): EditablePortfolioTransaction[] {
+    const rows = db.prepare("SELECT * FROM transactions WHERE position_id = ? ORDER BY traded_at DESC, id DESC").all(positionId) as any[];
+    if (!rows.length) {
+      const position = db.prepare("SELECT * FROM positions WHERE id = ?").get(positionId) as any;
+      if (!position) return [];
+      return [legacyTransactionFromPosition(mapPosition(position))];
+    }
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      positionId: Number(row.position_id),
+      assetId: String(row.position_id),
+      source: row.source === "pdf_avis_opere" || row.source === "csv" ? row.source : "manual",
+      sourceFileName: row.source_file_name ?? undefined,
+      dateExecution: row.traded_at,
+      tradedAt: row.traded_at,
+      assetName: row.asset_name ?? undefined,
+      isin: row.isin ?? undefined,
+      ticker: row.ticker ?? undefined,
+      type: row.type,
+      quantity: Number(row.quantity),
+      executedPrice: Number(row.price),
+      price: Number(row.price),
+      grossAmount: row.gross_amount == null ? undefined : Number(row.gross_amount),
+      commission: row.commission == null ? undefined : Number(row.commission),
+      fees: row.fees == null ? undefined : Number(row.fees),
+      totalFees: row.total_fees == null ? undefined : Number(row.total_fees),
+      netAmount: row.net_amount == null ? undefined : Number(row.net_amount),
+      currency: row.currency,
+      rawTextSnippet: row.raw_text_snippet ?? undefined,
+      createdAt: row.traded_at
+    }));
+  }
+
+  transactionStats(positionId: number, totalDividendsReceived = 0, currency = "EUR"): PositionTransactionStats {
+    const rows = this.listTransactions(positionId);
+    return calculateTransactionStats(rows, totalDividendsReceived, currency);
+  }
+
+  updateTransaction(positionId: number, transactionId: number, input: { tradedAt: string; quantity: number; price: number; fees?: number; currency: string }) {
+    const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
+    if (!existing) throw new HttpError(404, "Transaction introuvable");
+    db.prepare(
+      `UPDATE transactions
+       SET traded_at = ?, quantity = ?, price = ?, fees = ?, total_fees = ?, currency = ?
+       WHERE id = ? AND position_id = ?`
+    ).run(input.tradedAt, input.quantity, input.price, input.fees ?? 0, input.fees ?? 0, input.currency, transactionId, positionId);
+    this.recomputePositionFromAnyTransactions(positionId);
+    return this.listTransactions(positionId);
+  }
+
+  deleteTransaction(positionId: number, transactionId: number) {
+    db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
+    this.recomputePositionFromAnyTransactions(positionId);
+  }
+
+  recomputePositionFromAnyTransactions(positionId: number) {
+    const rows = db
+      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+    if (!rows.length) return;
+
+    let quantity = 0;
+    let costBasis = 0;
+    for (const row of rows) {
+      const rowQuantity = Number(row.quantity);
+      if (row.type === "buy") {
+        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
+        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        quantity += rowQuantity;
+        costBasis += buyCost;
+      } else if (row.type === "sell") {
+        const averageCost = quantity > 0 ? costBasis / quantity : 0;
+        quantity -= rowQuantity;
+        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+      }
+    }
+
+    db.prepare("UPDATE positions SET quantity = ?, average_buy_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(quantity, quantity > 0 ? costBasis / quantity : 0, positionId);
   }
 
   deletePosition(id: number): boolean {
@@ -170,7 +314,8 @@ export class PortfolioService {
             cursor += 1;
           }
           cursors.set(symbol, cursor);
-          value += (lastPrices.get(symbol) ?? item.fallbackPrice) * item.position.quantity;
+          const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, date) : item.position.quantity;
+          value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
         }
 
         return { date, value, stale: histories.some((item) => item.history.some((point) => point.stale)) };
@@ -181,7 +326,8 @@ export class PortfolioService {
     for (const { position, history } of histories) {
       for (const point of history) {
         const date = point.date.slice(0, 10);
-        byDate.set(date, (byDate.get(date) ?? 0) + point.close * position.quantity);
+        const quantity = this.hasDatedTransactions(position.id) ? this.getQuantityHeldAtDate(position.id, date) : position.quantity;
+        byDate.set(date, (byDate.get(date) ?? 0) + point.close * quantity);
       }
     }
 
@@ -206,14 +352,16 @@ export class PortfolioService {
       }
     }
 
-    const currentPrice = quote?.price || position.averageBuyPrice;
-    const marketValue = currentPrice * position.quantity;
-    const costBasis = position.averageBuyPrice * position.quantity;
+    const dated = this.hasDatedTransactions(position.id);
+    const effectivePosition = dated ? this.positionFromDatedTransactions(position) : position;
+    const currentPrice = quote?.price || effectivePosition.averageBuyPrice;
+    const marketValue = currentPrice * effectivePosition.quantity;
+    const costBasis = effectivePosition.averageBuyPrice * effectivePosition.quantity;
     const performance = marketValue - costBasis;
 
     return {
-      ...position,
-      name: position.name || quote?.name || position.symbol,
+      ...effectivePosition,
+      name: effectivePosition.name || quote?.name || effectivePosition.symbol,
       quote,
       currentPrice,
       marketValue,
@@ -222,6 +370,35 @@ export class PortfolioService {
       performancePercent: costBasis ? (performance / costBasis) * 100 : 0,
       estimatedAnnualDividend: quote?.dividendRate ? quote.dividendRate * position.quantity : undefined,
       marketDataUnavailable: !quote || quote.unavailable
+    };
+  }
+
+  private positionFromDatedTransactions(position: Position): Position {
+    const rows = db
+      .prepare("SELECT type, quantity, price, net_amount, gross_amount, total_fees, commission, fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .all(position.id) as Array<{ type: string; quantity: number; price: number; net_amount?: number; gross_amount?: number; total_fees?: number; commission?: number; fees?: number }>;
+    if (!rows.length) return position;
+
+    let quantity = 0;
+    let costBasis = 0;
+    for (const row of rows) {
+      const rowQuantity = Number(row.quantity);
+      if (row.type === "buy") {
+        const fees = Number(row.total_fees ?? 0) || Number(row.commission ?? 0) + Number(row.fees ?? 0);
+        const buyCost = Number(row.net_amount ?? 0) || Number(row.gross_amount ?? 0) + fees || rowQuantity * Number(row.price);
+        quantity += rowQuantity;
+        costBasis += buyCost;
+      } else if (row.type === "sell") {
+        const averageCost = quantity > 0 ? costBasis / quantity : 0;
+        quantity -= rowQuantity;
+        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+      }
+    }
+
+    return {
+      ...position,
+      quantity,
+      averageBuyPrice: quantity > 0 ? costBasis / quantity : 0
     };
   }
 
@@ -245,33 +422,35 @@ export class PortfolioService {
   }
 
   private async positionRangePerformance(position: Position, range: RangeKey): Promise<PositionRangePerformance> {
+    const effectivePosition = this.hasDatedTransactions(position.id) ? this.positionFromDatedTransactions(position) : position;
     const [history, quoteResult] = await Promise.all([
-      this.safeHistory(position.symbol, range),
-      this.safeQuote(position)
+      this.safeHistory(effectivePosition.symbol, range),
+      this.safeQuote(effectivePosition)
     ]);
     const quote = quoteResult.quote;
     const validHistory = history.filter((point) => Number.isFinite(point.close)).sort((a, b) => a.date.localeCompare(b.date));
     const firstPoint = validHistory[0];
     const lastPoint = validHistory[validHistory.length - 1];
-    const fallbackCurrentPrice = quote?.price || position.averageBuyPrice;
+    const fallbackCurrentPrice = quote?.price || effectivePosition.averageBuyPrice;
     const currentPrice = lastPoint?.close || fallbackCurrentPrice;
     const intervalStartPrice =
       firstPoint?.close ||
       (range === "1d" && quote?.previousClose ? quote.previousClose : undefined) ||
       currentPrice ||
-      position.averageBuyPrice;
+      effectivePosition.averageBuyPrice;
 
-    const currentMarketValue = position.quantity * currentPrice;
-    const intervalStartMarketValue = position.quantity * intervalStartPrice;
+    const currentMarketValue = effectivePosition.quantity * currentPrice;
+    const intervalQuantity = this.hasDatedTransactions(effectivePosition.id) && firstPoint ? this.getQuantityHeldAtDate(effectivePosition.id, firstPoint.date) : effectivePosition.quantity;
+    const intervalStartMarketValue = intervalQuantity * intervalStartPrice;
     const intervalPerformanceValue = currentMarketValue - intervalStartMarketValue;
     const intervalPerformancePercent = intervalStartMarketValue ? (intervalPerformanceValue / intervalStartMarketValue) * 100 : 0;
-    const totalCost = position.quantity * position.averageBuyPrice;
+    const totalCost = effectivePosition.quantity * effectivePosition.averageBuyPrice;
     const totalPerformanceValue = currentMarketValue - totalCost;
     const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
     const incompleteData = !firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale);
 
     return {
-      ...position,
+      ...effectivePosition,
       currentPrice,
       currentMarketValue,
       intervalStartPrice,

@@ -168,7 +168,7 @@ export function AssetDetailPage({ user }: { user: User }) {
         <div className="group p-5">
           <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-300">Ma position</h2>
           {position ? (
-            <AssetPositionSummary currentPrice={marketInfo?.regularMarketPrice ?? quote.price} firstPriceOfRange={firstClose} position={position} range={range} />
+            <AssetPositionSummary currentPrice={marketInfo?.regularMarketPrice ?? quote.price} firstPriceOfRange={firstClose} position={position} range={range} stats={asset.data.positionStats} />
           ) : (
             <p className="text-slate-400">Aucune position détenue pour ce symbole.</p>
           )}
