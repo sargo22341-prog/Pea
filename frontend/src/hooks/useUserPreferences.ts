@@ -1,4 +1,4 @@
-import type { DashboardSortKey, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection } from "@pea/shared";
 import { useEffect, useState } from "react";
 import type { SettingsToast } from "../components/settings/SettingsSection";
 import { api } from "../lib/api";
@@ -10,6 +10,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
   const [range, setRange] = useState<RangeKey>("1d");
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
+  const [newsLanguages, setNewsLanguages] = useState<NewsLanguage[]>(["fr"]);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   useEffect(() => {
@@ -19,13 +20,23 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setRange(user.defaultChartRange);
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
+    setNewsLanguages(user.newsLanguages?.length ? user.newsLanguages : ["fr"]);
   }, [me.data?.user]);
+
+  function toggleNewsLanguage(language: NewsLanguage) {
+    setNewsLanguages((current) => {
+      if (current.includes(language)) {
+        return current.length === 1 ? current : current.filter((item) => item !== language);
+      }
+      return [...current, language];
+    });
+  }
 
   async function save() {
     const [dashboardDefaultSortKey, dashboardDefaultSortDirection] = sortValue.split(":") as [DashboardSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages });
       setToast({ tone: "success", text: "Preferences enregistrees." });
       await me.reload();
       await onUserUpdated?.();
@@ -38,6 +49,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     assetNewsEnabled,
     localPeaSearchEnabled,
     me,
+    newsLanguages,
     range,
     save,
     setAssetNewsEnabled,
@@ -45,6 +57,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setRange,
     setSortValue,
     sortValue,
+    toggleNewsLanguage,
     toast
   };
 }

@@ -76,6 +76,34 @@ export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () =
           </span>
         </span>
       </label>
+      <div className="rounded-md border border-line bg-ink p-3">
+        <p className="font-semibold">Langues des actualites</p>
+        <p className="muted mt-1 text-sm">Gardez au moins une langue activee pour les articles.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {[
+            { language: "fr" as const, label: "Francais" },
+            { language: "en" as const, label: "Anglais" }
+          ].map((option) => {
+            const enabled = preferences.newsLanguages.includes(option.language);
+            const locked = enabled && preferences.newsLanguages.length === 1;
+            return (
+              <label className="flex items-center gap-3 rounded-md border border-line bg-panel p-3" key={option.language}>
+                <button
+                  aria-checked={enabled}
+                  className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${enabled ? "bg-mint" : "bg-panel2"} ${locked ? "opacity-70" : ""}`}
+                  onClick={() => preferences.toggleNewsLanguage(option.language)}
+                  role="switch"
+                  title={locked ? "Au moins une langue doit rester activee" : option.label}
+                  type="button"
+                >
+                  <span className={`h-4 w-4 rounded-full bg-white transition ${enabled ? "translate-x-5" : ""}`} />
+                </button>
+                <span className="font-medium">{option.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
       {preferences.toast && <Toast tone={preferences.toast.tone}>{preferences.toast.text}</Toast>}
       <div className="flex justify-end">
         <button className="btn-primary" disabled={preferences.me.loading} onClick={() => void preferences.save()} type="button">

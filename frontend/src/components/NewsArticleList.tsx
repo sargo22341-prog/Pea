@@ -1,18 +1,29 @@
 import type { NewsArticle } from "@pea/shared";
 import { Newspaper } from "lucide-react";
 import type { CSSProperties } from "react";
+import { AssetIcon } from "./AssetIcon";
 import { formatArticleDate } from "../lib/format";
 
-export function NewsArticleList({ articles }: { articles: NewsArticle[] }) {
+export function NewsArticleList({
+  articles,
+  emptyLabel = "Aucun article lie a ce titre pour le moment.",
+  showRelatedAssets = false,
+  title = "Articles Yahoo Finance"
+}: {
+  articles: NewsArticle[];
+  emptyLabel?: string;
+  showRelatedAssets?: boolean;
+  title?: string;
+}) {
   return (
     <section className="card overflow-hidden">
       <div className="border-b border-line p-4">
-        <h2 className="font-semibold">Articles Yahoo Finance</h2>
+        <h2 className="font-semibold">{title}</h2>
       </div>
       <div className="space-y-3 p-4">
-        {articles.length === 0 && <p className="text-slate-400">Aucun article lié à ce titre pour le moment.</p>}
+        {articles.length === 0 && <p className="text-slate-400">{emptyLabel}</p>}
         {articles.map((article) => (
-          <ArticleBlock article={article} key={article.url} />
+          <ArticleBlock article={article} key={article.url} showRelatedAssets={showRelatedAssets} />
         ))}
       </div>
     </section>
@@ -26,9 +37,10 @@ const clampTwoLines: CSSProperties = {
   overflow: "hidden"
 };
 
-function ArticleBlock({ article }: { article: NewsArticle }) {
+function ArticleBlock({ article, showRelatedAssets }: { article: NewsArticle; showRelatedAssets: boolean }) {
   const detail = article.description || article.publisher || formatArticleDate(article.publishedAt);
   const publishedDate = formatArticleDate(article.publishedAt);
+  const relatedAssets = showRelatedAssets ? article.relatedAssets ?? [] : [];
 
   return (
     <a
@@ -59,6 +71,17 @@ function ArticleBlock({ article }: { article: NewsArticle }) {
         <p className="mt-1 text-sm text-slate-400" style={clampTwoLines}>
           {detail || "Yahoo Finance"}
         </p>
+        {relatedAssets.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {relatedAssets.map((asset) => (
+              <span className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-line bg-panel2 px-2 py-1 text-xs text-slate-300" key={asset.symbol}>
+                <AssetIcon className="h-5 w-5" symbol={asset.symbol} />
+                <span className="truncate font-semibold">{asset.name}</span>
+                <span className="shrink-0 text-slate-500">{asset.symbol}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </a>
   );

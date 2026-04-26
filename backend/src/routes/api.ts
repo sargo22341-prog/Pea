@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import type { AssetDetails, AssetMarketInfo, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, Quote } from "@pea/shared";
+import type { AssetDetails, AssetMarketInfo, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, NewsLanguage, Quote } from "@pea/shared";
 import { HttpError } from "../utils/http-error.js";
 import { parseRange } from "../utils/range.js";
 import { dividendService } from "../services/dividend.service.js";
@@ -64,6 +64,24 @@ function trimMultipartPart(part: Buffer) {
   return part.subarray(start, end);
 }
 
+function parseNewsLanguages(value: unknown, fallback: NewsLanguage[] = ["fr"]): NewsLanguage[] {
+  const raw = Array.isArray(value) ? value.flatMap((item) => String(item).split(",")) : String(value ?? "").split(",");
+  const languages = [...new Set(raw.map((item) => item.trim().toLowerCase()).filter((item): item is NewsLanguage => item === "fr" || item === "en"))];
+  return languages.length ? languages : fallback;
+}
+
+function userNewsLanguages(req: express.Request): NewsLanguage[] {
+  return parseNewsLanguages(req.query.languages, req.user?.newsLanguages?.length ? req.user.newsLanguages : ["fr"]);
+}
+
+function sortArticlesByDateDesc(articles: NewsArticle[]) {
+  return [...articles].sort((a, b) => {
+    const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 apiRouter.use(attachUser);
 
 apiRouter.get("/auth/me", asyncRoute(async (req, res) => {
@@ -115,7 +133,8 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
     defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
-    assetNewsEnabled: z.boolean().optional()
+    assetNewsEnabled: z.boolean().optional(),
+    newsLanguages: z.array(z.enum(["fr", "en"])).optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const updated = await authService.updateUser(req.user!.id, body);
@@ -124,7 +143,8 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     username: updated.username,
     passwordChanged: Boolean(body.password),
     localPeaSearchEnabled: updated.localPeaSearchEnabled,
-    assetNewsEnabled: updated.assetNewsEnabled
+    assetNewsEnabled: updated.assetNewsEnabled,
+    newsLanguages: updated.newsLanguages.join(",")
   });
   res.json(updated);
 }));
@@ -236,12 +256,55 @@ apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
   res.json(result.data);
 }));
 
+apiRouter.get("/news-global", asyncRoute(async (req, res) => {
+  if (!req.user!.assetNewsEnabled) {
+    res.json({ articles: [], page: 1, pageSize: 20, total: 0, totalPages: 0 });
+    return;
+  }
+  const page = Math.max(1, z.coerce.number().int().optional().default(1).parse(req.query.page));
+  res.json(await yahooService.globalNews(page, userNewsLanguages(req)));
+}));
+
+apiRouter.get("/news-assets", asyncRoute(async (req, res) => {
+  if (!req.user!.assetNewsEnabled) {
+    res.json([]);
+    return;
+  }
+  const positions = portfolioService.listPositions();
+  if (!positions.length) {
+    res.json([]);
+    return;
+  }
+  const positionsBySymbol = new Map(positions.map((position) => [position.symbol.toUpperCase(), position]));
+  const results = await Promise.all(
+    positions.map((position) =>
+      yahooService.news(position.symbol, userNewsLanguages(req)).catch((error) => {
+        logger.warn("news", "asset feed fallback", { symbol: position.symbol, error: error instanceof Error ? error.message : String(error) });
+        return { data: [] as NewsArticle[] };
+      })
+    )
+  );
+  const articlesByUrl = new Map<string, NewsArticle>();
+  for (let index = 0; index < positions.length; index += 1) {
+    const position = positions[index];
+    for (const article of results[index].data) {
+      const existing = articlesByUrl.get(article.url);
+      const relatedAssets = existing?.relatedAssets ?? [];
+      if (!relatedAssets.some((asset) => asset.symbol === position.symbol)) {
+        relatedAssets.push({ symbol: position.symbol, name: positionsBySymbol.get(position.symbol.toUpperCase())?.name ?? position.name });
+      }
+      articlesByUrl.set(article.url, { ...(existing ?? article), relatedAssets });
+    }
+  }
+  res.json(sortArticlesByDateDesc([...articlesByUrl.values()]).slice(0, 200));
+}));
+
 apiRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
   if (!req.user!.assetNewsEnabled) {
     res.json([]);
     return;
   }
-  const result = await yahooService.news(req.params.symbol);
+  const result = await yahooService.news(req.params.symbol, userNewsLanguages(req));
   res.json(result.data);
 }));
 
@@ -441,7 +504,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       return { data: [] as DividendEvent[] };
     }),
     req.user!.assetNewsEnabled
-      ? yahooService.news(symbol).catch((error) => {
+      ? yahooService.news(symbol, userNewsLanguages(req)).catch((error) => {
           logger.warn("news", "asset news fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
           return { data: [] as NewsArticle[] };
         })

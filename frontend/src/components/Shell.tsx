@@ -1,19 +1,18 @@
 import type { User } from "@pea/shared";
-import { BarChart3, Briefcase, CalendarDays, Home, Search } from "lucide-react";
+import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-
-const links = [
-  { to: "/", label: "Dashboard", icon: Home },
-  { to: "/portfolio", label: "Portefeuille", icon: Briefcase },
-  { to: "/search", label: "Chercher", icon: Search },
-   { to: "/analysis", label: "Analyse", icon: BarChart3 },
-  { to: "/dividends", label: "Dividendes", icon: CalendarDays },
-];
 
 export function Shell({ user }: { user: User; onLogout: () => void }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [profileFailed, setProfileFailed] = useState(false);
+  const links = [
+    { to: "/", label: "Dashboard", icon: Home },
+    ...(user.assetNewsEnabled ? [{ to: "/news", label: "Actualite", icon: Newspaper }] : []),
+    { to: "/search", label: "Chercher", icon: Search },
+    { to: "/analysis", label: "Analyse", icon: BarChart3 },
+    { to: "/dividends", label: "Dividendes", icon: CalendarDays }
+  ];
 
   useEffect(() => {
     const onProfileIconUpdated = (event: Event) => {
@@ -83,7 +82,7 @@ export function Shell({ user }: { user: User; onLogout: () => void }) {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-ink/95 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-ink/95 lg:hidden" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
         {links.map((link) => (
           <NavLink
             className={({ isActive }) =>

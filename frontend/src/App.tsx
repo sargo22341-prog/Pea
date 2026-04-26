@@ -7,7 +7,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DividendsPage } from "./pages/DividendsPage";
 import { AnalysisPage } from "./pages/AnalysisPage";
-import { PortfolioPage } from "./pages/PortfolioPage";
+import { NewsPage } from "./pages/NewsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
@@ -32,7 +32,8 @@ export function App() {
     <Routes>
       <Route element={<Shell user={me.data.user} onLogout={me.reload} />}>
         <Route index element={<DashboardPage user={me.data.user} />} />
-        <Route path="/portfolio" element={<PortfolioPage user={me.data.user} />} />
+        <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
+        <Route path="/portfolio" element={<Navigate replace to="/news" />} />
         <Route path="/analysis" element={<AnalysisPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/dividends" element={<DividendsPage />} />

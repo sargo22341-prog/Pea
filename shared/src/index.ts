@@ -1,6 +1,7 @@
 export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "max";
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
 export type SortDirection = "asc" | "desc";
+export type NewsLanguage = "fr" | "en";
 
 export type CurrencyCode = "EUR" | "USD" | "GBP" | "CHF" | string;
 
@@ -115,6 +116,18 @@ export interface NewsArticle {
   publisher?: string;
   publishedAt?: string;
   relatedTickers?: string[];
+  relatedAssets?: Array<{
+    symbol: string;
+    name: string;
+  }>;
+}
+
+export interface NewsFeedPage {
+  articles: NewsArticle[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface Position {
@@ -320,6 +333,7 @@ export interface User {
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
+  newsLanguages: NewsLanguage[];
   createdAt: string;
 }
 

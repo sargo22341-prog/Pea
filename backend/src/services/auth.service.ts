@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import bcrypt from "bcryptjs";
-import type { DashboardSortKey, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection } from "@pea/shared";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
@@ -17,6 +17,7 @@ export interface AuthUser {
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
+  newsLanguages: NewsLanguage[];
   createdAt: string;
 }
 
@@ -44,6 +45,10 @@ function extensionForMime(mimeType: string) {
 }
 
 function mapUser(row: any): AuthUser {
+  const newsLanguages: NewsLanguage[] = [];
+  if (row.news_language_fr_enabled === undefined || row.news_language_fr_enabled === null || Boolean(row.news_language_fr_enabled)) newsLanguages.push("fr");
+  if (row.news_language_en_enabled) newsLanguages.push("en");
+
   return {
     id: Number(row.id),
     username: String(row.username),
@@ -54,6 +59,7 @@ function mapUser(row: any): AuthUser {
     defaultChartRange: isRangeKey(row.default_chart_range) ? row.default_chart_range : "1d",
     localPeaSearchEnabled: row.local_pea_search_enabled === undefined || row.local_pea_search_enabled === null ? true : Boolean(row.local_pea_search_enabled),
     assetNewsEnabled: row.asset_news_enabled === undefined || row.asset_news_enabled === null ? true : Boolean(row.asset_news_enabled),
+    newsLanguages: newsLanguages.length ? newsLanguages : ["fr"],
     createdAt: String(row.created_at)
   };
 }
@@ -117,6 +123,7 @@ export class AuthService {
       defaultChartRange?: RangeKey;
       localPeaSearchEnabled?: boolean;
       assetNewsEnabled?: boolean;
+      newsLanguages?: NewsLanguage[];
     }
   ) {
     const current = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as any;
@@ -131,6 +138,10 @@ export class AuthService {
     const localPeaSearchEnabled =
       input.localPeaSearchEnabled === undefined ? Number(current.local_pea_search_enabled ?? 1) : input.localPeaSearchEnabled ? 1 : 0;
     const assetNewsEnabled = input.assetNewsEnabled === undefined ? Number(current.asset_news_enabled ?? 1) : input.assetNewsEnabled ? 1 : 0;
+    const validNewsLanguages = [...new Set((input.newsLanguages ?? []).filter((language): language is NewsLanguage => language === "fr" || language === "en"))];
+    const newsLanguageFrEnabled = input.newsLanguages === undefined ? Number(current.news_language_fr_enabled ?? 1) : validNewsLanguages.includes("fr") ? 1 : 0;
+    const newsLanguageEnEnabled = input.newsLanguages === undefined ? Number(current.news_language_en_enabled ?? 0) : validNewsLanguages.includes("en") ? 1 : 0;
+    if (!newsLanguageFrEnabled && !newsLanguageEnEnabled) throw new HttpError(400, "Au moins une langue d'actualites doit etre activee.");
 
     try {
       db.prepare(
@@ -143,9 +154,23 @@ export class AuthService {
              default_chart_range = ?,
              local_pea_search_enabled = ?,
              asset_news_enabled = ?,
+             news_language_fr_enabled = ?,
+             news_language_en_enabled = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`
-      ).run(username, passwordHash, profileIconUrl, dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange, localPeaSearchEnabled, assetNewsEnabled, userId);
+      ).run(
+        username,
+        passwordHash,
+        profileIconUrl,
+        dashboardDefaultSortKey,
+        dashboardDefaultSortDirection,
+        defaultChartRange,
+        localPeaSearchEnabled,
+        assetNewsEnabled,
+        newsLanguageFrEnabled,
+        newsLanguageEnEnabled,
+        userId
+      );
     } catch {
       throw new HttpError(409, "Ce username est deja utilise.");
     }

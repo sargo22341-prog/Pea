@@ -10,6 +10,8 @@ import type {
   EnrichedSearchResult,
   HistoryPoint,
   NewsArticle,
+  NewsFeedPage,
+  NewsLanguage,
   PortfolioDividends,
   PortfolioAnalysis,
   PortfolioPerformancePoint,
@@ -84,6 +86,8 @@ export const api = {
     request<HistoryPoint[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
   news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
+  globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal }),
+  assetNews: (signal?: AbortSignal) => request<NewsArticle[]>("/api/news-assets", { signal }),
   portfolio: (range?: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   addPosition: (input: CreatePositionInput) =>
@@ -120,6 +124,7 @@ export const api = {
     defaultChartRange?: RangeKey;
     localPeaSearchEnabled?: boolean;
     assetNewsEnabled?: boolean;
+    newsLanguages?: NewsLanguage[];
   }) =>
     request<User>("/api/auth/me", { method: "PATCH", body: JSON.stringify(input) }),
   uploadProfileIcon: (file: File) => {

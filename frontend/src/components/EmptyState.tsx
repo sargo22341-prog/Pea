@@ -13,7 +13,7 @@ export function EmptyState() {
           Recherchez un ticker Yahoo Finance, indiquez votre quantité et votre prix moyen pour alimenter le dashboard.
         </p>
       </div>
-      <Link className="btn-primary" to="/portfolio">
+      <Link className="btn-primary" to="/search">
         Ajouter une position
       </Link>
     </div>

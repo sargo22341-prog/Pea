@@ -1,6 +1,6 @@
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
-import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, Quote, RangeKey, SearchResult } from "@pea/shared";
+import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
@@ -22,6 +22,7 @@ const limiter = new Bottleneck({
 const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number }>();
 const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
 const nowSeconds = () => Math.floor(Date.now() / 1000);
+const newsCacheTtlSeconds = 6 * 60 * 60;
 export const yahooClient = yahoo;
 
 function roundMs(startedAt: number) {
@@ -133,19 +134,23 @@ function writeCache(table: CacheTable, symbol: string, payload: unknown) {
   ).run(symbol.toUpperCase(), JSON.stringify(payload), nowSeconds());
 }
 
-function readNewsCache(symbol: string): MarketDataResult<NewsArticle[]> | null {
-  const row = db.prepare("SELECT payload, fetched_at FROM cached_news WHERE symbol = ?").get(newsCacheKey(symbol)) as
+function readNewsCache(cacheKey: string): MarketDataResult<NewsArticle[]> | null {
+  const row = db.prepare("SELECT payload, fetched_at FROM cached_news WHERE symbol = ?").get(cacheKey) as
     | { payload: string; fetched_at: number }
     | undefined;
 
   if (!row) return null;
   const data = JSON.parse(String(row.payload)) as NewsArticle[];
   if (data.some((article) => !article.publishedAt)) return { data, stale: true };
-  return { data, stale: nowSeconds() - Number(row.fetched_at) >= 6 * 60 * 60 };
+  return { data, stale: nowSeconds() - Number(row.fetched_at) >= newsCacheTtlSeconds };
 }
 
-function writeNewsCache(symbol: string, payload: NewsArticle[]) {
-  writeCache("cached_news", newsCacheKey(symbol), payload);
+function writeNewsCache(cacheKey: string, payload: NewsArticle[]) {
+  db.prepare(
+    `INSERT INTO cached_news (symbol, payload, fetched_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(symbol) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
+  ).run(cacheKey, JSON.stringify(payload), nowSeconds());
 }
 
 function writeHistoryCache(symbol: string, range: RangeKey, interval: string, payload: HistoryPoint[]) {
@@ -172,8 +177,61 @@ function intradayCacheKey(symbol: string, tradingDay: string) {
   return `${symbol.toUpperCase()}:1d:5m:${tradingDay}`;
 }
 
-function newsCacheKey(symbol: string) {
-  return `news:${symbol.toUpperCase()}`;
+function newsCacheKey(symbol: string, language: NewsLanguage) {
+  return `news:ticker:${symbol.toUpperCase()}:${language}`;
+}
+
+function globalNewsCacheKey(language: NewsLanguage) {
+  return `news:global:v2:${language}`;
+}
+
+function normalizeNewsLanguages(languages?: NewsLanguage[]): NewsLanguage[] {
+  const normalized = [...new Set((languages ?? (["fr"] as NewsLanguage[])).filter((language): language is NewsLanguage => language === "fr" || language === "en"))];
+  return normalized.length ? normalized : ["fr"];
+}
+
+function newsOptions(language: NewsLanguage, newsCount = 20) {
+  return {
+    newsCount,
+    quotesCount: 1,
+    region: language === "fr" ? "FR" : "US",
+    lang: language === "fr" ? "fr-FR" : "en-US",
+    enableFuzzyQuery: false,
+    enableEnhancedTrivialQuery: false,
+    enableCb: false
+  };
+}
+
+function globalNewsOptions(language: NewsLanguage, newsCount = 20) {
+  return {
+    newsCount,
+    quotesCount: 0,
+    region: language === "fr" ? "FR" : "US",
+    lang: language === "fr" ? "fr-FR" : "en-US",
+    enableCb: false
+  };
+}
+
+function globalNewsQueries(language: NewsLanguage) {
+  return language === "fr" ? ["bourse", "finance", "marches financiers"] : ["stock market", "finance", "economy"];
+}
+
+function sortNewsByDateDesc(articles: NewsArticle[]) {
+  return [...articles].sort((a, b) => {
+    const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+function dedupeNewsArticles(articles: NewsArticle[]) {
+  const seen = new Set<string>();
+  return articles.filter((article) => {
+    const key = article.url || article.title;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoint[] {
@@ -830,31 +888,49 @@ export class YahooService implements MarketDataProvider {
     return { data: markStaleList(result.data, result.stale), stale: result.stale };
   }
 
-  async news(symbol: string): Promise<MarketDataResult<NewsArticle[]>> {
+  async news(symbol: string, languages?: NewsLanguage[]): Promise<MarketDataResult<NewsArticle[]>> {
+    const activeLanguages = normalizeNewsLanguages(languages);
+    const results = await Promise.all(activeLanguages.map((language) => this.tickerNewsByLanguage(symbol, language)));
+    const data = sortNewsByDateDesc(dedupeNewsArticles(results.flatMap((result) => result.data)));
+    return { data, stale: results.some((result) => result.stale) };
+  }
+
+  async globalNews(page: number, languages?: NewsLanguage[]): Promise<NewsFeedPage> {
+    const pageSize = 20;
+    const activeLanguages = normalizeNewsLanguages(languages);
+    const results = await Promise.all(activeLanguages.map((language) => this.globalNewsByLanguage(language)));
+    const articles = sortNewsByDateDesc(dedupeNewsArticles(results.flatMap((result) => result.data)));
+    const total = articles.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const safePage = Math.max(1, Math.min(page, totalPages || 1));
+    const start = (safePage - 1) * pageSize;
+    return {
+      articles: articles.slice(start, start + pageSize),
+      page: safePage,
+      pageSize,
+      total,
+      totalPages
+    };
+  }
+
+  private async tickerNewsByLanguage(symbol: string, language: NewsLanguage): Promise<MarketDataResult<NewsArticle[]>> {
     const key = symbol.trim().toUpperCase();
     if (!key) return { data: [], stale: false };
 
-    const cached = readNewsCache(key);
+    const cacheKey = newsCacheKey(key, language);
+    const cached = readNewsCache(cacheKey);
     if (cached && !cached.stale) {
-      logger.debug("news", "cache-hit", { symbol: key, count: cached.data.length });
+      logger.debug("news", "cache-hit", { symbol: key, language, count: cached.data.length });
       return cached;
     }
 
-    logger.debug("news", "cache-miss", { symbol: key });
-    const options = {
-      newsCount: 20,
-      quotesCount: 1,
-      region: "FR",
-      lang: "fr-FR",
-      enableFuzzyQuery: false,
-      enableEnhancedTrivialQuery: false,
-      enableCb: false
-    };
+    logger.debug("news", "cache-miss", { symbol: key, language });
+    const options = newsOptions(language);
 
     try {
-      const result = (await dedupeInFlight(`news:${key}`, async () => {
-        logger.debug("news", "yahoo-call", { symbol: key, query: key, options });
-        return retryTemporary(`news:${key}`, () => yahoo.search(key, options as any));
+      const result = (await dedupeInFlight(`news:${key}:${language}`, async () => {
+        logger.debug("news", "yahoo-call", { symbol: key, language, query: key, options });
+        return retryTemporary(`news:${key}:${language}`, () => yahoo.search(key, options as any));
       })) as any;
 
       const primaryArticles = normalizeNewsArticles(result?.news);
@@ -864,9 +940,9 @@ export class YahooService implements MarketDataProvider {
       if (!payload.length) {
         const companyName = searchQuoteName(result);
         if (companyName && companyName.toUpperCase() !== key) {
-          const fallbackResult = (await dedupeInFlight(`news:${key}:${companyName}`, async () => {
-            logger.debug("news", "yahoo-call", { symbol: key, query: companyName, options });
-            return retryTemporary(`news:${key}:${companyName}`, () => yahoo.search(companyName, options as any));
+          const fallbackResult = (await dedupeInFlight(`news:${key}:${language}:${companyName}`, async () => {
+            logger.debug("news", "yahoo-call", { symbol: key, language, query: companyName, options });
+            return retryTemporary(`news:${key}:${language}:${companyName}`, () => yahoo.search(companyName, options as any));
           })) as any;
           const fallbackArticles = normalizeNewsArticles(fallbackResult?.news);
           payload = filterNewsByFallbackKeywords(key, companyName, fallbackArticles);
@@ -878,11 +954,39 @@ export class YahooService implements MarketDataProvider {
         logger.debug("news", "no-related-articles", { symbol: key });
       }
 
-      writeNewsCache(key, payload);
+      writeNewsCache(cacheKey, payload);
       return { data: payload, stale: false };
     } catch (error) {
-      logger.warn("news", "Yahoo news error", { symbol: key, error: errorMessage(error) });
+      logger.warn("news", "Yahoo news error", { symbol: key, language, error: errorMessage(error) });
       return { data: [], stale: false };
+    }
+  }
+
+  private async globalNewsByLanguage(language: NewsLanguage): Promise<MarketDataResult<NewsArticle[]>> {
+    const cacheKey = globalNewsCacheKey(language);
+    const cached = readNewsCache(cacheKey);
+    if (cached && !cached.stale) {
+      logger.debug("news", "global cache-hit", { language, count: cached.data.length });
+      return cached;
+    }
+
+    const options = globalNewsOptions(language, 20);
+
+    try {
+      const result = (await dedupeInFlight(`news:global:${language}`, async () => {
+        const results = [];
+        for (const query of globalNewsQueries(language)) {
+          logger.debug("news", "global yahoo-call", { language, query, options });
+          results.push(await retryTemporary(`news:global:${language}:${query}`, () => yahoo.search(query, options as any)));
+        }
+        return results;
+      })) as any[];
+      const payload = sortNewsByDateDesc(dedupeNewsArticles(result.flatMap((item) => normalizeNewsArticles(item?.news))));
+      if (payload.length) writeNewsCache(cacheKey, payload);
+      return { data: payload, stale: false };
+    } catch (error) {
+      logger.warn("news", "Yahoo global news error", { language, error: errorMessage(error) });
+      return { data: cached?.data ?? [], stale: Boolean(cached) };
     }
   }
 }

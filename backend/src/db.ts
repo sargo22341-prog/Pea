@@ -158,6 +158,8 @@ db.exec(`
     default_chart_range TEXT NOT NULL DEFAULT '1d',
     local_pea_search_enabled INTEGER NOT NULL DEFAULT 1,
     asset_news_enabled INTEGER NOT NULL DEFAULT 1,
+    news_language_fr_enabled INTEGER NOT NULL DEFAULT 1,
+    news_language_en_enabled INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -214,7 +216,9 @@ for (const migration of [
   "ALTER TABLE users ADD COLUMN dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc';",
   "ALTER TABLE users ADD COLUMN default_chart_range TEXT NOT NULL DEFAULT '1d';",
   "ALTER TABLE users ADD COLUMN local_pea_search_enabled INTEGER NOT NULL DEFAULT 1;",
-  "ALTER TABLE users ADD COLUMN asset_news_enabled INTEGER NOT NULL DEFAULT 1;"
+  "ALTER TABLE users ADD COLUMN asset_news_enabled INTEGER NOT NULL DEFAULT 1;",
+  "ALTER TABLE users ADD COLUMN news_language_fr_enabled INTEGER NOT NULL DEFAULT 1;",
+  "ALTER TABLE users ADD COLUMN news_language_en_enabled INTEGER NOT NULL DEFAULT 0;"
 ]) {
   try {
     db.exec(migration);
