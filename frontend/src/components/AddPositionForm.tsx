@@ -1,58 +1,26 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Plus, Search } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useAsync } from "../hooks/useAsync";
+import { useEnrichedSearch } from "../hooks/useEnrichedSearch";
 import { api } from "../lib/api";
 import { money } from "../lib/format";
 
 export function AddPositionForm({ onCreated, compact = false }: { onCreated: () => void; compact?: boolean }) {
   const me = useAsync(() => api.me(), []);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<EnrichedSearchResult[]>([]);
+  const search = useEnrichedSearch({ localPeaSearchEnabled: me.data?.user?.localPeaSearchEnabled });
   const [selected, setSelected] = useState<EnrichedSearchResult | null>(null);
   const [quantity, setQuantity] = useState("");
   const [averageBuyPrice, setAverageBuyPrice] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastQueryRef = useRef("");
-
-  useEffect(() => {
-    const normalizedQuery = query.trim();
-    if (normalizedQuery.length < 2) {
-      setResults([]);
-      setSearching(false);
-      lastQueryRef.current = "";
-      return;
-    }
-
-    if (normalizedQuery === lastQueryRef.current) return;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      setSearching(true);
-      try {
-        const nextResults = await api.enrichedSearch(normalizedQuery, controller.signal);
-        lastQueryRef.current = normalizedQuery;
-        setResults(nextResults);
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Recherche impossible");
-      } finally {
-        if (!controller.signal.aborted) setSearching(false);
-      }
-    }, me.data?.user?.localPeaSearchEnabled ? 150 : 800);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
-  }, [me.data?.user?.localPeaSearchEnabled, query]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
 
-    const symbol = selected?.symbol ?? query.trim().toUpperCase();
+    const symbol = selected?.symbol ?? search.query.trim().toUpperCase();
     const parsedQuantity = Number(quantity);
     const parsedAverageBuyPrice = Number(averageBuyPrice);
 
@@ -80,8 +48,8 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
         averageBuyPrice: parsedAverageBuyPrice,
         currency
       });
-      setQuery("");
-      setResults([]);
+      search.setQuery("");
+      search.clearResults();
       setSelected(null);
       setQuantity("");
       setAverageBuyPrice("");
@@ -107,20 +75,20 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
           <input
             className="input pl-10"
             onChange={(event) => {
-              setQuery(event.target.value);
+              search.setQuery(event.target.value);
               setSelected(null);
             }}
             placeholder="Ex: total, TTE.PA, amundi pea, msci world"
-            value={selected ? `${selected.symbol} - ${selected.name}` : query}
+            value={selected ? `${selected.symbol} - ${selected.name}` : search.query}
           />
         </div>
       </label>
 
-      {searching && !selected && <div className="rounded-md border border-line bg-ink p-3 text-sm text-slate-400">Recherche...</div>}
+      {search.loading && !selected && <div className="rounded-md border border-line bg-ink p-3 text-sm text-slate-400">Recherche...</div>}
 
-      {results.length > 0 && !selected && (
+      {search.results.length > 0 && !selected && (
         <div className="max-h-72 overflow-y-auto rounded-md border border-line bg-ink">
-          {results.map((result) => (
+          {search.results.map((result) => (
             <button
               className="flex w-full items-center justify-between gap-3 border-b border-line px-3 py-2 text-left last:border-0 hover:bg-panel2"
               key={`${result.symbol}-${result.exchange}`}
@@ -144,7 +112,7 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
         </div>
       )}
 
-      {!searching && !selected && query.trim().length >= 2 && results.length === 0 && me.data?.user?.localPeaSearchEnabled && (
+      {!search.loading && !selected && search.query.trim().length >= 2 && search.results.length === 0 && me.data?.user?.localPeaSearchEnabled && (
         <div className="rounded-md border border-line bg-ink p-3 text-sm text-slate-400">Aucune correspondance dans la liste locale PEA.</div>
       )}
 
@@ -176,7 +144,7 @@ export function AddPositionForm({ onCreated, compact = false }: { onCreated: () 
         </label>
       </div>
 
-      {error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p>}
+      {(error || search.error) && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error ?? search.error}</p>}
 
       <button className="btn-primary w-full" disabled={loading} type="submit">
         <Plus size={18} />

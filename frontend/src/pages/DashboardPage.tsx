@@ -7,8 +7,8 @@ import { PositionList } from "../components/PositionList";
 import { RangeSelector } from "../components/RangeSelector";
 import { WatchlistSection } from "../components/WatchlistSection";
 import { useAsync } from "../hooks/useAsync";
+import { usePortfolioRangePerformance } from "../hooks/usePortfolioRangePerformance";
 import { api } from "../lib/api";
-import { normalizePortfolioPerformanceData } from "../lib/chart";
 import { formatRangeLabel, money, percent } from "../lib/format";
 
 export function DashboardPage({ user }: { user: User }) {
@@ -19,6 +19,7 @@ export function DashboardPage({ user }: { user: User }) {
   const portfolio = useAsync((signal) => api.portfolio(selectedRange, signal), [selectedRange]);
   const performance = useAsync(() => api.performance(selectedRange), [selectedRange]);
   const positionsPerformance = useAsync(() => api.positionsPerformance(selectedRange), [selectedRange]);
+  const rangePerformance = usePortfolioRangePerformance(performance.data ?? []);
 
   function setSelectedRange(source: string, nextRange: RangeKey) {
     setSelectedRangeState((previousRange) => {
@@ -33,7 +34,6 @@ export function DashboardPage({ user }: { user: User }) {
   if (!portfolio.data || portfolio.data.positions.length === 0) return <EmptyState />;
 
   const summary = portfolio.data;
-  const rangePerformance = getRangePerformance(performance.data ?? []);
 
   return (
     <div className="space-y-6">
@@ -78,15 +78,6 @@ export function DashboardPage({ user }: { user: User }) {
       <WatchlistSection range={selectedRange} />
     </div>
   );
-}
-
-function getRangePerformance(points: Array<{ date: string; value: number }>) {
-  const sorted = normalizePortfolioPerformanceData(points);
-  const first = sorted[0]?.value;
-  const last = sorted[sorted.length - 1]?.value;
-  if (!first || !Number.isFinite(first) || !Number.isFinite(last)) return null;
-  const value = last - first;
-  return { value, percent: (value / first) * 100 };
 }
 
 function Metric({ icon: Icon, label, value, tone }: { icon: typeof Wallet; label: string; value: string; tone?: "positive" | "negative" }) {
