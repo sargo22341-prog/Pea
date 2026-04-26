@@ -1,5 +1,25 @@
 import type { AssetDetails, NewsArticle, PositionWithMarket, Quote, RangeKey, User } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, Newspaper, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BadgeEuro,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  CircleDollarSign,
+  Coins,
+  Database,
+  Gauge,
+  Landmark,
+  Newspaper,
+  Pencil,
+  Percent,
+  Plus,
+  Star,
+  Timer,
+  Trash2,
+  Wallet
+} from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -113,18 +133,18 @@ export function AssetDetailPage({ user }: { user: User }) {
           <div className="flex items-start gap-3">
             <AssetIcon className="h-14 w-14" symbol={quote.symbol} />
             <div className="min-w-0">
-            <p className="muted">{quote.symbol}</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold">{quote.name}</h1>
-              <PeaBadge status={asset.data.peaEligibility.status} />
-              <StaleBadge
-                show={asset.data.stale || quote.stale || marketUnavailable}
-                label={marketUnavailable ? "Données de marché indisponibles" : "Données différées"}
-              />
-            </div>
-            <p className="mt-2 text-slate-400">
-              {quote.exchange ?? "Marché n/a"} · {quote.currency}
-            </p>
+              <p className="muted">{quote.symbol}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-bold">{quote.name}</h1>
+                <PeaBadge status={asset.data.peaEligibility.status} />
+                <StaleBadge
+                  show={asset.data.stale || quote.stale || marketUnavailable}
+                  label={marketUnavailable ? "Données de marché indisponibles" : "Données différées"}
+                />
+              </div>
+              <p className="mt-2 text-slate-400">
+                {quote.exchange ?? "Marché n/a"} · {quote.currency}
+              </p>
             </div>
           </div>
           <div className="text-left sm:text-right">
@@ -208,7 +228,7 @@ export function AssetDetailPage({ user }: { user: User }) {
                       ? formatChartDateTime(String(value))
                       : range === "1w" || range === "1m"
                         ? formatChartDateTime(String(value))
-                      : formatChartDate(String(value))
+                        : formatChartDate(String(value))
                   }
                 />
 
@@ -238,8 +258,8 @@ export function AssetDetailPage({ user }: { user: User }) {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="card p-4">
-          <h2 className="mb-4 font-semibold">Ma position</h2>
+        <div className="group p-5">
+          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-300">Ma position</h2>
           {position ? (
             <PositionSection currentPrice={marketInfo?.regularMarketPrice ?? quote.price} firstPriceOfRange={firstClose} position={position} range={range} />
           ) : (
@@ -247,9 +267,9 @@ export function AssetDetailPage({ user }: { user: User }) {
           )}
         </div>
 
-        <div className="card p-4">
-          <h2 className="mb-4 font-semibold">Informations marché</h2>
-          <MarketInfoSection currency={quote.currency} marketInfo={marketInfo} quote={quote} />
+        <div className="group p-5">
+          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-300">Informations marché</h2>
+          <MarketInfoSection currency={quote.currency} hasKnownDividends={dividends.length > 0} marketInfo={marketInfo} quote={quote} />
         </div>
       </section>
 
@@ -452,31 +472,61 @@ function PositionSection({
   const valueRatio = Math.max(0, Math.min(100, position.costBasis > 0 ? (currentValue / Math.max(position.costBasis, currentValue)) * 100 : 0));
   const totalTone = toneFromNumber(totalPerformanceValue);
   const periodTone = toneFromNumber(periodPerformanceValue);
+  const totalIsNegative = totalTone === "negative";
+  const TotalTrendIcon = totalIsNegative ? ArrowDownRight : ArrowUpRight;
+  const PeriodTrendIcon = periodTone === "negative" ? ArrowDownRight : ArrowUpRight;
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border border-line bg-ink p-4">
-        <p className="muted">Valeur actuelle</p>
-        <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <p className="text-2xl font-bold">{money(currentValue, position.currency)}</p>
-          <p className={`font-semibold ${toneClass(totalTone)}`}>
-            {formatSignedMoney(totalPerformanceValue, position.currency)} {totalPerformancePercent == null ? "(n/a)" : `(${percent(totalPerformancePercent)})`}
+    <div className="space-y-4">
+      <div
+        className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] ${totalIsNegative
+          ? "bg-[linear-gradient(135deg,rgba(251,113,133,0.16),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(35,13,20,0.9))]"
+          : "bg-[linear-gradient(135deg,rgba(0,255,150,0.12),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(13,31,35,0.9))]"
+          }`}
+      >
+        <div
+          className={`absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full border ${totalIsNegative
+            ? "border-coral/25 bg-coral/10 text-coral shadow-[0_0_24px_rgba(251,113,133,0.24)]"
+            : "border-mint/25 bg-mint/10 text-mint shadow-[0_0_24px_rgba(74,222,128,0.22)]"
+            }`}
+        >
+          <TotalTrendIcon size={24} />
+        </div>
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Valeur actuelle</p>
+        <div className="mt-3 pr-14">
+          <p className="text-[32px] font-bold leading-tight text-white sm:text-4xl">{money(currentValue, position.currency)}</p>
+          <p className={`mt-2 text-base font-semibold ${toneClass(totalTone)}`}>
+            {formatSignedMoney(totalPerformanceValue, position.currency)}
+            <span className="ml-2 text-sm">{totalPerformancePercent == null ? "(n/a)" : `(${percent(totalPerformancePercent)})`}</span>
           </p>
         </div>
-        <div className="mt-4">
+        <div className="mt-6 border-t border-white/[0.05] pt-4">
           <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
-            <span>Investi {money(position.costBasis, position.currency)}</span>
-            <span>Actuel {money(currentValue, position.currency)}</span>
+            <span>
+              Valeur d'achat <span className="ml-1 text-slate-300">{money(position.costBasis, position.currency)}</span>
+            </span>
+            <span className="text-right">
+              Valeur actuelle <span className="ml-1 text-slate-300">{money(currentValue, position.currency)}</span>
+            </span>
           </div>
-          <div className="mt-2 h-2 rounded-full bg-panel2">
-            <div className={`h-full rounded-full ${totalTone === "negative" ? "bg-coral" : "bg-mint"}`} style={{ width: `${valueRatio}%` }} />
+          <div className="relative mt-3 h-3 rounded-full bg-slate-950/80 shadow-[inset_0_1px_4px_rgba(0,0,0,0.55)]">
+            <div
+              className={`h-full rounded-full ${totalTone === "negative" ? "bg-gradient-to-r from-coral to-red-400" : "bg-gradient-to-r from-emerald-500 via-mint to-teal-300"} shadow-[0_0_18px_rgba(74,222,128,0.26)]`}
+              style={{ width: `${valueRatio}%` }}
+            />
+            <div
+              className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-slate-950 ${totalTone === "negative" ? "bg-coral shadow-[0_0_18px_rgba(251,113,133,0.48)]" : "bg-mint shadow-[0_0_18px_rgba(74,222,128,0.55)]"}`}
+              style={{ left: `calc(${valueRatio}% - 0.5rem)` }}
+            />
           </div>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Info label="Quantité" value={formatNumber(position.quantity)} />
-        <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
+        <Info icon={<Coins size={18} />} iconTone="sky" label="Quantité" value={formatNumber(position.quantity)} />
+        <Info icon={<CircleDollarSign size={18} />} iconTone="cyan" label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
         <Info
+          icon={<PeriodTrendIcon size={18} />}
+          iconTone={periodTone === "negative" ? "red" : "green"}
           label={`Performance ${formatRangeLabel(range, { compact: true })}`}
           tone={periodTone}
           value={
@@ -495,37 +545,156 @@ function PositionSection({
   );
 }
 
-function MarketInfoSection({ marketInfo, quote, currency }: { marketInfo?: AssetDetails["marketInfo"]; quote: Quote; currency: string }) {
+function MarketInfoSection({
+  marketInfo,
+  quote,
+  currency,
+  hasKnownDividends
+}: {
+  marketInfo?: AssetDetails["marketInfo"];
+  quote: Quote;
+  currency: string;
+  hasKnownDividends: boolean;
+}) {
   const info = marketInfo ?? {};
   const displayCurrency = info.currency ?? currency;
   const dayChange = info.regularMarketChange ?? quote.change;
   const dayChangePercent = info.regularMarketChangePercent ?? quote.changePercent;
+  const dayTone = toneFromNumber(dayChange);
+  const DayTrendIcon = dayTone === "negative" ? ArrowDownRight : ArrowUpRight;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Info label="Marché" tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} />
-      <Info label="Dernier prix" value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} />
-      <Info label="Variation jour" tone={toneFromNumber(dayChange)} value={formatChange(dayChange, dayChangePercent, displayCurrency)} />
-      <Info label="Bourse" value={info.exchangeName ?? quote.exchange ?? "n/a"} />
-      <Info label="Devise" value={info.currency ?? quote.currency ?? "n/a"} />
-      <Info label="Volume" value={formatMaybeInteger(info.regularMarketVolume)} />
-      <Info label="Fourchette 52 semaines" value={formatRangeMoney(info.fiftyTwoWeekLow, info.fiftyTwoWeekHigh, displayCurrency)} />
-      <Info label="Volume moyen 3M" value={formatMaybeInteger(info.averageDailyVolume3Month)} />
-      <Info label="Actifs sous gestion" value={formatMaybeMoney(info.totalAssets, displayCurrency)} />
-      <Info label="Dividende annuel" value={formatMaybeMoney(info.dividendRate ?? quote.dividendRate, displayCurrency)} />
-      <Info label="Rendement dividende" tone={info.dividendYield == null && quote.dividendYield == null ? "muted" : undefined} value={formatMaybePercentYield(info.dividendYield ?? quote.dividendYield)} />
-      <Info label="Ex-date" value={formatMaybeDate(info.exDividendDate)} />
+    <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] sm:grid-cols-2 xl:grid-cols-3">
+      <Info icon={<Gauge size={18} />} iconTone="amber" label="Marché" tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} variant="market" />
+      <Info icon={<BadgeEuro size={18} />} iconTone="green" label="Dernier prix" value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
+      <Info icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label="Variation jour" tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
+      <Info icon={<Landmark size={18} />} iconTone="slate" label="Bourse" value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
+      <Info icon={<CircleDollarSign size={18} />} iconTone="cyan" label="Devise" value={info.currency ?? quote.currency ?? "n/a"} variant="market" />
+      <Info icon={<BarChart3 size={18} />} iconTone="sky" label="Volume" value={formatMaybeInteger(info.regularMarketVolume)} variant="market" />
+      <div className="sm:col-span-2 xl:col-span-2">
+        <Info
+          icon={<Timer size={18} />}
+          iconTone="slate"
+          label="Fourchette 52 semaines"
+          value={
+            <Range52Slider
+              currency={displayCurrency}
+              currentPrice={info.regularMarketPrice ?? quote.price}
+              high52={info.fiftyTwoWeekHigh}
+              low52={info.fiftyTwoWeekLow}
+            />
+          }
+          variant="market"
+        />
+      </div>
+      <Info icon={<Database size={18} />} iconTone="sky" label="Volume moyen 3M" value={formatMaybeInteger(info.averageDailyVolume3Month)} variant="market" />
+
+      {hasKnownDividends && (
+        <>
+          <Info icon={<Wallet size={18} />} iconTone="green" label="Dividende annuel" value={formatMaybeMoney(info.dividendRate ?? quote.dividendRate, displayCurrency)} variant="market" />
+          <Info icon={<Percent size={18} />} iconTone="green" label="Rendement dividende" tone={info.dividendYield == null && quote.dividendYield == null ? "muted" : undefined} value={formatMaybePercentYield(info.dividendYield ?? quote.dividendYield)} variant="market" />
+          <Info icon={<CalendarDays size={18} />} iconTone="slate" label="Ex-date" value={formatMaybeDate(info.exDividendDate)} variant="market" />
+        </>
+      )}
     </div>
   );
 }
 
 type InfoTone = "positive" | "negative" | "muted" | "warning";
+type IconTone = "green" | "red" | "amber" | "sky" | "cyan" | "slate";
 
-function Info({ label, value, tone }: { label: string; value: ReactNode; tone?: InfoTone }) {
+function Range52Slider({
+  low52,
+  high52,
+  currentPrice,
+  currency
+}: {
+  low52?: number;
+  high52?: number;
+  currentPrice?: number;
+  currency: string;
+}) {
+  if (
+    low52 == null ||
+    high52 == null ||
+    currentPrice == null ||
+    !Number.isFinite(low52) ||
+    !Number.isFinite(high52) ||
+    !Number.isFinite(currentPrice) ||
+    high52 <= low52
+  ) {
+    return <span className="text-slate-500">n/a</span>;
+  }
+
+  const ratio = Math.max(0, Math.min(1, (currentPrice - low52) / (high52 - low52)));
+  const percentPosition = ratio * 100;
+  const rangeTone = percentPosition > 70 ? "green" : percentPosition < 30 ? "red" : "amber";
+  const progressClass =
+    rangeTone === "green"
+      ? "bg-mint shadow-[0_0_14px_rgba(74,222,128,0.2)]"
+      : rangeTone === "red"
+        ? "bg-coral shadow-[0_0_14px_rgba(251,113,133,0.2)]"
+        : "bg-amber shadow-[0_0_14px_rgba(251,191,36,0.18)]";
+  const thumbClass =
+    rangeTone === "green"
+      ? "bg-mint shadow-[0_0_16px_rgba(74,222,128,0.5)]"
+      : rangeTone === "red"
+        ? "bg-coral shadow-[0_0_16px_rgba(251,113,133,0.48)]"
+        : "bg-amber shadow-[0_0_16px_rgba(251,191,36,0.42)]";
+
   return (
-    <div className="rounded-md border border-line bg-ink p-3">
-      <p className="muted">{label}</p>
-      <p className={`mt-1 font-semibold ${toneClass(tone)}`}>{value}</p>
+    <div className="min-w-0 pt-1">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-slate-400">
+        <span>{money(low52, currency)}</span>
+        <span className="text-right">{money(high52, currency)}</span>
+      </div>
+      <div className="relative h-2 rounded-full bg-slate-950/80 shadow-[inset_0_1px_4px_rgba(0,0,0,0.55)]">
+        <div className={`h-full rounded-full ${progressClass}`} style={{ width: `${percentPosition}%` }} />
+        <div
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 ${thumbClass}`}
+          style={{ left: `${percentPosition}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs font-medium text-slate-400">
+        Prix actuel <span className="text-slate-200">{money(currentPrice, currency)}</span>
+      </p>
+    </div>
+  );
+}
+
+function Info({
+  label,
+  value,
+  tone,
+  icon,
+  iconTone = "slate",
+  variant = "tile"
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: InfoTone;
+  icon?: ReactNode;
+  iconTone?: IconTone;
+  variant?: "tile" | "market";
+}) {
+  const isMarket = variant === "market";
+  return (
+    <div
+      className={
+        isMarket
+          ? "flex min-h-[92px] items-center gap-3 border-t border-white/[0.05] p-4 first:border-t-0 sm:[&:nth-child(2)]:border-t-0 xl:[&:nth-child(3)]:border-t-0"
+          : "rounded-[16px] border border-white/[0.05] bg-slate-950/45 p-4 shadow-[0_8px_22px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.035)]"
+      }
+    >
+      {icon && (
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${iconToneClass(iconTone)}`}>
+          {icon}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+        <p className={`mt-1 break-words text-base font-semibold leading-snug ${toneClass(tone)}`}>{value}</p>
+      </div>
     </div>
   );
 }
@@ -538,11 +707,20 @@ function toneFromNumber(value?: number): InfoTone | undefined {
 }
 
 function toneClass(tone?: InfoTone) {
-  if (tone === "positive") return "text-mint";
-  if (tone === "negative") return "text-coral";
+  if (tone === "positive") return "text-mint drop-shadow-[0_0_10px_rgba(74,222,128,0.18)]";
+  if (tone === "negative") return "text-coral drop-shadow-[0_0_10px_rgba(251,113,133,0.16)]";
   if (tone === "warning") return "text-amber";
   if (tone === "muted") return "text-slate-500";
   return "";
+}
+
+function iconToneClass(tone: IconTone) {
+  if (tone === "green") return "border-mint/25 bg-mint/10 text-mint shadow-[0_0_18px_rgba(74,222,128,0.18)]";
+  if (tone === "red") return "border-coral/25 bg-coral/10 text-coral shadow-[0_0_18px_rgba(251,113,133,0.16)]";
+  if (tone === "amber") return "border-amber/25 bg-amber/10 text-amber shadow-[0_0_18px_rgba(251,191,36,0.15)]";
+  if (tone === "sky") return "border-sky/25 bg-sky/10 text-sky shadow-[0_0_18px_rgba(56,189,248,0.16)]";
+  if (tone === "cyan") return "border-cyan-300/25 bg-cyan-300/10 text-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.14)]";
+  return "border-white/[0.08] bg-white/[0.04] text-slate-300";
 }
 
 function marketStateTone(value?: string): InfoTone {

@@ -413,7 +413,6 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
 
   const position = await positionPromise;
 
-  let quote: Quote;
   const quoteResult = await yahooService.quote(symbol).catch((error) => {
     if (!isMarketDataUnavailable(error)) throw error;
     marketUnavailable = true;
@@ -428,7 +427,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       } satisfies Quote
     };
   });
-  quote = quoteResult.data;
+  const quote: Quote = quoteResult.data;
 
   const [historyResult, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
     yahooService.history(symbol, range).catch((error) => {
