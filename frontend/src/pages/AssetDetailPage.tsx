@@ -1,16 +1,17 @@
-import type { NewsArticle, PositionWithMarket, RangeKey, User } from "@pea/shared";
+import type { AssetDetails, NewsArticle, PositionWithMarket, Quote, RangeKey, User } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, Newspaper, Pencil, Plus, Star, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../components/AssetIcon";
+import { FinancialComboChart } from "../components/charts/FinancialComboChart";
 import { RangeSelector } from "../components/RangeSelector";
 import { PeaBadge } from "../components/PeaBadge";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
-import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money, percent, shortDate } from "../lib/format";
+import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatRangeLabel, money, percent, shortDate } from "../lib/format";
 
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
@@ -41,7 +42,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
-  const { quote, history, dividends, news, position } = asset.data;
+  const { quote, history, dividends, news, position, marketInfo } = asset.data;
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
 
   async function deletePosition() {
@@ -240,13 +241,7 @@ export function AssetDetailPage({ user }: { user: User }) {
         <div className="card p-4">
           <h2 className="mb-4 font-semibold">Ma position</h2>
           {position ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Info label="Quantité" value={String(position.quantity)} />
-              <Info label="Valeur" value={money(position.marketValue, position.currency)} />
-              <Info label="Valeur d'achat" value={money(position.costBasis, position.currency)} />
-              <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
-              <Info label="Performance" value={`${money(position.performance, position.currency)} (${percent(position.performancePercent)})`} />
-            </div>
+            <PositionSection currentPrice={marketInfo?.regularMarketPrice ?? quote.price} firstPriceOfRange={firstClose} position={position} range={range} />
           ) : (
             <p className="text-slate-400">Aucune position détenue pour ce symbole.</p>
           )}
@@ -254,35 +249,38 @@ export function AssetDetailPage({ user }: { user: User }) {
 
         <div className="card p-4">
           <h2 className="mb-4 font-semibold">Informations marché</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Info label="Marché" value={quote.marketState ?? "n/a"} />
-            <Info label="Dividende annuel" value={quote.dividendRate ? money(quote.dividendRate, quote.currency) : "n/a"} />
-            <Info label="Rendement" value={quote.dividendYield ? percent(quote.dividendYield * 100) : "n/a"} />
-            <Info label="Bourse" value={quote.exchange ?? "n/a"} />
-          </div>
+          <MarketInfoSection currency={quote.currency} marketInfo={marketInfo} quote={quote} />
         </div>
       </section>
 
-      <section className="card overflow-hidden">
-        <div className="border-b border-line p-4">
-          <h2 className="font-semibold">Dividendes connus</h2>
-        </div>
-        <div className="divide-y divide-line">
-          {dividends.length === 0 && <p className="p-4 text-slate-400">Aucun historique de dividende fourni.</p>}
-          {dividends.slice(-20).reverse().map((event) => {
-            const total = event.amount * (position?.quantity ?? 0);
-            return (
-              <div className="grid grid-cols-[1fr_auto] gap-2 p-4 sm:grid-cols-5" key={`${event.date}-${event.amount}`}>
-                <span className="font-semibold">{new Date(event.date).getFullYear()}</span>
-                <span>{shortDate(event.date)}</span>
-                <span>{money(event.amount, event.currency)} / action</span>
-                <span>{position ? money(total, event.currency) : "n/a"}</span>
-                <span className={event.status === "real" ? "text-mint" : "text-amber"}>{event.status === "real" ? "Réel" : "Estimé"}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      {!asset.data.isEtf && asset.data.financials && asset.data.financials.length > 0 ? (
+        <section className="card min-w-0 p-4">
+          <h2 className="mb-4 font-semibold">Revenue / Net Income / Marge</h2>
+          <FinancialComboChart data={asset.data.financials} />
+        </section>
+      ) : null}
+
+      {dividends.length > 0 ? (
+        <section className="card overflow-hidden">
+          <div className="border-b border-line p-4">
+            <h2 className="font-semibold">Dividendes connus</h2>
+          </div>
+          <div className="divide-y divide-line">
+            {dividends.slice(-20).reverse().map((event) => {
+              const total = event.amount * (position?.quantity ?? 0);
+              return (
+                <div className="grid grid-cols-[1fr_auto] gap-2 p-4 sm:grid-cols-5" key={`${event.date}-${event.amount}`}>
+                  <span className="font-semibold">{new Date(event.date).getFullYear()}</span>
+                  <span>{shortDate(event.date)}</span>
+                  <span>{money(event.amount, event.currency)} / action</span>
+                  <span>{position ? money(total, event.currency) : "n/a"}</span>
+                  <span className={event.status === "real" ? "text-mint" : "text-amber"}>{event.status === "real" ? "Réel" : "Estimé"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {user.assetNewsEnabled && <NewsArticleList articles={news} />}
 
@@ -432,13 +430,164 @@ function normalizeHistoryPoints<T extends { date: string; close: number }>(point
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function PositionSection({
+  position,
+  currentPrice,
+  firstPriceOfRange,
+  range
+}: {
+  position: PositionWithMarket;
+  currentPrice: number;
+  firstPriceOfRange?: number;
+  range: RangeKey;
+}) {
+  const safeCurrentPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : position.currentPrice;
+  const currentValue = position.quantity * safeCurrentPrice;
+  const totalPerformanceValue = currentValue - position.costBasis;
+  const totalPerformancePercent = position.costBasis ? (totalPerformanceValue / position.costBasis) * 100 : undefined;
+  const periodPerformanceValue =
+    firstPriceOfRange && firstPriceOfRange > 0 ? position.quantity * (safeCurrentPrice - firstPriceOfRange) : undefined;
+  const periodPerformancePercent =
+    firstPriceOfRange && firstPriceOfRange > 0 ? ((safeCurrentPrice - firstPriceOfRange) / firstPriceOfRange) * 100 : undefined;
+  const valueRatio = Math.max(0, Math.min(100, position.costBasis > 0 ? (currentValue / Math.max(position.costBasis, currentValue)) * 100 : 0));
+  const totalTone = toneFromNumber(totalPerformanceValue);
+  const periodTone = toneFromNumber(periodPerformanceValue);
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-line bg-ink p-4">
+        <p className="muted">Valeur actuelle</p>
+        <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <p className="text-2xl font-bold">{money(currentValue, position.currency)}</p>
+          <p className={`font-semibold ${toneClass(totalTone)}`}>
+            {formatSignedMoney(totalPerformanceValue, position.currency)} {totalPerformancePercent == null ? "(n/a)" : `(${percent(totalPerformancePercent)})`}
+          </p>
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+            <span>Investi {money(position.costBasis, position.currency)}</span>
+            <span>Actuel {money(currentValue, position.currency)}</span>
+          </div>
+          <div className="mt-2 h-2 rounded-full bg-panel2">
+            <div className={`h-full rounded-full ${totalTone === "negative" ? "bg-coral" : "bg-mint"}`} style={{ width: `${valueRatio}%` }} />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Info label="Quantité" value={formatNumber(position.quantity)} />
+        <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
+        <Info
+          label={`Performance ${formatRangeLabel(range, { compact: true })}`}
+          tone={periodTone}
+          value={
+            periodPerformanceValue == null || periodPerformancePercent == null ? (
+              <span className="text-slate-500">n/a</span>
+            ) : (
+              <>
+                <span>{formatSignedMoney(periodPerformanceValue, position.currency)}</span>
+                <span className="ml-1">({percent(periodPerformancePercent)})</span>
+              </>
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function MarketInfoSection({ marketInfo, quote, currency }: { marketInfo?: AssetDetails["marketInfo"]; quote: Quote; currency: string }) {
+  const info = marketInfo ?? {};
+  const displayCurrency = info.currency ?? currency;
+  const dayChange = info.regularMarketChange ?? quote.change;
+  const dayChangePercent = info.regularMarketChangePercent ?? quote.changePercent;
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Info label="Marché" tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} />
+      <Info label="Dernier prix" value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} />
+      <Info label="Variation jour" tone={toneFromNumber(dayChange)} value={formatChange(dayChange, dayChangePercent, displayCurrency)} />
+      <Info label="Bourse" value={info.exchangeName ?? quote.exchange ?? "n/a"} />
+      <Info label="Devise" value={info.currency ?? quote.currency ?? "n/a"} />
+      <Info label="Volume" value={formatMaybeInteger(info.regularMarketVolume)} />
+      <Info label="Fourchette 52 semaines" value={formatRangeMoney(info.fiftyTwoWeekLow, info.fiftyTwoWeekHigh, displayCurrency)} />
+      <Info label="Volume moyen 3M" value={formatMaybeInteger(info.averageDailyVolume3Month)} />
+      <Info label="Actifs sous gestion" value={formatMaybeMoney(info.totalAssets, displayCurrency)} />
+      <Info label="Dividende annuel" value={formatMaybeMoney(info.dividendRate ?? quote.dividendRate, displayCurrency)} />
+      <Info label="Rendement dividende" tone={info.dividendYield == null && quote.dividendYield == null ? "muted" : undefined} value={formatMaybePercentYield(info.dividendYield ?? quote.dividendYield)} />
+      <Info label="Ex-date" value={formatMaybeDate(info.exDividendDate)} />
+    </div>
+  );
+}
+
+type InfoTone = "positive" | "negative" | "muted" | "warning";
+
+function Info({ label, value, tone }: { label: string; value: ReactNode; tone?: InfoTone }) {
   return (
     <div className="rounded-md border border-line bg-ink p-3">
       <p className="muted">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
+      <p className={`mt-1 font-semibold ${toneClass(tone)}`}>{value}</p>
     </div>
   );
+}
+
+function toneFromNumber(value?: number): InfoTone | undefined {
+  if (value == null || !Number.isFinite(value)) return "muted";
+  if (value > 0) return "positive";
+  if (value < 0) return "negative";
+  return undefined;
+}
+
+function toneClass(tone?: InfoTone) {
+  if (tone === "positive") return "text-mint";
+  if (tone === "negative") return "text-coral";
+  if (tone === "warning") return "text-amber";
+  if (tone === "muted") return "text-slate-500";
+  return "";
+}
+
+function marketStateTone(value?: string): InfoTone {
+  if (!value) return "muted";
+  return value.toUpperCase() === "REGULAR" ? "positive" : "warning";
+}
+
+function formatSignedMoney(value: number, currency: string) {
+  return `${value > 0 ? "+" : ""}${money(value, currency)}`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 6 }).format(value);
+}
+
+function formatMaybeInteger(value?: number) {
+  if (value == null || !Number.isFinite(value)) return "n/a";
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatMaybeMoney(value: number | undefined, currency: string) {
+  return value == null || !Number.isFinite(value) ? "n/a" : money(value, currency);
+}
+
+function formatMaybePercentYield(value?: number) {
+  return value == null || !Number.isFinite(value) ? "n/a" : percent(value * 100);
+}
+
+function formatChange(value: number | undefined, percentValue: number | undefined, currency: string) {
+  if ((value == null || !Number.isFinite(value)) && (percentValue == null || !Number.isFinite(percentValue))) return "n/a";
+  const amount = value == null || !Number.isFinite(value) ? "n/a" : formatSignedMoney(value, currency);
+  const pct = percentValue == null || !Number.isFinite(percentValue) ? "n/a" : percent(percentValue);
+  return `${amount} (${pct})`;
+}
+
+function formatRangeMoney(low: number | undefined, high: number | undefined, currency: string) {
+  if ((low == null || !Number.isFinite(low)) && (high == null || !Number.isFinite(high))) return "n/a";
+  return `${formatMaybeMoney(low, currency)} / ${formatMaybeMoney(high, currency)}`;
+}
+
+function formatMaybeDate(value?: string) {
+  if (!value) return "n/a";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "n/a";
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }
 
 function EditPositionModal({

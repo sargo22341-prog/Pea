@@ -71,6 +71,23 @@ export interface Quote {
   unavailable?: boolean;
 }
 
+export interface AssetMarketInfo {
+  marketState?: string;
+  regularMarketPrice?: number;
+  regularMarketChange?: number;
+  regularMarketChangePercent?: number;
+  exchangeName?: string;
+  currency?: CurrencyCode;
+  regularMarketVolume?: number;
+  fiftyTwoWeekLow?: number;
+  fiftyTwoWeekHigh?: number;
+  averageDailyVolume3Month?: number;
+  totalAssets?: number;
+  dividendRate?: number;
+  dividendYield?: number;
+  exDividendDate?: string;
+}
+
 export interface HistoryPoint {
   date: string;
   open?: number;
@@ -195,6 +212,61 @@ export interface PortfolioDividends {
   stale?: boolean;
 }
 
+export interface AllocationChartItem {
+  name: string;
+  value: number;
+  percentage: number;
+  symbols: Array<{
+    symbol: string;
+    name: string;
+    weight: number;
+    logoUrl?: string;
+  }>;
+}
+
+export interface PortfolioTreemapItem {
+  symbol: string;
+  name: string;
+  value: number;
+  percentage: number;
+  logoUrl?: string;
+  country?: string;
+  sector?: string;
+}
+
+export interface NetMarginItem {
+  symbol: string;
+  name: string;
+  netMargin: number;
+  logoUrl?: string;
+}
+
+export interface FinancialYearItem {
+  year: number;
+  revenue: number;
+  netIncome: number;
+  netMargin: number;
+}
+
+export interface AssetFinancials {
+  symbol: string;
+  name: string;
+  logoUrl?: string;
+  quoteType?: string;
+  isEtf: boolean;
+  financials: FinancialYearItem[];
+}
+
+export interface PortfolioAnalysis {
+  countryAllocation: AllocationChartItem[];
+  sectorAllocation: AllocationChartItem[];
+  treemap: PortfolioTreemapItem[];
+  netMargins: NetMarginItem[];
+  financials: FinancialYearItem[];
+  financialsByAsset: AssetFinancials[];
+  stale?: boolean;
+}
+
 export interface CreatePositionInput {
   symbol: string;
   name?: string;
@@ -218,6 +290,9 @@ export interface AssetDetails {
   position?: PositionWithMarket;
   isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
+  marketInfo?: AssetMarketInfo;
+  financials?: FinancialYearItem[];
+  isEtf?: boolean;
   peaEligibility: PeaEligibilityResult;
   peaRank: PeaRankingResult;
   stale?: boolean;

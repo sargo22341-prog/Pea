@@ -1,10 +1,11 @@
 import express from "express";
 import { z } from "zod";
-import type { AssetDetails, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, Quote } from "@pea/shared";
+import type { AssetDetails, AssetMarketInfo, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, Quote } from "@pea/shared";
 import { HttpError } from "../utils/http-error.js";
 import { parseRange } from "../utils/range.js";
 import { dividendService } from "../services/dividend.service.js";
 import { portfolioService } from "../services/portfolio.service.js";
+import { portfolioAnalysisService } from "../services/portfolio-analysis.service.js";
 import { isMarketDataUnavailable, yahooService } from "../services/yahoo.service.js";
 import { watchlistService } from "../services/watchlist.service.js";
 import { db } from "../db.js";
@@ -289,6 +290,11 @@ apiRouter.get("/portfolio", asyncRoute(async (req, res) => {
   res.json(await portfolioService.summary(range));
 }));
 
+apiRouter.get("/portfolio/analysis", asyncRoute(async (req, res) => {
+  logger.debug("portfolio", "analysis requested", { userId: req.user!.id });
+  res.json(await portfolioAnalysisService.analysis());
+}));
+
 apiRouter.post("/portfolio/positions", asyncRoute(async (req, res) => {
   const body = z
     .object({
@@ -401,50 +407,63 @@ apiRouter.delete("/watchlist/:symbol", asyncRoute(async (req, res) => {
 apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = req.params.symbol.toUpperCase();
-  const position = await portfolioService.getPosition(symbol);
+  const positionPromise = portfolioService.getPosition(symbol);
   const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE symbol = ?").get(symbol);
   let marketUnavailable = false;
 
+  const position = await positionPromise;
+
   let quote: Quote;
-  try {
-    quote = (await yahooService.quote(symbol)).data;
-  } catch (error) {
+  const quoteResult = await yahooService.quote(symbol).catch((error) => {
     if (!isMarketDataUnavailable(error)) throw error;
     marketUnavailable = true;
-    quote = {
-      symbol,
-      name: position?.name ?? symbol,
-      price: position?.averageBuyPrice ?? 0,
-      currency: position?.currency ?? "EUR",
-      stale: true,
-      unavailable: true
+    return {
+      data: {
+        symbol,
+        name: position?.name ?? symbol,
+        price: position?.averageBuyPrice ?? 0,
+        currency: position?.currency ?? "EUR",
+        stale: true,
+        unavailable: true
+      } satisfies Quote
     };
-  }
+  });
+  quote = quoteResult.data;
 
-  let history: HistoryPoint[] = [];
-  try {
-    history = (await yahooService.history(symbol, range)).data;
-  } catch (error) {
-    if (!isMarketDataUnavailable(error)) throw error;
-    marketUnavailable = true;
-  }
+  const [historyResult, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
+    yahooService.history(symbol, range).catch((error) => {
+      if (!isMarketDataUnavailable(error)) throw error;
+      marketUnavailable = true;
+      return { data: [] as HistoryPoint[] };
+    }),
+    yahooService.dividends(symbol).catch((error) => {
+      if (!isMarketDataUnavailable(error)) throw error;
+      marketUnavailable = true;
+      return { data: [] as DividendEvent[] };
+    }),
+    req.user!.assetNewsEnabled
+      ? yahooService.news(symbol).catch((error) => {
+          logger.warn("news", "asset news fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
+          return { data: [] as NewsArticle[] };
+        })
+      : Promise.resolve({ data: [] as NewsArticle[] }),
+    yahooService.marketInfo(symbol).catch((error) => {
+      if (!isMarketDataUnavailable(error)) throw error;
+      marketUnavailable = true;
+      return { data: {} as AssetMarketInfo };
+    }),
+    portfolioAnalysisService.assetFinancials(symbol, quote.name).catch((error) => {
+      logger.warn("portfolio", "asset financials fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
+      return { financials: [] as AssetDetails["financials"], isEtf: false };
+    })
+  ]);
 
-  let dividends: DividendEvent[] = [];
-  try {
-    dividends = (await yahooService.dividends(symbol)).data;
-  } catch (error) {
-    if (!isMarketDataUnavailable(error)) throw error;
-    marketUnavailable = true;
-  }
-
-  let news: NewsArticle[] = [];
-  if (req.user!.assetNewsEnabled) {
-    try {
-      news = (await yahooService.news(symbol)).data;
-    } catch (error) {
-      logger.warn("news", "asset news fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
-    }
-  }
+  const history = historyResult.data;
+  const dividends = dividendsResult.data;
+  const news = newsResult.data;
+  const marketInfo = marketInfoResult.data;
+  const financials = assetFinancialsResult.financials;
+  const isEtf = assetFinancialsResult.isEtf;
 
   const details: AssetDetails = {
     quote,
@@ -461,7 +480,10 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       marketState: quote.marketState,
       dividendYield: quote.dividendYield,
       dividendRate: quote.dividendRate
-    }
+    },
+    marketInfo,
+    financials,
+    isEtf
   };
 
   res.json(details);

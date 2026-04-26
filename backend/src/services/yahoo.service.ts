@@ -1,6 +1,6 @@
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
-import type { DividendEvent, HistoryPoint, NewsArticle, Quote, RangeKey, SearchResult } from "@pea/shared";
+import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, Quote, RangeKey, SearchResult } from "@pea/shared";
 import { config } from "../config.js";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
@@ -11,7 +11,7 @@ import { getLastTradingDay, isMarketOpen, shouldRefreshMarketData } from "./mark
 import type { MarketDataProvider, MarketDataResult } from "./market-data-provider.js";
 import { safeString } from "./peaEligibility.js";
 
-type CacheTable = "cached_quotes" | "cached_dividends" | "cached_news";
+type CacheTable = "cached_quotes" | "cached_dividends" | "cached_news" | "cached_fundamentals";
 
 const yahoo = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 const limiter = new Bottleneck({
@@ -428,6 +428,51 @@ function searchQuoteName(result: any) {
   return safeString(quote?.shortname) || safeString(quote?.longname) || safeString(quote?.name) || safeString(quote?.symbol);
 }
 
+function rawNumber(value: unknown): number | undefined {
+  const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
+  const numberValue = Number(candidate);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
+function rawString(value: unknown): string | undefined {
+  const candidate = value && typeof value === "object" && "fmt" in value ? (value as { fmt?: unknown }).fmt : value;
+  return safeString(candidate);
+}
+
+function rawDate(value: unknown): string | undefined {
+  const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
+  if (typeof candidate === "number" && Number.isFinite(candidate)) return new Date(candidate * 1000).toISOString();
+  if (typeof candidate === "string") {
+    const time = new Date(candidate).getTime();
+    return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
+  }
+  return undefined;
+}
+
+function marketInfoFromSummary(summary: any): AssetMarketInfo {
+  const price = summary?.price ?? {};
+  const detail = summary?.summaryDetail ?? {};
+  const fundProfile = summary?.fundProfile ?? {};
+  const fundPerformance = summary?.fundPerformance ?? {};
+  return {
+    marketState: rawString(price.marketState),
+    regularMarketPrice: rawNumber(price.regularMarketPrice),
+    regularMarketChange: rawNumber(price.regularMarketChange),
+    regularMarketChangePercent: rawNumber(price.regularMarketChangePercent),
+    exchangeName: rawString(price.exchangeName) || rawString(price.exchange),
+    currency: rawString(price.currency),
+    regularMarketVolume: rawNumber(price.regularMarketVolume) ?? rawNumber(detail.volume),
+    fiftyTwoWeekLow: rawNumber(detail.fiftyTwoWeekLow),
+    fiftyTwoWeekHigh: rawNumber(detail.fiftyTwoWeekHigh),
+    averageDailyVolume3Month: rawNumber(detail.averageDailyVolume3Month) ?? rawNumber(detail.averageVolume),
+    totalAssets: rawNumber(detail.totalAssets) ?? rawNumber(fundProfile.totalAssets) ?? rawNumber(fundPerformance.totalAssets),
+    dividendRate: rawNumber(detail.dividendRate) ?? rawNumber(price.trailingAnnualDividendRate),
+    dividendYield: rawNumber(detail.dividendYield) ?? rawNumber(price.trailingAnnualDividendYield),
+    exDividendDate: rawDate(detail.exDividendDate)
+  };
+}
+
 export function isTemporaryYahooError(error: unknown) {
   const message = errorMessage(error).toLowerCase();
   const code = errorCode(error);
@@ -603,6 +648,35 @@ export class YahooService implements MarketDataProvider {
     );
 
     return { data: markStale(result.data, result.stale), stale: result.stale };
+  }
+
+  async fundamentals(symbol: string): Promise<MarketDataResult<any>> {
+    const key = symbol.toUpperCase();
+    const modules = [
+      "assetProfile",
+      "financialData",
+      "fundProfile",
+      "fundPerformance",
+      "topHoldings",
+      "summaryDetail",
+      "price",
+      "quoteType",
+      "incomeStatementHistory"
+    ];
+
+    const result = await safeYahooCall<any>(
+      `fundamentals:${key}`,
+      () => yahoo.quoteSummary(key, { modules } as any),
+      () => readCache<any>("cached_fundamentals", key, 24 * 60 * 60),
+      (data) => writeCache("cached_fundamentals", key, data)
+    );
+
+    return { data: result.data, stale: result.stale };
+  }
+
+  async marketInfo(symbol: string): Promise<MarketDataResult<AssetMarketInfo>> {
+    const result = await this.fundamentals(symbol);
+    return { data: marketInfoFromSummary(result.data), stale: result.stale };
   }
 
   async quoteCombine(symbols: string[]): Promise<MarketDataResult<Quote[]>> {

@@ -11,6 +11,7 @@ import type {
   HistoryPoint,
   NewsArticle,
   PortfolioDividends,
+  PortfolioAnalysis,
   PortfolioPerformancePoint,
   PositionRangePerformance,
   PortfolioSummary,
@@ -94,6 +95,7 @@ export const api = {
   positionsPerformance: (range: RangeKey) =>
     request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
+  portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => {
     const path = `/api/watchlist?range=${range}`;
