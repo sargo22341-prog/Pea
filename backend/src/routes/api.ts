@@ -13,8 +13,8 @@ import { evaluatePeaEligibility, rankAssetForPea } from "../services/peaEligibil
 import { attachUser, clearAuthCookie, readCookie, requireAuth, setAuthCookie } from "../middleware/auth.js";
 import { authCookieName, authService } from "../services/auth.service.js";
 import { iconService } from "../services/icon.service.js";
-import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../services/importBoursorama.service.js";
-import { confirmAvisOperesImport, previewAvisOperesImport } from "../services/importAvisOperes.service.js";
+import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../services/boursorama/importBoursorama.service.js";
+import { confirmAvisOperesImport, previewAvisOperesImport } from "../services/boursorama/importAvisOperes.service.js";
 import { localPeaSearchService } from "../services/local-pea-search.service.js";
 import { logger } from "../services/logger.service.js";
 

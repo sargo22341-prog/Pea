@@ -1,10 +1,10 @@
 import type { SearchResult } from "@pea/shared";
 import type { BoursoramaUpdateRow } from "@pea/shared";
-import { db } from "../db.js";
-import { evaluatePeaEligibility, sortAssetsForPea } from "./peaEligibility.js";
-import { logger } from "./logger.service.js";
-import { portfolioService } from "./portfolio.service.js";
-import { yahooService } from "./yahoo.service.js";
+import { db } from "../../db.js";
+import { evaluatePeaEligibility, sortAssetsForPea } from "../peaEligibility.js";
+import { logger } from "../logger.service.js";
+import { portfolioService } from "../portfolio.service.js";
+import { yahooService } from "../yahoo.service.js";
 
 export interface BoursoramaRow {
   line: number;

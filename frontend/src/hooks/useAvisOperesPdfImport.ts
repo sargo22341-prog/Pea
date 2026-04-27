@@ -1,10 +1,8 @@
 import type { ParsedAvisOperation } from "@pea/shared";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
 export function useAvisOperesPdfImport() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState<ParsedAvisOperation[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
