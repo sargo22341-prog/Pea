@@ -1,17 +1,32 @@
-import type { PortfolioPerformancePoint, RangeKey } from "@pea/shared";
+/**
+ * Rôle du fichier : afficher le chart de portefeuille à partir du DTO compact
+ * pré-calculé par le backend.
+ */
+
+import type { PortfolioChartDto, RangeKey } from "@pea/shared";
 import { PriceHistoryChart } from "./charts/PriceHistoryChart";
 
 export function PortfolioChart({
-  data,
+  chart,
   range,
 }: {
-  data: PortfolioPerformancePoint[];
+  chart: PortfolioChartDto;
   range: RangeKey;
 }) {
-  const chartData = data.map((point) => ({
-    date: point.date,
-    value: point.value
-  }));
+  const chartData = toChartPoints(chart);
 
   return <PriceHistoryChart data={chartData} margin={{ left: 0, right: 0, top: 16, bottom: 0 }} minTickGap={28} oneDayTooltipFormat="time" range={range} />;
+}
+
+/**
+ * Convertit les tableaux backend en points attendus par Recharts.
+ *
+ * @param chart DTO compact du portefeuille.
+ * @returns Points date/value directement affichables.
+ */
+function toChartPoints(chart: PortfolioChartDto) {
+  return chart.timestamps.map((timestamp, index) => ({
+    date: new Date(timestamp).toISOString(),
+    value: chart.value[index] ?? null
+  }));
 }

@@ -1,6 +1,11 @@
+/**
+ * Rôle du fichier : déclarer les routes HTTP de l'API, valider les entrées et
+ * renvoyer uniquement des DTO applicatifs prêts à être affichés par le frontend.
+ */
+
 import express from "express";
 import { z } from "zod";
-import type { AssetDetails, AssetMarketInfo, DividendEvent, EnrichedSearchResult, HistoryPoint, NewsArticle, NewsLanguage, Quote } from "@pea/shared";
+import type { AssetDetails, AssetMarketInfo, DividendEvent, EnrichedSearchResult, NewsArticle, NewsLanguage, Quote } from "@pea/shared";
 import { HttpError } from "../utils/http-error.js";
 import { parseRange } from "../utils/range.js";
 import { dividendService } from "../services/dividend.service.js";
@@ -17,15 +22,28 @@ import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImpo
 import { confirmAvisOperesImport, previewAvisOperesImport } from "../services/boursorama/importAvisOperes.service.js";
 import { localPeaSearchService } from "../services/local-pea-search.service.js";
 import { logger } from "../services/logger.service.js";
+import { assetDataService } from "../services/asset-data.service.js";
 
 export const apiRouter = express.Router();
 
 const asyncRoute =
+  /**
+   * Enveloppe un handler Express asynchrone pour propager les erreurs au middleware.
+   *
+   * @param handler Handler Express pouvant retourner une promesse.
+   * @returns Handler Express compatible avec next(error).
+   */
   (handler: express.RequestHandler): express.RequestHandler =>
   (req, res, next) => {
     Promise.resolve(handler(req, res, next)).catch(next);
   };
 
+/**
+ * Extrait le fichier d'icône depuis une requête multipart brute.
+ *
+ * @param req Requête Express contenant le corps multipart.
+ * @returns Buffer et type MIME du fichier.
+ */
 function parseMultipartIcon(req: express.Request) {
   const contentType = req.headers["content-type"] ?? "";
   const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
@@ -57,6 +75,13 @@ function parseMultipartIcon(req: express.Request) {
   throw new HttpError(400, "Fichier image requis.");
 }
 
+/**
+ * Extrait une liste de fichiers depuis une requête multipart brute.
+ *
+ * @param req Requête Express contenant le corps multipart.
+ * @param fieldName Nom du champ attendu.
+ * @returns Liste des fichiers importés.
+ */
 function parseMultipartFiles(req: express.Request, fieldName: string) {
   const contentType = req.headers["content-type"] ?? "";
   const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
@@ -85,6 +110,12 @@ function parseMultipartFiles(req: express.Request, fieldName: string) {
   return files;
 }
 
+/**
+ * Nettoie les séparateurs CRLF et fins de boundary d'une partie multipart.
+ *
+ * @param part Segment brut à nettoyer.
+ * @returns Segment utile.
+ */
 function trimMultipartPart(part: Buffer) {
   let start = 0;
   let end = part.length;
@@ -93,22 +124,186 @@ function trimMultipartPart(part: Buffer) {
   return part.subarray(start, end);
 }
 
+/**
+ * Normalise la liste de langues de news demandée.
+ *
+ * @param value Paramètre query ou tableau reçu.
+ * @param fallback Langues à utiliser si aucune valeur valide n'est fournie.
+ * @returns Langues supportées par l'API.
+ */
 function parseNewsLanguages(value: unknown, fallback: NewsLanguage[] = ["fr"]): NewsLanguage[] {
   const raw = Array.isArray(value) ? value.flatMap((item) => String(item).split(",")) : String(value ?? "").split(",");
   const languages = [...new Set(raw.map((item) => item.trim().toLowerCase()).filter((item): item is NewsLanguage => item === "fr" || item === "en"))];
   return languages.length ? languages : fallback;
 }
 
+/**
+ * Lit les langues de news effectives pour un utilisateur.
+ *
+ * @param req Requête Express enrichie par l'authentification.
+ * @returns Langues à passer aux services de news.
+ */
 function userNewsLanguages(req: express.Request): NewsLanguage[] {
   return parseNewsLanguages(req.query.languages, req.user?.newsLanguages?.length ? req.user.newsLanguages : ["fr"]);
 }
 
+/**
+ * Trie les articles du plus récent au plus ancien.
+ *
+ * @param articles Articles normalisés.
+ * @returns Nouvelle liste triée.
+ */
 function sortArticlesByDateDesc(articles: NewsArticle[]) {
   return [...articles].sort((a, b) => {
     const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
     return bTime - aTime;
   });
+}
+
+/**
+ * Indique si un actif doit être ignoré pour les news spécifiques.
+ *
+ * @param asset Métadonnées minimales de l'actif.
+ * @returns true si l'actif est un ETF, fonds ou produit indiciel peu pertinent.
+ */
+function shouldSkipAssetSpecificNews(asset: { symbol: string; name?: string; quoteType?: string; assetType?: string }) {
+  const symbol = asset.symbol.toUpperCase();
+  const name = String(asset.name ?? "").toUpperCase();
+  const quoteType = String(asset.quoteType ?? "").toUpperCase();
+  const assetType = String(asset.assetType ?? "").toUpperCase();
+  return (
+    assetType === "ETF" ||
+    assetType === "FUND" ||
+    quoteType.includes("ETF") ||
+    quoteType.includes("FUND") ||
+    quoteType.includes("MUTUALFUND") ||
+    /\b(ETF|UCITS|MSCI|S&P|STOXX|AMUNDI|LYXOR|ISHARES|VANGUARD|XTRACKERS)\b/i.test(name) ||
+    ["CW8.PA", "PE500.PA", "WPEA.PA"].includes(symbol)
+  );
+}
+
+/**
+ * Nettoie un nom Yahoo pour en faire une requête news d'entreprise.
+ *
+ * @param name Nom issu de la position ou de la quote Yahoo.
+ * @param symbol Symbole utilisé comme dernier recours.
+ * @returns Requête Yahoo lisible et stable.
+ */
+function companyNewsQuery(name: string | undefined, symbol: string) {
+  return String(name || symbol)
+    .replace(/^L['’]\s*/i, "")
+    .replace(/^COMPAGNIE DE\s+/i, "")
+    .replace(/\b(SA|SE|S\.A\.|N\.V\.|NV|PLC|ORDINARY SHARES?)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\./g, "")
+    .replace(/[.,]+$/g, "")
+    .trim();
+}
+
+interface AssetNewsPositionRow {
+  id: number;
+  symbol: string;
+  name: string;
+  quantity: number;
+  average_buy_price: number;
+  currency: string;
+  updated_at: string;
+}
+
+interface AssetNewsCandidate {
+  position: AssetNewsPositionRow;
+  query: string;
+  positionValue: number;
+}
+
+const assetNewsCacheTtlSeconds = 30 * 60;
+const defaultAssetNewsLimit = 8;
+const maxAssetNewsLimit = 8;
+
+/**
+ * Lit les positions utiles aux news directement en base, sans enrichissement Yahoo.
+ *
+ * @returns Positions détenues avec les champs nécessaires au tri et au cache.
+ */
+function listAssetNewsPositionRows(): AssetNewsPositionRow[] {
+  return db.prepare("SELECT id, symbol, name, quantity, average_buy_price, currency, updated_at FROM positions ORDER BY symbol ASC").all().map((row: any) => ({
+    id: Number(row.id),
+    symbol: String(row.symbol),
+    name: String(row.name),
+    quantity: Number(row.quantity),
+    average_buy_price: Number(row.average_buy_price),
+    currency: String(row.currency),
+    updated_at: String(row.updated_at)
+  }));
+}
+
+/**
+ * Lit des métadonnées déjà persistées pour éviter quoteBatch dans /news-assets.
+ *
+ * @param symbol Symbole Yahoo Finance.
+ * @returns Type d'actif, quoteType et nom éventuellement connus localement.
+ */
+function readStoredAssetNewsMetadata(symbol: string) {
+  const key = symbol.toUpperCase();
+  const asset = db.prepare("SELECT name, type FROM assets WHERE symbol = ?").get(key) as { name?: string; type?: string } | undefined;
+  const cachedQuote = db.prepare("SELECT payload FROM cached_quotes WHERE symbol = ?").get(key) as { payload?: string } | undefined;
+  let quote: { name?: string; quoteType?: string } | undefined;
+  if (cachedQuote?.payload) {
+    try {
+      quote = JSON.parse(String(cachedQuote.payload)) as { name?: string; quoteType?: string };
+    } catch {
+      quote = undefined;
+    }
+  }
+  return {
+    name: asset?.name ?? quote?.name,
+    assetType: asset?.type,
+    quoteType: quote?.quoteType
+  };
+}
+
+/**
+ * Construit la signature de portefeuille utilisée par le cache agrégé news-assets.
+ *
+ * @param positions Positions détenues.
+ * @param languages Langues demandées.
+ * @param userId Identifiant utilisateur.
+ * @returns Clé de cache stable tant que les positions ne changent pas.
+ */
+function assetNewsAggregateCacheKey(positions: AssetNewsPositionRow[], languages: NewsLanguage[], userId: number, limit: number, offset: number) {
+  const signature = positions
+    .map((position) => `${position.symbol}:${position.quantity}:${position.average_buy_price}:${position.updated_at}`)
+    .join("|");
+  return `news:assets:v5:${userId}:${languages.join(",")}:limit:${limit}:offset:${offset}:${signature}`;
+}
+
+/**
+ * Lit le cache agrégé de /news-assets avec un TTL long.
+ *
+ * @param cacheKey Clé de cache calculée depuis le portefeuille.
+ * @returns Articles en cache ou null si le cache est absent/périmé.
+ */
+function readAssetNewsAggregateCache(cacheKey: string): NewsArticle[] | null {
+  const row = db.prepare("SELECT payload, fetched_at FROM cached_news WHERE symbol = ?").get(cacheKey) as { payload: string; fetched_at: number } | undefined;
+  if (!row) return null;
+  if (Math.floor(Date.now() / 1000) - Number(row.fetched_at) > assetNewsCacheTtlSeconds) return null;
+  return JSON.parse(String(row.payload)) as NewsArticle[];
+}
+
+/**
+ * Ecrit le cache agrégé de /news-assets.
+ *
+ * @param cacheKey Clé de cache calculée depuis le portefeuille.
+ * @param articles Articles dédupliqués à conserver.
+ * @returns Rien.
+ */
+function writeAssetNewsAggregateCache(cacheKey: string, articles: NewsArticle[]) {
+  db.prepare(
+    `INSERT INTO cached_news (symbol, payload, fetched_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(symbol) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
+  ).run(cacheKey, JSON.stringify(articles), Math.floor(Date.now() / 1000));
 }
 
 apiRouter.use(attachUser);
@@ -276,8 +471,7 @@ apiRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
 }));
 
 apiRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
-  const result = await yahooService.history(req.params.symbol, parseRange(req.query.range));
-  res.json(result.data);
+  res.json(await assetDataService.chart(req.params.symbol, parseRange(req.query.range)));
 }));
 
 apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
@@ -295,27 +489,86 @@ apiRouter.get("/news-global", asyncRoute(async (req, res) => {
 }));
 
 apiRouter.get("/news-assets", asyncRoute(async (req, res) => {
+  const startedAt = performance.now();
+  const limit = Math.min(maxAssetNewsLimit, Math.max(1, z.coerce.number().int().optional().default(defaultAssetNewsLimit).parse(req.query.limit)));
+  const offset = Math.max(0, z.coerce.number().int().optional().default(0).parse(req.query.offset));
   if (!req.user!.assetNewsEnabled) {
-    res.json([]);
+    res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;
   }
-  const positions = portfolioService.listPositions();
+  const positions = listAssetNewsPositionRows();
   if (!positions.length) {
-    res.json([]);
+    res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;
   }
+  const languages = userNewsLanguages(req);
+
   const positionsBySymbol = new Map(positions.map((position) => [position.symbol.toUpperCase(), position]));
+  let skippedEtfFunds = 0;
+  const candidates: AssetNewsCandidate[] = [];
+  for (const position of positions) {
+    const metadata = readStoredAssetNewsMetadata(position.symbol);
+    const skip = shouldSkipAssetSpecificNews({
+      symbol: position.symbol,
+      name: metadata.name ?? position.name,
+      quoteType: metadata.quoteType,
+      assetType: metadata.assetType
+    });
+    if (skip) {
+      skippedEtfFunds += 1;
+      logger.debug("news", "asset news skipped ETF/fund", { symbol: position.symbol, name: metadata.name ?? position.name, quoteType: metadata.quoteType, assetType: metadata.assetType });
+      continue;
+    }
+    candidates.push({
+      position,
+      query: companyNewsQuery(metadata.name ?? position.name, position.symbol),
+      positionValue: Number(position.quantity) * Number(position.average_buy_price)
+    });
+  }
+  const sortedCandidates = candidates.sort((a, b) => b.positionValue - a.positionValue);
+  const stockPositions = sortedCandidates.slice(offset, offset + limit);
+  const hasMore = offset + limit < sortedCandidates.length;
+  const aggregateCacheKey = assetNewsAggregateCacheKey(positions, languages, req.user!.id, limit, offset);
+  const cachedArticles = readAssetNewsAggregateCache(aggregateCacheKey);
+  if (cachedArticles) {
+    logger.debug("news", "asset news aggregate cache-hit", {
+      quoteBatchUsed: false,
+      totalPositions: positions.length,
+      skippedEtfFunds,
+      candidateStocks: sortedCandidates.length,
+      offset,
+      limit,
+      queriedStocks: stockPositions.length,
+      articles: cachedArticles.length,
+      hasMore,
+      durationMs: Math.round(performance.now() - startedAt)
+    });
+    res.json({ articles: cachedArticles, limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
+    return;
+  }
+  logger.debug("news", "asset news optimized plan", {
+    quoteBatchUsed: false,
+    totalPositions: positions.length,
+    skippedEtfFunds,
+    candidateStocks: sortedCandidates.length,
+    offset,
+    limit,
+    hasMore,
+    queriedStocks: stockPositions.length,
+    queries: stockPositions.map((candidate) => `${candidate.position.symbol}:${candidate.query}`).join(",")
+  });
+
   const results = await Promise.all(
-    positions.map((position) =>
-      yahooService.news(position.symbol, userNewsLanguages(req)).catch((error) => {
-        logger.warn("news", "asset feed fallback", { symbol: position.symbol, error: error instanceof Error ? error.message : String(error) });
+    stockPositions.map((candidate) => {
+      return yahooService.companyNews(candidate.position.symbol, candidate.query, languages).catch((error) => {
+        logger.warn("news", "asset company feed fallback", { symbol: candidate.position.symbol, query: candidate.query, error: error instanceof Error ? error.message : String(error) });
         return { data: [] as NewsArticle[] };
-      })
-    )
+      });
+    })
   );
   const articlesByUrl = new Map<string, NewsArticle>();
-  for (let index = 0; index < positions.length; index += 1) {
-    const position = positions[index];
+  for (let index = 0; index < stockPositions.length; index += 1) {
+    const position = stockPositions[index].position;
     for (const article of results[index].data) {
       const existing = articlesByUrl.get(article.url);
       const relatedAssets = existing?.relatedAssets ?? [];
@@ -325,7 +578,21 @@ apiRouter.get("/news-assets", asyncRoute(async (req, res) => {
       articlesByUrl.set(article.url, { ...(existing ?? article), relatedAssets });
     }
   }
-  res.json(sortArticlesByDateDesc([...articlesByUrl.values()]).slice(0, 200));
+  const articles = sortArticlesByDateDesc([...articlesByUrl.values()]).slice(0, 200);
+  writeAssetNewsAggregateCache(aggregateCacheKey, articles);
+  logger.debug("news", "asset news timing", {
+    quoteBatchUsed: false,
+    totalPositions: positions.length,
+    skippedEtfFunds,
+    candidateStocks: sortedCandidates.length,
+    offset,
+    limit,
+    queriedStocks: stockPositions.length,
+    hasMore,
+    articles: articles.length,
+    durationMs: Math.round(performance.now() - startedAt)
+  });
+  res.json({ articles, limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
 }));
 
 apiRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
@@ -454,10 +721,23 @@ apiRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
   res.json(await portfolioService.performance(range));
 }));
 
+apiRouter.get("/portfolio/chart", asyncRoute(async (req, res) => {
+  const range = parseRange(req.query.range);
+  logger.debug("portfolio", "chart requested", { range, userId: req.user!.id });
+  res.json(await portfolioService.chart(range, req.user!.id));
+}));
+
 apiRouter.get("/portfolio/positions/performance", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "positions performance requested", { range, userId: req.user!.id });
   res.json(await portfolioService.positionsPerformance(range));
+}));
+
+apiRouter.get("/portfolio/positions/:id/performance", asyncRoute(async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const range = parseRange(req.query.range);
+  logger.debug("portfolio", "single position performance requested", { range, userId: req.user!.id, positionId: id });
+  res.json(await portfolioService.singlePositionPerformance(id, range));
 }));
 
 apiRouter.get("/portfolio/dividends", asyncRoute(async (_req, res) => {
@@ -565,12 +845,12 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   });
   const quote: Quote = quoteResult.data;
 
-  const [historyResult, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
-    yahooService.history(symbol, range).catch((error) => {
-      if (!isMarketDataUnavailable(error)) throw error;
-      marketUnavailable = true;
-      return { data: [] as HistoryPoint[] };
-    }),
+  const [assetStatic, assetChart, assetDividends, assetArticles, assetMarket, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
+    assetDataService.static(symbol),
+    assetDataService.chart(symbol, range),
+    assetDataService.dividends(symbol),
+    req.user!.assetNewsEnabled ? assetDataService.articles(symbol, userNewsLanguages(req)) : Promise.resolve(undefined),
+    assetDataService.market(symbol),
     yahooService.dividends(symbol).catch((error) => {
       if (!isMarketDataUnavailable(error)) throw error;
       marketUnavailable = true;
@@ -593,7 +873,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     })
   ]);
 
-  const history = historyResult.data;
+  const history: AssetDetails["history"] = [];
   const dividends = dividendsResult.data;
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
@@ -612,21 +892,26 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const details: AssetDetails = {
     quote,
     history,
+    chart: assetChart,
     dividends,
+    dividendsDto: assetDividends,
     news,
+    articlesDto: assetArticles,
     position,
+    userAssetPosition: assetDataService.userPosition(String(req.user!.id), symbol),
     positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined,
     isInWatchlist: Boolean(watchlistRow),
-    stale: marketUnavailable || quote.stale || history.some((point) => point.stale) || dividends.some((event) => event.stale) || position?.quote?.stale,
+    stale: marketUnavailable || quote.stale || dividends.some((event) => event.stale) || position?.quote?.stale,
     peaEligibility: evaluatePeaEligibility({ ...quote, quoteType: String(quote.quoteType ?? "") }),
     peaRank: rankAssetForPea({ ...quote, quoteType: String(quote.quoteType ?? "") }),
     summary: {
-      exchange: quote.exchange,
-      marketState: quote.marketState,
-      dividendYield: quote.dividendYield,
-      dividendRate: quote.dividendRate
+      exchange: assetStatic.exchange || quote.exchange,
+      marketState: assetMarket.marketState,
+      dividendYield: assetMarket.dividendYield ?? quote.dividendYield,
+      dividendRate: assetMarket.annualDividend ?? quote.dividendRate
     },
     marketInfo,
+    market: assetMarket,
     financials,
     isEtf
   };

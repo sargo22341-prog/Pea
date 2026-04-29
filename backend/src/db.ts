@@ -1,3 +1,8 @@
+/**
+ * Rôle du fichier : initialiser la base SQLite embarquée, exposer un petit adaptateur
+ * compatible avec sql.js et créer les tables nécessaires aux données utilisateur et caches.
+ */
+
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -14,12 +19,25 @@ const wasmPath = require.resolve("sql.js/dist/sql-wasm.wasm");
 const SQL = await initSqlJs({ locateFile: () => wasmPath });
 const fileBuffer = fs.existsSync(config.sqlitePath) ? fs.readFileSync(config.sqlitePath) : undefined;
 
+/**
+ * Encapsule une requête préparée sql.js pour uniformiser les méthodes get/all/run.
+ *
+ * @param database Adaptateur chargé de persister la base après écriture.
+ * @param statement Requête préparée par sql.js.
+ * @returns Instance capable d'exécuter la requête avec des paramètres liés.
+ */
 class PreparedStatement {
   constructor(
     private database: DatabaseAdapter,
     private statement: Statement
   ) {}
 
+  /**
+   * Retourne la première ligne produite par la requête.
+   *
+   * @param params Valeurs liées aux marqueurs SQL.
+   * @returns Ligne sous forme d'objet ou undefined si aucun résultat n'existe.
+   */
   get(...params: unknown[]) {
     this.statement.bind(params as BindParams);
     const row = this.statement.step() ? this.statement.getAsObject() : undefined;
@@ -27,6 +45,12 @@ class PreparedStatement {
     return row;
   }
 
+  /**
+   * Retourne toutes les lignes produites par la requête.
+   *
+   * @param params Valeurs liées aux marqueurs SQL.
+   * @returns Liste d'objets correspondant aux lignes SQLite.
+   */
   all(...params: unknown[]) {
     this.statement.bind(params as BindParams);
     const rows: Record<string, unknown>[] = [];
@@ -35,6 +59,12 @@ class PreparedStatement {
     return rows;
   }
 
+  /**
+   * Exécute une requête d'écriture puis force la persistance du fichier SQLite.
+   *
+   * @param params Valeurs liées aux marqueurs SQL.
+   * @returns Rien.
+   */
   run(...params: unknown[]) {
     this.statement.bind(params as BindParams);
     this.statement.step();
@@ -43,6 +73,12 @@ class PreparedStatement {
   }
 }
 
+/**
+ * Fournit une façade minimale autour de sql.js avec persistance automatique sur disque.
+ *
+ * @param buffer Contenu SQLite existant, lorsqu'un fichier de base est déjà présent.
+ * @returns Adaptateur de base utilisé par les services backend.
+ */
 class DatabaseAdapter {
   private database: SqlJsDatabase;
 
@@ -50,15 +86,32 @@ class DatabaseAdapter {
     this.database = buffer ? new SQL.Database(buffer) : new SQL.Database();
   }
 
+  /**
+   * Exécute un bloc SQL complet et sauvegarde la base.
+   *
+   * @param sql Instructions SQL à appliquer.
+   * @returns Rien.
+   */
   exec(sql: string) {
     this.database.exec(sql);
     this.persist();
   }
 
+  /**
+   * Prépare une requête SQL paramétrable.
+   *
+   * @param sql Requête SQL avec marqueurs éventuels.
+   * @returns Requête préparée via l'adaptateur local.
+   */
   prepare(sql: string) {
     return new PreparedStatement(this, this.database.prepare(sql));
   }
 
+  /**
+   * Sauvegarde l'état courant de sql.js dans le fichier configuré.
+   *
+   * @returns Rien.
+   */
   persist() {
     fs.writeFileSync(config.sqlitePath, Buffer.from(this.database.export()));
   }
@@ -180,6 +233,79 @@ db.exec(`
     exchange TEXT,
     currency TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS assets (
+    symbol TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    exchange TEXT NOT NULL,
+    country TEXT,
+    sector TEXT,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS user_assets (
+    user_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    average_price REAL NOT NULL,
+    transaction_count INTEGER NOT NULL,
+    total_fees REAL NOT NULL,
+    invested_amount REAL NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY(user_id, symbol)
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_static_cache (
+    symbol TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_market_cache (
+    symbol TEXT PRIMARY KEY,
+    market_state TEXT,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_chart_cache (
+    cache_key TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    range TEXT NOT NULL,
+    interval TEXT NOT NULL,
+    market_state TEXT,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_dividend_cache (
+    symbol TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_article_cache (
+    symbol TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS portfolio_chart_cache (
+    cache_key TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    range TEXT NOT NULL,
+    market_state TEXT,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
   );
 `);
 

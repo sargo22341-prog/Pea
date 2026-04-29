@@ -1,3 +1,8 @@
+/**
+ * Rôle du fichier : encapsuler les appels Yahoo Finance, normaliser les réponses
+ * en objets applicatifs et gérer le cache brut interne avant transformation DTO.
+ */
+
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
 import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
@@ -55,6 +60,23 @@ function cacheIsStale(symbol: string, exchange: string | undefined, fetchedAtSec
   return nowSeconds() - fetchedAtSeconds > ttlSeconds;
 }
 
+/**
+ * Détermine si un cache historique court terme doit être remplacé.
+ *
+ * @param symbol Symbole Yahoo Finance.
+ * @param range Range historique demandée.
+ * @param fetchedAtSeconds Date de cache en secondes.
+ * @returns true si le cache date d'avant la dernière clôture ou si le marché est ouvert.
+ */
+function historyCacheIsStale(symbol: string, range: RangeKey, fetchedAtSeconds: number) {
+  if (range !== "1d" && range !== "1w") {
+    return nowSeconds() - fetchedAtSeconds > 60 * 60;
+  }
+  if (isMarketOpen(symbol)) return true;
+  const lastCloseAtSeconds = Math.floor(getLastTradingDay(symbol).period2.getTime() / 1000);
+  return fetchedAtSeconds < lastCloseAtSeconds;
+}
+
 function exchangeFromCachedPayload(payload: unknown) {
   if (payload && typeof payload === "object" && "exchange" in payload) {
     const exchange = (payload as { exchange?: unknown }).exchange;
@@ -81,7 +103,7 @@ function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttl
     | undefined;
 
   if (!row) return null;
-  const stale = cacheIsStale(symbol, undefined, Number(row.fetched_at), ttlSeconds);
+  const stale = range === "1w" ? historyCacheIsStale(symbol, range, Number(row.fetched_at)) : cacheIsStale(symbol, undefined, Number(row.fetched_at), ttlSeconds);
   return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(String(row.payload)) as HistoryPoint[]), stale };
 }
 
@@ -104,7 +126,7 @@ function readIntradayCache(symbol: string, tradingDay = getCurrentTradingDay(sym
     };
   }
 
-  const stale = isMarketOpen(symbol) && (String(row.trading_day) !== tradingDay || nowSeconds() - Number(row.last_updated_at) > 90);
+  const stale = historyCacheIsStale(symbol, "1d", Number(row.last_updated_at));
   return {
     data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
     stale,
@@ -132,6 +154,34 @@ function writeCache(table: CacheTable, symbol: string, payload: unknown) {
      VALUES (?, ?, ?)
      ON CONFLICT(symbol) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
   ).run(symbol.toUpperCase(), JSON.stringify(payload), nowSeconds());
+}
+
+/**
+ * Transforme une quote Yahoo brute en DTO léger utilisé par l'application.
+ *
+ * @param item Quote brute renvoyée par yahoo-finance2.
+ * @param fallbackSymbol Symbole attendu lorsque Yahoo ne le renvoie pas.
+ * @returns Quote normalisée et prête à cacher.
+ */
+function normalizeQuote(item: any, fallbackSymbol: string): Quote {
+  const key = String(item?.symbol ?? fallbackSymbol).toUpperCase();
+  const price = Number(item.regularMarketPrice ?? item.postMarketPrice ?? item.preMarketPrice ?? 0);
+  const previousClose = item.regularMarketPreviousClose ? Number(item.regularMarketPreviousClose) : undefined;
+  return {
+    symbol: key,
+    name: item.longName ?? item.shortName ?? key,
+    price,
+    previousClose,
+    change: item.regularMarketChange ? Number(item.regularMarketChange) : price - (previousClose ?? price),
+    changePercent: item.regularMarketChangePercent ? Number(item.regularMarketChangePercent) : undefined,
+    currency: item.currency ?? "EUR",
+    exchange: item.fullExchangeName ?? item.exchange,
+    quoteType: item.quoteType,
+    marketState: item.marketState,
+    dividendRate: item.trailingAnnualDividendRate ? Number(item.trailingAnnualDividendRate) : undefined,
+    dividendYield: item.trailingAnnualDividendYield ? Number(item.trailingAnnualDividendYield) : undefined,
+    logoUrl: item.logoUrl
+  };
 }
 
 function readNewsCache(cacheKey: string): MarketDataResult<NewsArticle[]> | null {
@@ -179,6 +229,18 @@ function intradayCacheKey(symbol: string, tradingDay: string) {
 
 function newsCacheKey(symbol: string, language: NewsLanguage) {
   return `news:ticker:${symbol.toUpperCase()}:${language}`;
+}
+
+/**
+ * Construit une clé de cache pour une recherche news directe par nom d'entreprise.
+ *
+ * @param symbol Symbole Yahoo Finance de l'actif.
+ * @param language Langue de recherche.
+ * @param companyName Nom utilisé dans la requête Yahoo.
+ * @returns Clé de cache séparée du flux ticker historique.
+ */
+function companyNewsCacheKey(symbol: string, language: NewsLanguage, companyName: string) {
+  return `news:company:${symbol.toUpperCase()}:${language}:${normalizeSearchText(companyName).slice(0, 80)}`;
 }
 
 function globalNewsCacheKey(language: NewsLanguage) {
@@ -680,32 +742,103 @@ export class YahooService implements MarketDataProvider {
       `quote:${key}`,
       async () => {
         const item = (await yahoo.quote(key)) as any;
-        const price = Number(item.regularMarketPrice ?? item.postMarketPrice ?? item.preMarketPrice ?? 0);
-        const previousClose = item.regularMarketPreviousClose ? Number(item.regularMarketPreviousClose) : undefined;
-
-        const quote: Quote = {
-          symbol: key,
-          name: item.longName ?? item.shortName ?? key,
-          price,
-          previousClose,
-          change: item.regularMarketChange ? Number(item.regularMarketChange) : price - (previousClose ?? price),
-          changePercent: item.regularMarketChangePercent ? Number(item.regularMarketChangePercent) : undefined,
-          currency: item.currency ?? "EUR",
-          exchange: item.fullExchangeName ?? item.exchange,
-          quoteType: item.quoteType,
-          marketState: item.marketState,
-          dividendRate: item.trailingAnnualDividendRate ? Number(item.trailingAnnualDividendRate) : undefined,
-          dividendYield: item.trailingAnnualDividendYield ? Number(item.trailingAnnualDividendYield) : undefined,
-          logoUrl: item.logoUrl
-        };
-
-        return quote;
+        return normalizeQuote(item, key);
       },
       () => readCache<Quote>("cached_quotes", key, config.yahooCacheTtlSeconds),
       (data) => writeCache("cached_quotes", key, data)
     );
 
     return { data: markStale(result.data, result.stale), stale: result.stale };
+  }
+
+  /**
+   * Récupère plusieurs quotes en utilisant le batch natif yahoo-finance2 quote(string[]).
+   *
+   * @param symbols Symboles détenus par le portefeuille ou demandés par une recherche.
+   * @returns Quotes normalisées, avec cache par symbole et logs de batch.
+   */
+  async quoteBatch(symbols: string[]): Promise<MarketDataResult<Quote[]>> {
+    const keys = [...new Set(symbols.map((symbol) => String(symbol ?? "").trim().toUpperCase()).filter(Boolean))];
+    if (!keys.length) return { data: [], stale: false };
+
+    const cachedQuotes = new Map<string, Quote>();
+    const staleCachedQuotes = new Map<string, Quote>();
+    const symbolsToFetch: string[] = [];
+    for (const key of keys) {
+      const cached = readCache<Quote>("cached_quotes", key, config.yahooCacheTtlSeconds);
+      if (cached && !cached.stale) {
+        cachedQuotes.set(key, markStale(cached.data, false));
+        logMarketData("cache-hit", { provider: "local-cache", method: "quoteBatch", symbol: key, stale: false, durationMs: 0 });
+      } else {
+        if (cached) staleCachedQuotes.set(key, markStale(cached.data, true));
+        symbolsToFetch.push(key);
+      }
+    }
+
+    if (!symbolsToFetch.length) {
+      logger.debug("market-data", "quote batch fully cached", { symbols: keys.join(","), totalSymbols: keys.length, cacheHits: cachedQuotes.size });
+      return { data: keys.map((key) => cachedQuotes.get(key)!).filter(Boolean), stale: false };
+    }
+
+    const yahooStartedAt = performance.now();
+    try {
+      const fetchedRows = (await dedupeInFlight(`quoteBatch:${symbolsToFetch.sort().join(",")}`, async () => {
+        logMarketData("external-fetch-start", {
+          provider: "Yahoo Finance",
+          method: "quoteBatch",
+          symbol: symbolsToFetch.join(","),
+          batchSymbols: symbolsToFetch.length
+        });
+        const payload = await retryTemporary(`quoteBatch:${symbolsToFetch.join(",")}`, () =>
+          yahoo.quote(symbolsToFetch, { return: "array" } as any)
+        );
+        logMarketData("external-fetch-ok", {
+          provider: "Yahoo Finance",
+          method: "quoteBatch",
+          symbol: symbolsToFetch.join(","),
+          batchSymbols: symbolsToFetch.length,
+          durationMs: roundMs(yahooStartedAt)
+        });
+        return payload;
+      })) as any[];
+
+      const fetchedQuotes = new Map<string, Quote>();
+      for (const row of fetchedRows) {
+        if (!row?.symbol) continue;
+        const quote = normalizeQuote(row, String(row.symbol));
+        fetchedQuotes.set(quote.symbol, quote);
+        writeCache("cached_quotes", quote.symbol, quote);
+      }
+
+      logger.debug("market-data", "quote batch summary", {
+        requestedSymbols: keys.join(","),
+        fetchedSymbols: symbolsToFetch.join(","),
+        totalSymbols: keys.length,
+        cacheHits: cachedQuotes.size,
+        fetchedCount: fetchedQuotes.size,
+        durationMs: Math.round(performance.now() - yahooStartedAt)
+      });
+
+      const data = keys
+        .map((key) => fetchedQuotes.get(key) ?? cachedQuotes.get(key) ?? staleCachedQuotes.get(key))
+        .filter((quote): quote is Quote => Boolean(quote));
+      return { data, stale: data.some((quote) => quote.stale) || data.length < keys.length };
+    } catch (error) {
+      logMarketData("external-fetch-error", {
+        provider: "Yahoo Finance",
+        method: "quoteBatch",
+        symbol: symbolsToFetch.join(","),
+        batchSymbols: symbolsToFetch.length,
+        durationMs: roundMs(yahooStartedAt)
+      });
+      logger.warn("market-data", "Yahoo quote batch error", { symbols: symbolsToFetch.join(","), error: errorMessage(error) });
+
+      const fallbackQuotes = keys
+        .map((key) => cachedQuotes.get(key) ?? staleCachedQuotes.get(key))
+        .filter((quote): quote is Quote => Boolean(quote));
+      if (fallbackQuotes.length) return { data: fallbackQuotes.map((quote) => markStale(quote, true)), stale: true };
+      throw toYahooHttpError(error);
+    }
   }
 
   async fundamentals(symbol: string): Promise<MarketDataResult<any>> {
@@ -758,22 +891,7 @@ export class YahooService implements MarketDataProvider {
       })) as any[];
       const payload: Quote[] = rows
         .filter((item) => item?.symbol)
-        .map((item) => {
-          const price = Number(item.regularMarketPrice ?? item.postMarketPrice ?? item.preMarketPrice ?? 0);
-          const previousClose = item.regularMarketPreviousClose ? Number(item.regularMarketPreviousClose) : undefined;
-          return {
-            symbol: String(item.symbol).toUpperCase(),
-            name: item.longName ?? item.shortName ?? item.symbol,
-            price,
-            previousClose,
-            change: item.regularMarketChange ? Number(item.regularMarketChange) : price - (previousClose ?? price),
-            changePercent: item.regularMarketChangePercent ? Number(item.regularMarketChangePercent) : undefined,
-            currency: item.currency ?? "EUR",
-            exchange: item.fullExchangeName ?? item.exchange,
-            quoteType: item.quoteType,
-            marketState: item.marketState
-          };
-        });
+        .map((item) => normalizeQuote(item, String(item.symbol)));
       quoteCombineCache.set(cacheKey, { payload, fetchedAt: nowSeconds() });
       return { data: payload, stale: false };
     } catch (error) {
@@ -895,6 +1013,21 @@ export class YahooService implements MarketDataProvider {
     return { data, stale: results.some((result) => result.stale) };
   }
 
+  /**
+   * Cherche les news d'une action directement par nom d'entreprise.
+   *
+   * @param symbol Symbole Yahoo Finance utilisé pour filtrer et rattacher les articles.
+   * @param companyName Nom d'entreprise à envoyer à Yahoo Search.
+   * @param languages Langues activées par l'utilisateur.
+   * @returns Articles filtrés sans tentative préalable par ticker.
+   */
+  async companyNews(symbol: string, companyName: string, languages?: NewsLanguage[]): Promise<MarketDataResult<NewsArticle[]>> {
+    const activeLanguages = normalizeNewsLanguages(languages);
+    const results = await Promise.all(activeLanguages.map((language) => this.companyNewsByLanguage(symbol, companyName, language)));
+    const data = sortNewsByDateDesc(dedupeNewsArticles(results.flatMap((result) => result.data)));
+    return { data, stale: results.some((result) => result.stale) };
+  }
+
   async globalNews(page: number, languages?: NewsLanguage[]): Promise<NewsFeedPage> {
     const pageSize = 20;
     const activeLanguages = normalizeNewsLanguages(languages);
@@ -959,6 +1092,44 @@ export class YahooService implements MarketDataProvider {
     } catch (error) {
       logger.warn("news", "Yahoo news error", { symbol: key, language, error: errorMessage(error) });
       return { data: [], stale: false };
+    }
+  }
+
+  /**
+   * Récupère les news d'une entreprise avec une seule recherche Yahoo par langue.
+   *
+   * @param symbol Symbole Yahoo Finance.
+   * @param companyName Nom d'entreprise à chercher.
+   * @param language Langue Yahoo à utiliser.
+   * @returns Articles filtrés par mots-clés d'entreprise.
+   */
+  private async companyNewsByLanguage(symbol: string, companyName: string, language: NewsLanguage): Promise<MarketDataResult<NewsArticle[]>> {
+    const key = symbol.trim().toUpperCase();
+    const query = companyName.trim();
+    if (!key || !query) return { data: [], stale: false };
+
+    const cacheKey = companyNewsCacheKey(key, language, query);
+    const cached = readNewsCache(cacheKey);
+    if (cached && !cached.stale) {
+      logger.debug("news", "company cache-hit", { symbol: key, language, query, count: cached.data.length });
+      return cached;
+    }
+
+    const options = newsOptions(language);
+    try {
+      const result = (await dedupeInFlight(`news:company:${key}:${language}:${query}`, async () => {
+        logger.debug("news", "company yahoo-call", { symbol: key, language, query, options });
+        return retryTemporary(`news:company:${key}:${language}:${query}`, () => yahoo.search(query, options as any));
+      })) as any;
+
+      const articles = normalizeNewsArticles(result?.news);
+      const payload = filterNewsByFallbackKeywords(key, query, articles);
+      logger.debug("news", "company filtered", { symbol: key, language, query, beforeCount: articles.length, afterCount: payload.length });
+      writeNewsCache(cacheKey, payload);
+      return { data: payload, stale: false };
+    } catch (error) {
+      logger.warn("news", "Yahoo company news error", { symbol: key, language, query, error: errorMessage(error) });
+      return { data: cached?.data ?? [], stale: Boolean(cached) };
     }
   }
 

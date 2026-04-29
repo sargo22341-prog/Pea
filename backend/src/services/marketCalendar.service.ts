@@ -1,3 +1,8 @@
+/**
+ * Rôle du fichier : décrire les calendriers de marché utilisés par le backend
+ * pour décider quand rafraîchir les caches financiers.
+ */
+
 import holidays from "../data/market-holidays.json" with { type: "json" };
 import type { RangeKey } from "@pea/shared";
 
@@ -125,8 +130,21 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
   };
 }
 
+/**
+ * Décide si une donnée de marché doit être rafraîchie selon la range demandée.
+ *
+ * @param symbol Symbole Yahoo Finance.
+ * @param exchange Place de cotation optionnelle.
+ * @param cacheUpdatedAt Date du cache en millisecondes.
+ * @param range Range historique demandée.
+ * @returns true si le cache ne couvre pas la dernière clôture ou si le marché est ouvert.
+ */
 export function shouldRefreshMarketData(symbol: string, exchange: string | undefined, cacheUpdatedAt: number | undefined, range: RangeKey) {
+  if (!cacheUpdatedAt) return true;
+  if (range === "1d" || range === "1w") {
+    if (isMarketOpen(symbol, exchange)) return true;
+    return cacheUpdatedAt < getLastTradingDay(symbol, exchange).period2.getTime();
+  }
   if (!isMarketOpen(symbol, exchange)) return false;
-  if (range !== "1d") return !cacheUpdatedAt || Date.now() - cacheUpdatedAt > 60 * 60 * 1000;
-  return !cacheUpdatedAt || Date.now() - cacheUpdatedAt > 90 * 1000;
+  return Date.now() - cacheUpdatedAt > 60 * 60 * 1000;
 }

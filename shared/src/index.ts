@@ -1,4 +1,11 @@
+/**
+ * Rôle du fichier : centraliser les contrats TypeScript partagés entre le backend
+ * et le frontend afin que les DTO renvoyés par l'API restent cohérents.
+ */
+
 export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "max";
+export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "MAX";
+export type MarketState = "OPEN" | "CLOSED" | "PRE" | "POST";
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
 export type SortDirection = "asc" | "desc";
 export type NewsLanguage = "fr" | "en";
@@ -89,6 +96,101 @@ export interface AssetMarketInfo {
   exDividendDate?: string;
 }
 
+export interface AssetStaticDto {
+  symbol: string;
+  name: string;
+  type: "stock" | "etf";
+  currency: string;
+  exchange: string;
+  country?: string;
+  sector?: string;
+}
+
+export interface UserAssetPositionDto {
+  userId: string;
+  symbol: string;
+  quantity: number;
+  averagePrice: number;
+  transactionCount: number;
+  totalFees: number;
+  investedAmount: number;
+}
+
+export interface AssetChartDto {
+  symbol: string;
+  range: DisplayRangeKey;
+  interval: string;
+  timestamps: number[];
+  prices: number[];
+  performanceEuro?: number;
+  performancePercent?: number;
+  marketState?: MarketState;
+  cachedAt: number;
+  expiresAt: number;
+}
+
+export interface PortfolioChartDto {
+  userId: string;
+  range: DisplayRangeKey;
+  timestamps: number[];
+  value: number[];
+  invested: number[];
+  gain: number[];
+  gainPercent: number[];
+  performanceEuro: number;
+  performancePercent: number;
+  marketState?: MarketState;
+  cachedAt: number;
+  expiresAt: number;
+}
+
+export interface AssetMarketDto {
+  symbol: string;
+  marketState: MarketState;
+  dayChange: number;
+  dayChangePercent: number;
+  volume: number;
+  avgVolume3M?: number;
+  week52Low?: number;
+  week52High?: number;
+  dividendYield?: number;
+  annualDividend?: number;
+  exDividendDate?: string;
+  revenue?: number;
+  netIncome?: number;
+  netMargin?: number;
+  cachedAt: number;
+  expiresAt: number;
+}
+
+export interface AssetDividendsDto {
+  symbol: string;
+  totalDividends?: number;
+  annualDividend?: number;
+  dividendYield?: number;
+  exDate?: string;
+  history: Array<{
+    date: string;
+    amount: number;
+  }>;
+  cachedAt: number;
+  expiresAt: number;
+}
+
+export interface AssetArticlesDto {
+  symbol: string;
+  articles: Array<{
+    title: string;
+    url: string;
+    source: string;
+    publishedAt: string;
+    imageUrl?: string;
+    summary?: string;
+  }>;
+  cachedAt: number;
+  expiresAt: number;
+}
+
 export interface HistoryPoint {
   date: string;
   open?: number;
@@ -128,6 +230,15 @@ export interface NewsFeedPage {
   pageSize: number;
   total: number;
   totalPages: number;
+}
+
+export interface NewsAssetsPage {
+  articles: NewsArticle[];
+  limit: number;
+  offset: number;
+  totalAssets: number;
+  queriedAssets: number;
+  hasMore: boolean;
 }
 
 export interface Position {
@@ -199,6 +310,9 @@ export interface PortfolioSummary {
 export interface PortfolioPerformancePoint {
   date: string;
   value: number;
+  invested?: number;
+  gain?: number;
+  gainPercent?: number;
   stale?: boolean;
 }
 
@@ -305,13 +419,18 @@ export interface UpdatePositionInput {
 export interface AssetDetails {
   quote: Quote;
   history: HistoryPoint[];
+  chart?: AssetChartDto;
   dividends: DividendEvent[];
+  dividendsDto?: AssetDividendsDto;
   news: NewsArticle[];
+  articlesDto?: AssetArticlesDto;
   position?: PositionWithMarket;
+  userAssetPosition?: UserAssetPositionDto;
   positionStats?: PositionTransactionStats;
   isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
   marketInfo?: AssetMarketInfo;
+  market?: AssetMarketDto;
   financials?: FinancialYearItem[];
   isEtf?: boolean;
   peaEligibility: PeaEligibilityResult;

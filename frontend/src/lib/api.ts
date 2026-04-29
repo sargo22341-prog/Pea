@@ -1,5 +1,11 @@
+/**
+ * Rôle du fichier : centraliser les appels HTTP frontend vers l'API backend et
+ * typer les réponses déjà transformées en DTO légers.
+ */
+
 import type {
   AssetDetails,
+  AssetChartDto,
   AssetIcon,
   AuthMe,
   BoursoramaImportRow,
@@ -9,13 +15,14 @@ import type {
   DividendEvent,
   EditablePortfolioTransaction,
   EnrichedSearchResult,
-  HistoryPoint,
   NewsArticle,
+  NewsAssetsPage,
   NewsFeedPage,
   NewsLanguage,
   PortfolioDividends,
   PortfolioAnalysis,
   PortfolioPerformancePoint,
+  PortfolioChartDto,
   PositionRangePerformance,
   PortfolioSummary,
   ParsedAvisOperation,
@@ -31,10 +38,22 @@ import type {
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const inFlightRequests = new Map<string, Promise<unknown>>();
 
+/**
+ * Crée une erreur standardisée lorsqu'une requête est annulée.
+ *
+ * @returns Erreur DOM compatible avec les traitements React.
+ */
 function abortError() {
   return new DOMException("Requete annulee", "AbortError");
 }
 
+/**
+ * Associe un signal d'annulation à une promesse existante.
+ *
+ * @param promise Promesse d'appel API.
+ * @param signal Signal optionnel fourni par un hook.
+ * @returns Promesse annulable.
+ */
 function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return Promise.reject(abortError());
@@ -47,6 +66,13 @@ function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   ]);
 }
 
+/**
+ * Déduplique les requêtes GET simultanées vers le même chemin.
+ *
+ * @param path Chemin API relatif.
+ * @param signal Signal d'annulation optionnel.
+ * @returns Promesse partagée tant que la requête est en vol.
+ */
 function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
   let existing = inFlightRequests.get(path) as Promise<T> | undefined;
   if (!existing) {
@@ -59,6 +85,13 @@ function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
   return withAbort(existing, signal);
 }
 
+/**
+ * Exécute un appel HTTP avec gestion JSON, cookies et erreurs applicatives.
+ *
+ * @param path Chemin API relatif.
+ * @param init Options fetch optionnelles.
+ * @returns Corps JSON typé ou undefined pour les réponses 204.
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = init?.body instanceof FormData ? init?.headers : { "Content-Type": "application/json", ...init?.headers };
   const response = await fetch(`${baseUrl}${path}`, {
@@ -85,11 +118,12 @@ export const api = {
     request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
   history: (symbol: string, range: RangeKey) =>
-    request<HistoryPoint[]>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
+    request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
   news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
   globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal }),
-  assetNews: (signal?: AbortSignal) => request<NewsArticle[]>("/api/news-assets", { signal }),
+  assetNews: (limit = 8, offset = 0, signal?: AbortSignal) =>
+    request<NewsAssetsPage>(`/api/news-assets?limit=${limit}&offset=${offset}`, { signal }),
   portfolio: (range?: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   addPosition: (input: CreatePositionInput) =>
@@ -110,8 +144,12 @@ export const api = {
   deletePositionTransaction: (positionId: number, transactionId: string) =>
     request<void>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, { method: "DELETE" }),
   performance: (range: RangeKey) => request<PortfolioPerformancePoint[]>(`/api/portfolio/performance?range=${range}`),
+  portfolioChart: (range: RangeKey, signal?: AbortSignal) =>
+    dedupedRequest<PortfolioChartDto>(`/api/portfolio/chart?range=${range}`, signal),
   positionsPerformance: (range: RangeKey) =>
     request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
+  positionPerformance: (id: number, range: RangeKey, signal?: AbortSignal) =>
+    request<PositionRangePerformance>(`/api/portfolio/positions/${id}/performance?range=${range}`, { signal }),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),

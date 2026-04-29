@@ -1,7 +1,13 @@
-import type { DashboardSortKey, PositionRangePerformance, RangeKey, SortDirection } from "@pea/shared";
+/**
+ * Rôle du fichier : afficher la liste des positions avec un chargement paresseux
+ * ligne par ligne pour réduire le travail initial du Dashboard.
+ */
+
+import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../lib/api";
 import { formatRangeLabel, money, percent } from "../lib/format";
 import { AssetIcon } from "./AssetIcon";
 
@@ -20,7 +26,7 @@ export function PositionList({
   defaultSortKey = "name",
   defaultSortDirection = "asc"
 }: {
-  positions: PositionRangePerformance[];
+  positions: PositionWithMarket[];
   range: RangeKey;
   defaultSortKey?: DashboardSortKey;
   defaultSortDirection?: SortDirection;
@@ -48,10 +54,16 @@ export function PositionList({
     return [...positions].sort((a, b) => {
       const direction = sortDirection === "asc" ? 1 : -1;
       if (sortKey === "name") return a.name.localeCompare(b.name, "fr") * direction;
-      return (a[sortKey] - b[sortKey]) * direction;
+      return (sortValue(a, sortKey) - sortValue(b, sortKey)) * direction;
     });
   }, [positions, sortDirection, sortKey]);
 
+  /**
+   * Met à jour l'option de tri choisie dans le menu.
+   *
+   * @param value Valeur encodée sous la forme cle:direction.
+   * @returns Rien.
+   */
   function updateSort(value: string) {
     const [key, direction] = value.split(":") as [DashboardSortKey, SortDirection];
     setSortKey(key);
@@ -59,6 +71,12 @@ export function PositionList({
     setSortOpen(false);
   }
 
+  /**
+   * Stocke la performance chargée par une ligne visible.
+   *
+   * @param position Performance calculée par le backend.
+   * @returns Rien.
+   */
   const rangeLabel = formatRangeLabel(range);
   const activeSort = sortOptions.find((option) => option.key === sortKey && option.direction === sortDirection) ?? sortOptions[0];
   const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
@@ -104,17 +122,125 @@ export function PositionList({
         </div>
       </div>
       <div className="divide-y divide-line">
-        {sortedPositions.map((position) => {
-          const positive = position.intervalPerformanceValue >= 0;
-
-          return (
-            <Link className="block min-w-0 p-3 transition hover:bg-panel2 sm:p-4" key={position.id} to={`/assets/${position.symbol}`}>
-              <MobilePositionRow position={position} positive={positive} />
-              <DesktopPositionRow position={position} positive={positive} rangeLabel={rangeLabel} />
-            </Link>
-          );
-        })}
+        {sortedPositions.map((position) => (
+          <LazyPositionRow
+            key={`${position.id}:${range}`}
+            position={position}
+            range={range}
+            rangeLabel={rangeLabel}
+          />
+        ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Retourne la valeur de tri stable disponible dans la synthèse portefeuille.
+ *
+ * @param basePosition Position issue du résumé portefeuille.
+ * @param key Clé de tri active.
+ * @returns Nombre utilisé par le tri.
+ */
+function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey) {
+  if (key === "currentMarketValue") return basePosition.marketValue;
+  return basePosition.performancePercent;
+}
+
+/**
+ * Charge une ligne de position quand elle approche du viewport.
+ *
+ * @param props Position de base, range, libellé et callback de mémorisation.
+ * @returns Ligne skeleton ou lien complet vers l'actif.
+ */
+function LazyPositionRow({
+  position,
+  range,
+  rangeLabel,
+}: {
+  position: PositionWithMarket;
+  range: RangeKey;
+  rangeLabel: string;
+}) {
+  const [visibleSoon, setVisibleSoon] = useState(false);
+  const [loadedPosition, setLoadedPosition] = useState<PositionRangePerformance | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const target = rowRef.current;
+    if (!target || visibleSoon) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleSoon(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "360px 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [visibleSoon]);
+
+  useEffect(() => {
+    if (!visibleSoon) return undefined;
+    const controller = new AbortController();
+    setError(null);
+    api.positionPerformance(position.id, range, controller.signal)
+      .then((result) => {
+        setLoadedPosition(result);
+      })
+      .catch((caughtError) => {
+        if (!controller.signal.aborted) setError(caughtError instanceof Error ? caughtError.message : "Position indisponible");
+      });
+    return () => controller.abort();
+  }, [position.id, range, visibleSoon]);
+
+  if (!loadedPosition) {
+    return (
+      <div ref={rowRef}>
+        <PositionRowSkeleton name={position.name} symbol={position.symbol} error={error} />
+      </div>
+    );
+  }
+
+  const positive = loadedPosition.intervalPerformanceValue >= 0;
+  return (
+    <div ref={rowRef}>
+      <Link className="block min-h-[76px] min-w-0 p-3 transition hover:bg-panel2 sm:min-h-[88px] sm:p-4" to={`/assets/${loadedPosition.symbol}`}>
+        <MobilePositionRow position={loadedPosition} positive={positive} />
+        <DesktopPositionRow position={loadedPosition} positive={positive} rangeLabel={rangeLabel} />
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * Affiche une ligne réservée pendant le chargement d'une position.
+ *
+ * @param props Nom, symbole et erreur éventuelle.
+ * @returns Skeleton à hauteur stable.
+ */
+function PositionRowSkeleton({ name, symbol, error }: { name: string; symbol: string; error: string | null }) {
+  return (
+    <div className="min-h-[76px] p-3 sm:min-h-[88px] sm:p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-panel2" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-slate-200">{name}</p>
+          <p className="muted">{symbol}</p>
+        </div>
+        <div className="hidden min-w-[120px] space-y-2 lg:block">
+          <div className="ml-auto h-3 w-24 animate-pulse rounded bg-panel2" />
+          <div className="ml-auto h-3 w-32 animate-pulse rounded bg-panel2" />
+        </div>
+        <div className="min-w-[92px] space-y-2">
+          <div className="ml-auto h-3 w-20 animate-pulse rounded bg-panel2" />
+          <div className="ml-auto h-3 w-16 animate-pulse rounded bg-panel2" />
+        </div>
+      </div>
+      {error && <p className="mt-2 text-xs text-coral">{error}</p>}
     </div>
   );
 }
@@ -181,10 +307,22 @@ function DesktopPositionRow({ position, positive, rangeLabel }: { position: Posi
   );
 }
 
+/**
+ * Formate une quantité de titres en français.
+ *
+ * @param value Quantité numérique.
+ * @returns Quantité formatée.
+ */
 function formatQuantity(value: number) {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
 
+/**
+ * Affiche une paire libellé/valeur dans la ligne desktop.
+ *
+ * @param props Libellé et valeur déjà formatée.
+ * @returns Bloc texte aligné à droite.
+ */
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-right">

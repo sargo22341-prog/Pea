@@ -1,4 +1,9 @@
-import type { RangeKey, User } from "@pea/shared";
+/**
+ * Rôle du fichier : afficher le détail d'un actif avec des DTO backend prêts à
+ * l'affichage pour limiter les calculs React.
+ */
+
+import type { AssetChartDto, RangeKey, User } from "@pea/shared";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -21,7 +26,6 @@ import { PeaBadge } from "../components/PeaBadge";
 import { RangeSelector } from "../components/RangeSelector";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
-import { usePriceHistoryChart } from "../hooks/usePriceHistoryChart";
 import { api } from "../lib/api";
 import { money, percent } from "../lib/format";
 
@@ -37,9 +41,15 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
-  const historyPoints = (asset.data?.history ?? []).map((point) => ({ date: point.date, value: point.close }));
-  const historyChart = usePriceHistoryChart(historyPoints, range);
+  const chartPoints = chartDtoToPoints(asset.data?.chart);
 
+  /**
+   * Met à jour la range affichée pour le chart d'actif.
+   *
+   * @param source Origine de l'action, conservée pour instrumentation future.
+   * @param nextRange Nouvelle range demandée.
+   * @returns Rien.
+   */
   function setRange(source: string, nextRange: RangeKey) {
     setRangeState((previousRange) => {
       void source;
@@ -56,9 +66,14 @@ export function AssetDetailPage({ user }: { user: User }) {
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
-  const { quote, history, dividends, news, position, marketInfo } = asset.data;
+  const { quote, dividends, news, position, marketInfo, chart } = asset.data;
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
 
+  /**
+   * Supprime la position détenue puis redirige vers la recherche.
+   *
+   * @returns Promesse résolue après suppression.
+   */
   async function deletePosition() {
     if (!position) return;
     if (!window.confirm(`Supprimer la position ${position.symbol} ?`)) return;
@@ -67,6 +82,11 @@ export function AssetDetailPage({ user }: { user: User }) {
     navigate("/search");
   }
 
+  /**
+   * Recharge les données après modification d'une position.
+   *
+   * @returns Promesse résolue après rafraîchissement.
+   */
   async function refreshAfterEdit() {
     await asset.reload();
     setToast("Position mise à jour");
@@ -74,6 +94,11 @@ export function AssetDetailPage({ user }: { user: User }) {
   }
 
 
+  /**
+   * Ajoute ou retire l'actif de la liste de suivi.
+   *
+   * @returns Promesse résolue après synchronisation avec l'API.
+   */
   async function toggleWatchlist() {
     const next = !watchlisted;
     setWatchlisted(next);
@@ -89,7 +114,10 @@ export function AssetDetailPage({ user }: { user: User }) {
     }
   }
 
-  const { chartData, firstValue: firstClose, change: rangeChange, changePercent: rangeChangePercent, isPositive: positive } = historyChart;
+  const firstClose = chart?.prices[0];
+  const rangeChange = chart?.performanceEuro ?? 0;
+  const rangeChangePercent = chart?.performancePercent ?? 0;
+  const positive = rangeChange >= 0;
 
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
@@ -150,8 +178,8 @@ export function AssetDetailPage({ user }: { user: User }) {
         </div>
         {asset.loading ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
-        ) : history.length > 1 ? (
-          <PriceHistoryChart currency={quote.currency} data={chartData} heightClassName="h-80" range={range} />
+        ) : chartPoints.length > 1 ? (
+          <PriceHistoryChart currency={quote.currency} data={chartPoints} heightClassName="h-80" range={range} />
         ) : (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-slate-400">
             {range === "1d"
@@ -159,7 +187,7 @@ export function AssetDetailPage({ user }: { user: User }) {
               : "Données de marché indisponibles"}
           </div>
         )}
-        {range === "1d" && (history.length === 0 || asset.data.stale) && (
+        {range === "1d" && (chartPoints.length === 0 || asset.data.stale) && (
           <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
         )}
       </section>
@@ -217,5 +245,19 @@ export function AssetDetailPage({ user }: { user: User }) {
       )}
     </div>
   );
+}
+
+/**
+ * Convertit le DTO compact backend en points compatibles avec le composant chart.
+ *
+ * @param chart DTO optionnel renvoyé par le backend.
+ * @returns Points date/value sans calcul financier côté React.
+ */
+function chartDtoToPoints(chart?: AssetChartDto) {
+  if (!chart) return [];
+  return chart.timestamps.map((timestamp, index) => ({
+    date: new Date(timestamp).toISOString(),
+    value: chart.prices[index] ?? null
+  }));
 }
 
