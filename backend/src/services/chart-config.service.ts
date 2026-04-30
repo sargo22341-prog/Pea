@@ -5,11 +5,12 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import type { RangeKey } from "@pea/shared";
 import { config } from "../config.js";
 
-export type StoredChartRange = Extract<RangeKey, "1d" | "1w" | "1m" | "1y" | "ytd" | "all">;
+export type StoredChartRange = "1d" | "1w" | "1m" | "all";
 export type ChartInterval = "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "1d";
 
 const rangeAliases: Record<string, StoredChartRange> = {
@@ -18,18 +19,20 @@ const rangeAliases: Record<string, StoredChartRange> = {
   "1d": "1d",
   "1w": "1w",
   "1m": "1m",
-  "1y": "1y",
-  ytd: "ytd"
+  "1y": "all",
+  "1a": "all",
+  "5y": "all",
+  "5a": "all",
+  "10y": "all",
+  "10a": "all",
+  ytd: "all"
 };
 
 const chartConfigSchema = z.object({
   charts: z.object({
     "1d": z.object({ interval: z.enum(["5m", "15m", "30m", "1h"]) }),
     "1w": z.object({ interval: z.enum(["5m", "15m", "30m", "1h", "2h", "4h", "1d"]) }),
-    "1m": z.object({ interval: z.enum(["15m", "30m", "1h", "2h", "4h", "1d"]) }),
-    "1y": z.object({ interval: z.enum(["1d"]) }),
-    ytd: z.object({ interval: z.enum(["1h", "2h", "4h", "1d"]) }),
-    all: z.object({ interval: z.enum(["1d"]) })
+    "1m": z.object({ interval: z.enum(["15m", "30m", "1h", "2h", "4h", "1d"]) })
   })
 });
 
@@ -39,10 +42,7 @@ const defaultConfig: ChartConfig = {
   charts: {
     "1d": { interval: "5m" },
     "1w": { interval: "2h" },
-    "1m": { interval: "1d" },
-    "1y": { interval: "1d" },
-    ytd: { interval: "1d" },
-    all: { interval: "1d" }
+    "1m": { interval: "4h" }
   }
 };
 
@@ -56,7 +56,11 @@ export class ChartConfigService {
    * le fichier est absent. Les erreurs de format restent explicites.
    */
   loadChartConfig(): ChartConfig {
-    if (!fs.existsSync(config.chartConfigPath)) return defaultConfig;
+    if (!fs.existsSync(config.chartConfigPath)) {
+      fs.mkdirSync(path.dirname(config.chartConfigPath), { recursive: true });
+      fs.writeFileSync(config.chartConfigPath, `${JSON.stringify(defaultConfig, null, 2)}\n`);
+      return defaultConfig;
+    }
     const raw = JSON.parse(fs.readFileSync(config.chartConfigPath, "utf8"));
     return this.validateChartConfig(raw);
   }
@@ -73,7 +77,9 @@ export class ChartConfigService {
    * historique de `all`.
    */
   getIntervalForRange(range: RangeKey | string): ChartInterval {
-    return this.loadChartConfig().charts[normalizeStoredRange(range)].interval;
+    const storedRange = normalizeStoredRange(range);
+    if (storedRange === "all") return "1d";
+    return this.loadChartConfig().charts[storedRange].interval;
   }
 }
 

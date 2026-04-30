@@ -13,7 +13,7 @@ const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: Sort
   { label: "Variation % decroissante", key: "intervalPerformancePercent", direction: "desc" }
 ];
 
-const chartRanges: RangeKey[] = ["1d", "1w", "1m", "1y", "ytd", "max"];
+const chartRanges: RangeKey[] = ["1d", "1w", "1m", "ytd", "1y", "5y", "10y", "max"];
 
 export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
   const preferences = useUserPreferences({ onUserUpdated });

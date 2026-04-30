@@ -5,8 +5,9 @@
 
 import type { AssetChartDto, HistoryPoint, RangeKey } from "@pea/shared";
 import { chartConfigService, normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../chart-config.service.js";
-import { getLastTradingDay, isMarketOpen } from "../marketCalendar.service.js";
+import { getLastTradingDay, getMarketDateKey, getPreviousOpenMarketDays, isMarketOpen } from "../marketCalendar.service.js";
 import { logger } from "../logger.service.js";
+import { db } from "../../db.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
 import { candleBuilder } from "../candles/candle.builder.js";
 import { candleRepository } from "../candles/candle.repository.js";
@@ -15,6 +16,12 @@ import { marketSnapshotService } from "./market-snapshot.service.js";
 import { financialsService } from "./financials.service.js";
 import { dividendsService } from "./dividends.service.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
+
+const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
+const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
+  "1w": 7,
+  "1m": 30
+};
 
 function compactHistory(symbol: string, range: RangeKey, interval: string, points: HistoryPoint[], baseline?: { price: number; datetime?: string }): AssetChartDto {
   const timestamps: number[] = [];
@@ -32,7 +39,7 @@ function compactHistory(symbol: string, range: RangeKey, interval: string, point
   const performanceEuro = Number.isFinite(first) && Number.isFinite(last) ? last - first : undefined;
   return {
     symbol,
-    range: range === "1d" ? "intraday" : range === "1w" ? "1W" : range === "1m" ? "1M" : range === "1y" ? "1Y" : range === "ytd" ? "YTD" : range === "all" ? "ALL" : "MAX",
+    range: range === "1d" ? "intraday" : range === "1w" ? "1W" : range === "1m" ? "1M" : range === "1y" ? "1Y" : range === "5y" ? "5Y" : range === "10y" ? "10Y" : range === "ytd" ? "YTD" : range === "all" ? "ALL" : "MAX",
     interval,
     timestamps,
     prices,
@@ -46,15 +53,26 @@ function compactHistory(symbol: string, range: RangeKey, interval: string, point
   } as AssetChartDto;
 }
 
-function periodForRange(range: StoredChartRange) {
-  const now = new Date();
-  const start = new Date(now);
-  if (range === "1w") start.setDate(now.getDate() - 7);
-  if (range === "1m") start.setMonth(now.getMonth() - 1);
-  if (range === "1y") start.setFullYear(now.getFullYear() - 1);
-  if (range === "ytd") return { period1: new Date(now.getFullYear(), 0, 1), period2: now };
+function openMarketWindow(asset: Pick<AssetRow, "symbol" | "exchange">, range: RangeKey | StoredChartRange, endDate = new Date()) {
+  const count = openMarketDayCountByRange[range];
+  if (!count) return undefined;
+  const days = getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, endDate, count);
+  const oldest = days[days.length - 1];
+  if (!oldest) return undefined;
+  return {
+    days,
+    dateSet: new Set(days.map((day) => day.date)),
+    cutoffIso: oldest.period1.toISOString(),
+    period1: oldest.period1,
+    period2: endDate
+  };
+}
+
+function periodForRange(asset: Pick<AssetRow, "symbol" | "exchange">, range: StoredChartRange, now = new Date()) {
   if (range === "all") return { period1: new Date("2000-01-01"), period2: now };
-  return { period1: start, period2: now };
+  const window = openMarketWindow(asset, range, now);
+  if (window) return { period1: window.period1, period2: now };
+  return { period1: now, period2: now };
 }
 
 function yahooInterval(interval: ChartInterval): "5m" | "15m" | "30m" | "1h" | "1d" {
@@ -72,6 +90,47 @@ function intervalDurationMs(interval: ChartInterval) {
 
 function pointLabel(point?: HistoryPoint) {
   return point ? `${point.date}:${point.close}` : undefined;
+}
+
+function rangeCutoff(range: RangeKey) {
+  const now = new Date();
+  if (range === "1w") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 7);
+    return start.getTime();
+  }
+  if (range === "1m") {
+    const start = new Date(now);
+    start.setMonth(now.getMonth() - 1);
+    return start.getTime();
+  }
+  if (range === "ytd") return new Date(now.getFullYear(), 0, 1).getTime();
+  if (range === "1y") {
+    const start = new Date(now);
+    start.setFullYear(now.getFullYear() - 1);
+    return start.getTime();
+  }
+  if (range === "5y") {
+    const start = new Date(now);
+    start.setFullYear(now.getFullYear() - 5);
+    return start.getTime();
+  }
+  if (range === "10y") {
+    const start = new Date(now);
+    start.setFullYear(now.getFullYear() - 10);
+    return start.getTime();
+  }
+  return undefined;
+}
+
+function filterRangePoints(points: HistoryPoint[], range: RangeKey, asset?: Pick<AssetRow, "symbol" | "exchange">, endDate = new Date()) {
+  const window = asset ? openMarketWindow(asset, range, endDate) : undefined;
+  if (asset && window) {
+    return points.filter((point) => window.dateSet.has(getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date))));
+  }
+  const cutoff = rangeCutoff(range);
+  if (!cutoff) return points;
+  return points.filter((point) => new Date(point.date).getTime() >= cutoff);
 }
 
 function validateChartPoints(input: {
@@ -141,20 +200,21 @@ export class MarketDataService {
     return asset;
   }
 
-  async refreshCandlesForAsset(asset: AssetRow, ranges: StoredChartRange[] = ["1d", "1w", "1m", "1y", "ytd", "all"]) {
+  async refreshCandlesForAsset(asset: AssetRow, ranges: StoredChartRange[] = storedConstructionRanges) {
     let updated = 0;
     for (const range of ranges) {
       const interval = chartConfigService.getIntervalForRange(range);
       const session = range === "1d" ? getLastTradingDay(asset.symbol, asset.exchange) : undefined;
-      const period = session ? { period1: session.period1, period2: session.period2 } : periodForRange(range);
+      const period = session ? { period1: session.period1, period2: session.period2 } : periodForRange(asset, range);
       const periodWithInclusiveClose = session ? { ...period, period2: new Date(session.period2.getTime() + intervalDurationMs(interval)) } : period;
       const chart = await yahooApi.chart(asset.symbol, { ...periodWithInclusiveClose, interval: yahooInterval(interval) });
-      const points = validateChartPoints({
+      const validatedPoints = validateChartPoints({
         symbol: asset.symbol,
         range,
         points: chart.quotes,
         marketCloseTime: session?.period2
       });
+      const points = filterRangePoints(validatedPoints, range, asset, period.period2);
       const candles = candleBuilder.buildCandles({
         assetId: asset.id,
         symbol: asset.symbol,
@@ -163,8 +223,106 @@ export class MarketDataService {
         interval,
         points
       });
+      const window = openMarketWindow(asset, range, period.period2);
+      if (window) {
+        candleRepository.deleteRange(asset.id, range, interval);
+        candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
+      }
       updated += candleRepository.upsertCandles(candles);
-      logger.debug("market-data", "candles rebuilt", { symbol: asset.symbol, range, interval, yahooPoints: chart.quotes.length, validatedPoints: points.length, candles: candles.length });
+      logger.debug("market-data", "candles rebuilt", { symbol: asset.symbol, range, interval, yahooPoints: chart.quotes.length, validatedPoints: validatedPoints.length, rangePoints: points.length, candles: candles.length });
+    }
+    return { updated };
+  }
+
+  async finalizePostCloseForAsset(asset: AssetRow, now = new Date()) {
+    const session = getLastTradingDay(asset.symbol, asset.exchange, now);
+    if (isMarketOpen(asset.symbol, asset.exchange, now)) return { skipped: true, reason: "market-open" };
+    if (now.getTime() < session.period2.getTime()) return { skipped: true, reason: "before-close" };
+    if (candleRepository.isFinalized(asset.id, session.date, "1d")) return { skipped: true, reason: "already-finalized" };
+
+    const interval = chartConfigService.getIntervalForRange("1d");
+    const chart = await yahooApi.chart(asset.symbol, {
+      period1: session.period1,
+      period2: new Date(session.period2.getTime() + intervalDurationMs(interval)),
+      interval: yahooInterval(interval)
+    });
+    const freshPoints = validateChartPoints({
+      symbol: asset.symbol,
+      range: "1d",
+      points: chart.quotes,
+      marketCloseTime: session.period2
+    });
+    const freshCandles = candleBuilder.buildCandles({
+      assetId: asset.id,
+      symbol: asset.symbol,
+      exchange: asset.exchange,
+      range: "1d",
+      interval,
+      points: freshPoints
+    });
+    candleRepository.upsertCandles(freshCandles);
+
+    const snapshot = db.prepare("SELECT last_price FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id) as { last_price?: number } | undefined;
+    const closePrice = Number(snapshot?.last_price);
+    if (!Number.isFinite(closePrice) || closePrice <= 0) return { skipped: true, reason: "missing-snapshot-close" };
+
+    const closeIso = session.period2.toISOString();
+    const existing = candleRepository.readCandles(asset.id, "1d", interval);
+    const previous = [...existing].reverse().find((point) => new Date(point.date).getTime() < session.period2.getTime());
+    const finalCandle = {
+      assetId: asset.id,
+      range: "1d" as const,
+      interval,
+      datetimeStart: closeIso,
+      datetimeEnd: new Date(session.period2.getTime() + intervalDurationMs(interval)).toISOString(),
+      open: previous?.close ?? closePrice,
+      high: Math.max(previous?.close ?? closePrice, closePrice),
+      low: Math.min(previous?.close ?? closePrice, closePrice),
+      close: closePrice,
+      volume: null,
+      source: "snapshot_close" as const
+    };
+    candleRepository.upsertCandles([finalCandle]);
+    candleRepository.markFinalized(asset.id, session.date, "1d");
+    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = 'all' AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
+      .run(asset.id, session.period1.toISOString(), session.period2.toISOString());
+    await this.rebuildStoredRangesFromFinalData(asset, session.date, closeIso, closePrice);
+    return { skipped: false, finalized: true };
+  }
+
+  async rebuildStoredRangesFromFinalData(asset: AssetRow, tradingDate?: string, closeIso?: string, closePrice?: number) {
+    let updated = 0;
+    if (closeIso && Number.isFinite(closePrice)) {
+      const finalClosePrice = Number(closePrice);
+      updated += candleRepository.upsertCandles([
+        {
+          assetId: asset.id,
+          range: "all",
+          interval: "1d",
+          datetimeStart: closeIso,
+          datetimeEnd: new Date(new Date(closeIso).getTime() + intervalDurationMs("1d")).toISOString(),
+          open: finalClosePrice,
+          high: finalClosePrice,
+          low: finalClosePrice,
+          close: finalClosePrice,
+          volume: null,
+          source: "snapshot_close"
+        }
+      ]);
+      if (tradingDate) candleRepository.markFinalized(asset.id, tradingDate, "all");
+    }
+
+    const sourcePoints = candleRepository.readCandles(asset.id, "1d", chartConfigService.getIntervalForRange("1d"));
+    const endDate = closeIso ? new Date(closeIso) : new Date();
+    for (const range of ["1w", "1m"] as StoredChartRange[]) {
+      const interval = chartConfigService.getIntervalForRange(range);
+      const points = filterRangePoints(sourcePoints, range, asset, endDate);
+      const candles = candleBuilder.buildCandles({ assetId: asset.id, symbol: asset.symbol, exchange: asset.exchange, range, interval, points });
+      candleRepository.deleteRange(asset.id, range, interval);
+      updated += candleRepository.upsertCandles(candles.map((candle) => ({ ...candle, source: "stored_final" as const })));
+      const window = openMarketWindow(asset, range, endDate);
+      if (window) candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
+      if (tradingDate) candleRepository.markFinalized(asset.id, tradingDate, range);
     }
     return { updated };
   }
@@ -204,31 +362,12 @@ export class MarketDataService {
 
     const storedRange = normalizeStoredRange(range);
     const interval = chartConfigService.getIntervalForRange(storedRange);
-    let points = candleRepository.readCandles(asset.id, storedRange, interval);
-    if (storedRange === "1d") {
-      const session = getLastTradingDay(asset.symbol, asset.exchange);
-      const lastPointTime = new Date(points[points.length - 1]?.date ?? 0).getTime();
-      if (lastPointTime < session.period2.getTime()) {
-        const chart = await yahooApi.chart(asset.symbol, {
-          period1: session.period1,
-          period2: new Date(session.period2.getTime() + intervalDurationMs(interval)),
-          interval: yahooInterval(interval)
-        });
-        const freshPoints = validateChartPoints({ symbol: asset.symbol, range: "1d", points: chart.quotes, marketCloseTime: session.period2 });
-        const candles = candleBuilder.buildCandles({
-          assetId: asset.id,
-          symbol: asset.symbol,
-          exchange: asset.exchange,
-          range: storedRange,
-          interval,
-          points: freshPoints
-        });
-        candleRepository.upsertCandles(candles);
-        points = candleRepository.readCandles(asset.id, storedRange, interval);
-      }
-    }
+    const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
+    const points = filterRangePoints(rawPoints, range, asset);
     if (points.length < 2) {
-      const job = dataConstructionQueue.enqueueCandles(asset.symbol, storedRange);
+      const session = getLastTradingDay(asset.symbol, asset.exchange);
+      const finalized = storedRange === "1d" && candleRepository.isFinalized(asset.id, session.date, "1d");
+      const job = finalized ? dataConstructionQueue.latest() : dataConstructionQueue.enqueueCandles(asset.symbol, storedRange);
       logger.warn("market-data", "chart returns few points; background rebuild queued", { symbol: asset.symbol, range: storedRange, interval, points: points.length, jobId: job.id });
       const baseline = storedRange === "1d" ? await this.getPreviousClosePrice(asset) : undefined;
       return {

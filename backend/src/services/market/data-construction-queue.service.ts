@@ -7,7 +7,7 @@ import type { DataConstructionJobDto } from "@pea/shared";
 import type { StoredChartRange } from "../chart-config.service.js";
 import { logger } from "../logger.service.js";
 
-type TaskType = "candles" | "snapshot" | "financials" | "dividends";
+type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends";
 
 interface ConstructionTask {
   key: string;
@@ -38,7 +38,7 @@ function nowIso() {
 }
 
 function taskKey(task: Omit<ConstructionTask, "key">) {
-  return task.type === "candles"
+  return task.type === "candles" || task.type === "finalize" || task.type === "rebuild-stored"
     ? `${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase()
     : `${task.symbol ?? "all"}:${task.type}`.toUpperCase();
 }
@@ -86,7 +86,7 @@ export class DataConstructionQueueService {
   enqueueFullConstruction(symbols: string[]) {
     const uniqueSymbols = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
     const tasks = uniqueSymbols.flatMap((symbol) => [
-      ...(["1d", "1w", "1m", "1y", "ytd", "all"] as StoredChartRange[]).map((range) => ({
+      ...(["1d", "1w", "1m", "all"] as StoredChartRange[]).map((range) => ({
         type: "candles" as const,
         symbol,
         range,
@@ -97,6 +97,17 @@ export class DataConstructionQueueService {
       { type: "dividends" as const, symbol, message: `${symbol} - dividends` }
     ]);
     return this.enqueue(tasks, `Construction de ${uniqueSymbols.length} asset(s) planifiee`);
+  }
+
+  enqueuePostCloseFinalization(symbols: string[]) {
+    const uniqueSymbols = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
+    const tasks = uniqueSymbols.flatMap((symbol) => [
+      { type: "finalize" as const, symbol, range: "1d", message: `${symbol} - finalisation 1d` },
+      { type: "rebuild-stored" as const, symbol, range: "1w", message: `${symbol} - mise a jour 1w` },
+      { type: "rebuild-stored" as const, symbol, range: "1m", message: `${symbol} - mise a jour 1m` },
+      { type: "rebuild-stored" as const, symbol, range: "all", message: `${symbol} - mise a jour all` }
+    ]);
+    return this.enqueue(tasks, `Finalisation post-cloture de ${uniqueSymbols.length} asset(s) planifiee`);
   }
 
   enqueueCandles(symbol: string, range: string) {
@@ -183,6 +194,8 @@ export class DataConstructionQueueService {
     if (!asset) asset = await marketDataService.ensureAssetInitialized(task.symbol);
 
     if (task.type === "candles") await marketDataService.refreshCandlesForAsset(asset, task.range ? [task.range as StoredChartRange] : undefined);
+    if (task.type === "finalize") await marketDataService.finalizePostCloseForAsset(asset);
+    if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset);
     if (task.type === "snapshot") await marketSnapshotService.refreshMarketSnapshot(asset);
     if (task.type === "financials") await financialsService.refreshFinancials(asset);
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);

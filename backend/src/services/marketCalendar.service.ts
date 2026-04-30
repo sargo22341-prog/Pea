@@ -15,6 +15,13 @@ export interface MarketCalendar {
   earlyCloses: Record<string, string>;
 }
 
+export interface OpenMarketDay {
+  date: string;
+  period1: Date;
+  period2: Date;
+  calendar: MarketCalendar;
+}
+
 const defaultHours = {
   timezone: "Europe/Paris",
   openTime: "09:00",
@@ -88,6 +95,11 @@ function zonedTimeToUtc(date: string, time: string, timeZone: string) {
   return new Date(utc.getTime() - (observedAsUtc - utc.getTime()));
 }
 
+export function getMarketDateKey(symbol?: string, exchange?: string, date = new Date()) {
+  const calendar = getMarketCalendar(symbol, exchange);
+  return getLocalDateParts(date, calendar.timezone).isoDate;
+}
+
 export function isTradingDay(symbol?: string, exchange?: string, date = new Date()) {
   const calendar = getMarketCalendar(symbol, exchange);
   const local = getLocalDateParts(date, calendar.timezone);
@@ -128,6 +140,44 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
     period2: zonedTimeToUtc(local.isoDate, calendar.closeTime, calendar.timezone),
     calendar
   };
+}
+
+function resolveMarketInput(market: string | { symbol?: string; exchange?: string }) {
+  if (typeof market === "string") return { symbol: market };
+  return market;
+}
+
+export function getPreviousOpenMarketDays(
+  market: string | { symbol?: string; exchange?: string },
+  endDate: Date,
+  count: number
+): OpenMarketDay[] {
+  const { symbol, exchange } = resolveMarketInput(market);
+  const calendar = getMarketCalendar(symbol, exchange);
+  const cursor = new Date(endDate);
+  const days: OpenMarketDay[] = [];
+  const maxLookbackDays = Math.max(20, count * 4 + 20);
+  const seen = new Set<string>();
+
+  for (let index = 0; index < maxLookbackDays && days.length < count; index += 1) {
+    const local = getLocalDateParts(cursor, calendar.timezone);
+    if (!seen.has(local.isoDate)) {
+      seen.add(local.isoDate);
+      if (isTradingDay(symbol, exchange, cursor)) {
+        const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
+        days.push({
+          date: local.isoDate,
+          period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
+          period2: zonedTimeToUtc(local.isoDate, closeTime, calendar.timezone),
+          calendar
+        });
+      }
+    }
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setUTCHours(12, 0, 0, 0);
+  }
+
+  return days;
 }
 
 /**

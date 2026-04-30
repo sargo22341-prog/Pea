@@ -283,6 +283,17 @@ db.exec(`
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS market_data_finalizations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    trading_date TEXT NOT NULL,
+    range TEXT NOT NULL,
+    finalized INTEGER NOT NULL DEFAULT 1,
+    finalized_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, trading_date, range),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS asset_market_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_id INTEGER NOT NULL UNIQUE,

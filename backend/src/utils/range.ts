@@ -12,7 +12,10 @@ export interface MarketHours {
 export function parseRange(value: unknown): RangeKey {
   const range = String(value ?? "1m").toLowerCase();
   if (range === "max") return "all";
-  if (["1d", "1w", "1m", "1y", "ytd", "all"].includes(range)) {
+  if (range === "1a") return "1y";
+  if (range === "5a") return "5y";
+  if (range === "10a") return "10y";
+  if (["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all"].includes(range)) {
     return range as RangeKey;
   }
   return "1m";
@@ -36,6 +39,12 @@ export function yahooRange(
       return { period1: start, interval: "1h", displayInterval: "4h" };
     case "1y":
       start.setFullYear(now.getFullYear() - 1);
+      return { period1: start, interval: "1d", displayInterval: "1d" };
+    case "5y":
+      start.setFullYear(now.getFullYear() - 5);
+      return { period1: start, interval: "1d", displayInterval: "1d" };
+    case "10y":
+      start.setFullYear(now.getFullYear() - 10);
       return { period1: start, interval: "1d", displayInterval: "1d" };
     case "ytd":
       return { period1: new Date(now.getFullYear(), 0, 1), interval: "1d", displayInterval: "1d" };

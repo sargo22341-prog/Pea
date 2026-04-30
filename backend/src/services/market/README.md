@@ -2,7 +2,7 @@
 
 Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
-- `config.json` a la racine pilote les intervals des ranges `1d`, `1w`, `1m`, `1y`, `ytd`, `all`. Il ne contient aucun champ `market`; le marche est deduit du symbole/exchange via `marketCalendar.service.ts`.
+- `data/config.json` pilote les intervals configurables des ranges stockees `1d`, `1w`, `1m`. En prod Docker, ce fichier vit dans le volume `/app/data` pour rester modifiable.
 - `assets` et `asset_profiles` stockent les metadonnees stables issues de `quote()` et `quoteSummary()`. Les champs absents chez Yahoo restent `NULL`.
 - `chart_candles` stocke les candles OHLCV pre-calculées par range/interval avec `UNIQUE(asset_id, range, interval, datetime_start)`.
 - `asset_market_snapshots` contient une seule ligne par asset: le dernier etat connu du marche. Quand le marche est ferme, les lectures utilisent cette table et n'appellent pas Yahoo, sauf action manuelle.
@@ -15,7 +15,7 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
 ## Ranges stockees
 
-`1w`, `1m`, `1y`, `ytd` et `all` sont lus depuis `chart_candles`. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche et filtrent week-ends, jours feries et early closes depuis `market-holidays.json`.
+`1w`, `1m` et `all` sont stockes dans `chart_candles`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis `all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche et filtrent week-ends, jours feries et early closes depuis `market-holidays.json`.
 
 ## Portfolio et Dashboard
 
@@ -38,7 +38,7 @@ Le nettoyage supprime les donnees marche reconstruites et anciens caches marche,
 
 Les routes de lecture ne reconstruisent pas massivement les donnees. Si une chart manque de candles, le backend renvoie les points disponibles avec `isPreparing`, `missingRanges`, `missingAssets` et `jobId`, puis planifie une sous-tache en queue.
 
-La queue limite Yahoo a une tache active et deduplique globalement par asset/range pour les candles. Une reconstruction complete cree 6 sous-taches de candles par asset (`1d`, `1w`, `1m`, `1y`, `ytd`, `all`) plus snapshot, financials et dividends. Le statut expose `totalTasks`, `completedTasks`, `failedTasks`, `pendingTasks`, `progressPercent` et `currentTaskLabel`.
+La queue limite Yahoo a une tache active et deduplique globalement par asset/range pour les candles. Une reconstruction complete cree 4 sous-taches de candles par asset (`1d`, `1w`, `1m`, `all`) plus snapshot, financials et dividends. La finalisation post-cloture expose les sous-taches `finalisation 1d`, `mise a jour 1w`, `mise a jour 1m` et `mise a jour all`. Le statut expose `totalTasks`, `completedTasks`, `failedTasks`, `pendingTasks`, `progressPercent` et `currentTaskLabel`.
 
 ## Limites yahoo-finance2
 

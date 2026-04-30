@@ -7,14 +7,14 @@ export type PriceHistoryInputPoint = {
 };
 
 export type PriceHistoryChartPoint = {
-  date: string;
+  date: number;
   value: number | null;
 };
 
 export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: RangeKey) {
   const chartData = useMemo(() => normalizePriceHistoryPoints(points), [points]);
   const validPoints = useMemo(
-    () => chartData.filter((point): point is { date: string; value: number } => point.value != null),
+    () => chartData.filter((point): point is { date: number; value: number } => point.value != null),
     [chartData]
   );
 
@@ -41,13 +41,14 @@ export function normalizePriceHistoryPoints(points: PriceHistoryInputPoint[]) {
   const byDate = new Map<string, PriceHistoryChartPoint>();
 
   for (const point of points) {
-    if (!point.date || !Number.isFinite(new Date(point.date).getTime())) continue;
+    const timestamp = new Date(point.date).getTime();
+    if (!point.date || !Number.isFinite(timestamp)) continue;
     const value = point.value;
     byDate.set(point.date, {
-      date: point.date,
+      date: timestamp,
       value: value != null && Number.isFinite(value) ? value : null
     });
   }
 
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return [...byDate.values()].sort((a, b) => a.date - b.date);
 }

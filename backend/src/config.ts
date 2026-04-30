@@ -16,5 +16,5 @@ export const config = {
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
   nodeEnv: process.env.NODE_ENV ?? "development",
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
-  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../config.json")
+  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json")
 };

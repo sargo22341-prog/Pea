@@ -7,6 +7,8 @@ const rangeLabels: Record<RangeKey, string> = {
   "1w": "1 semaine",
   "1m": "1 mois",
   "1y": "1 an",
+  "5y": "5 ans",
+  "10y": "10 ans",
   ytd: "YTD",
   all: "Tout",
   max: "Max"
@@ -17,6 +19,8 @@ const compactRangeLabels: Record<RangeKey, string> = {
   "1w": "1 sem.",
   "1m": "1 mois",
   "1y": "1 an",
+  "5y": "5 ans",
+  "10y": "10 ans",
   ytd: "YTD",
   all: "Tout",
   max: "Max"

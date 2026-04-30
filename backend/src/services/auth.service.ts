@@ -35,7 +35,7 @@ function isSortDirection(value: unknown): value is SortDirection {
 }
 
 function isRangeKey(value: unknown): value is RangeKey {
-  return value === "1d" || value === "1w" || value === "1m" || value === "1y" || value === "ytd" || value === "max";
+  return value === "1d" || value === "1w" || value === "1m" || value === "1y" || value === "5y" || value === "10y" || value === "ytd" || value === "max";
 }
 
 function extensionForMime(mimeType: string) {

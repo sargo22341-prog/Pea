@@ -5,7 +5,7 @@
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
-import { normalizeStoredRange, type ChartInterval } from "../chart-config.service.js";
+import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../chart-config.service.js";
 import type { BuiltCandle } from "./candle.builder.js";
 
 export class CandleRepository {
@@ -53,6 +53,37 @@ export class CandleRepository {
       close: Number(row.close),
       volume: row.volume ?? undefined
     }));
+  }
+
+  countCandles(assetId: number, range: RangeKey | string, interval: ChartInterval) {
+    const row = db
+      .prepare("SELECT COUNT(*) AS count FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ?")
+      .get(assetId, normalizeStoredRange(range), interval) as { count?: number } | undefined;
+    return Number(row?.count ?? 0);
+  }
+
+  pruneBefore(assetId: number, range: StoredChartRange, interval: ChartInterval, cutoffIso: string) {
+    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ? AND datetime_start < ?")
+      .run(assetId, range, interval, cutoffIso);
+  }
+
+  deleteRange(assetId: number, range: StoredChartRange, interval: ChartInterval) {
+    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ?").run(assetId, range, interval);
+  }
+
+  isFinalized(assetId: number, tradingDate: string, range: StoredChartRange) {
+    const row = db
+      .prepare("SELECT finalized FROM market_data_finalizations WHERE asset_id = ? AND trading_date = ? AND range = ?")
+      .get(assetId, tradingDate, range) as { finalized?: number } | undefined;
+    return Number(row?.finalized ?? 0) === 1;
+  }
+
+  markFinalized(assetId: number, tradingDate: string, range: StoredChartRange) {
+    db.prepare(
+      `INSERT INTO market_data_finalizations (asset_id, trading_date, range, finalized, finalized_at)
+       VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+       ON CONFLICT(asset_id, trading_date, range) DO UPDATE SET finalized = 1, finalized_at = CURRENT_TIMESTAMP`
+    ).run(assetId, tradingDate, range);
   }
 }
 

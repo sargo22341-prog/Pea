@@ -9,6 +9,7 @@ export class MarketDataCleaner {
   deleteMarketData() {
     const tables = [
       "chart_candles",
+      "market_data_finalizations",
       "asset_market_snapshots",
       "asset_financials",
       "asset_dividends",

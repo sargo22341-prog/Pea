@@ -28,6 +28,7 @@ export function useAvisOperesPdfImport() {
       const result = await api.confirmAvisOperesPdf(rows);
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
       setMessage(`${result.imported.length} operation(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
+      setRows([]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Import PDF impossible.");
     } finally {

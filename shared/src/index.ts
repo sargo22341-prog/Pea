@@ -3,8 +3,8 @@
  * et le frontend afin que les DTO renvoyés par l'API restent cohérents.
  */
 
-export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "all" | "max";
-export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "ALL" | "MAX";
+export type RangeKey = "1d" | "1w" | "1m" | "1y" | "5y" | "10y" | "ytd" | "all" | "max";
+export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "5Y" | "10Y" | "ALL" | "MAX";
 export type MarketState = "OPEN" | "CLOSED" | "PRE" | "POST";
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
 export type SortDirection = "asc" | "desc";

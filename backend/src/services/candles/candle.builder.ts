@@ -19,7 +19,7 @@ export interface BuiltCandle {
   low: number | null;
   close: number;
   volume: number | null;
-  source: "yahoo-finance2";
+  source: "yahoo-finance2" | "snapshot_close" | "stored_final";
 }
 
 function intervalMs(interval: ChartInterval) {

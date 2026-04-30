@@ -362,7 +362,7 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
-    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "all", "max"]).optional(),
+    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all", "max"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional()

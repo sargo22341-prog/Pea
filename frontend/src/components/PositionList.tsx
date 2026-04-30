@@ -34,6 +34,8 @@ export function PositionList({
   const [sortKey, setSortKey] = useState<DashboardSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [sortOpen, setSortOpen] = useState(false);
+  const [performanceById, setPerformanceById] = useState<Map<number, PositionRangePerformance>>(new Map());
+  const [performanceError, setPerformanceError] = useState<string | null>(null);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -49,6 +51,22 @@ export function PositionList({
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, [sortOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPerformanceError(null);
+    setPerformanceById(new Map());
+    api.positionsPerformance(range)
+      .then((items) => {
+        if (!cancelled) setPerformanceById(new Map(items.map((item) => [item.id, item])));
+      })
+      .catch((caughtError) => {
+        if (!cancelled) setPerformanceError(caughtError instanceof Error ? caughtError.message : "Performances indisponibles");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range]);
 
   const sortedPositions = useMemo(() => {
     return [...positions].sort((a, b) => {
@@ -125,8 +143,9 @@ export function PositionList({
         {sortedPositions.map((position) => (
           <LazyPositionRow
             key={`${position.id}:${range}`}
+            loadedPosition={performanceById.get(position.id) ?? null}
+            error={performanceError}
             position={position}
-            range={range}
             rangeLabel={rangeLabel}
           />
         ))}
@@ -155,16 +174,16 @@ function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey) {
  */
 function LazyPositionRow({
   position,
-  range,
   rangeLabel,
+  loadedPosition,
+  error
 }: {
   position: PositionWithMarket;
-  range: RangeKey;
   rangeLabel: string;
+  loadedPosition: PositionRangePerformance | null;
+  error: string | null;
 }) {
   const [visibleSoon, setVisibleSoon] = useState(false);
-  const [loadedPosition, setLoadedPosition] = useState<PositionRangePerformance | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -183,21 +202,7 @@ function LazyPositionRow({
     return () => observer.disconnect();
   }, [visibleSoon]);
 
-  useEffect(() => {
-    if (!visibleSoon) return undefined;
-    const controller = new AbortController();
-    setError(null);
-    api.positionPerformance(position.id, range, controller.signal)
-      .then((result) => {
-        setLoadedPosition(result);
-      })
-      .catch((caughtError) => {
-        if (!controller.signal.aborted) setError(caughtError instanceof Error ? caughtError.message : "Position indisponible");
-      });
-    return () => controller.abort();
-  }, [position.id, range, visibleSoon]);
-
-  if (!loadedPosition) {
+  if (!loadedPosition || !visibleSoon) {
     return (
       <div ref={rowRef}>
         <PositionRowSkeleton name={position.name} symbol={position.symbol} error={error} />
