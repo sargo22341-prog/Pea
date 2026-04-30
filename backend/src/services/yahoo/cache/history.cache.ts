@@ -4,7 +4,7 @@
  */
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
-import type { MarketDataResult } from "../../market-data-provider.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
 import { db } from "../../../db.js";
 import { getCurrentTradingDay } from "../../../utils/range.js";
 import { cacheIsStale, historyCacheIsStale, nowSeconds } from "../utils/stale.js";

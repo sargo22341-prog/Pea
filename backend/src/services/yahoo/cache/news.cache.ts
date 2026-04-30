@@ -3,7 +3,7 @@
  */
 
 import type { NewsArticle } from "@pea/shared";
-import type { MarketDataResult } from "../../market-data-provider.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
 import { db } from "../../../db.js";
 import { nowSeconds } from "../utils/stale.js";
 

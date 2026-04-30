@@ -3,7 +3,7 @@
  * pour décider quand rafraîchir les caches financiers.
  */
 
-import holidays from "../data/market-holidays.json" with { type: "json" };
+import holidays from "../../data/market-holidays.json" with { type: "json" };
 import type { RangeKey } from "@pea/shared";
 
 export interface MarketCalendar {

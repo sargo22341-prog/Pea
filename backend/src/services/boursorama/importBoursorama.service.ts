@@ -1,9 +1,14 @@
+/**
+ * Role du fichier : importer les exports Boursorama historiques et transformer
+ * les lignes en positions compatibles avec le portefeuille.
+ */
+
 import type { SearchResult } from "@pea/shared";
 import type { BoursoramaUpdateRow } from "@pea/shared";
 import { db } from "../../db.js";
-import { evaluatePeaEligibility, sortAssetsForPea } from "../peaEligibility.js";
-import { logger } from "../logger.service.js";
-import { portfolioService } from "../portfolio.service.js";
+import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
+import { portfolioService } from "../portfolio/portfolio.service.js";
+import { logger } from "../shared/logger.service.js";
 import { yahooService } from "../yahoo/index.js";
 
 export interface BoursoramaRow {

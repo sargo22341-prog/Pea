@@ -1,10 +1,15 @@
+/**
+ * Role du fichier : gerer les icones d'actifs, depuis le cache SQLite jusqu'au
+ * stockage local et aux tentatives de recuperation automatique.
+ */
+
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "../config.js";
-import { db } from "../db.js";
-import { dedupeInFlight } from "./inFlightDeduper.js";
-import { logger } from "./logger.service.js";
-import { yahooClient } from "./yahoo/index.js";
+import { config } from "../../config.js";
+import { db } from "../../db.js";
+import { dedupeInFlight } from "../shared/inFlightDeduper.js";
+import { logger } from "../shared/logger.service.js";
+import { yahooClient } from "../yahoo/index.js";
 
 export interface AssetIcon {
   symbol: string;

@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : produire les analyses de portefeuille, allocations,
+ * treemap et donnees financieres agregees.
+ */
+
 import type {
   AssetFinancials,
   AllocationChartItem,
@@ -7,8 +12,8 @@ import type {
   PortfolioTreemapItem,
   PositionWithMarket
 } from "@pea/shared";
-import { logger } from "./logger.service.js";
-import { isMarketDataUnavailable, yahooService } from "./yahoo/index.js";
+import { logger } from "../shared/logger.service.js";
+import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";
 import { portfolioService } from "./portfolio.service.js";
 
 type Fundamentals = Awaited<ReturnType<typeof yahooService.fundamentals>>["data"];

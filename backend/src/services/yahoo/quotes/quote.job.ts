@@ -5,10 +5,10 @@
 
 import type { Quote, SearchResult } from "@pea/shared";
 import { config } from "../../../config.js";
-import { dedupeInFlight } from "../../inFlightDeduper.js";
-import { logger } from "../../logger.service.js";
-import type { MarketDataResult } from "../../market-data-provider.js";
-import { safeString } from "../../peaEligibility.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
+import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
+import { logger } from "../../shared/logger.service.js";
+import { safeString } from "../../assets/peaEligibility.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { retryTemporary, safeYahooCall, yahooClient } from "../yahoo.client.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "../yahoo.errors.js";

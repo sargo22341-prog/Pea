@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : fournir les helpers purs de transactions de portefeuille
+ * utilises par le service principal.
+ */
+
 import type { EditablePortfolioTransaction, PositionTransactionStats, Position } from "@pea/shared";
 
 export function calculateTransactionStats(
@@ -30,17 +35,5 @@ export function legacyTransactionFromPosition(position: Position): EditablePortf
     totalFees: 0,
     currency: position.currency,
     createdAt: position.createdAt
-  };
-}
-
-export function applyEditableTransactionPatch(
-  transaction: EditablePortfolioTransaction,
-  patch: Partial<Pick<EditablePortfolioTransaction, "tradedAt" | "type" | "quantity" | "price" | "totalFees" | "currency">>
-): EditablePortfolioTransaction {
-  return {
-    ...transaction,
-    ...patch,
-    dateExecution: patch.tradedAt ?? transaction.dateExecution,
-    executedPrice: patch.price ?? transaction.executedPrice
   };
 }

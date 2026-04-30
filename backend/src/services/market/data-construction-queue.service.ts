@@ -4,8 +4,8 @@
  */
 
 import type { DataConstructionJobDto } from "@pea/shared";
-import type { StoredChartRange } from "../chart-config.service.js";
-import { logger } from "../logger.service.js";
+import type { StoredChartRange } from "./chart-config.service.js";
+import { logger } from "../shared/logger.service.js";
 
 type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends";
 

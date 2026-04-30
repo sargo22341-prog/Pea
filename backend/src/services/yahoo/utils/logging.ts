@@ -3,7 +3,7 @@
  * utilises par les jobs Yahoo.
  */
 
-import { logger } from "../../logger.service.js";
+import { logger } from "../../shared/logger.service.js";
 
 /** Arrondit une duree issue de performance.now() pour les logs. */
 export function roundMs(startedAt: number) {

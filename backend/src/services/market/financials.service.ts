@@ -6,7 +6,7 @@
 import type { FinancialYearItem } from "@pea/shared";
 import { db } from "../../db.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
-import { logger } from "../logger.service.js";
+import { logger } from "../shared/logger.service.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
 
 function safeNumber(value: unknown): number | null {

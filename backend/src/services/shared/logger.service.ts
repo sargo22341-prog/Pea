@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : fournir un logger applicatif simple avec categories,
+ * redaction des secrets et ecriture optionnelle en JSON lines.
+ */
+
 import fs from "node:fs";
 import path from "node:path";
 import util from "node:util";

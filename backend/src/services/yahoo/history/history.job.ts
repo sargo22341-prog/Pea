@@ -5,10 +5,10 @@
 
 import type { HistoryPoint, Quote, RangeKey } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
-import { dedupeInFlight } from "../../inFlightDeduper.js";
-import { logger } from "../../logger.service.js";
-import { getLastTradingDay, shouldRefreshMarketData } from "../../marketCalendar.service.js";
-import type { MarketDataResult } from "../../market-data-provider.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
+import { getLastTradingDay, shouldRefreshMarketData } from "../../market/marketCalendar.service.js";
+import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
+import { logger } from "../../shared/logger.service.js";
 import { readHistoryCache, readIntradayCache, readLatestIntradayCache, writeHistoryCache, writeIntradayCache } from "../cache/history.cache.js";
 import { safeYahooCall, yahooClient } from "../yahoo.client.js";
 import { logMarketData } from "../utils/logging.js";

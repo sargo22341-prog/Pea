@@ -9,7 +9,7 @@ import { config } from "./config.js";
 import "./db.js";
 import { createRateLimit } from "./middleware/rate-limit.js";
 import { apiRouter } from "./routes/api.js";
-import { logger } from "./services/logger.service.js";
+import { logger } from "./services/shared/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

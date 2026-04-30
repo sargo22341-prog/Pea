@@ -1,6 +1,11 @@
+/**
+ * Role du fichier : calculer les dividendes passes et estimes au niveau du
+ * portefeuille a partir des positions et des evenements stockes.
+ */
+
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
 import { portfolioService } from "./portfolio.service.js";
-import { dividendsService } from "./market/dividends.service.js";
+import { dividendsService } from "../market/dividends.service.js";
 
 function addOneYear(date: string): string {
   const next = new Date(date);

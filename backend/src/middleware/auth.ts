@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config.js";
-import { authCookieName, authService, type AuthUser } from "../services/auth.service.js";
+import { authCookieName, authService, type AuthUser } from "../services/auth/auth.service.js";
 import { HttpError } from "../utils/http-error.js";
 
 declare global {

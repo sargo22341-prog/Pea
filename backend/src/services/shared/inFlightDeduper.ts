@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : dedupliquer les appels asynchrones concurrents portant sur
+ * la meme cle afin d'eviter les requetes externes redondantes.
+ */
+
 import { logger } from "./logger.service.js";
 
 const inFlight = new Map<string, Promise<unknown>>();

@@ -5,8 +5,8 @@
 
 import type { AssetMarketDto, Quote } from "@pea/shared";
 import { db } from "../../db.js";
-import { normalizeMarketState } from "../cache.service.js";
-import { isMarketOpen } from "../marketCalendar.service.js";
+import { normalizeMarketState } from "../shared/cache.service.js";
+import { isMarketOpen } from "./marketCalendar.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";

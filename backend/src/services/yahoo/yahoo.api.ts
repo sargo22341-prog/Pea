@@ -5,7 +5,7 @@
 
 import Bottleneck from "bottleneck";
 import { yahooClient } from "./yahoo.client.js";
-import { dedupeInFlight } from "../inFlightDeduper.js";
+import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableString, type YahooSnapshotPayload } from "./yahoo.mapper.js";
 import type { HistoryPoint, Quote } from "@pea/shared";
 

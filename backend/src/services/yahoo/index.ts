@@ -3,7 +3,7 @@
  * exports que l'ancien service monolithique.
  */
 
-import type { MarketDataProvider } from "../market-data-provider.js";
+import type { MarketDataProvider } from "../market/market-data-provider.js";
 import { YahooService } from "./yahoo.service.js";
 
 export { yahooClient } from "./yahoo.client.js";

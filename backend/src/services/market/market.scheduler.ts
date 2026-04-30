@@ -4,8 +4,8 @@
  * - weekly: profils/financials/dividendes, donnees lentes et nullables
  */
 
-import { getLastTradingDay, isMarketOpen } from "../marketCalendar.service.js";
-import { logger } from "../logger.service.js";
+import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
+import { logger } from "../shared/logger.service.js";
 import { assetRepository } from "./asset.repository.js";
 import { financialsService } from "./financials.service.js";
 import { dividendsService } from "./dividends.service.js";

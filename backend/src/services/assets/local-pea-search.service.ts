@@ -1,6 +1,11 @@
+/**
+ * Role du fichier : rechercher rapidement des actifs PEA depuis le catalogue
+ * local et annoter les resultats avec l'etat watchlist/portefeuille.
+ */
+
 import type { EnrichedSearchResult } from "@pea/shared";
-import peaAssets from "../data/pea-actio-etf.json" with { type: "json" };
-import { db } from "../db.js";
+import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
+import { db } from "../../db.js";
 
 interface RawPeaAsset {
   code?: string | null;

@@ -5,8 +5,8 @@
  */
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
-import { getMarketCalendar, isTradingDay } from "../marketCalendar.service.js";
-import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../chart-config.service.js";
+import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
+import { getMarketCalendar, isTradingDay } from "../market/marketCalendar.service.js";
 
 export interface BuiltCandle {
   assetId: number;

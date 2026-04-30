@@ -3,7 +3,7 @@
  */
 
 import type { NewsArticle } from "@pea/shared";
-import { safeString } from "../../peaEligibility.js";
+import { safeString } from "../../assets/peaEligibility.js";
 
 function newsPublishedAt(item: any) {
   const value = item?.providerPublishTime ?? item?.publishTime ?? item?.publishedAt ?? item?.pubDate;

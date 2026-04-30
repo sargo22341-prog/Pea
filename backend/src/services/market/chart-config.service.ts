@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { RangeKey } from "@pea/shared";
-import { config } from "../config.js";
+import { config } from "../../config.js";
 
 export type StoredChartRange = "1d" | "1w" | "1m" | "all";
 export type ChartInterval = "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "1d";

@@ -1,11 +1,16 @@
+/**
+ * Role du fichier : gerer les comptes utilisateurs, les sessions, les
+ * preferences de profil et les icones de profil stockees localement.
+ */
+
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection } from "@pea/shared";
-import { config } from "../config.js";
-import { db } from "../db.js";
-import { HttpError } from "../utils/http-error.js";
+import { config } from "../../config.js";
+import { db } from "../../db.js";
+import { HttpError } from "../../utils/http-error.js";
 
 export interface AuthUser {
   id: number;

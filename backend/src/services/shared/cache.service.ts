@@ -4,7 +4,7 @@
  */
 
 import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
-import { db } from "../db.js";
+import { db } from "../../db.js";
 
 export const shortChartRanges = new Set<RangeKey>(["1d", "1w"]);
 

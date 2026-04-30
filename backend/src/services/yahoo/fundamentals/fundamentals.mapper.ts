@@ -4,7 +4,7 @@
  */
 
 import type { AssetMarketInfo } from "@pea/shared";
-import { safeString } from "../../peaEligibility.js";
+import { safeString } from "../../assets/peaEligibility.js";
 
 function rawNumber(value: unknown): number | undefined {
   const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;

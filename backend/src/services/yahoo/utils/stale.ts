@@ -4,7 +4,7 @@
  */
 
 import type { RangeKey } from "@pea/shared";
-import { getLastTradingDay, isMarketOpen } from "../../marketCalendar.service.js";
+import { getLastTradingDay, isMarketOpen } from "../../market/marketCalendar.service.js";
 
 export const nowSeconds = () => Math.floor(Date.now() / 1000);
 

@@ -4,7 +4,7 @@
  */
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
-import { logger } from "../../logger.service.js";
+import { logger } from "../../shared/logger.service.js";
 
 function interpolatePoint(point: HistoryPoint, previous: HistoryPoint, next: HistoryPoint): HistoryPoint {
   const close = (previous.close + next.close) / 2;

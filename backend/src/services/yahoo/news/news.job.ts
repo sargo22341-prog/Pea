@@ -4,9 +4,9 @@
  */
 
 import type { NewsArticle, NewsFeedPage, NewsLanguage } from "@pea/shared";
-import { dedupeInFlight } from "../../inFlightDeduper.js";
-import { logger } from "../../logger.service.js";
-import type { MarketDataResult } from "../../market-data-provider.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
+import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
+import { logger } from "../../shared/logger.service.js";
 import { readNewsCache, writeNewsCache } from "../cache/news.cache.js";
 import { retryTemporary, yahooClient } from "../yahoo.client.js";
 import { errorMessage } from "../yahoo.errors.js";

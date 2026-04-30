@@ -5,7 +5,7 @@
 import type { AssetMarketInfo } from "@pea/shared";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall, yahooClient } from "../yahoo.client.js";
-import type { MarketDataResult } from "../../market-data-provider.js";
+import type { MarketDataResult } from "../../market/market-data-provider.js";
 import { marketInfoFromSummary } from "./fundamentals.mapper.js";
 
 const fundamentalsModules = [

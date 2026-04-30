@@ -1,8 +1,13 @@
+/**
+ * Role du fichier : gerer la watchlist et enrichir chaque actif avec sa quote
+ * et son historique de prix pour l'affichage.
+ */
+
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
-import { db } from "../db.js";
-import { isMarketDataUnavailable } from "./yahoo/index.js";
-import { marketSnapshotService } from "./market/market-snapshot.service.js";
-import { marketDataService } from "./market/market-data.service.js";
+import { db } from "../../db.js";
+import { marketDataService } from "../market/market-data.service.js";
+import { marketSnapshotService } from "../market/market-snapshot.service.js";
+import { isMarketDataUnavailable } from "../yahoo/index.js";
 
 function mapWatchlistRow(row: any): WatchlistItem {
   return {

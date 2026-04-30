@@ -1,6 +1,6 @@
 import { app } from "./app.js";
 import { config } from "./config.js";
-import { logger } from "./services/logger.service.js";
+import { logger } from "./services/shared/logger.service.js";
 import { marketScheduler } from "./services/market/market.scheduler.js";
 
 const server = app.listen(config.port, () => {

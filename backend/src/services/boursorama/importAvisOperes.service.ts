@@ -1,10 +1,15 @@
+/**
+ * Role du fichier : importer des avis d'operes PDF et synchroniser les
+ * transactions detectees avec les positions du portefeuille.
+ */
+
 import { PDFParse } from "pdf-parse";
 import type { ParsedAvisOperation, PortfolioTransaction, SearchResult } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
-import { evaluatePeaEligibility, sortAssetsForPea } from "../peaEligibility.js";
-import { portfolioService } from "../portfolio.service.js";
+import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
+import { portfolioService } from "../portfolio/portfolio.service.js";
 import { yahooService } from "../yahoo/index.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 
