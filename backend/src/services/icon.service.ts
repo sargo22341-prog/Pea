@@ -4,7 +4,7 @@ import { config } from "../config.js";
 import { db } from "../db.js";
 import { dedupeInFlight } from "./inFlightDeduper.js";
 import { logger } from "./logger.service.js";
-import { yahooClient } from "./yahoo.service.js";
+import { yahooClient } from "./yahoo/index.js";
 
 export interface AssetIcon {
   symbol: string;

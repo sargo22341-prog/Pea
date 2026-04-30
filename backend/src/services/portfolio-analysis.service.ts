@@ -8,7 +8,7 @@ import type {
   PositionWithMarket
 } from "@pea/shared";
 import { logger } from "./logger.service.js";
-import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
+import { isMarketDataUnavailable, yahooService } from "./yahoo/index.js";
 import { portfolioService } from "./portfolio.service.js";
 
 type Fundamentals = Awaited<ReturnType<typeof yahooService.fundamentals>>["data"];

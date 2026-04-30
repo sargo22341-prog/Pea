@@ -22,7 +22,7 @@ import { dividendsService } from "./market/dividends.service.js";
 import { marketDataService } from "./market/market-data.service.js";
 import { marketSnapshotService } from "./market/market-snapshot.service.js";
 import { dataConstructionQueue } from "./market/data-construction-queue.service.js";
-import { yahooService } from "./yahoo.service.js";
+import { yahooService } from "./yahoo/index.js";
 
 const articlesTtlMs = 6 * 60 * 60 * 1000;
 

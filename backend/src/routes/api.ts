@@ -11,7 +11,7 @@ import { parseRange } from "../utils/range.js";
 import { dividendService } from "../services/dividend.service.js";
 import { portfolioService } from "../services/portfolio.service.js";
 import { portfolioAnalysisService } from "../services/portfolio-analysis.service.js";
-import { isMarketDataUnavailable, yahooService } from "../services/yahoo.service.js";
+import { isMarketDataUnavailable, yahooService } from "../services/yahoo/index.js";
 import { watchlistService } from "../services/watchlist.service.js";
 import { db } from "../db.js";
 import { evaluatePeaEligibility, rankAssetForPea } from "../services/peaEligibility.js";

@@ -5,7 +5,7 @@ import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../peaEligibility.js";
 import { portfolioService } from "../portfolio.service.js";
-import { yahooService } from "../yahoo.service.js";
+import { yahooService } from "../yahoo/index.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 
 export interface PdfUpload {

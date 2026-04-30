@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
 import { logger } from "./logger.service.js";
-import { isMarketDataUnavailable } from "./yahoo.service.js";
+import { isMarketDataUnavailable } from "./yahoo/index.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "./cache.service.js";
 import { marketSnapshotService } from "./market/market-snapshot.service.js";

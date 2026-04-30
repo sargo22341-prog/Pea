@@ -1,6 +1,6 @@
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { db } from "../db.js";
-import { isMarketDataUnavailable } from "./yahoo.service.js";
+import { isMarketDataUnavailable } from "./yahoo/index.js";
 import { marketSnapshotService } from "./market/market-snapshot.service.js";
 import { marketDataService } from "./market/market-data.service.js";
 
