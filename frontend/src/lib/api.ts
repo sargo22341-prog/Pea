@@ -32,6 +32,7 @@ import type {
   SearchResult,
   UpdatePositionInput,
   SortDirection,
+  TopAndLosersResponse,
   User,
   WatchlistItem
 } from "@pea/shared";
@@ -154,6 +155,7 @@ export const api = {
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),
+  topAndLosers: (signal?: AbortSignal) => dedupedRequest<TopAndLosersResponse>("/api/top-and-losers", signal),
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => {
     const path = `/api/watchlist?range=${range}`;
     return dedupedRequest<WatchlistItem[]>(path, signal);

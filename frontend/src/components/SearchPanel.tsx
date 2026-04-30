@@ -1,8 +1,14 @@
+/**
+ * Role du fichier : afficher le formulaire de recherche d'actifs et la liste de
+ * resultats enrichis avec l'etat portefeuille/liste de suivi.
+ */
+
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Search, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { money, percent } from "../lib/format";
 
+/** Panneau autonome de recherche d'actifs utilise par la page /search. */
 export function SearchPanel({
   error,
   localPeaSearchEnabled,
@@ -49,6 +55,7 @@ export function SearchPanel({
   );
 }
 
+/** Ligne de resultat de recherche avec acces au detail et bascule liste de suivi. */
 function SearchResultRow({
   item,
   onToggleWatchlist
@@ -79,6 +86,7 @@ function SearchResultRow({
   );
 }
 
+/** Squelette affiche pendant l'appel de recherche enrichie. */
 function SearchSkeleton() {
   return (
     <div className="card divide-y divide-line overflow-hidden">

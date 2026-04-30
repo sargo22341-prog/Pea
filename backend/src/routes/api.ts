@@ -14,6 +14,7 @@ import { marketRouter } from "./api/market.routes.js";
 import { newsRouter } from "./api/news.routes.js";
 import { portfolioRouter } from "./api/portfolio.routes.js";
 import { searchRouter } from "./api/search.routes.js";
+import { topAndLosersRouter } from "./api/top-and-losers.routes.js";
 import { watchlistRouter } from "./api/watchlist.routes.js";
 
 export const apiRouter = express.Router();
@@ -29,6 +30,7 @@ apiRouter.use(marketRouter);
 apiRouter.use(newsRouter);
 apiRouter.use(assetIconsRouter);
 apiRouter.use(assetsRouter);
+apiRouter.use(topAndLosersRouter);
 apiRouter.use(portfolioRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);

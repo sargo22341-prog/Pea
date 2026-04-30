@@ -61,6 +61,24 @@ export interface EnrichedSearchResult {
   isInPortfolio: boolean;
 }
 
+/** Ligne legere renvoyee pour les classements Yahoo Finance du jour. */
+export interface TopMover {
+  symbol: string;
+  shortName?: string;
+  price: number;
+  changePercent: number;
+  change: number;
+  currency?: CurrencyCode;
+}
+
+/** Reponse cachee par jour calendaire pour les top gainers et top losers. */
+export interface TopAndLosersResponse {
+  gainers: TopMover[];
+  losers: TopMover[];
+  cachedAt: string;
+  cacheDate: string;
+}
+
 export interface Quote {
   symbol: string;
   name: string;
