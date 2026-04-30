@@ -288,11 +288,14 @@ export class PortfolioService {
     const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase())));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
+    const totalFeesRow = db.prepare("SELECT COALESCE(SUM(total_fees), 0) AS total_fees FROM transactions").get() as { total_fees?: number } | undefined;
+    const totalFees = Number(totalFeesRow?.total_fees ?? 0);
     const totalPerformance = totalValue - totalCost;
 
     return {
       totalValue,
       totalCost,
+      totalFees,
       totalPerformance,
       totalPerformancePercent: totalCost ? (totalPerformance / totalCost) * 100 : 0,
       positionsCount: positions.reduce((sum, position) => sum + position.quantity, 0),

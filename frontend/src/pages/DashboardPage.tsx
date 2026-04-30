@@ -4,7 +4,7 @@
  */
 
 import type { PortfolioSummary, RangeKey, User } from "@pea/shared";
-import { Activity, Briefcase, LineChart, Wallet } from "lucide-react";
+import { Activity, LineChart, ReceiptText, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PortfolioChart } from "../components/PortfolioChart";
@@ -71,19 +71,52 @@ export function DashboardPage({ user }: { user: User }) {
  */
 function TopMetrics({ summary, range, loading }: { summary: PortfolioSummary | null; range: RangeKey; loading: boolean }) {
   return (
-    <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      <Metric icon={Wallet} label="Valeur totale" loading={loading} value={summary ? money(summary.totalValue, summary.currency) : undefined} />
-      <Metric icon={Briefcase} label="Lignes" loading={loading} value={summary ? String(summary.assetsCount) : undefined} />
-      <Metric
-        icon={LineChart}
-        label="Performance"
-        loading={loading}
-        tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
-        value={summary ? `${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})` : undefined}
-      />
-      <RangeMetric currency={summary?.currency ?? "EUR"} range={range} summaryReady={!loading && summary != null} />
+    <section className="space-y-3">
+      <PortfolioTotal loading={loading} value={summary?.totalValue} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Metric icon={TrendingUp} label="Total investi" loading={loading} value={summary ? money(summary.totalCost, summary.currency) : undefined} />
+        <Metric icon={ReceiptText} label="Total frais" loading={loading} value={summary ? money(summary.totalFees, summary.currency) : undefined} />
+        <Metric
+          icon={LineChart}
+          label="Performance"
+          loading={loading}
+          tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
+          value={summary ? `${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})` : undefined}
+        />
+        <RangeMetric currency={summary?.currency ?? "EUR"} range={range} summaryReady={!loading && summary != null} />
+      </div>
     </section>
   );
+}
+
+/**
+ * Affiche la valorisation du PEA comme information principale du Dashboard.
+ *
+ * @param props Valeur formatée et état de chargement.
+ * @returns Grand bloc sans libellé visible.
+ */
+function PortfolioTotal({ value, loading }: { value?: number; loading: boolean }) {
+  return (
+    <div className="flex min-h-[118px] items-start justify-center pt-2 text-center">
+      {loading ? (
+        <div className="mt-2 h-[70px] w-72 max-w-full animate-pulse rounded bg-panel2/60 sm:h-[86px]" />
+      ) : (
+        <p
+          className="break-words bg-gradient-to-b from-white via-slate-100 to-teal-100 bg-clip-text font-black leading-none text-transparent text-[70px] sm:text-[86px]"
+          style={{ textShadow: "0 0 28px rgba(45, 212, 191, 0.18)" }}
+        >
+          {formatMainTotal(value)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatMainTotal(value?: number) {
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: safeValue > 1000 ? 0 : 2
+  }).format(safeValue);
 }
 
 /**
@@ -293,7 +326,7 @@ function Metric({
   tone,
   loading = false
 }: {
-  icon: typeof Wallet;
+  icon: typeof TrendingUp;
   label: string;
   value?: string;
   tone?: "positive" | "negative";

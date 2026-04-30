@@ -327,6 +327,7 @@ export interface WatchlistItem {
 export interface PortfolioSummary {
   totalValue: number;
   totalCost: number;
+  totalFees: number;
   totalPerformance: number;
   totalPerformancePercent: number;
   positionsCount: number;
