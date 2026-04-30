@@ -7,6 +7,7 @@
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
 import { getMarketCalendar, isTradingDay } from "../market/marketCalendar.service.js";
+import { getZonedDateParts, localDayKey, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 
 export interface BuiltCandle {
   assetId: number;
@@ -30,25 +31,7 @@ function intervalMs(interval: ChartInterval) {
   return 24 * 60 * 60 * 1000;
 }
 
-function localDayKey(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
-}
-
-function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function zonedTimeToUtc(date: string, time: string, timeZone: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const utc = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(utc);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
-  const observedAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
-  return new Date(utc.getTime() - (observedAsUtc - utc.getTime()));
-}
-
+/** Aligne un point UTC sur le debut de bucket local au marche de cotation. */
 function bucketStartFor(pointDate: Date, symbol: string, exchange: string | undefined, interval: ChartInterval) {
   if (interval === "1d") {
     const calendar = getMarketCalendar(symbol, exchange);
@@ -67,8 +50,8 @@ function inSession(pointDate: Date, symbol: string, exchange: string | undefined
   if (!isTradingDay(symbol, exchange, pointDate)) return false;
   const calendar = getMarketCalendar(symbol, exchange);
   const day = localDayKey(pointDate, calendar.timezone);
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: calendar.timezone, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(pointDate);
-  const minutes = Number(parts.find((part) => part.type === "hour")?.value ?? 0) * 60 + Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  const parts = getZonedDateParts(pointDate, calendar.timezone);
+  const minutes = parts.hour * 60 + parts.minute;
   const closeTime = calendar.earlyCloses[day] ?? calendar.closeTime;
   return minutes >= timeToMinutes(calendar.openTime) && minutes <= timeToMinutes(closeTime);
 }

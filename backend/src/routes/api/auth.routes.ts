@@ -4,6 +4,7 @@
 
 import express from "express";
 import { z } from "zod";
+import { config } from "../../config.js";
 import { requireAuth, clearAuthCookie, readCookie, setAuthCookie } from "../../middleware/auth.js";
 import { authCookieName, authService } from "../../services/auth/auth.service.js";
 import { logger } from "../../services/shared/logger.service.js";
@@ -14,7 +15,7 @@ import { parseMultipartIcon } from "../shared/multipart.js";
 export const authRouter = express.Router();
 
 authRouter.get("/me", asyncRoute(async (req, res) => {
-  res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers() });
+  res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers(), appTimezone: config.appTimezone });
 }));
 
 authRouter.post("/setup", asyncRoute(async (req, res) => {

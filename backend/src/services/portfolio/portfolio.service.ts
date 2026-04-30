@@ -3,11 +3,13 @@
  * Le service calcule les DTO prêts à afficher et invalide les caches utilisateur.
  */
 
-import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
+import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
+import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cache.service.js";
@@ -370,7 +372,8 @@ export class PortfolioService {
   async chart(range: RangeKey, userId?: string | number): Promise<PortfolioChartDto> {
     const cacheUserId = normalizedUserId(userId);
     const points = await this.performance(range);
-    const totalInvested = this.listPositions().reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
+    const positions = this.listPositions();
+    const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
     const value: number[] = [];
     const invested: number[] = [];
@@ -406,6 +409,7 @@ export class PortfolioService {
       gainPercent,
       baselinePrice: baseline?.price,
       baselineDatetime: baseline?.datetime,
+      marketSession: range === "1d" ? this.portfolioMarketSession(positions) : undefined,
       performanceEuro,
       performancePercent: performanceStart ? (performanceEuro / performanceStart) * 100 : 0,
       ...preparation,
@@ -413,6 +417,28 @@ export class PortfolioService {
       expiresAt: cachedAt
     };
     return payload;
+  }
+
+  /**
+   * Retourne une session intraday commune uniquement si toutes les positions
+   * partagent exactement la meme timezone de marche et les memes horaires.
+   */
+  private portfolioMarketSession(positions: Position[]): MarketSessionDto | undefined {
+    if (!positions.length) return undefined;
+    const sessions = positions.map((position) => {
+      const asset = assetRepository.findBySymbol(position.symbol);
+      return getMarketSessionInfo(position.symbol, asset?.exchange);
+    });
+    const first = sessions[0];
+    const sameSession = sessions.every((session) =>
+      session.timezone === first.timezone &&
+      session.open === first.open &&
+      session.close === first.close
+    );
+    if (!sameSession) return undefined;
+
+    const cities = [...new Set(sessions.map((session) => session.city))];
+    return { ...first, city: cities.length === 1 ? first.city : first.timezone };
   }
 
   private async portfolioIntradayBaseline(): Promise<{ price: number; datetime?: string } | undefined> {

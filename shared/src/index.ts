@@ -146,12 +146,20 @@ export interface AssetChartDto {
   performanceEuro?: number;
   performancePercent?: number;
   marketState?: MarketState;
+  marketSession?: MarketSessionDto;
   cachedAt: number;
   expiresAt: number;
   isPreparing?: boolean;
   missingRanges?: RangeKey[];
   missingAssets?: string[];
   jobId?: string;
+}
+
+export interface MarketSessionDto {
+  timezone: string;
+  city: string;
+  open: string;
+  close: string;
 }
 
 export interface PortfolioChartDto {
@@ -167,6 +175,7 @@ export interface PortfolioChartDto {
   performanceEuro: number;
   performancePercent: number;
   marketState?: MarketState;
+  marketSession?: MarketSessionDto;
   cachedAt: number;
   expiresAt: number;
   isPreparing?: boolean;
@@ -478,6 +487,8 @@ export interface AssetDetails {
   summary: Record<string, string | number | undefined>;
   marketInfo?: AssetMarketInfo;
   market?: AssetMarketDto;
+  appTimezone?: string;
+  marketSession?: MarketSessionDto;
   financials?: FinancialYearItem[];
   isEtf?: boolean;
   peaEligibility: PeaEligibilityResult;
@@ -514,6 +525,7 @@ export interface User {
 export interface AuthMe {
   user: User | null;
   setupRequired: boolean;
+  appTimezone: string;
 }
 
 export interface BoursoramaImportRow {

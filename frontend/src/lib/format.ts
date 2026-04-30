@@ -1,4 +1,5 @@
 import type { RangeKey } from "@pea/shared";
+import { normalizeTimeZone } from "./timezone";
 
 export type ChartRange = RangeKey | Uppercase<RangeKey>;
 
@@ -45,14 +46,15 @@ export function percent(value: number) {
   }).format(Number.isFinite(value) ? value : 0)} %`;
 }
 
-export function shortDate(value: string) {
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(new Date(value));
+export function shortDate(value: string, timeZone?: string) {
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "short" }).format(new Date(value));
 }
 
-export function formatChartDate(value: string) {
+export function formatChartDate(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: normalizeTimeZone(timeZone),
     day: "2-digit",
     month: "2-digit",
     year: "numeric"
@@ -61,29 +63,32 @@ export function formatChartDate(value: string) {
     .replace(/\//g, "-");
 }
 
-export function formatChartTime(value: string) {
+export function formatChartTime(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: normalizeTimeZone(timeZone),
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
 }
 
-export function formatChartWeekTick(value: string) {
+export function formatChartWeekTick(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: normalizeTimeZone(timeZone),
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
 }
 
-export function formatChartDateTime(value: string) {
+export function formatChartDateTime(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: normalizeTimeZone(timeZone),
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -107,10 +112,10 @@ export function formatPlainPercent(value?: number) {
   return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} %`;
 }
 
-export function formatMonthYear(value: string) {
+export function formatMonthYear(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", { month: "short", year: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), month: "short", year: "2-digit" }).format(date);
 }
 
 export function formatMaybeInteger(value?: number) {
@@ -133,16 +138,16 @@ export function formatChange(value: number | undefined, percentValue: number | u
   return `${amount} (${pct})`;
 }
 
-export function formatMaybeDate(value?: string) {
+export function formatMaybeDate(value?: string, timeZone?: string) {
   if (!value) return "n/a";
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "n/a";
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }
 
-export function formatArticleDate(value?: string) {
+export function formatArticleDate(value?: string, timeZone?: string) {
   if (!value) return "";
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }

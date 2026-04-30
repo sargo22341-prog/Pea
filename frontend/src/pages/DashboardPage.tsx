@@ -16,7 +16,7 @@ import { api } from "../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
 import { formatRangeLabel, money, percent } from "../lib/format";
 
-export function DashboardPage({ user }: { user: User }) {
+export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: string }) {
   const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
     const initialRange = user.defaultChartRange ?? "1d";
     return initialRange;
@@ -55,6 +55,7 @@ export function DashboardPage({ user }: { user: User }) {
           range={selectedRange}
           setRange={setSelectedRange}
           summary={summary}
+          userTimezone={appTimezone}
         />
       ) : (
         <PortfolioEvolutionSkeleton range={selectedRange} setRange={setSelectedRange} />
@@ -166,13 +167,15 @@ function PortfolioEvolutionSection({
   range,
   defaultSortKey,
   defaultSortDirection,
-  setRange
+  setRange,
+  userTimezone
 }: {
   summary: PortfolioSummary;
   range: RangeKey;
   defaultSortKey: User["dashboardDefaultSortKey"];
   defaultSortDirection: User["dashboardDefaultSortDirection"];
   setRange: (source: string, nextRange: RangeKey) => void;
+  userTimezone: string;
 }) {
   const portfolioChart = useAsync((signal) => api.portfolioChart(range, signal), [range]);
   const chartReady = Boolean(portfolioChart.data) && !portfolioChart.loading;
@@ -213,7 +216,7 @@ function PortfolioEvolutionSection({
         {portfolioChart.loading || !portfolioChart.data ? (
           <ChartSkeleton />
         ) : (
-          <PortfolioChart chart={portfolioChart.data} range={range} />
+          <PortfolioChart chart={portfolioChart.data} range={range} userTimezone={userTimezone} />
         )}
       </section>
 

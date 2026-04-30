@@ -5,13 +5,16 @@
 
 import type { PortfolioChartDto, RangeKey } from "@pea/shared";
 import { PriceHistoryChart } from "./charts/PriceHistoryChart";
+import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
 
 export function PortfolioChart({
   chart,
   range,
+  userTimezone
 }: {
   chart: PortfolioChartDto;
   range: RangeKey;
+  userTimezone?: string;
 }) {
   const chartData = toChartPoints(chart);
 
@@ -26,9 +29,16 @@ export function PortfolioChart({
         data={chartData}
         margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
         minTickGap={28}
+        marketSession={chart.marketSession}
         oneDayTooltipFormat="time"
         range={range}
+        userTimezone={userTimezone}
       />
+      {range === "1d" && chart.marketSession && chart.marketSession.timezone !== normalizeTimeZone(userTimezone) && (
+        <p className="px-4 pt-2 text-xs text-slate-400">
+          Horaires du marche : {chart.marketSession.city} {formatMarketSessionHours(chart.marketSession.open, chart.marketSession.close)}, heure locale du marche
+        </p>
+      )}
     </div>
   );
 }

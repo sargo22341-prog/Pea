@@ -4,11 +4,13 @@
 
 import express from "express";
 import type { AssetDetails, AssetMarketInfo, DividendEvent, NewsArticle, Quote } from "@pea/shared";
+import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { assetDataService } from "../../services/assets/asset-data.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { dividendsService } from "../../services/market/dividends.service.js";
 import { financialsService } from "../../services/market/financials.service.js";
+import { getMarketSessionInfo } from "../../services/market/marketCalendar.service.js";
 import { marketSnapshotService } from "../../services/market/market-snapshot.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { evaluatePeaEligibility, rankAssetForPea } from "../../services/assets/peaEligibility.js";
@@ -73,6 +75,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const dividends = dividendsResult.data;
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
+  const marketSession = getMarketSessionInfo(symbol, quote.exchange ?? marketInfo.exchangeName ?? assetStatic.exchange);
   const financials = assetFinancialsResult.financials;
   const isEtf = assetFinancialsResult.isEtf;
   const dividendsReceived = position
@@ -108,6 +111,8 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     },
     marketInfo,
     market: assetMarket,
+    appTimezone: config.appTimezone,
+    marketSession,
     financials,
     isEtf
   };

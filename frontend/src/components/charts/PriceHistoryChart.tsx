@@ -1,8 +1,9 @@
-import type { RangeKey } from "@pea/shared";
+import type { MarketSessionDto, RangeKey } from "@pea/shared";
 import { useId } from "react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money } from "../../lib/format";
+import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
 
 interface PriceHistoryChartProps {
   data: PriceHistoryInputPoint[];
@@ -19,6 +20,8 @@ interface PriceHistoryChartProps {
   oneDayTooltipFormat?: "dateTime" | "time";
   baselinePrice?: number;
   baselineDatetime?: string;
+  marketSession?: MarketSessionDto;
+  userTimezone?: string;
 }
 
 export function PriceHistoryChart({
@@ -29,13 +32,15 @@ export function PriceHistoryChart({
   margin,
   minTickGap,
   oneDayTooltipFormat = "dateTime",
-  baselinePrice
+  baselinePrice,
+  marketSession,
+  userTimezone
 }: PriceHistoryChartProps) {
   const { chartData, trend } = usePriceHistoryChart(data, range);
   const compressTimeAxis = range === "1w" || range === "1m";
   const renderData = compressTimeAxis ? chartData.map((point, index) => ({ ...point, x: index })) : chartData;
   const xDataKey = compressTimeAxis ? "x" : "date";
-  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(chartData) : ["dataMin", "dataMax"];
+  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(chartData, marketSession) ?? ["dataMin", "dataMax"] : ["dataMin", "dataMax"];
   const xTicks = compressTimeAxis ? compressedTicks(renderData.length, range) : undefined;
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
@@ -65,7 +70,7 @@ export function PriceHistoryChart({
             minTickGap={minTickGap}
             scale={compressTimeAxis ? "linear" : "time"}
             tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range)}
+            tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
             ticks={xTicks}
             type="number"
@@ -86,7 +91,7 @@ export function PriceHistoryChart({
               backdropFilter: "blur(6px)"
             }}
             formatter={(value) => (value == null ? "" : money(Number(value), currency))}
-            labelFormatter={(value) => formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat)}
+            labelFormatter={(value) => formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat, userTimezone, marketSession)}
             labelStyle={{ color: "#cbd5e1" }}
           />
 
@@ -130,56 +135,40 @@ function compressedTicks(length: number, range: RangeKey) {
   return [...ticks].sort((a, b) => a - b);
 }
 
-function getIntradayDomain(points: PriceHistoryInputPoint[] | Array<{ date: number; value: number | null }>) {
+/** Calcule le domaine intraday depuis la session marche exposee par le backend. */
+function getIntradayDomain(points: PriceHistoryInputPoint[] | Array<{ date: number; value: number | null }>, marketSession?: MarketSessionDto) {
+  if (!marketSession) return undefined;
   const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
   if (!firstTimestamp) return undefined;
-  const session = parisSessionDomain(new Date(firstTimestamp));
+  const session = marketSessionDomain(new Date(firstTimestamp), marketSession);
   return [session.open, session.close] as [number, number];
 }
 
-function parisSessionDomain(date: Date) {
-  const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
+function marketSessionDomain(date: Date, marketSession: MarketSessionDto) {
+  const timeZone = normalizeTimeZone(marketSession.timezone);
+  const day = localIsoDate(date, timeZone);
   return {
-    open: zonedTimeToUtc(day, "09:00", "Europe/Paris").getTime(),
-    close: zonedTimeToUtc(day, "17:30", "Europe/Paris").getTime()
+    open: zonedTimeToUtc(day, marketSession.open, timeZone).getTime(),
+    close: zonedTimeToUtc(day, marketSession.close, timeZone).getTime()
   };
 }
 
-function zonedTimeToUtc(day: string, time: string, timeZone: string) {
-  const [year, month, date] = day.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const utc = new Date(Date.UTC(year, month - 1, date, hour, minute));
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(utc);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
-  const observedAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
-  return new Date(utc.getTime() - (observedAsUtc - utc.getTime()));
+function formatHistoryTick(value: string | number, range: RangeKey, userTimezone?: string) {
+  const dateValue = chartDateValue(value);
+  if (range === "1d") return formatChartTime(dateValue, userTimezone);
+  if (range === "1w" || range === "1m") return formatChartWeekTick(dateValue, userTimezone);
+  return formatChartDate(dateValue, userTimezone);
 }
 
-function formatHistoryTick(value: string | number, range: RangeKey) {
+function formatHistoryTooltipLabel(value: string | number, range: RangeKey, oneDayFormat: "dateTime" | "time", userTimezone?: string, marketSession?: MarketSessionDto) {
   const dateValue = chartDateValue(value);
-  if (range === "1d") return formatChartTime(dateValue);
-  if (range === "1w" || range === "1m") return formatChartWeekTick(dateValue);
-  return formatChartDate(dateValue);
-}
-
-function formatHistoryTooltipLabel(value: string | number, range: RangeKey, oneDayFormat: "dateTime" | "time") {
-  const dateValue = chartDateValue(value);
-  if (range === "1d") return oneDayFormat === "time" ? formatChartTime(dateValue) : formatChartDateTime(dateValue);
-  if (range === "1w" || range === "1m") return formatChartDateTime(dateValue);
-  return formatChartDate(dateValue);
+  if (range === "1d") {
+    const userLabel = oneDayFormat === "time" ? formatChartTime(dateValue, userTimezone) : formatChartDateTime(dateValue, userTimezone);
+    if (!marketSession || normalizeTimeZone(marketSession.timezone) === normalizeTimeZone(userTimezone)) return userLabel;
+    return `${userLabel} | ${formatChartDateTime(dateValue, marketSession.timezone)} (${marketSession.city})`;
+  }
+  if (range === "1w" || range === "1m") return formatChartDateTime(dateValue, userTimezone);
+  return formatChartDate(dateValue, userTimezone);
 }
 
 function chartDateValue(value: string | number) {

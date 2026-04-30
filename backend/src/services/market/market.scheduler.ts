@@ -5,30 +5,24 @@
  */
 
 import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
+import { config } from "../../config.js";
 import { logger } from "../shared/logger.service.js";
 import { assetRepository } from "./asset.repository.js";
 import { financialsService } from "./financials.service.js";
 import { dividendsService } from "./dividends.service.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { candleRepository } from "../candles/candle.repository.js";
+import { getZonedDateParts } from "../timezone/date-time.service.js";
 
 const postCloseDelayMs = 20 * 60 * 1000;
 const fallbackIntervalMs = 10 * 60 * 1000;
 
-function parisClock(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+/** Lit l'heure de pilotage applicative sans changer les instants UTC stockes. */
+function appClock(date: Date) {
+  const parts = getZonedDateParts(date, config.appTimezone);
   return {
-    date: `${value("year")}-${value("month")}-${value("day")}`,
-    minutes: Number(value("hour")) * 60 + Number(value("minute"))
+    date: parts.isoDate,
+    minutes: parts.hour * 60 + parts.minute
   };
 }
 
@@ -48,10 +42,10 @@ export class MarketScheduler {
   }
 
   async tick(now = new Date()) {
-    const paris = parisClock(now);
-    if (paris.minutes >= 17 * 60 + 40 && this.lastCronDate !== paris.date) {
-      this.lastCronDate = paris.date;
-      this.enqueuePostCloseFinalization("cron-17:40-europe-paris");
+    const appTime = appClock(now);
+    if (appTime.minutes >= 17 * 60 + 40 && this.lastCronDate !== appTime.date) {
+      this.lastCronDate = appTime.date;
+      this.enqueuePostCloseFinalization(`cron-17:40-${config.appTimezone}`);
     }
 
     if (now.getTime() - this.lastFallbackAt > fallbackIntervalMs) {

@@ -5,7 +5,7 @@
 
 import type { AssetChartDto, HistoryPoint, RangeKey } from "@pea/shared";
 import { chartConfigService, normalizeStoredRange, type ChartInterval, type StoredChartRange } from "./chart-config.service.js";
-import { getLastTradingDay, getMarketDateKey, getPreviousOpenMarketDays, isMarketOpen } from "./marketCalendar.service.js";
+import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, getPreviousOpenMarketDays, isMarketOpen } from "./marketCalendar.service.js";
 import { logger } from "../shared/logger.service.js";
 import { db } from "../../db.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
@@ -23,7 +23,18 @@ const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, num
   "1m": 30
 };
 
-function compactHistory(symbol: string, range: RangeKey, interval: string, points: HistoryPoint[], baseline?: { price: number; datetime?: string }): AssetChartDto {
+/**
+ * Compacte les points UTC en DTO leger et attache la session marche locale
+ * utilisee par le frontend pour borner l'axe intraday sans hardcode.
+ */
+function compactHistory(
+  symbol: string,
+  range: RangeKey,
+  interval: string,
+  points: HistoryPoint[],
+  baseline?: { price: number; datetime?: string },
+  marketSession = getMarketSessionInfo(symbol)
+): AssetChartDto {
   const timestamps: number[] = [];
   const prices: number[] = [];
   const performance: number[] = [];
@@ -48,6 +59,7 @@ function compactHistory(symbol: string, range: RangeKey, interval: string, point
     baselinePrice: baseline?.price,
     baselineDatetime: baseline?.datetime,
     performance,
+    marketSession,
     cachedAt: Date.now(),
     expiresAt: Date.now()
   } as AssetChartDto;
@@ -357,7 +369,7 @@ export class MarketDataService {
         baselinePrice: baseline?.price,
         baselineDatetime: baseline?.datetime
       });
-      return compactHistory(asset.symbol, "1d", interval, points, baseline);
+      return compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
     }
 
     const storedRange = normalizeStoredRange(range);
@@ -371,7 +383,7 @@ export class MarketDataService {
       logger.warn("market-data", "chart returns few points; background rebuild queued", { symbol: asset.symbol, range: storedRange, interval, points: points.length, jobId: job.id });
       const baseline = storedRange === "1d" ? await this.getPreviousClosePrice(asset) : undefined;
       return {
-        ...compactHistory(asset.symbol, storedRange, interval, points, baseline),
+        ...compactHistory(asset.symbol, storedRange, interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange)),
         isPreparing: true,
         missingRanges: [storedRange],
         jobId: job.id
@@ -389,7 +401,7 @@ export class MarketDataService {
       baselinePrice: baseline?.price,
       baselineDatetime: baseline?.datetime
     });
-    return compactHistory(asset.symbol, storedRange, interval, points, baseline);
+    return compactHistory(asset.symbol, storedRange, interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
   }
 
   async getPreviousClosePrice(asset: AssetRow): Promise<{ price: number; datetime?: string } | undefined> {

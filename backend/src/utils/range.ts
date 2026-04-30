@@ -1,4 +1,5 @@
 import type { RangeKey } from "@pea/shared";
+import { getLastTradingDay, getMarketSessionInfo } from "../services/market/marketCalendar.service.js";
 
 type YahooInterval = "5m" | "1h" | "1d";
 export type ChartDisplayInterval = "5m" | "2h" | "4h" | "1d";
@@ -105,86 +106,22 @@ export function buildHistoricalOptions(
 }
 
 export function getMarketHours(symbol?: string, exchange?: string, fullExchangeName?: string): MarketHours {
-  const normalizedSymbol = String(symbol ?? "").toUpperCase();
-  const normalizedExchange = `${exchange ?? ""} ${fullExchangeName ?? ""}`.toUpperCase();
-
-  if (normalizedSymbol.endsWith(".PA") || normalizedExchange.includes("PARIS")) return { timezone: "Europe/Paris", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".AS") || normalizedExchange.includes("AMSTERDAM")) return { timezone: "Europe/Amsterdam", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".BR") || normalizedExchange.includes("BRUSSELS")) return { timezone: "Europe/Brussels", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".MI") || normalizedExchange.includes("MILAN") || normalizedExchange.includes("ITALIANA")) return { timezone: "Europe/Rome", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".DE") || normalizedExchange.includes("XETRA") || normalizedExchange.includes("FRANKFURT")) return { timezone: "Europe/Berlin", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".MC") || normalizedExchange.includes("MADRID")) return { timezone: "Europe/Madrid", openTime: "09:00", closeTime: "17:30" };
-  if (normalizedSymbol.endsWith(".LS") || normalizedExchange.includes("LISBON")) return { timezone: "Europe/Lisbon", openTime: "08:00", closeTime: "16:30" };
-  if (normalizedSymbol.endsWith(".L") || normalizedExchange.includes("LONDON")) return { timezone: "Europe/London", openTime: "08:00", closeTime: "16:30" };
-  if (normalizedSymbol.endsWith(".TO") || normalizedExchange.includes("TORONTO")) return { timezone: "America/Toronto", openTime: "09:30", closeTime: "16:00" };
-  if (
-    !normalizedSymbol.includes(".") ||
-    normalizedExchange.includes("NASDAQ") ||
-    normalizedExchange.includes("NYSE") ||
-    normalizedExchange.includes("AMEX") ||
-    normalizedExchange.includes("NEW YORK")
-  ) {
-    return { timezone: "America/New_York", openTime: "09:30", closeTime: "16:00" };
-  }
-
-  return { timezone: "Europe/Paris", openTime: "09:00", closeTime: "17:30" };
+  const session = getMarketSessionInfo(symbol, `${exchange ?? ""} ${fullExchangeName ?? ""}`);
+  return { timezone: session.timezone, openTime: session.open, closeTime: session.close };
 }
 
 export function getCurrentTradingDay(symbol?: string, exchange?: string, fullExchangeName?: string) {
   return getMarketSession(symbol, exchange, fullExchangeName).tradingDay;
 }
 
+/** Construit une fenetre Yahoo intraday en UTC a partir du calendrier marche. */
 function getMarketSession(symbol?: string, exchange?: string, fullExchangeName?: string, now = new Date()) {
-  const marketHours = getMarketHours(symbol, exchange, fullExchangeName);
-  const local = getLocalDateParts(now, marketHours.timezone);
-  const [openHour, openMinute] = marketHours.openTime.split(":").map(Number);
-  const [closeHour, closeMinute] = marketHours.closeTime.split(":").map(Number);
-
-  const localToday = new Date(Date.UTC(local.year, local.month - 1, local.day));
-  const todayOpen = zonedTimeToUtc(local.year, local.month, local.day, openHour, openMinute, marketHours.timezone);
-  const daysBack = local.weekday === "Sat" ? 1 : local.weekday === "Sun" ? 2 : now < todayOpen ? 1 : 0;
-  const marketDay = new Date(localToday);
-  marketDay.setUTCDate(localToday.getUTCDate() - daysBack);
-  if (marketDay.getUTCDay() === 0) marketDay.setUTCDate(marketDay.getUTCDate() - 2);
-  if (marketDay.getUTCDay() === 6) marketDay.setUTCDate(marketDay.getUTCDate() - 1);
-
-  const period1 = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), openHour, openMinute, marketHours.timezone);
-  const close = zonedTimeToUtc(marketDay.getUTCFullYear(), marketDay.getUTCMonth() + 1, marketDay.getUTCDate(), closeHour, closeMinute, marketHours.timezone);
-  const period2 = now < period1 ? period1 : now > close ? close : now;
-  const tradingDay = `${marketDay.getUTCFullYear()}-${String(marketDay.getUTCMonth() + 1).padStart(2, "0")}-${String(marketDay.getUTCDate()).padStart(2, "0")}`;
-
-  return { period1, period2, tradingDay, marketHours };
-}
-
-function getLocalDateParts(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short"
-  }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const session = getLastTradingDay(symbol, `${exchange ?? ""} ${fullExchangeName ?? ""}`, now);
+  const period2 = now < session.period1 ? session.period1 : now > session.period2 ? session.period2 : now;
   return {
-    year: Number(value("year")),
-    month: Number(value("month")),
-    day: Number(value("day")),
-    weekday: value("weekday")
+    period1: session.period1,
+    period2,
+    tradingDay: session.date,
+    marketHours: { timezone: session.calendar.timezone, openTime: session.calendar.openTime, closeTime: session.calendar.closeTime }
   };
-}
-
-function zonedTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string) {
-  const utc = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(utc);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
-  const observedAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"));
-  return new Date(utc.getTime() - (observedAsUtc - utc.getTime()));
 }

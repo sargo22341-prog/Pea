@@ -27,11 +27,12 @@ export function App() {
       await me.reload();
     }} />;
   }
+  const appTimezone = me.data.appTimezone;
 
   return (
     <Routes>
       <Route element={<Shell user={me.data.user} onLogout={me.reload} />}>
-        <Route index element={<DashboardPage user={me.data.user} />} />
+        <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
         <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
         <Route path="/portfolio" element={<Navigate replace to="/news" />} />
         <Route path="/analysis" element={<AnalysisPage />} />

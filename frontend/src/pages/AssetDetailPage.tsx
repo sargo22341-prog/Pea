@@ -29,6 +29,7 @@ import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
 import { money, percent } from "../lib/format";
+import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
 
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
@@ -90,7 +91,8 @@ export function AssetDetailPage({ user }: { user: User }) {
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
-  const { quote, dividends, news, position, marketInfo, chart } = asset.data;
+  const { quote, dividends, news, position, marketInfo, chart, marketSession } = asset.data;
+  const userTimezone = normalizeTimeZone(asset.data.appTimezone);
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
 
   /**
@@ -209,7 +211,9 @@ export function AssetDetailPage({ user }: { user: User }) {
             currency={quote.currency}
             data={chartPoints}
             heightClassName="h-80"
+            marketSession={marketSession ?? chart?.marketSession}
             range={range}
+            userTimezone={userTimezone}
           />
         ) : chart?.isPreparing ? (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-amber">
@@ -224,6 +228,11 @@ export function AssetDetailPage({ user }: { user: User }) {
         )}
         {range === "1d" && (chartPoints.length === 0 || asset.data.stale) && (
           <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
+        )}
+        {range === "1d" && marketSession && marketSession.timezone !== userTimezone && (
+          <p className="mt-3 text-xs text-slate-400">
+            Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.open, marketSession.close)}, heure locale du marche
+          </p>
         )}
       </section>
 

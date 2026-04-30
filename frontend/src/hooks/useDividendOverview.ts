@@ -2,8 +2,9 @@ import type { CurrencyCode, PortfolioDividendEvent } from "@pea/shared";
 import { useMemo } from "react";
 import type { DividendGroup } from "../components/DividendGroupedList";
 import type { MonthlyDividend } from "../components/DividendAnnualEstimate";
+import { FALLBACK_TIMEZONE } from "../lib/timezone";
 
-const currentYear = new Date().getFullYear();
+const currentYear = new Date().getUTCFullYear();
 
 export function useDividendOverview({
   currency,
@@ -46,10 +47,10 @@ export function getCurrentDividendYear() {
 
 function groupDividendsByMonth(events: PortfolioDividendEvent[], year: number, fallbackCurrency: CurrencyCode): MonthlyDividend[] {
   const months: MonthlyDividend[] = Array.from({ length: 12 }, (_, index) => {
-    const date = new Date(year, index, 1);
+    const date = new Date(Date.UTC(year, index, 1));
     return {
       month: `${year}-${String(index + 1).padStart(2, "0")}`,
-      label: new Intl.DateTimeFormat("fr-FR", { month: "short" }).format(date).replace(".", ""),
+      label: new Intl.DateTimeFormat("fr-FR", { timeZone: FALLBACK_TIMEZONE, month: "short" }).format(date).replace(".", ""),
       total: 0,
       currency: fallbackCurrency,
       entries: []
@@ -61,7 +62,7 @@ function groupDividendsByMonth(events: PortfolioDividendEvent[], year: number, f
     const date = new Date(event.date);
     if (!Number.isFinite(date.getTime())) continue;
 
-    const month = months[date.getMonth()];
+    const month = months[date.getUTCMonth()];
     const amount = safeNumber(event.totalAmount);
     const existing = month.entries.find((entry) => entry.symbol === event.symbol);
 
@@ -124,7 +125,7 @@ function groupDividendsByAsset(events: PortfolioDividendEvent[], year: number): 
 function quarterIndex(value: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return 0;
-  return Math.min(3, Math.max(0, Math.floor(date.getMonth() / 3)));
+  return Math.min(3, Math.max(0, Math.floor(date.getUTCMonth() / 3)));
 }
 
 function safeNumber(value: number | undefined) {
