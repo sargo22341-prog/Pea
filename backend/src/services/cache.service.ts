@@ -14,6 +14,7 @@ const chartTtlByRange: Record<RangeKey, number> = {
   "1m": 4 * 60 * 60 * 1000,
   ytd: 24 * 60 * 60 * 1000,
   "1y": 24 * 60 * 60 * 1000,
+  all: 7 * 24 * 60 * 60 * 1000,
   max: 7 * 24 * 60 * 60 * 1000
 };
 
@@ -23,6 +24,7 @@ const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = {
   "1m": "1M",
   ytd: "YTD",
   "1y": "1Y",
+  all: "ALL",
   max: "MAX"
 };
 

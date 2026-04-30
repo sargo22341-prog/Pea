@@ -1,6 +1,7 @@
 import type { ParsedAvisOperation } from "@pea/shared";
 import { useState } from "react";
 import { api } from "../lib/api";
+import { notifyDataConstructionChanged } from "../lib/dataConstruction";
 
 export function useAvisOperesPdfImport() {
   const [rows, setRows] = useState<ParsedAvisOperation[]>([]);
@@ -25,6 +26,7 @@ export function useAvisOperesPdfImport() {
     setLoading(true);
     try {
       const result = await api.confirmAvisOperesPdf(rows);
+      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
       setMessage(`${result.imported.length} operation(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Import PDF impossible.");

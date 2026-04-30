@@ -1,6 +1,8 @@
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { db } from "../db.js";
-import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
+import { isMarketDataUnavailable } from "./yahoo.service.js";
+import { marketSnapshotService } from "./market/market-snapshot.service.js";
+import { marketDataService } from "./market/market-data.service.js";
 
 function mapWatchlistRow(row: any): WatchlistItem {
   return {
@@ -27,10 +29,10 @@ export class WatchlistService {
     let currency = input?.currency;
 
     try {
-      const quote = await yahooService.quote(key);
-      name = quote.data.name || name;
-      exchange = quote.data.exchange || exchange;
-      currency = quote.data.currency || currency;
+      const quote = await marketSnapshotService.getQuote(key, { forceRefresh: true });
+      name = quote.name || name;
+      exchange = quote.exchange || exchange;
+      currency = quote.currency || currency;
     } catch (error) {
       if (!isMarketDataUnavailable(error)) throw error;
     }
@@ -55,14 +57,14 @@ export class WatchlistService {
 
   private async enrich(item: WatchlistItem, range: RangeKey): Promise<WatchlistItem> {
     try {
-      const [quote, history] = await Promise.all([yahooService.quote(item.symbol), yahooService.history(item.symbol, range)]);
+      const [quote, chart] = await Promise.all([marketSnapshotService.getQuote(item.symbol), marketDataService.getChartData(item.symbol, range)]);
       return {
         ...item,
-        name: item.name || quote.data.name,
-        currency: item.currency || quote.data.currency,
-        quote: quote.data,
-        history: history.data,
-        marketDataUnavailable: quote.stale || history.stale || quote.data.unavailable
+        name: item.name || quote.name,
+        currency: item.currency || quote.currency,
+        quote,
+        history: chart.timestamps.map((timestamp, index) => ({ date: new Date(timestamp).toISOString(), close: chart.prices[index] })),
+        marketDataUnavailable: Boolean(quote.stale || quote.unavailable)
       };
     } catch (error) {
       if (!isMarketDataUnavailable(error)) throw error;

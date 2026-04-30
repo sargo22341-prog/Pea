@@ -3,8 +3,8 @@
  * et le frontend afin que les DTO renvoyés par l'API restent cohérents.
  */
 
-export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "max";
-export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "MAX";
+export type RangeKey = "1d" | "1w" | "1m" | "1y" | "ytd" | "all" | "max";
+export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "ALL" | "MAX";
 export type MarketState = "OPEN" | "CLOSED" | "PRE" | "POST";
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
 export type SortDirection = "asc" | "desc";
@@ -122,11 +122,18 @@ export interface AssetChartDto {
   interval: string;
   timestamps: number[];
   prices: number[];
+  baselinePrice?: number;
+  baselineDatetime?: string;
+  performance?: number[];
   performanceEuro?: number;
   performancePercent?: number;
   marketState?: MarketState;
   cachedAt: number;
   expiresAt: number;
+  isPreparing?: boolean;
+  missingRanges?: RangeKey[];
+  missingAssets?: string[];
+  jobId?: string;
 }
 
 export interface PortfolioChartDto {
@@ -137,11 +144,32 @@ export interface PortfolioChartDto {
   invested: number[];
   gain: number[];
   gainPercent: number[];
+  baselinePrice?: number;
+  baselineDatetime?: string;
   performanceEuro: number;
   performancePercent: number;
   marketState?: MarketState;
   cachedAt: number;
   expiresAt: number;
+  isPreparing?: boolean;
+  missingRanges?: RangeKey[];
+  missingAssets?: string[];
+  jobId?: string;
+}
+
+export interface DataConstructionJobDto {
+  id: string;
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  pendingTasks: number;
+  status: "idle" | "queued" | "running" | "success" | "error";
+  progressPercent: number;
+  currentMessage: string;
+  currentTaskLabel?: string;
+  errors: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AssetMarketDto {

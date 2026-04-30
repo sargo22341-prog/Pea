@@ -155,7 +155,7 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
           quantity: row.quantity,
           averageBuyPrice: row.buyingPrice,
           currency: "EUR"
-        });
+        }, { scheduleConstruction: false });
       }
       imported.push(row.symbol);
     } catch (error) {
@@ -261,7 +261,7 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
           quantity: row.csvQuantity,
           averageBuyPrice: row.csvAverageBuyPrice,
           currency: "EUR"
-        });
+        }, { scheduleConstruction: false });
       }
       imported.push(row.symbol);
     } catch (error) {

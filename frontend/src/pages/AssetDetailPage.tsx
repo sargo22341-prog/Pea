@@ -27,6 +27,7 @@ import { RangeSelector } from "../components/RangeSelector";
 import { StaleBadge } from "../components/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
+import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
 import { money, percent } from "../lib/format";
 
 export function AssetDetailPage({ user }: { user: User }) {
@@ -41,6 +42,8 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
+  const assetReload = asset.reload;
+  const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
   const chartPoints = chartDtoToPoints(asset.data?.chart);
 
   /**
@@ -61,6 +64,27 @@ export function AssetDetailPage({ user }: { user: User }) {
   useEffect(() => {
     if (asset.data) setWatchlisted(Boolean(asset.data.isInWatchlist));
   }, [asset.data]);
+
+  useEffect(() => {
+    if (!assetChartPreparing) return;
+    notifyDataConstructionChanged();
+    let cancelled = false;
+    let timer: number | undefined;
+    async function poll() {
+      const status = await api.dataConstructionStatus().catch(() => null);
+      if (cancelled) return;
+      if (!isDataConstructionActive(status)) {
+        await assetReload();
+        return;
+      }
+      timer = window.setTimeout(poll, 2000);
+    }
+    timer = window.setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [assetChartPreparing, assetReload]);
 
   if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
@@ -179,7 +203,18 @@ export function AssetDetailPage({ user }: { user: User }) {
         {asset.loading ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
         ) : chartPoints.length > 1 ? (
-          <PriceHistoryChart currency={quote.currency} data={chartPoints} heightClassName="h-80" range={range} />
+          <PriceHistoryChart
+            baselineDatetime={chart?.baselineDatetime}
+            baselinePrice={chart?.baselinePrice}
+            currency={quote.currency}
+            data={chartPoints}
+            heightClassName="h-80"
+            range={range}
+          />
+        ) : chart?.isPreparing ? (
+          <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-amber">
+            Donnees en cours de preparation
+          </div>
         ) : (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-slate-400">
             {range === "1d"

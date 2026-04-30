@@ -11,9 +11,10 @@ dotenv.config();
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
-  yahooCacheTtlSeconds: Number(process.env.YAHOO_CACHE_TTL_SECONDS ?? 300),
+  yahooCacheTtlSeconds: 0,
   debug: process.env.DEBUG === "true",
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
   nodeEnv: process.env.NODE_ENV ?? "development",
-  logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined
+  logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
+  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../config.json")
 };

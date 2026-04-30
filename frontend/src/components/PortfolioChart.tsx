@@ -15,7 +15,22 @@ export function PortfolioChart({
 }) {
   const chartData = toChartPoints(chart);
 
-  return <PriceHistoryChart data={chartData} margin={{ left: 0, right: 0, top: 16, bottom: 0 }} minTickGap={28} oneDayTooltipFormat="time" range={range} />;
+  return (
+    <div>
+      {chart.isPreparing && (
+        <p className="px-4 pb-2 text-xs text-amber">Donnees en cours de preparation{chart.missingAssets?.length ? `: ${chart.missingAssets.join(", ")}` : ""}</p>
+      )}
+      <PriceHistoryChart
+        baselineDatetime={chart.baselineDatetime}
+        baselinePrice={chart.baselinePrice}
+        data={chartData}
+        margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
+        minTickGap={28}
+        oneDayTooltipFormat="time"
+        range={range}
+      />
+    </div>
+  );
 }
 
 /**

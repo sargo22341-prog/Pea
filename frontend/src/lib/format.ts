@@ -8,6 +8,7 @@ const rangeLabels: Record<RangeKey, string> = {
   "1m": "1 mois",
   "1y": "1 an",
   ytd: "YTD",
+  all: "Tout",
   max: "Max"
 };
 
@@ -17,6 +18,7 @@ const compactRangeLabels: Record<RangeKey, string> = {
   "1m": "1 mois",
   "1y": "1 an",
   ytd: "YTD",
+  all: "Tout",
   max: "Max"
 };
 

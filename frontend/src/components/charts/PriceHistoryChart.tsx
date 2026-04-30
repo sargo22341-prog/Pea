@@ -1,6 +1,6 @@
 import type { RangeKey } from "@pea/shared";
 import { useId } from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, money } from "../../lib/format";
 
@@ -17,6 +17,8 @@ interface PriceHistoryChartProps {
   };
   minTickGap?: number;
   oneDayTooltipFormat?: "dateTime" | "time";
+  baselinePrice?: number;
+  baselineDatetime?: string;
 }
 
 export function PriceHistoryChart({
@@ -26,12 +28,14 @@ export function PriceHistoryChart({
   heightClassName = "h-72 w-full",
   margin,
   minTickGap,
-  oneDayTooltipFormat = "dateTime"
+  oneDayTooltipFormat = "dateTime",
+  baselinePrice
 }: PriceHistoryChartProps) {
   const { chartData, trend } = usePriceHistoryChart(data, range);
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
   const gradientId = `${id}-${trend}-gradient`;
+  const showBaseline = range === "1d" && Number.isFinite(baselinePrice);
 
   return (
     <div className={`chart-fade ${heightClassName}`}>
@@ -52,7 +56,13 @@ export function PriceHistoryChart({
             tickFormatter={(value) => formatHistoryTick(String(value), range)}
             tickLine={false}
           />
-          <YAxis hide domain={["dataMin", "dataMax"]} />
+          <YAxis
+            hide
+            domain={[
+              (dataMin: number) => (showBaseline ? Math.min(dataMin, Number(baselinePrice)) : dataMin),
+              (dataMax: number) => (showBaseline ? Math.max(dataMax, Number(baselinePrice)) : dataMax)
+            ]}
+          />
 
           <Tooltip
             contentStyle={{
@@ -65,6 +75,17 @@ export function PriceHistoryChart({
             labelFormatter={(value) => formatHistoryTooltipLabel(String(value), range, oneDayTooltipFormat)}
             labelStyle={{ color: "#cbd5e1" }}
           />
+
+          {showBaseline && (
+            <ReferenceLine
+              ifOverflow="extendDomain"
+              stroke="#94a3b8"
+              strokeDasharray="5 5"
+              strokeOpacity={0.7}
+              strokeWidth={1.5}
+              y={baselinePrice}
+            />
+          )}
 
           <Area
             activeDot={{ r: 4 }}

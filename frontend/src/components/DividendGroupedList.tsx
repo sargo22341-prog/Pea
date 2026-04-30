@@ -38,7 +38,7 @@ export function DividendGroupedList({ currency, groups, total, year }: DividendG
       </div>
 
       <div className="divide-y divide-line">
-        {groups.length === 0 && <p className="p-4 text-slate-400">Aucun dividende detecte pour {year}.</p>}
+        {groups.length === 0 && <p className="p-4 text-slate-400">Aucun dividende disponible.</p>}
         {groups.map((group) => (
           <DividendAssetRow group={group} key={group.symbol} />
         ))}

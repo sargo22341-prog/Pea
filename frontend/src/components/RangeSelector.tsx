@@ -1,7 +1,7 @@
 import type { RangeKey } from "@pea/shared";
 import { formatRangeLabel } from "../lib/format";
 
-const ranges: RangeKey[] = ["1d", "1w", "1m", "1y", "ytd", "max"];
+const ranges: RangeKey[] = ["1d", "1w", "1m", "1y", "ytd", "all"];
 
 export function RangeSelector({ value, onChange }: { value: RangeKey; onChange: (range: RangeKey) => void }) {
   return (

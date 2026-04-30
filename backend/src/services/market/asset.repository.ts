@@ -1,0 +1,103 @@
+/**
+ * Role du fichier : persister et retrouver les metadonnees d'assets separees
+ * des donnees utilisateur. Les positions et transactions ne sont jamais modifiees ici.
+ */
+
+import { db } from "../../db.js";
+import type { YahooAssetProfilePayload } from "../yahoo/yahoo.api.js";
+import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
+
+export interface AssetRow {
+  id: number;
+  symbol: string;
+  name: string;
+  exchange?: string;
+  currency?: string;
+  quote_type?: string;
+  type_disp?: string;
+}
+
+function mapAsset(row: any): AssetRow {
+  return {
+    id: Number(row.id),
+    symbol: String(row.symbol),
+    name: String(row.name),
+    exchange: row.exchange ?? undefined,
+    currency: row.currency ?? undefined,
+    quote_type: row.quote_type ?? undefined,
+    type_disp: row.type_disp ?? undefined
+  };
+}
+
+export class AssetRepository {
+  findBySymbol(symbol: string): AssetRow | undefined {
+    const row = db.prepare("SELECT * FROM assets WHERE symbol = ?").get(symbol.toUpperCase());
+    return row ? mapAsset(row) : undefined;
+  }
+
+  findById(assetId: number): AssetRow | undefined {
+    const row = db.prepare("SELECT * FROM assets WHERE id = ?").get(assetId);
+    return row ? mapAsset(row) : undefined;
+  }
+
+  listTrackedAssets(): AssetRow[] {
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT a.*
+         FROM assets a
+         WHERE a.symbol IN (SELECT symbol FROM positions)
+            OR a.symbol IN (SELECT symbol FROM watchlist)
+         ORDER BY a.symbol ASC`
+      )
+      .all();
+    return rows.map(mapAsset);
+  }
+
+  listTrackedSymbols(): string[] {
+    const rows = db
+      .prepare(
+        `SELECT symbol FROM positions
+         UNION
+         SELECT symbol FROM watchlist
+         ORDER BY symbol ASC`
+      )
+      .all() as Array<{ symbol: string }>;
+    return rows.map((row) => String(row.symbol).toUpperCase());
+  }
+
+  upsertFromQuote(snapshot: YahooSnapshotPayload): AssetRow {
+    const name = snapshot.longName ?? snapshot.shortName ?? snapshot.symbol;
+    db.prepare(
+      `INSERT INTO assets (symbol, name, exchange, currency, quote_type, type_disp)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(symbol) DO UPDATE SET
+         name = excluded.name,
+         exchange = excluded.exchange,
+         currency = excluded.currency,
+         quote_type = excluded.quote_type,
+         type_disp = excluded.type_disp,
+         updated_at = CURRENT_TIMESTAMP`
+    ).run(snapshot.symbol, name, snapshot.exchange ?? snapshot.fullExchangeName, snapshot.currency, snapshot.quoteType, snapshot.typeDisp);
+    return this.findBySymbol(snapshot.symbol)!;
+  }
+
+  upsertProfile(assetId: number, profile: YahooAssetProfilePayload) {
+    db.prepare(
+      `INSERT INTO asset_profiles (asset_id, country, sector, industry, website, long_business_summary, full_time_employees, market_cap, beta, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2')
+       ON CONFLICT(asset_id) DO UPDATE SET
+         country = excluded.country,
+         sector = excluded.sector,
+         industry = excluded.industry,
+         website = excluded.website,
+         long_business_summary = excluded.long_business_summary,
+         full_time_employees = excluded.full_time_employees,
+         market_cap = excluded.market_cap,
+         beta = excluded.beta,
+         source = excluded.source,
+         updated_at = CURRENT_TIMESTAMP`
+    ).run(assetId, profile.country, profile.sector, profile.industry, profile.website, profile.longBusinessSummary, profile.fullTimeEmployees, profile.marketCap, profile.beta);
+  }
+}
+
+export const assetRepository = new AssetRepository();

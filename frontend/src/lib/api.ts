@@ -11,6 +11,7 @@ import type {
   BoursoramaImportRow,
   BoursoramaUpdateRow,
   CreatePositionInput,
+  DataConstructionJobDto,
   DashboardSortKey,
   DividendEvent,
   EditablePortfolioTransaction,
@@ -192,17 +193,23 @@ export const api = {
   },
   resetAssetIcon: (symbol: string) => request<void>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
   assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons"),
+  clearMarketData: () => request<{ clearedTables: string[] }>("/api/admin/market-data/clear", { method: "POST" }),
+  dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
+  rebuildAllMarketData: () => request<DataConstructionJobDto>("/api/admin/market-data/rebuild-all", { method: "POST" }),
+  refreshMarketSnapshots: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-snapshots", { method: "POST" }),
+  refreshFinancials: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-financials", { method: "POST" }),
+  refreshDividends: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-dividends", { method: "POST" }),
   previewBoursorama: (content: string) =>
     request<BoursoramaImportRow[]>("/api/import/boursorama/preview", { method: "POST", body: JSON.stringify({ content }) }),
   confirmBoursorama: (rows: BoursoramaImportRow[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/boursorama/confirm", {
+    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }>; isPreparing?: boolean; jobId?: string }>("/api/import/boursorama/confirm", {
       method: "POST",
       body: JSON.stringify({ rows })
     }),
   previewBoursoramaUpdate: (content: string) =>
     request<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", { method: "POST", body: JSON.stringify({ content }) }),
   confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/boursorama/update-confirm", {
+    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }>; isPreparing?: boolean; jobId?: string }>("/api/import/boursorama/update-confirm", {
       method: "POST",
       body: JSON.stringify({ rows })
     }),
@@ -212,7 +219,7 @@ export const api = {
     return request<ParsedAvisOperation[]>("/api/import/avis-operes/preview", { method: "POST", body: formData });
   },
   confirmAvisOperesPdf: (rows: ParsedAvisOperation[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }> }>("/api/import/avis-operes/confirm", {
+    request<{ imported: string[]; skipped: string[]; errors: Array<{ line: number; message: string }>; isPreparing?: boolean; jobId?: string }>("/api/import/avis-operes/confirm", {
       method: "POST",
       body: JSON.stringify({ rows })
     })

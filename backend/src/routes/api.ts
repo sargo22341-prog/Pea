@@ -23,6 +23,13 @@ import { confirmAvisOperesImport, previewAvisOperesImport } from "../services/bo
 import { localPeaSearchService } from "../services/local-pea-search.service.js";
 import { logger } from "../services/logger.service.js";
 import { assetDataService } from "../services/asset-data.service.js";
+import { marketSnapshotService } from "../services/market/market-snapshot.service.js";
+import { marketDataService } from "../services/market/market-data.service.js";
+import { financialsService } from "../services/market/financials.service.js";
+import { dividendsService } from "../services/market/dividends.service.js";
+import { marketDataCleaner } from "../services/market/market-data-cleaner.js";
+import { dataConstructionQueue } from "../services/market/data-construction-queue.service.js";
+import { assetRepository } from "../services/market/asset.repository.js";
 
 export const apiRouter = express.Router();
 
@@ -246,7 +253,7 @@ function listAssetNewsPositionRows(): AssetNewsPositionRow[] {
  */
 function readStoredAssetNewsMetadata(symbol: string) {
   const key = symbol.toUpperCase();
-  const asset = db.prepare("SELECT name, type FROM assets WHERE symbol = ?").get(key) as { name?: string; type?: string } | undefined;
+  const asset = db.prepare("SELECT name, quote_type, type_disp FROM assets WHERE symbol = ?").get(key) as { name?: string; quote_type?: string; type_disp?: string } | undefined;
   const cachedQuote = db.prepare("SELECT payload FROM cached_quotes WHERE symbol = ?").get(key) as { payload?: string } | undefined;
   let quote: { name?: string; quoteType?: string } | undefined;
   if (cachedQuote?.payload) {
@@ -258,7 +265,7 @@ function readStoredAssetNewsMetadata(symbol: string) {
   }
   return {
     name: asset?.name ?? quote?.name,
-    assetType: asset?.type,
+    assetType: asset?.type_disp,
     quoteType: quote?.quoteType
   };
 }
@@ -355,7 +362,7 @@ apiRouter.patch("/auth/me", requireAuth, asyncRoute(async (req, res) => {
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
-    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "max"]).optional(),
+    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "ytd", "all", "max"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional()
@@ -466,17 +473,15 @@ apiRouter.get("/search", asyncRoute(async (req, res) => {
 }));
 
 apiRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
-  const result = await yahooService.quote(req.params.symbol);
-  res.json(result.data);
+  res.json(await marketSnapshotService.getQuote(req.params.symbol));
 }));
 
 apiRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
-  res.json(await assetDataService.chart(req.params.symbol, parseRange(req.query.range)));
+  res.json(await marketDataService.getChartData(req.params.symbol, parseRange(req.query.range)));
 }));
 
 apiRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
-  const result = await yahooService.dividends(req.params.symbol);
-  res.json(result.data);
+  res.json(dividendsService.readDividends(req.params.symbol));
 }));
 
 apiRouter.get("/news-global", asyncRoute(async (req, res) => {
@@ -754,8 +759,9 @@ apiRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
 apiRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
   const result = await confirmBoursoramaImport(body.rows);
+  const job = dataConstructionQueue.enqueueFullConstruction(result.imported);
   logger.debug("import", "CSV confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
-  res.json(result);
+  res.json({ ...result, jobId: job.id, isPreparing: job.totalTasks > 0 });
 }));
 
 apiRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, res) => {
@@ -775,8 +781,9 @@ apiRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, res) 
 apiRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) => {
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
   const result = await confirmBoursoramaUpdate(body.rows);
+  const job = dataConstructionQueue.enqueueFullConstruction(result.imported);
   logger.debug("import", "CSV update confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
-  res.json(result);
+  res.json({ ...result, jobId: job.id, isPreparing: job.totalTasks > 0 });
 }));
 
 apiRouter.post(
@@ -793,8 +800,9 @@ apiRouter.post(
 apiRouter.post("/import/avis-operes/confirm", asyncRoute(async (req, res) => {
   const body = z.object({ rows: z.array(z.any()) }).parse(req.body);
   const result = await confirmAvisOperesImport(body.rows);
+  const job = dataConstructionQueue.enqueueFullConstruction(result.imported);
   logger.debug("import", "PDF avis confirm", { rows: body.rows.length, imported: result.imported.length, skipped: result.skipped.length, errors: result.errors.length });
-  res.json(result);
+  res.json({ ...result, jobId: job.id, isPreparing: job.totalTasks > 0 });
 }));
 
 apiRouter.get("/watchlist", asyncRoute(async (req, res) => {
@@ -820,6 +828,30 @@ apiRouter.delete("/watchlist/:symbol", asyncRoute(async (req, res) => {
   res.status(204).send();
 }));
 
+apiRouter.post("/admin/market-data/clear", asyncRoute(async (_req, res) => {
+  res.json(marketDataCleaner.deleteMarketData());
+}));
+
+apiRouter.get("/admin/market-data/construction", asyncRoute(async (_req, res) => {
+  res.json(dataConstructionQueue.latest());
+}));
+
+apiRouter.post("/admin/market-data/refresh-snapshots", asyncRoute(async (_req, res) => {
+  res.json(dataConstructionQueue.enqueueForSymbols("snapshot", assetRepository.listTrackedSymbols()));
+}));
+
+apiRouter.post("/admin/market-data/rebuild-all", asyncRoute(async (_req, res) => {
+  res.json(dataConstructionQueue.enqueueFullConstruction(assetRepository.listTrackedSymbols()));
+}));
+
+apiRouter.post("/admin/market-data/refresh-financials", asyncRoute(async (_req, res) => {
+  res.json(dataConstructionQueue.enqueueForSymbols("financials", assetRepository.listTrackedSymbols()));
+}));
+
+apiRouter.post("/admin/market-data/refresh-dividends", asyncRoute(async (_req, res) => {
+  res.json(dataConstructionQueue.enqueueForSymbols("dividends", assetRepository.listTrackedSymbols()));
+}));
+
 apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = req.params.symbol.toUpperCase();
@@ -829,7 +861,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
 
   const position = await positionPromise;
 
-  const quoteResult = await yahooService.quote(symbol).catch((error) => {
+  const quoteResult = await marketSnapshotService.getQuote(symbol).then((quote) => ({ data: quote })).catch((error) => {
     if (!isMarketDataUnavailable(error)) throw error;
     marketUnavailable = true;
     return {
@@ -851,7 +883,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     assetDataService.dividends(symbol),
     req.user!.assetNewsEnabled ? assetDataService.articles(symbol, userNewsLanguages(req)) : Promise.resolve(undefined),
     assetDataService.market(symbol),
-    yahooService.dividends(symbol).catch((error) => {
+    Promise.resolve({ data: dividendsService.readDividends(symbol) }).catch((error) => {
       if (!isMarketDataUnavailable(error)) throw error;
       marketUnavailable = true;
       return { data: [] as DividendEvent[] };
@@ -867,10 +899,7 @@ apiRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       marketUnavailable = true;
       return { data: {} as AssetMarketInfo };
     }),
-    portfolioAnalysisService.assetFinancials(symbol, quote.name).catch((error) => {
-      logger.warn("portfolio", "asset financials fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
-      return { financials: [] as AssetDetails["financials"], isEtf: false };
-    })
+    Promise.resolve({ financials: financialsService.readFinancialRows(symbol) as AssetDetails["financials"], isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF") })
   ]);
 
   const history: AssetDetails["history"] = [];

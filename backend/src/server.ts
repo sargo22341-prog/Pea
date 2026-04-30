@@ -1,9 +1,11 @@
 import { app } from "./app.js";
 import { config } from "./config.js";
 import { logger } from "./services/logger.service.js";
+import { marketScheduler } from "./services/market/market.scheduler.js";
 
 const server = app.listen(config.port, () => {
   logger.info("api", "PEA Portfolio API listening", { url: `http://127.0.0.1:${config.port}` });
+  marketScheduler.start();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {

@@ -11,7 +11,8 @@ export interface MarketHours {
 
 export function parseRange(value: unknown): RangeKey {
   const range = String(value ?? "1m").toLowerCase();
-  if (["1d", "1w", "1m", "1y", "ytd", "max"].includes(range)) {
+  if (range === "max") return "all";
+  if (["1d", "1w", "1m", "1y", "ytd", "all"].includes(range)) {
     return range as RangeKey;
   }
   return "1m";
@@ -38,6 +39,7 @@ export function yahooRange(
       return { period1: start, interval: "1d", displayInterval: "1d" };
     case "ytd":
       return { period1: new Date(now.getFullYear(), 0, 1), interval: "1d", displayInterval: "1d" };
+    case "all":
     case "max":
       return { period1: new Date("2000-01-01"), interval: "1d", displayInterval: "1d" };
     default:

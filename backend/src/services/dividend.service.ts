@@ -1,7 +1,6 @@
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
-import { HttpError } from "../utils/http-error.js";
 import { portfolioService } from "./portfolio.service.js";
-import { yahooService } from "./yahoo.service.js";
+import { dividendsService } from "./market/dividends.service.js";
 
 function addOneYear(date: string): string {
   const next = new Date(date);
@@ -36,13 +35,8 @@ export class DividendService {
       const metrics = dividendMetrics(position);
       let dividends: DividendEvent[] = [];
       try {
-        const dividendResult = await yahooService.dividends(position.symbol);
-        dividends = dividendResult.data;
-        stale = stale || dividendResult.stale;
-      } catch (error) {
-        if (!(error instanceof HttpError && [429, 502].includes(error.status))) {
-          throw error;
-        }
+        dividends = dividendsService.readDividends(position.symbol);
+      } catch {
         stale = true;
       }
 

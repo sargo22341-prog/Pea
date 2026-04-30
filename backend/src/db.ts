@@ -236,14 +236,110 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS assets (
-    symbol TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    currency TEXT NOT NULL,
-    exchange TEXT NOT NULL,
+    exchange TEXT,
+    currency TEXT,
+    quote_type TEXT,
+    type_disp TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL UNIQUE,
     country TEXT,
     sector TEXT,
-    updated_at INTEGER NOT NULL
+    industry TEXT,
+    website TEXT,
+    long_business_summary TEXT,
+    full_time_employees INTEGER,
+    market_cap REAL,
+    beta REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS chart_candles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    range TEXT NOT NULL,
+    interval TEXT NOT NULL,
+    datetime_start TEXT NOT NULL,
+    datetime_end TEXT NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
+    close REAL NOT NULL,
+    volume REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, range, interval, datetime_start),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_market_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL UNIQUE,
+    market_state TEXT,
+    last_price REAL,
+    day_change REAL,
+    day_change_percent REAL,
+    previous_close REAL,
+    open_price REAL,
+    day_high REAL,
+    day_low REAL,
+    volume REAL,
+    average_volume_3m REAL,
+    dividend_rate REAL,
+    dividend_yield REAL,
+    trailing_annual_dividend_rate REAL,
+    trailing_annual_dividend_yield REAL,
+    currency TEXT,
+    exchange TEXT,
+    full_exchange_name TEXT,
+    quote_type TEXT,
+    regular_market_time TEXT,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_financials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    fiscal_year INTEGER NOT NULL,
+    period TEXT NOT NULL,
+    total_revenue REAL,
+    net_income REAL,
+    gross_profit REAL,
+    operating_income REAL,
+    ebitda REAL,
+    net_margin REAL,
+    currency TEXT,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, fiscal_year, period),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_dividends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    ex_date TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, ex_date, amount),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS user_assets (
@@ -308,6 +404,28 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
 `);
+
+const assetColumns = db.prepare("PRAGMA table_info(assets)").all().map((row: any) => String(row.name));
+if (!assetColumns.includes("id")) {
+  db.exec(`
+    ALTER TABLE assets RENAME TO assets_legacy;
+    CREATE TABLE assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      exchange TEXT,
+      currency TEXT,
+      quote_type TEXT,
+      type_disp TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO assets (symbol, name, exchange, currency, quote_type, type_disp, updated_at)
+    SELECT symbol, name, exchange, currency, type, type, datetime(updated_at / 1000, 'unixepoch')
+    FROM assets_legacy;
+    DROP TABLE assets_legacy;
+  `);
+}
 
 try {
   db.exec("ALTER TABLE positions ADD COLUMN notes TEXT;");

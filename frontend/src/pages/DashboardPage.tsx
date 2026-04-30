@@ -5,7 +5,7 @@
 
 import type { PortfolioSummary, RangeKey, User } from "@pea/shared";
 import { Activity, Briefcase, LineChart, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PortfolioChart } from "../components/PortfolioChart";
 import { PositionList } from "../components/PositionList";
@@ -13,6 +13,7 @@ import { RangeSelector } from "../components/RangeSelector";
 import { WatchlistSection } from "../components/WatchlistSection";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
+import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
 import { formatRangeLabel, money, percent } from "../lib/format";
 
 export function DashboardPage({ user }: { user: User }) {
@@ -142,6 +143,29 @@ function PortfolioEvolutionSection({
 }) {
   const portfolioChart = useAsync((signal) => api.portfolioChart(range, signal), [range]);
   const chartReady = Boolean(portfolioChart.data) && !portfolioChart.loading;
+  const portfolioChartReload = portfolioChart.reload;
+  const portfolioChartPreparing = Boolean(portfolioChart.data?.isPreparing);
+
+  useEffect(() => {
+    if (!portfolioChartPreparing) return;
+    notifyDataConstructionChanged();
+    let cancelled = false;
+    let timer: number | undefined;
+    async function poll() {
+      const status = await api.dataConstructionStatus().catch(() => null);
+      if (cancelled) return;
+      if (!isDataConstructionActive(status)) {
+        await portfolioChartReload();
+        return;
+      }
+      timer = window.setTimeout(poll, 2000);
+    }
+    timer = window.setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [portfolioChartPreparing, portfolioChartReload]);
 
   return (
     <>

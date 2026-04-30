@@ -2,6 +2,7 @@ import type { BoursoramaImportRow, BoursoramaUpdateRow } from "@pea/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { notifyDataConstructionChanged } from "../lib/dataConstruction";
 
 export function useCsvImport() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export function useCsvImport() {
     if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm("Confirmer les suppressions de positions absentes du CSV ?")) return;
     setLoading(true);
     const result = await api.confirmBoursoramaUpdate(updateRows);
+    if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
     setMessage(`${result.imported.length} changement(s) applique(s), ${result.skipped.length} ignore(s), ${result.errors.length} erreur(s).`);
     setLoading(false);
     if (result.errors.length === 0) navigate("/");
@@ -54,6 +56,7 @@ export function useCsvImport() {
   async function confirmImport() {
     setLoading(true);
     const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
+    if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
     setMessage(`${result.imported.length} ligne(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
     setLoading(false);
     if (result.errors.length === 0) navigate("/");

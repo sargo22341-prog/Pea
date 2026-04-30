@@ -352,13 +352,17 @@ function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryP
   const byDate = new Map<string, HistoryPoint>();
   let removedPoints = 0;
   let interpolatedPoints = 0;
+  let removedLastPointReason: string | undefined;
+  const lastInputPoint = points[points.length - 1];
+  const lastInputTime = lastInputPoint ? new Date(lastInputPoint.date).getTime() : NaN;
 
   for (const point of points) {
     const time = new Date(point.date).getTime();
     const close = Number(point.close);
     if (!Number.isFinite(time) || !Number.isFinite(close)) {
       removedPoints += 1;
-      logger.debug("chart", "history sanitize removed invalid point", { symbol, range, close: point.close, date: point.date });
+      if (point === lastInputPoint) removedLastPointReason = "invalid-datetime-or-price";
+      logger.debug("chart", "history sanitize removed invalid point", { symbol, range, close: point.close, date: point.date, reason: "invalid-datetime-or-price" });
       continue;
     }
     byDate.set(new Date(point.date).toISOString(), { ...point, date: new Date(point.date).toISOString(), close });
@@ -371,6 +375,13 @@ function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryP
     const previous = findPreviousValid(sorted, index);
     const next = findNextValid(sorted, index);
 
+    if (point.close <= 0) {
+      removedPoints += 1;
+      if (new Date(point.date).getTime() === lastInputTime) removedLastPointReason = "zero-or-negative-price";
+      logger.debug("chart", "history sanitize removed invalid point", { symbol, range, close: point.close, date: point.date, reason: "zero-or-negative-price" });
+      continue;
+    }
+
     if (isAberrantPoint(point, previous, next)) {
       if (previous && next) {
         interpolatedPoints += 1;
@@ -379,17 +390,23 @@ function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: HistoryP
         continue;
       }
 
-      removedPoints += 1;
-      logger.debug("chart", "history sanitize removed aberrant edge point", { symbol, range, close: point.close, date: point.date });
-      continue;
+      logger.debug("chart", "history sanitize kept aberrant edge point", { symbol, range, close: point.close, date: point.date });
     }
 
     sanitized.push(point);
   }
 
-  if (removedPoints > 0 || interpolatedPoints > 0) {
-    logger.debug("chart", "history sanitize summary", { symbol, range, removedPoints, interpolatedPoints });
-  }
+  logger.debug("chart", "history sanitize summary", {
+    symbol,
+    range,
+    firstPoint: sanitized[0] ? `${sanitized[0].date}:${sanitized[0].close}` : undefined,
+    lastPoint: sanitized[sanitized.length - 1] ? `${sanitized[sanitized.length - 1].date}:${sanitized[sanitized.length - 1].close}` : undefined,
+    pointsBeforeValidation: points.length,
+    pointsAfterValidation: sanitized.length,
+    removedPoints,
+    interpolatedPoints,
+    removedLastPointReason
+  });
 
   return sanitized;
 }

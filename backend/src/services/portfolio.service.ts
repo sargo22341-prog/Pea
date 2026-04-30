@@ -3,15 +3,17 @@
  * Le service calcule les DTO prêts à afficher et invalide les caches utilisateur.
  */
 
-import type { CreatePositionInput, EditablePortfolioTransaction, MarketState, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../db.js";
 import { HttpError } from "../utils/http-error.js";
 import { logger } from "./logger.service.js";
-import { isMarketDataUnavailable, yahooService } from "./yahoo.service.js";
+import { isMarketDataUnavailable } from "./yahoo.service.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
-import { chartTtlMs, expiresIn, invalidateUserAssetCaches, normalizeMarketState, nowMs, portfolioChartCacheKey, readJsonCache, shortChartRanges, toDisplayRange, writePortfolioChartCache } from "./cache.service.js";
-import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
+import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "./cache.service.js";
+import { marketSnapshotService } from "./market/market-snapshot.service.js";
+import { marketDataService } from "./market/market-data.service.js";
+import { dataConstructionQueue } from "./market/data-construction-queue.service.js";
 
 const createPositionSchema = z.object({
   symbol: z.string().trim().min(1).max(24),
@@ -51,14 +53,6 @@ function normalizedUserId(userId?: string | number) {
   return String(userId ?? "default");
 }
 
-interface PortfolioChartFreshness {
-  marketState: MarketState;
-  forceRefresh: boolean;
-  minimumCachedAt?: number;
-  minimumPayloadTimestamp?: number;
-  ignoreTtl: boolean;
-}
-
 export class PortfolioService {
   listPositions(): Position[] {
     const rows = db.prepare("SELECT * FROM positions ORDER BY symbol ASC").all();
@@ -71,7 +65,7 @@ export class PortfolioService {
     return this.enrichPosition(mapPosition(row));
   }
 
-  async createPosition(input: CreatePositionInput): Promise<PositionWithMarket> {
+  async createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean } = {}): Promise<PositionWithMarket> {
     const parsed = createPositionSchema.parse({
       ...input,
       symbol: input.symbol.toUpperCase()
@@ -79,8 +73,8 @@ export class PortfolioService {
 
     let quoteName: string | undefined;
     try {
-      const quote = await yahooService.quote(parsed.symbol);
-      quoteName = quote.data.name;
+      const quote = await marketSnapshotService.getQuote(parsed.symbol, { forceRefresh: true });
+      quoteName = quote.name;
     } catch (error) {
       if (!isMarketDataUnavailable(error)) {
         throw error;
@@ -111,6 +105,8 @@ export class PortfolioService {
     }
 
     const position = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(parsed.symbol) as any;
+    await marketDataService.ensureAssetInitialized(parsed.symbol);
+    if (options.scheduleConstruction !== false) dataConstructionQueue.enqueueAssetConstruction(parsed.symbol);
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
        VALUES (?, 'buy', ?, ?, ?, CURRENT_TIMESTAMP)`
@@ -133,7 +129,7 @@ export class PortfolioService {
   }
 
   hasDatedTransactions(positionId: number): boolean {
-    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' AND traded_at IS NOT NULL").get(positionId) as any;
+    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL").get(positionId) as any;
     return Number(row?.count ?? 0) > 0;
   }
 
@@ -141,7 +137,7 @@ export class PortfolioService {
     const time = new Date(date).getTime();
     if (!Number.isFinite(time)) return 0;
     const rows = db
-      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC")
+      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC")
       .all(assetId) as Array<{ type: string; quantity: number; traded_at: string }>;
     return rows.reduce((quantity, row) => {
       if (new Date(row.traded_at).getTime() > time) return quantity;
@@ -318,62 +314,47 @@ export class PortfolioService {
         fallbackPrice: await this.safeCurrentPrice(position)
       }))
     );
-    if (range === "1d" || range === "1w" || range === "1m") {
-      const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
-        .filter((date) => new Date(date).getTime() <= Date.now())
-        .sort((a, b) => a.localeCompare(b));
+    const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
+      .filter((date) => new Date(date).getTime() <= Date.now())
+      .sort((a, b) => a.localeCompare(b));
 
-      if (!timeline.length) {
-        const fallbackValue = histories.reduce((sum, item) => sum + item.fallbackPrice * item.position.quantity, 0);
-        return [{ date: new Date().toISOString(), value: fallbackValue, stale: true }];
-      }
+    if (timeline.length < 2) {
+      logger.warn("portfolio", "portfolio chart has too few points", {
+        range,
+        timelinePoints: timeline.length,
+        assets: histories.map((item) => `${item.position.symbol}:${item.history.length}`).join(",")
+      });
+      const fallbackValue = histories.reduce((sum, item) => sum + item.fallbackPrice * item.position.quantity, 0);
+      return [{ date: new Date().toISOString(), value: fallbackValue, invested: 0, gain: fallbackValue, gainPercent: 0, stale: true }];
+    }
 
-      const cursors = new Map<string, number>();
-      const lastPrices = new Map<string, number>();
+    const cursors = new Map<string, number>();
+    const lastPrices = new Map<string, number>();
+    for (const item of histories) {
+      cursors.set(item.position.symbol, 0);
+      lastPrices.set(item.position.symbol, item.fallbackPrice);
+    }
+
+    return timeline.map((date) => {
+      let value = 0;
+      let invested = 0;
+
       for (const item of histories) {
-        cursors.set(item.position.symbol, 0);
-        lastPrices.set(item.position.symbol, item.fallbackPrice);
-      }
-
-      return timeline.map((date) => {
-        const time = new Date(date).getTime();
-        let value = 0;
-        let invested = 0;
-
-        for (const item of histories) {
-          const symbol = item.position.symbol;
-          let cursor = cursors.get(symbol) ?? 0;
-          while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= time) {
-            lastPrices.set(symbol, item.history[cursor].close);
-            cursor += 1;
-          }
-          cursors.set(symbol, cursor);
-          const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, date) : item.position.quantity;
-          value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
-          invested += item.position.averageBuyPrice * quantity;
+        const symbol = item.position.symbol;
+        let cursor = cursors.get(symbol) ?? 0;
+        while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= new Date(date).getTime()) {
+          lastPrices.set(symbol, item.history[cursor].close);
+          cursor += 1;
         }
-
-        const gain = value - invested;
-        return { date, value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0, stale: histories.some((item) => item.history.some((point) => point.stale)) };
-      });
-    }
-
-    const byDate = new Map<string, number>();
-    for (const { position, history } of histories) {
-      for (const point of history) {
-        const date = point.date.slice(0, 10);
-        const quantity = this.hasDatedTransactions(position.id) ? this.getQuantityHeldAtDate(position.id, date) : position.quantity;
-        byDate.set(date, (byDate.get(date) ?? 0) + point.close * quantity);
+        cursors.set(symbol, cursor);
+        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, date) : item.position.quantity;
+        value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
+        invested += item.position.averageBuyPrice * quantity;
       }
-    }
-    const invested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
 
-    return [...byDate.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, value]) => {
-        const gain = value - invested;
-        return { date, value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0 };
-      });
+      const gain = value - invested;
+      return { date, value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0, stale: histories.some((item) => item.history.some((point) => point.stale)) };
+    });
   }
 
   /**
@@ -385,21 +366,6 @@ export class PortfolioService {
    */
   async chart(range: RangeKey, userId?: string | number): Promise<PortfolioChartDto> {
     const cacheUserId = normalizedUserId(userId);
-    const freshness = shortChartRanges.has(range) ? await this.currentPortfolioChartFreshness() : undefined;
-    const cacheKey = portfolioChartCacheKey(cacheUserId, range);
-    const cached = readJsonCache<PortfolioChartDto>({
-      table: "portfolio_chart_cache",
-      keyColumn: "cache_key",
-      key: cacheKey,
-      currentMarketState: freshness?.marketState,
-      checkMarketState: false,
-      forceRefresh: freshness?.forceRefresh,
-      minimumCachedAt: freshness?.minimumCachedAt,
-      minimumPayloadTimestamp: freshness?.minimumPayloadTimestamp,
-      ignoreTtl: freshness?.ignoreTtl
-    });
-    if (cached) return cached.payload;
-
     const points = await this.performance(range);
     const totalInvested = this.listPositions().reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
@@ -422,8 +388,11 @@ export class PortfolioService {
 
     const first = value[0] ?? 0;
     const last = value[value.length - 1] ?? first;
-    const performanceEuro = last - first;
+    const baseline = range === "1d" ? await this.portfolioIntradayBaseline() : undefined;
+    const performanceStart = baseline?.price ?? first;
+    const performanceEuro = last - performanceStart;
     const cachedAt = nowMs();
+    const preparation = await this.portfolioPreparationState(range);
     const payload: PortfolioChartDto = {
       userId: cacheUserId,
       range: toDisplayRange(range),
@@ -432,14 +401,53 @@ export class PortfolioService {
       invested,
       gain,
       gainPercent,
+      baselinePrice: baseline?.price,
+      baselineDatetime: baseline?.datetime,
       performanceEuro,
-      performancePercent: first ? (performanceEuro / first) * 100 : 0,
-      marketState: freshness?.marketState,
+      performancePercent: performanceStart ? (performanceEuro / performanceStart) * 100 : 0,
+      ...preparation,
       cachedAt,
-      expiresAt: expiresIn(chartTtlMs(range))
+      expiresAt: cachedAt
     };
-    writePortfolioChartCache(cacheKey, cacheUserId, payload.range, payload, cachedAt, payload.expiresAt, freshness?.marketState);
     return payload;
+  }
+
+  private async portfolioIntradayBaseline(): Promise<{ price: number; datetime?: string } | undefined> {
+    const positions = this.listPositions();
+    if (!positions.length) return undefined;
+
+    let price = 0;
+    const datetimes: string[] = [];
+    for (const position of positions) {
+      const chart = await marketDataService.getChartData(position.symbol, "1d").catch(() => undefined);
+      if (!chart?.baselinePrice || !Number.isFinite(chart.baselinePrice)) continue;
+      const quantity = chart.baselineDatetime && this.hasDatedTransactions(position.id)
+        ? this.getQuantityHeldAtDate(position.id, chart.baselineDatetime)
+        : position.quantity;
+      price += chart.baselinePrice * quantity;
+      if (chart.baselineDatetime) datetimes.push(chart.baselineDatetime);
+    }
+
+    if (!price) return undefined;
+    return { price, datetime: datetimes.sort((a, b) => b.localeCompare(a))[0] };
+  }
+
+  private async portfolioPreparationState(range: RangeKey): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
+    const missingAssets: string[] = [];
+    const jobIds: string[] = [];
+    for (const position of this.listPositions()) {
+      const chart = await marketDataService.getChartData(position.symbol, range);
+      if (chart.isPreparing || chart.prices.length < 2) {
+        missingAssets.push(position.symbol);
+        if (chart.jobId) jobIds.push(chart.jobId);
+      }
+    }
+    return {
+      isPreparing: missingAssets.length > 0,
+      missingAssets,
+      missingRanges: missingAssets.length > 0 ? [range] : undefined,
+      jobId: jobIds[0]
+    };
   }
 
   /**
@@ -501,14 +509,13 @@ export class PortfolioService {
   private async quotesForPositions(positions: Position[]) {
     if (!positions.length) return new Map<string, Quote>();
     try {
-      const result = await yahooService.quoteBatch(positions.map((position) => position.symbol));
+      const quotes = await Promise.all(positions.map((position) => marketSnapshotService.getQuote(position.symbol)));
       logger.debug("portfolio", "portfolio quotes batch resolved", {
         symbols: positions.map((position) => position.symbol).join(","),
         requested: positions.length,
-        returned: result.data.length,
-        stale: result.stale
+        returned: quotes.length
       });
-      return new Map(result.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
+      return new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote]));
     } catch (error) {
       if (!isMarketDataUnavailable(error)) throw error;
       logger.warn("portfolio", "portfolio quotes batch unavailable", {
@@ -522,7 +529,7 @@ export class PortfolioService {
   private async enrichPosition(position: Position): Promise<PositionWithMarket> {
     let quote;
     try {
-      quote = (await yahooService.quote(position.symbol)).data;
+      quote = await marketSnapshotService.getQuote(position.symbol);
     } catch (error) {
       if (!isMarketDataUnavailable(error)) {
         throw error;
@@ -589,9 +596,13 @@ export class PortfolioService {
     };
   }
 
-  private async safeHistory(symbol: string, range: RangeKey) {
+  private async safeHistory(symbol: string, range: RangeKey): Promise<HistoryPoint[]> {
     try {
-      return (await yahooService.history(symbol, range)).data;
+      const chart = await marketDataService.getChartData(symbol, range);
+      return chart.timestamps.map((timestamp, index) => ({
+        date: new Date(timestamp).toISOString(),
+        close: chart.prices[index]
+      }));
     } catch (error) {
       if (isMarketDataUnavailable(error)) return [];
       throw error;
@@ -600,8 +611,8 @@ export class PortfolioService {
 
   private async safeCurrentPrice(position: Position) {
     try {
-      const quote = await yahooService.quote(position.symbol);
-      return quote.data.price || position.averageBuyPrice;
+      const quote = await marketSnapshotService.getQuote(position.symbol);
+      return quote.price || position.averageBuyPrice;
     } catch (error) {
       if (isMarketDataUnavailable(error)) return position.averageBuyPrice;
       throw error;
@@ -653,8 +664,8 @@ export class PortfolioService {
 
   private async safeQuote(position: Position) {
     try {
-      const result = await yahooService.quote(position.symbol);
-      return { quote: result.data, stale: result.stale || result.data.stale || result.data.unavailable };
+      const quote = await marketSnapshotService.getQuote(position.symbol);
+      return { quote, stale: Boolean(quote.stale || quote.unavailable) };
     } catch (error) {
       if (isMarketDataUnavailable(error)) return { quote: undefined, stale: true };
       throw error;
@@ -714,36 +725,6 @@ export class PortfolioService {
    *
    * @returns Décision de refresh selon ouverture de marché et dernière clôture des actifs.
    */
-  private async currentPortfolioChartFreshness(): Promise<PortfolioChartFreshness> {
-    const positions = this.listPositions();
-    if (!positions.length) {
-      return { marketState: "CLOSED", forceRefresh: false, ignoreTtl: true };
-    }
-
-    const quotesBySymbol = await this.quotesForPositions(positions);
-    const marketStates = positions.map((position) => normalizeMarketState(quotesBySymbol.get(position.symbol.toUpperCase())?.marketState));
-    const openPosition = positions.find((position) => isMarketOpen(position.symbol, quotesBySymbol.get(position.symbol.toUpperCase())?.exchange));
-    if (openPosition) {
-      return {
-        marketState: "OPEN",
-        forceRefresh: true,
-        ignoreTtl: true
-      };
-    }
-
-    const latestCloseAt = Math.max(
-      ...positions.map((position) => getLastTradingDay(position.symbol, quotesBySymbol.get(position.symbol.toUpperCase())?.exchange).period2.getTime())
-    );
-    const marketState = marketStates.includes("PRE") ? "PRE" : marketStates.includes("POST") ? "POST" : "CLOSED";
-    return {
-      marketState,
-      forceRefresh: false,
-      minimumCachedAt: latestCloseAt,
-      minimumPayloadTimestamp: latestCloseAt - 15 * 60 * 1000,
-      ignoreTtl: true
-    };
-  }
-
 }
 
 export const portfolioService = new PortfolioService();
