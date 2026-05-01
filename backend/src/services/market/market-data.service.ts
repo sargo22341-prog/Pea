@@ -584,47 +584,108 @@ export class MarketDataService {
       yahooTradingDay,
       rebuildContext: "post-close"
     });
-    if (finalized.skipped || !finalized.closeIso || !Number.isFinite(finalized.closePrice)) return finalized;
-    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = 'all' AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
-      .run(asset.id, session.period1.toISOString(), session.period2.toISOString());
-    await this.rebuildStoredRangesFromFinalData(asset, session.date, finalized.closeIso, finalized.closePrice);
-    return { skipped: false, finalized: true };
+
+    // Important: cette methode ne reconstruit plus 1w/1m/all.
+    // La queue post-close fait ensuite:
+    // FINALIZE:1D -> REBUILD-STORED:1W -> REBUILD-STORED:1M -> REBUILD-STORED:ALL.
+    return finalized;
   }
 
-  async rebuildStoredRangesFromFinalData(asset: AssetRow, tradingDate?: string, closeIso?: string, closePrice?: number) {
-    let updated = 0;
-    if (closeIso && Number.isFinite(closePrice)) {
-      const finalClosePrice = Number(closePrice);
-      updated += candleRepository.upsertCandles([
-        {
-          assetId: asset.id,
-          range: "all",
-          interval: "1d",
-          datetimeStart: closeIso,
-          datetimeEnd: new Date(new Date(closeIso).getTime() + intervalDurationMs("1d")).toISOString(),
-          open: finalClosePrice,
-          high: finalClosePrice,
-          low: finalClosePrice,
-          close: finalClosePrice,
-          volume: null,
-          source: "snapshot_close"
-        }
-      ]);
-      if (tradingDate) candleRepository.markFinalized(asset.id, tradingDate, "all");
-    }
+  private resolveFinalCloseFromStoredOneDay(asset: AssetRow, tradingDate?: string) {
+    const interval = chartConfigService.getIntervalForRange("1d");
+    const oneDayPoints = candleRepository.readCandles(asset.id, "1d", interval);
+    const targetTradingDate = tradingDate ?? candleRepository.latestFinalizedTradingDate(asset.id, "1d");
+    const candidates = targetTradingDate
+      ? oneDayPoints.filter((point) => getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date)) === targetTradingDate)
+      : oneDayPoints;
+    const closePoint = [...candidates].reverse().find((point) => Number.isFinite(point.close) && point.close > 0);
+    if (!closePoint) return undefined;
+    return {
+      tradingDate: targetTradingDate ?? getMarketDateKey(asset.symbol, asset.exchange, new Date(closePoint.date)),
+      closeIso: closePoint.date,
+      closePrice: closePoint.close
+    };
+  }
 
+  async rebuildStoredRangesFromFinalData(
+    asset: AssetRow,
+    ranges: StoredChartRange[] = ["1w", "1m", "all"],
+    options: { tradingDate?: string; closeIso?: string; closePrice?: number } = {}
+  ) {
+    let updated = 0;
+    const uniqueRanges = [...new Set(ranges)];
     const sourcePoints = candleRepository.readCandles(asset.id, "1d", chartConfigService.getIntervalForRange("1d"));
-    const endDate = closeIso ? new Date(closeIso) : new Date();
-    for (const range of ["1w", "1m"] as StoredChartRange[]) {
+    const resolvedClose =
+      options.closeIso && Number.isFinite(options.closePrice)
+        ? { tradingDate: options.tradingDate, closeIso: options.closeIso, closePrice: Number(options.closePrice) }
+        : this.resolveFinalCloseFromStoredOneDay(asset, options.tradingDate);
+    const endDate = resolvedClose?.closeIso ? new Date(resolvedClose.closeIso) : new Date();
+
+    for (const range of uniqueRanges) {
+      if (range === "all") {
+        if (!resolvedClose?.closeIso || !Number.isFinite(resolvedClose.closePrice)) {
+          logger.warn("market-data", "all rebuild skipped: no finalized close point found", {
+            symbol: asset.symbol,
+            tradingDate: options.tradingDate
+          });
+          continue;
+        }
+
+        const closeDate = new Date(resolvedClose.closeIso);
+        const session = getLastTradingDay(asset.symbol, asset.exchange, closeDate);
+        db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = 'all' AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
+          .run(asset.id, session.period1.toISOString(), session.period2.toISOString());
+
+        const finalClosePrice = Number(resolvedClose.closePrice);
+        updated += candleRepository.upsertCandles([
+          {
+            assetId: asset.id,
+            range: "all",
+            interval: "1d",
+            datetimeStart: resolvedClose.closeIso,
+            datetimeEnd: new Date(closeDate.getTime() + intervalDurationMs("1d")).toISOString(),
+            open: finalClosePrice,
+            high: finalClosePrice,
+            low: finalClosePrice,
+            close: finalClosePrice,
+            volume: null,
+            source: "snapshot_close"
+          }
+        ]);
+        if (resolvedClose.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, "all");
+        logger.info("market-data", "stored all close rebuilt", {
+          symbol: asset.symbol,
+          tradingDate: resolvedClose.tradingDate,
+          closeIso: resolvedClose.closeIso,
+          closePrice: finalClosePrice
+        });
+        continue;
+      }
+
+      if (range !== "1w" && range !== "1m") continue;
+
       const interval = chartConfigService.getIntervalForRange(range);
       const points = filterRangePoints(sourcePoints, range, asset, endDate);
       const candles = candleBuilder.buildCandles({ assetId: asset.id, symbol: asset.symbol, exchange: asset.exchange, range, interval, points });
-      candleRepository.deleteRange(asset.id, range, interval);
+
+      // Mise a jour incrementale: on ajoute/remplace les nouveaux points, puis on prune uniquement les jours trop anciens.
+      // Ne pas deleteRange ici, sinon on efface tout l'historique 1w/1m avant de reinserer seulement le dernier intraday.
       updated += candleRepository.upsertCandles(candles.map((candle) => ({ ...candle, source: "stored_final" as const })));
       const window = openMarketWindow(asset, range, endDate);
       if (window) candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
-      if (tradingDate) candleRepository.markFinalized(asset.id, tradingDate, range);
+      if (resolvedClose?.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, range);
+      logger.info("market-data", "stored range rebuilt from finalized 1d", {
+        symbol: asset.symbol,
+        range,
+        interval,
+        sourcePoints: sourcePoints.length,
+        rangePoints: points.length,
+        candles: candles.length,
+        tradingDate: resolvedClose?.tradingDate,
+        cutoffIso: window?.cutoffIso
+      });
     }
+
     return { updated };
   }
 

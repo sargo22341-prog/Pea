@@ -237,7 +237,7 @@ export class DataConstructionQueueService {
 
     if (task.type === "candles") await marketDataService.refreshCandlesForAsset(asset, task.range ? [task.range as StoredChartRange] : undefined);
     if (task.type === "finalize") await marketDataService.finalizePostCloseForAsset(asset);
-    if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset);
+    if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset, task.range ? [task.range as StoredChartRange] : undefined);
     if (task.type === "snapshot") await marketSnapshotService.refreshMarketSnapshot(asset);
     if (task.type === "financials") await financialsService.refreshFinancials(asset);
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);
