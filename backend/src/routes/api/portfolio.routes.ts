@@ -4,6 +4,7 @@
 
 import express from "express";
 import { z } from "zod";
+import { config } from "../../config.js";
 import { dividendService } from "../../services/portfolio/dividend.service.js";
 import { portfolioAnalysisService } from "../../services/portfolio/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
@@ -13,6 +14,14 @@ import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 
 export const portfolioRouter = express.Router();
+
+function dashboardIntradayDebugClock(range: string) {
+  if (range !== "1d" || !config.debugDate) return undefined;
+  return {
+    forceIntradayOpen: true,
+    intradayNow: config.debugDate
+  };
+}
 
 portfolioRouter.get("/portfolio", asyncRoute(async (req, res) => {
   const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
@@ -95,13 +104,13 @@ portfolioRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
 portfolioRouter.get("/portfolio/chart", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "chart requested", { range, userId: req.user!.id });
-  res.json(await portfolioService.chart(range, req.user!.id));
+  res.json(await portfolioService.chart(range, req.user!.id, dashboardIntradayDebugClock(range)));
 }));
 
 portfolioRouter.get("/portfolio/positions/performance", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "positions performance requested", { range, userId: req.user!.id });
-  res.json(await portfolioService.positionsPerformance(range));
+  res.json(await portfolioService.positionsPerformance(range, dashboardIntradayDebugClock(range)));
 }));
 
 portfolioRouter.get("/portfolio/positions/:id/performance", asyncRoute(async (req, res) => {

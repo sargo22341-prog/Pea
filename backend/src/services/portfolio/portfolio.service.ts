@@ -28,6 +28,10 @@ const createPositionSchema = z.object({
 });
 
 const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all", "max"]);
+export interface PortfolioMarketDataOptions {
+  forceIntradayOpen?: boolean;
+  intradayNow?: Date;
+}
 
 /**
  * Convertit une ligne SQLite de position en contrat partagé.
@@ -332,7 +336,7 @@ export class PortfolioService {
     };
   }
 
-  async performance(range: RangeKey): Promise<PortfolioPerformancePoint[]> {
+  async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PortfolioPerformancePoint[]> {
     const positions = this.listPositions();
     if (!positions.length) return [];
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
@@ -340,12 +344,13 @@ export class PortfolioService {
     const histories = await Promise.all(
       positions.map(async (position) => ({
         position,
-        history: await this.safeHistory(position.symbol, range),
+        history: await this.safeHistory(position.symbol, range, options),
         fallbackPrice: await this.safeCurrentPrice(position)
       }))
     );
+    const now = options.intradayNow?.getTime() ?? Date.now();
     const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
-      .filter((date) => new Date(date).getTime() <= Date.now())
+      .filter((date) => new Date(date).getTime() <= now)
       .sort((a, b) => a.localeCompare(b));
 
     if (timeline.length < 2) {
@@ -394,9 +399,9 @@ export class PortfolioService {
    * @param userId Identifiant utilisateur propriétaire du portefeuille.
    * @returns DTO chart compact avec valeur, investi, gain et gainPercent.
    */
-  async chart(range: RangeKey, userId?: string | number): Promise<PortfolioChartDto> {
+  async chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
     const cacheUserId = normalizedUserId(userId);
-    const points = await this.performance(range);
+    const points = await this.performance(range, options);
     const positions = this.listPositions();
     const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
@@ -419,11 +424,11 @@ export class PortfolioService {
 
     const first = value[0] ?? 0;
     const last = value[value.length - 1] ?? first;
-    const baseline = range === "1d" ? await this.portfolioIntradayBaseline() : undefined;
+    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(options) : undefined;
     const performanceStart = baseline?.price ?? first;
     const performanceEuro = last - performanceStart;
     const cachedAt = nowMs();
-    const preparation = await this.portfolioPreparationState(range);
+    const preparation = await this.portfolioPreparationState(range, options);
     const payload: PortfolioChartDto = {
       userId: cacheUserId,
       range: toDisplayRange(range),
@@ -535,14 +540,14 @@ export class PortfolioService {
     return { ...first, city: cities.length === 1 ? first.city : first.timezone };
   }
 
-  private async portfolioIntradayBaseline(): Promise<{ price: number; datetime?: string } | undefined> {
+  private async portfolioIntradayBaseline(options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
     const positions = this.listPositions();
     if (!positions.length) return undefined;
 
     let price = 0;
     const datetimes: string[] = [];
     for (const position of positions) {
-      const chart = await marketDataService.getChartData(position.symbol, "1d").catch(() => undefined);
+      const chart = await marketDataService.getChartData(position.symbol, "1d", options).catch(() => undefined);
       if (!chart?.baselinePrice || !Number.isFinite(chart.baselinePrice)) continue;
       const quantity = chart.baselineDatetime && this.hasDatedTransactions(position.id)
         ? this.getQuantityHeldAtDate(position.id, chart.baselineDatetime)
@@ -555,11 +560,11 @@ export class PortfolioService {
     return { price, datetime: datetimes.sort((a, b) => b.localeCompare(a))[0] };
   }
 
-  private async portfolioPreparationState(range: RangeKey): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
+  private async portfolioPreparationState(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
     const missingAssets: string[] = [];
     const jobIds: string[] = [];
     for (const position of this.listPositions()) {
-      const chart = await marketDataService.getChartData(position.symbol, range);
+      const chart = await marketDataService.getChartData(position.symbol, range, options);
       if (chart.isPreparing) {
         missingAssets.push(position.symbol);
         if (chart.jobId) jobIds.push(chart.jobId);
@@ -603,10 +608,10 @@ export class PortfolioService {
     return this.persistUserAssetPosition(cacheUserId, position.id);
   }
 
-  async positionsPerformance(range: RangeKey): Promise<PositionRangePerformance[]> {
+  async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
     const positions = this.listPositions();
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
-    return Promise.all(positions.map((position) => this.positionRangePerformance(position, range)));
+    return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options)));
   }
 
   /**
@@ -616,11 +621,11 @@ export class PortfolioService {
    * @param range Range demandée par le frontend.
    * @returns Performance de position prête à afficher.
    */
-  async singlePositionPerformance(positionId: number, range: RangeKey): Promise<PositionRangePerformance> {
+  async singlePositionPerformance(positionId: number, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance> {
     const row = db.prepare("SELECT * FROM positions WHERE id = ?").get(positionId) as any;
     if (!row) throw new HttpError(404, "Position introuvable");
     logger.debug("portfolio", "single position performance calculation", { range, positionId });
-    return this.positionRangePerformance(mapPosition(row), range);
+    return this.positionRangePerformance(mapPosition(row), range, options);
   }
 
   /**
@@ -735,9 +740,9 @@ export class PortfolioService {
     };
   }
 
-  private async safeHistory(symbol: string, range: RangeKey): Promise<HistoryPoint[]> {
+  private async safeHistory(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<HistoryPoint[]> {
     try {
-      const chart = await marketDataService.getChartData(symbol, range);
+      const chart = await marketDataService.getChartData(symbol, range, options);
       return chart.timestamps.map((timestamp, index) => ({
         date: new Date(timestamp).toISOString(),
         close: chart.prices[index]
@@ -758,10 +763,10 @@ export class PortfolioService {
     }
   }
 
-  private async positionRangePerformance(position: Position, range: RangeKey): Promise<PositionRangePerformance> {
+  private async positionRangePerformance(position: Position, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance> {
     const effectivePosition = this.hasDatedTransactions(position.id) ? this.positionFromDatedTransactions(position) : position;
     const [history, quoteResult] = await Promise.all([
-      this.safeHistory(effectivePosition.symbol, range),
+      this.safeHistory(effectivePosition.symbol, range, options),
       this.safeQuote(effectivePosition)
     ]);
     const quote = quoteResult.quote;

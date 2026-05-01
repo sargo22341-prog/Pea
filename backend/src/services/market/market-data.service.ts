@@ -23,6 +23,28 @@ const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, num
   "1m": 30
 };
 type ClosePointSource = "snapshot_close" | "yahoo_daily_fallback_close";
+export interface ChartDataOptions {
+  forceIntradayOpen?: boolean;
+  intradayNow?: Date;
+}
+const intradayChartCache = new Map<string, { chart: AssetChartDto; expiresAt: number }>();
+
+function intradayCacheKey(symbol: string, interval: ChartInterval, options: ChartDataOptions) {
+  const forcedAt = options.forceIntradayOpen ? options.intradayNow?.toISOString() ?? "forced-open" : "live";
+  return `${symbol.toUpperCase()}:1d:${interval}:${forcedAt}`;
+}
+
+function cloneChartDto(chart: AssetChartDto): AssetChartDto {
+  return {
+    ...chart,
+    timestamps: [...chart.timestamps],
+    prices: [...chart.prices],
+    performance: chart.performance ? [...chart.performance] : undefined,
+    missingAssets: chart.missingAssets ? [...chart.missingAssets] : undefined,
+    missingRanges: chart.missingRanges ? [...chart.missingRanges] : undefined,
+    marketSession: chart.marketSession ? { ...chart.marketSession } : undefined
+  };
+}
 
 /**
  * Compacte les points UTC en DTO leger et attache la session marche locale
@@ -615,19 +637,31 @@ export class MarketDataService {
     return { updated };
   }
 
-  async getChartData(symbol: string, range: RangeKey): Promise<AssetChartDto> {
+  async getChartData(symbol: string, range: RangeKey, options: ChartDataOptions = {}): Promise<AssetChartDto> {
     const asset = assetRepository.findBySymbol(symbol) ?? (await this.ensureAssetInitialized(symbol));
+    const intradayInterval = range === "1d" ? chartConfigService.getIntervalForRange("1d") : undefined;
+    const cacheKey = intradayInterval ? intradayCacheKey(asset.symbol, intradayInterval, options) : undefined;
+    const cached = cacheKey ? intradayChartCache.get(cacheKey) : undefined;
+    if (cached && cached.expiresAt > Date.now()) {
+      logger.debug("chart", "intraday chart cache hit", { symbol: asset.symbol, cacheKey, ttlMs: cached.expiresAt - Date.now() });
+      return cloneChartDto(cached.chart);
+    }
+
     const quote = range === "1d" ? await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined) : undefined;
-    if (range === "1d" && isMarketOpen(quote?.marketState)) {
-      const session = getLastTradingDay(asset.symbol, quote?.exchange ?? asset.exchange);
-      const interval = chartConfigService.getIntervalForRange("1d");
-      const period2 = new Date(Math.min(Date.now(), session.period2.getTime()) + intervalDurationMs(interval));
+    const now = options.intradayNow ?? new Date();
+    const forceIntradayOpen = range === "1d" && options.forceIntradayOpen;
+    if (range === "1d" && (isMarketOpen(quote?.marketState) || forceIntradayOpen)) {
+      const session = getLastTradingDay(asset.symbol, quote?.exchange ?? asset.exchange, now);
+      const interval = intradayInterval ?? chartConfigService.getIntervalForRange("1d");
+      const period2 = new Date(Math.min(now.getTime(), session.period2.getTime()) + intervalDurationMs(interval));
       const chart = await yahooApi.chart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
       const points = validateChartPoints({ symbol: asset.symbol, range: "1d", points: chart.quotes, marketCloseTime: session.period2 });
       const baseline = await this.getPreviousClosePrice(asset);
       logger.debug("chart", "intraday chart resolved", {
         symbol: asset.symbol,
         range: "1d",
+        forcedOpen: forceIntradayOpen,
+        simulatedNow: options.intradayNow?.toISOString(),
         firstPoint: pointLabel(points[0]),
         lastPoint: pointLabel(points[points.length - 1]),
         marketCloseTime: session.period2.toISOString(),
@@ -636,7 +670,9 @@ export class MarketDataService {
         baselinePrice: baseline?.price,
         baselineDatetime: baseline?.datetime
       });
-      return compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
+      const payload = compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
+      if (cacheKey) intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + intervalDurationMs(interval) });
+      return payload;
     }
 
     const storedRange = normalizeStoredRange(range);
