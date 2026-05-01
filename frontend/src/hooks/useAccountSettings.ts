@@ -17,6 +17,10 @@ export function useAccountSettings() {
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   useEffect(() => {
+    setProfileFailed(!me.data?.user?.hasProfileIcon);
+  }, [me.data?.user?.hasProfileIcon]);
+
+  useEffect(() => {
     return () => {
       if (profilePreview) URL.revokeObjectURL(profilePreview);
     };
@@ -49,7 +53,7 @@ export function useAccountSettings() {
       const nextBust = Date.now();
       setProfileFailed(false);
       setProfileCacheBust(nextBust);
-      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: nextBust }));
+      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: true } }));
       setToast({ tone: "success", text: "Icone de profil mise a jour." });
       await me.reload();
     } catch (error) {
@@ -65,7 +69,7 @@ export function useAccountSettings() {
       const nextBust = Date.now();
       setProfileFailed(true);
       setProfileCacheBust(nextBust);
-      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: nextBust }));
+      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: false } }));
       setToast({ tone: "success", text: "Icone de profil supprimee." });
       await me.reload();
     } catch (error) {

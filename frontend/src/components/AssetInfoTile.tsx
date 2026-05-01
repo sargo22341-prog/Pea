@@ -33,7 +33,7 @@ export function AssetInfoTile({
       )}
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        <p className={`mt-1 break-words text-base font-semibold leading-snug ${toneClass(tone)}`}>{value}</p>
+        <div className={`mt-1 break-words text-base font-semibold leading-snug ${toneClass(tone)}`}>{value}</div>
       </div>
     </div>
   );

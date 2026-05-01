@@ -5,7 +5,8 @@ import { NavLink, Outlet } from "react-router-dom";
 
 export function Shell({ user }: { user: User; onLogout: () => void }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
-  const [profileFailed, setProfileFailed] = useState(false);
+  const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
+  const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
   const links = [
     { to: "/", label: "Dashboard", icon: Home },
     ...(user.assetNewsEnabled ? [{ to: "/news", label: "Actualite", icon: Newspaper }] : []),
@@ -16,12 +17,20 @@ export function Shell({ user }: { user: User; onLogout: () => void }) {
 
   useEffect(() => {
     const onProfileIconUpdated = (event: Event) => {
-      setProfileFailed(false);
-      setProfileCacheBust(event instanceof CustomEvent && typeof event.detail === "number" ? event.detail : Date.now());
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      const nextHasProfileIcon = typeof detail === "object" && detail !== null && "hasProfileIcon" in detail ? Boolean(detail.hasProfileIcon) : true;
+      setHasProfileIcon(nextHasProfileIcon);
+      setProfileFailed(!nextHasProfileIcon);
+      setProfileCacheBust(typeof detail === "object" && detail !== null && typeof detail.cacheBust === "number" ? detail.cacheBust : Date.now());
     };
     window.addEventListener("profile-icon-updated", onProfileIconUpdated);
     return () => window.removeEventListener("profile-icon-updated", onProfileIconUpdated);
   }, []);
+
+  useEffect(() => {
+    setHasProfileIcon(Boolean(user.hasProfileIcon));
+    setProfileFailed(!user.hasProfileIcon);
+  }, [user.hasProfileIcon]);
 
   return (
     <div className="min-h-screen min-w-0 overflow-x-hidden pb-20 lg:pb-0">
@@ -35,7 +44,7 @@ export function Shell({ user }: { user: User; onLogout: () => void }) {
             </div>
           </div>
           <NavLink className="btn-ghost shrink-0 px-2 lg:hidden" title="Parametres" to="/settings">
-            {profileFailed ? (
+            {!hasProfileIcon || profileFailed ? (
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                 {user.username.slice(0, 1).toUpperCase()}
               </span>
@@ -60,7 +69,7 @@ export function Shell({ user }: { user: User; onLogout: () => void }) {
               </NavLink>
             ))}
             <NavLink className={({ isActive }) => (isActive ? "btn bg-panel2 text-mint" : "btn-ghost")} title="Parametres" to="/settings">
-              {profileFailed ? (
+              {!hasProfileIcon || profileFailed ? (
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                   {user.username.slice(0, 1).toUpperCase()}
                 </span>

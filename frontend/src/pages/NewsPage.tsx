@@ -32,6 +32,7 @@ const globalNewsCache = new Map<string, NewsFeedPage>();
 const assetNewsInFlight = new Map<string, Promise<NewsAssetsPage>>();
 const assetNewsBackgroundInFlight = new Map<string, Promise<void>>();
 const globalNewsInFlight = new Map<string, Promise<NewsFeedPage>>();
+const newsDebugEnabled = __APP_DEBUG__;
 
 export function NewsPage({ user }: { user: User }) {
   const [portfolioOnly, setPortfolioOnly] = useState(() => readInitialPortfolioMode());
@@ -52,7 +53,7 @@ export function NewsPage({ user }: { user: User }) {
   const userCachePart = user.newsLanguages.join(",");
 
   useEffect(() => {
-    console.debug("[news] mode initial selectionne", { mode: activeMode });
+    debugNews("mode initial selectionne", { mode: activeMode });
     // Ce log ne doit s'exécuter qu'au premier montage pour vérifier le mode initial.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -115,7 +116,7 @@ export function NewsPage({ user }: { user: User }) {
       const next = !current;
       const nextMode: NewsMode = next ? "assets" : "global";
       window.localStorage.setItem(portfolioOnlyStorageKey, String(next));
-      console.debug("[news] changement de mode", {
+      debugNews("changement de mode", {
         mode: nextMode,
         cache: hasModeCache(user, nextMode, globalPage) ? "hit" : "miss"
       });
@@ -230,13 +231,13 @@ async function loadAssetMode(
   const key = assetCacheKey(user);
   const cached = assetNewsCache.get(key);
   if (cached?.loadedOffsets.has(0)) {
-    console.debug("[news] cache hit", { mode: "assets", endpoint: "/api/news-assets", reason });
+    debugNews("cache hit", { mode: "assets", endpoint: "/api/news-assets", reason });
     setState({ data: cached.articles, loading: false, error: null });
     void preloadRemainingAssetNews(user, signal, setState);
     return;
   }
 
-  console.debug("[news] endpoint appele en premier ou switch cache miss", {
+  debugNews("endpoint appele en premier ou switch cache miss", {
     mode: "assets",
     endpoint: `/api/news-assets?limit=${assetNewsBatchSize}&offset=0`,
     reason
@@ -273,12 +274,12 @@ async function loadGlobalMode(
   const key = globalCacheKey(user, page);
   const cached = globalNewsCache.get(key);
   if (cached) {
-    console.debug("[news] cache hit", { mode: "global", endpoint: `/api/news-global?page=${page}`, reason });
+    debugNews("cache hit", { mode: "global", endpoint: `/api/news-global?page=${page}`, reason });
     setState({ data: cached, loading: false, error: null });
     return;
   }
 
-  console.debug("[news] endpoint appele en premier ou switch cache miss", { mode: "global", endpoint: `/api/news-global?page=${page}`, reason });
+  debugNews("endpoint appele en premier ou switch cache miss", { mode: "global", endpoint: `/api/news-global?page=${page}`, reason });
   setState((current) => ({ ...current, loading: true, error: null }));
   try {
     const data = await fetchGlobalNews(user, page);
@@ -298,9 +299,9 @@ async function loadGlobalMode(
 async function preloadGlobalMode(user: User, page: number) {
   const key = globalCacheKey(user, page);
   if (globalNewsCache.has(key) || globalNewsInFlight.has(key)) return;
-  console.debug("[news] prechargement", { mode: "global", endpoint: `/api/news-global?page=${page}` });
+  debugNews("prechargement", { mode: "global", endpoint: `/api/news-global?page=${page}` });
   await fetchGlobalNews(user, page).catch((error) => {
-    console.debug("[news] prechargement echoue", { mode: "global", error: error instanceof Error ? error.message : String(error) });
+    debugNews("prechargement echoue", { mode: "global", error: error instanceof Error ? error.message : String(error) });
   });
 }
 
@@ -313,9 +314,9 @@ async function preloadGlobalMode(user: User, page: number) {
 async function preloadAssetMode(user: User) {
   const key = assetCacheKey(user);
   if (assetNewsCache.get(key)?.loadedOffsets.has(0) || assetNewsInFlight.has(assetPageCacheKey(user, 0))) return;
-  console.debug("[news] prechargement", { mode: "assets", endpoint: `/api/news-assets?limit=${assetNewsBatchSize}&offset=0` });
+  debugNews("prechargement", { mode: "assets", endpoint: `/api/news-assets?limit=${assetNewsBatchSize}&offset=0` });
   await fetchAssetNewsPage(user, 0).then(() => preloadRemainingAssetNews(user)).catch((error) => {
-    console.debug("[news] prechargement echoue", { mode: "assets", error: error instanceof Error ? error.message : String(error) });
+    debugNews("prechargement echoue", { mode: "assets", error: error instanceof Error ? error.message : String(error) });
   });
 }
 
@@ -370,7 +371,7 @@ function preloadRemainingAssetNews(
         nextOffset += assetNewsBatchSize;
         continue;
       }
-      console.debug("[news] prechargement suite actifs", {
+      debugNews("prechargement suite actifs", {
         endpoint: `/api/news-assets?limit=${assetNewsBatchSize}&offset=${nextOffset}`,
         offset: nextOffset
       });
@@ -499,6 +500,10 @@ function fetchGlobalNews(user: User, page: number) {
   });
   globalNewsInFlight.set(key, request);
   return request;
+}
+
+function debugNews(message: string, details: Record<string, unknown>) {
+  if (newsDebugEnabled) console.debug(`[news] ${message}`, details);
 }
 
 /**

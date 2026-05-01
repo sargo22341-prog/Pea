@@ -57,7 +57,7 @@ export function AccountSettingsSection() {
           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-panel2 font-bold text-sky">
             {profilePreview ? (
               <img alt="" className="h-full w-full object-cover" src={profilePreview} />
-            ) : profileFailed ? (
+            ) : profileFailed || !user?.hasProfileIcon ? (
               initial
             ) : (
               <img

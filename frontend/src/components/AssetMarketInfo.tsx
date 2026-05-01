@@ -111,9 +111,9 @@ function Range52Slider({
           style={{ left: `${percentPosition}%` }}
         />
       </div>
-      <p className="mt-2 text-xs font-medium text-slate-400">
+      <div className="mt-2 text-xs font-medium text-slate-400">
         Prix actuel <span className="text-slate-200">{money(currentPrice, currency)}</span>
-      </p>
+      </div>
     </div>
   );
 }

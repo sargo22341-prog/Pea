@@ -58,7 +58,7 @@ function mapUser(row: any): AuthUser {
     id: Number(row.id),
     username: String(row.username),
     profileIconUrl: row.profile_icon_url ? String(row.profile_icon_url) : undefined,
-    hasProfileIcon: Boolean(row.profile_icon_path),
+    hasProfileIcon: Boolean(row.profile_icon_path && fs.existsSync(String(row.profile_icon_path))),
     dashboardDefaultSortKey: isDashboardSortKey(row.dashboard_default_sort_key) ? row.dashboard_default_sort_key : "name",
     dashboardDefaultSortDirection: isSortDirection(row.dashboard_default_sort_direction) ? row.dashboard_default_sort_direction : "asc",
     defaultChartRange: isRangeKey(row.default_chart_range) ? row.default_chart_range : "1d",
