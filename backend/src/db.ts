@@ -269,6 +269,16 @@ db.exec(`
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS scheduler_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_key TEXT NOT NULL,
+    run_date TEXT NOT NULL,
+    reason TEXT,
+    job_id TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(task_key, run_date)
+  );
+
   CREATE TABLE IF NOT EXISTS asset_market_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_id INTEGER NOT NULL UNIQUE,

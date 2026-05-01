@@ -1,29 +1,35 @@
 import { type ReactElement, useLayoutEffect, useRef, useState } from "react";
 import { ResponsiveContainer } from "recharts";
 
+type ContainerSize = {
+  height: number;
+  width: number;
+};
+
 export function SafeResponsiveContainer({ children }: { children: ReactElement }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
+  const [size, setSize] = useState<ContainerSize | null>(null);
 
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return undefined;
 
-    const updateReady = () => {
+    const updateSize = () => {
       const rect = node.getBoundingClientRect();
-      setReady(rect.width > 0 && rect.height > 0);
+      const nextSize = { height: Math.round(rect.height), width: Math.round(rect.width) };
+      setSize(nextSize.width > 0 && nextSize.height > 0 ? nextSize : null);
     };
 
-    updateReady();
-    const observer = new ResizeObserver(updateReady);
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
   return (
     <div className="h-full min-h-px w-full min-w-0" ref={containerRef}>
-      {ready ? (
-        <ResponsiveContainer height="100%" minHeight={1} minWidth={1} width="100%">
+      {size ? (
+        <ResponsiveContainer height="100%" initialDimension={size} minHeight={1} minWidth={1} width="100%">
           {children}
         </ResponsiveContainer>
       ) : null}

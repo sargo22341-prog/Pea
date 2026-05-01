@@ -14,9 +14,11 @@ import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getZonedDateParts } from "../timezone/date-time.service.js";
 import { marketSnapshotService } from "./market-snapshot.service.js";
+import { db } from "../../db.js";
 
 const postCloseDelayMs = 20 * 60 * 1000;
-const postCloseTargetMinutes = 23 * 60 + 32;
+const postCloseTargetMinutes = 17 * 60 + 30;
+const postCloseFinalizationTaskKey = "post-close-finalization";
 
 /** Lit l'heure de pilotage applicative sans changer les instants UTC stockes. */
 function appClock(date: Date) {
@@ -25,6 +27,20 @@ function appClock(date: Date) {
     date: parts.isoDate,
     minutes: parts.hour * 60 + parts.minute
   };
+}
+
+function wasSchedulerTaskRunToday(taskKey: string, runDate: string) {
+  const row = db
+    .prepare("SELECT id FROM scheduler_runs WHERE task_key = ? AND run_date = ?")
+    .get(taskKey, runDate) as { id?: number } | undefined;
+  return Boolean(row?.id);
+}
+
+function markSchedulerTaskRun(taskKey: string, runDate: string, reason: string, jobId?: string) {
+  db.prepare(
+    `INSERT OR IGNORE INTO scheduler_runs (task_key, run_date, reason, job_id)
+     VALUES (?, ?, ?, ?)`
+  ).run(taskKey, runDate, reason, jobId ?? null);
 }
 
 export class MarketScheduler {
@@ -53,7 +69,15 @@ export class MarketScheduler {
     // Une seule tentative par jour apres 17:30 dans le timezone applicatif.
     if (appTime.minutes >= postCloseTargetMinutes && this.lastCronDate !== appTime.date) {
       this.lastCronDate = appTime.date;
-      void this.enqueuePostCloseFinalization(`cron-17:30-${config.appTimezone}`);
+      if (wasSchedulerTaskRunToday(postCloseFinalizationTaskKey, appTime.date)) {
+        logger.info("market-data", "post-close finalization skipped", {
+          reason: `cron-17:30-${config.appTimezone}`,
+          cause: "already-run-today",
+          runDate: appTime.date
+        });
+      } else {
+        void this.enqueuePostCloseFinalization(`cron-17:30-${config.appTimezone}`, appTime.date, now);
+      }
     }
 
     for (const asset of assetRepository.listTrackedAssets()) {
@@ -89,18 +113,19 @@ export class MarketScheduler {
     return dataConstructionQueue.enqueuePostCloseFinalization(symbols);
   }
 
-  private async enqueuePostCloseFinalization(reason: string) {
+  private async enqueuePostCloseFinalization(reason: string, runDate: string, now = new Date()) {
     const candidates = [];
     for (const asset of assetRepository.listTrackedAssets()) {
       const quote = await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
-      const session = getLastTradingDay(asset.symbol, asset.exchange);
-      if (!isMarketOpen(quote?.marketState) && Date.now() >= session.period2.getTime() && !candleRepository.isFinalized(asset.id, session.date, "1d")) candidates.push(asset);
+      const session = getLastTradingDay(asset.symbol, asset.exchange, now);
+      if (!isMarketOpen(quote?.marketState) && now.getTime() >= session.period2.getTime() && !candleRepository.isFinalized(asset.id, session.date, "1d")) candidates.push(asset);
     }
     if (!candidates.length) {
       logger.info("market-data", "post-close finalization skipped", { reason, cause: "no-candidates" });
       return;
     }
     const job = dataConstructionQueue.enqueuePostCloseFinalization(candidates.map((asset) => asset.symbol));
+    markSchedulerTaskRun(postCloseFinalizationTaskKey, runDate, reason, job.id);
     logger.info("market-data", "post-close finalization scheduled", { reason, assets: candidates.length, jobId: job.id });
   }
 
