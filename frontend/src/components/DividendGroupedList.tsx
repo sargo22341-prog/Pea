@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "@pea/shared";
 import { CalendarClock } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AssetIcon } from "./AssetIcon";
 import { money } from "../lib/format";
 
@@ -49,7 +50,7 @@ export function DividendGroupedList({ currency, groups, total, year }: DividendG
 
 function DividendAssetRow({ group }: { group: DividendGroup }) {
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_110px_minmax(80px,auto)] items-center gap-1 p-4 sm:gap-3 sm:grid-cols-[minmax(0,1fr)_150px_minmax(126px,1fr)]">
+    <Link className="grid min-w-0 grid-cols-[minmax(0,1fr)_110px_minmax(80px,auto)] items-center gap-1 p-4 transition hover:bg-panel2/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-mint sm:gap-3 sm:grid-cols-[minmax(0,1fr)_150px_minmax(126px,1fr)]" to={`/assets/${group.symbol}`}>
       {/* LEFT */}
       <div className="flex min-w-[90px] sm:min-w-0 items-center gap-3 justify-self-start">
         <AssetIcon className="h-11 w-11 shrink-0" symbol={group.symbol} />
@@ -90,7 +91,7 @@ function DividendAssetRow({ group }: { group: DividendGroup }) {
           </p>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 
