@@ -83,6 +83,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const dividends = dividendsResult.data;
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
+  logDividendDesync(symbol, dividends, marketInfo);
   const marketSession = getMarketSessionInfo(symbol, quote.exchange ?? marketInfo.exchangeName ?? assetStatic.exchange);
   const financials = assetFinancialsResult.financials;
   const isEtf = assetFinancialsResult.isEtf;
@@ -127,3 +128,27 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
 
   res.json(details);
 }));
+
+function logDividendDesync(symbol: string, dividends: DividendEvent[], marketInfo?: AssetMarketInfo) {
+  if (!logger.isDebugEnabled() || !marketInfo?.exDividendDate || !Number.isFinite(marketInfo.dividendRate)) return;
+  const marketExDate = new Date(marketInfo.exDividendDate);
+  if (!Number.isFinite(marketExDate.getTime())) return;
+  const hasMatchingEvent = dividends.some((event) => sameUtcDay(event.date, marketExDate));
+  if (hasMatchingEvent) return;
+  logger.debug("market-data", "market dividend not present in dividend history", {
+    symbol,
+    exDividendDate: marketInfo.exDividendDate,
+    dividendRate: marketInfo.dividendRate,
+    latestDividendDate: dividends.at(-1)?.date
+  });
+}
+
+function sameUtcDay(value: string, expected: Date) {
+  const date = new Date(value);
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear() === expected.getUTCFullYear() &&
+    date.getUTCMonth() === expected.getUTCMonth() &&
+    date.getUTCDate() === expected.getUTCDate()
+  );
+}

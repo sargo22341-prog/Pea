@@ -263,6 +263,7 @@ export function AssetDetailPage({ user }: { user: User }) {
         averageBuyPrice={position?.averageBuyPrice}
         currentPrice={marketInfo?.regularMarketPrice ?? quote.price}
         dividends={dividends}
+        marketInfo={marketInfo}
       />
 
       {user.assetNewsEnabled && <NewsArticleList articles={news} />}
