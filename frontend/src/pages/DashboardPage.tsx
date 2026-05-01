@@ -4,7 +4,7 @@
  */
 
 import type { PortfolioChartDto, PortfolioSummary, RangeKey, User } from "@pea/shared";
-import { Activity, LineChart, ReceiptText, TrendingUp } from "lucide-react";
+import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { PortfolioChart } from "../components/PortfolioChart";
@@ -76,8 +76,9 @@ function TopMetrics({ summary, range, loading, chart, chartLoading }: { summary:
   return (
     <section className="space-y-3">
       <PortfolioTotal loading={loading} value={summary?.totalValue} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Metric icon={TrendingUp} label="Total investi" loading={loading} value={summary ? money(summary.totalCost, summary.currency) : undefined} />
+        <Metric icon={Coins} label="Total dividendes" loading={loading} value={summary ? money(summary.totalDividendsReceived, summary.currency) : undefined} />
         <Metric icon={ReceiptText} label="Total frais" loading={loading} value={summary ? money(summary.totalFees, summary.currency) : undefined} />
         <Metric
           icon={LineChart}

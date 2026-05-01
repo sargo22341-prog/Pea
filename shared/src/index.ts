@@ -368,6 +368,7 @@ export interface WatchlistItem {
 export interface PortfolioSummary {
   totalValue: number;
   totalCost: number;
+  totalDividendsReceived: number;
   totalFees: number;
   totalPerformance: number;
   totalPerformancePercent: number;

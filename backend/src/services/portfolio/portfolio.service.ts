@@ -9,6 +9,7 @@ import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
+import { dividendsService } from "../market/dividends.service.js";
 import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
@@ -312,6 +313,7 @@ export class PortfolioService {
     const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase())));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
+    const totalDividendsReceived = this.totalDividendsReceived(positions);
     const totalFeesRow = db.prepare("SELECT COALESCE(SUM(total_fees), 0) AS total_fees FROM transactions").get() as { total_fees?: number } | undefined;
     const totalFees = Number(totalFeesRow?.total_fees ?? 0);
     const totalPerformance = totalValue - totalCost;
@@ -319,6 +321,7 @@ export class PortfolioService {
     return {
       totalValue,
       totalCost,
+      totalDividendsReceived,
       totalFees,
       totalPerformance,
       totalPerformancePercent: totalCost ? (totalPerformance / totalCost) * 100 : 0,
@@ -657,6 +660,19 @@ export class PortfolioService {
     }
 
     return this.enrichPositionWithQuote(position, quote);
+  }
+
+  private totalDividendsReceived(positions: PositionWithMarket[]): number {
+    return positions.reduce((portfolioTotal, position) => {
+      const dividends = dividendsService.readDividends(position.symbol);
+      const positionTotal = dividends.reduce((sum, event) => {
+        const quantity = this.hasDatedTransactions(position.id)
+          ? this.getQuantityHeldAtDate(position.id, event.date)
+          : position.quantity;
+        return sum + event.amount * quantity;
+      }, 0);
+      return portfolioTotal + positionTotal;
+    }, 0);
   }
 
   /**
