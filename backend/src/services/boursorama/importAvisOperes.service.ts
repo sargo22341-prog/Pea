@@ -13,11 +13,6 @@ import { portfolioService } from "../portfolio/portfolio.service.js";
 import { yahooService } from "../yahoo/index.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 
-export interface PdfUpload {
-  fileName: string;
-  buffer: Buffer;
-}
-
 const confirmOperationSchema = z.object({
   sourceFileName: z.string().optional(),
   dateExecution: z.string().optional(),
@@ -332,14 +327,3 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
 
   return { imported, skipped, errors };
 }
-
-/**
- * Service regroupant les fonctions d’import d’avis d’opéré.
- */
-export const importAvisOperesService = {
-  extractPdfText,
-  previewAvisOperesImport,
-  resolveAssetFromOperation,
-  detectPotentialDuplicateTransaction,
-  confirmAvisOperesImport
-};

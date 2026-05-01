@@ -46,10 +46,6 @@ export function percent(value: number) {
   }).format(Number.isFinite(value) ? value : 0)} %`;
 }
 
-export function shortDate(value: string, timeZone?: string) {
-  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "short" }).format(new Date(value));
-}
-
 export function formatChartDate(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;

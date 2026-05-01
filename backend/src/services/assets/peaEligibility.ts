@@ -70,10 +70,6 @@ export function normalizeYahooSymbol(symbol: string): string {
   return safeString(symbol).toUpperCase().replace(/\s+/g, "");
 }
 
-export async function checkPeaEligibility(symbol: string): Promise<PeaEligibilityResult> {
-  return evaluatePeaEligibility({ symbol: normalizeYahooSymbol(symbol), name: normalizeYahooSymbol(symbol) });
-}
-
 export function rankAssetForPea(asset: SearchAsset | QuoteAsset): PeaRankingResult {
   const eligibility = evaluatePeaEligibility(asset);
   switch (eligibility.status) {

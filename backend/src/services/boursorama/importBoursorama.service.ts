@@ -277,12 +277,3 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
   return { imported, skipped, errors };
 }
 
-export const importBoursoramaService = {
-  parseBoursoramaCsv,
-  normalizeFrenchNumber,
-  resolveYahooSymbolFromIsin,
-  previewBoursoramaImport,
-  confirmBoursoramaImport,
-  previewBoursoramaUpdate,
-  confirmBoursoramaUpdate
-};

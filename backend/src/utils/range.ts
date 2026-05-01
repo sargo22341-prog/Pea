@@ -1,5 +1,5 @@
 import type { RangeKey } from "@pea/shared";
-import { getLastTradingDay, getMarketSessionInfo } from "../services/market/marketCalendar.service.js";
+import { getLastTradingDay } from "../services/market/marketCalendar.service.js";
 
 type YahooInterval = "5m" | "1h" | "1d";
 export type ChartDisplayInterval = "5m" | "2h" | "4h" | "1d";
@@ -103,11 +103,6 @@ export function buildHistoricalOptions(
   }
 
   return built;
-}
-
-export function getMarketHours(symbol?: string, exchange?: string, fullExchangeName?: string): MarketHours {
-  const session = getMarketSessionInfo(symbol, `${exchange ?? ""} ${fullExchangeName ?? ""}`);
-  return { timezone: session.timezone, openTime: session.open, closeTime: session.close };
 }
 
 export function getCurrentTradingDay(symbol?: string, exchange?: string, fullExchangeName?: string) {
