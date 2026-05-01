@@ -1,6 +1,6 @@
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
-import { useId } from "react";
-import { Area, ComposedChart, Customized, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
@@ -24,6 +24,7 @@ interface PriceHistoryChartProps {
   marketSession?: MarketSessionDto;
   transactionMarkers?: PortfolioTransactionMarker[];
   userTimezone?: string;
+  hideXAxisTicks?: boolean;
 }
 
 type MarkerGroupPoint = {
@@ -32,16 +33,8 @@ type MarkerGroupPoint = {
   markers: PortfolioTransactionMarker[];
 };
 
-type ChartOffset = {
+type MarkerOverlayPoint = MarkerGroupPoint & {
   left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-type CustomizedChartProps = {
-  offset?: ChartOffset;
-  xAxisMap?: Record<string, { scale?: (value: number) => number }>;
 };
 
 type ChartTooltipPayload = Array<{
@@ -57,8 +50,6 @@ type HistoryTooltipProps = {
   label?: unknown;
   currency: string;
   labelFormatter: (value: string | number) => string;
-  markerGroupsByX: Map<string, PortfolioTransactionMarker[]>;
-  userTimezone?: string;
 };
 
 export function PriceHistoryChart({
@@ -72,7 +63,8 @@ export function PriceHistoryChart({
   baselinePrice,
   marketSession,
   transactionMarkers = [],
-  userTimezone
+  userTimezone,
+  hideXAxisTicks = false
 }: PriceHistoryChartProps) {
   const { chartData, trend } = usePriceHistoryChart(data, range);
   const compressTimeAxis = range === "1w" || range === "1m";
@@ -86,15 +78,20 @@ export function PriceHistoryChart({
   const gradientId = `${id}-${trend}-gradient`;
   const showBaseline = range === "1d" && Number.isFinite(baselinePrice);
   const markerGroups = range === "1d" ? [] : groupTransactionMarkers(transactionMarkers, chartData, compressTimeAxis);
-  const markerGroupsByX = new Map(markerGroups.map((group) => [String(compressTimeAxis ? group.x : group.date), group.markers]));
   const resolveXDate = (value: string | number) => {
     if (!compressTimeAxis) return value;
     const index = Math.round(Number(value));
     return chartData[index]?.date ?? value;
   };
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerSize = useElementSize(containerRef);
+  const markerOverlayPoints = useMemo(
+    () => positionMarkerGroups(markerGroups, xDomain, compressTimeAxis, containerSize.width, margin),
+    [compressTimeAxis, containerSize.width, margin, markerGroups, xDomain]
+  );
 
   return (
-    <div className={`chart-fade ${heightClassName}`}>
+    <div className={`chart-fade overflow-visible ${heightClassName}`} ref={containerRef}>
       <SafeResponsiveContainer>
         <ComposedChart data={renderData} margin={{ ...margin, bottom: Math.max(margin?.bottom ?? 0, markerGroups.length > 0 ? 34 : 0) }}>
           <defs>
@@ -110,7 +107,7 @@ export function PriceHistoryChart({
             domain={xDomain}
             minTickGap={minTickGap}
             scale={compressTimeAxis ? "linear" : "time"}
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={hideXAxisTicks ? false : { fill: "#94a3b8", fontSize: 12 }}
             tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
             ticks={xTicks}
@@ -124,7 +121,6 @@ export function PriceHistoryChart({
               (dataMax: number) => (showBaseline ? Math.max(dataMax, Number(baselinePrice)) : dataMax)
             ]}
           />
-
           <Tooltip
             contentStyle={{
               background: "rgba(7, 16, 20, 0.72)",
@@ -138,9 +134,7 @@ export function PriceHistoryChart({
                 currency={currency}
                 label={props.label}
                 labelFormatter={(value) => formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat, userTimezone, marketSession)}
-                markerGroupsByX={markerGroupsByX}
                 payload={props.payload}
-                userTimezone={userTimezone}
               />
             )}
           />
@@ -157,7 +151,7 @@ export function PriceHistoryChart({
             />
           )}
 
-            <Area
+          <Area
             activeDot={{ r: 4 }}
             connectNulls={false}
             dataKey="value"
@@ -168,15 +162,11 @@ export function PriceHistoryChart({
             strokeWidth={3}
             type="monotone"
           />
-          {markerGroups.length > 0 && (
-            <Customized
-              component={(props: unknown) => (
-                <TransactionMarkerLabels groups={markerGroups} xDataKey={xDataKey} {...(props as CustomizedChartProps)} />
-              )}
-            />
-          )}
         </ComposedChart>
       </SafeResponsiveContainer>
+      {markerOverlayPoints.length > 0 && (
+        <TransactionMarkerOverlay currency={currency} points={markerOverlayPoints} userTimezone={userTimezone} />
+      )}
     </div>
   );
 }
@@ -201,74 +191,106 @@ function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartDat
     .sort((a, b) => a.date - b.date);
 }
 
-function TransactionMarkerLabels({
-  groups,
-  offset,
-  xAxisMap,
-  xDataKey
-}: CustomizedChartProps & {
-  groups: MarkerGroupPoint[];
-  xDataKey: "date" | "x";
+function TransactionMarkerOverlay({
+  currency,
+  points,
+  userTimezone
+}: {
+  currency: string;
+  points: MarkerOverlayPoint[];
+  userTimezone?: string;
 }) {
-  const xScale = xAxisMap?.[0]?.scale;
-  if (!offset || !xScale) return null;
-  const labelY = offset.top + offset.height + 17;
+  const [activePoint, setActivePoint] = useState<MarkerOverlayPoint | null>(null);
 
   return (
-    <g>
-      {groups.map((group) => {
-        const xValue = xDataKey === "x" ? group.x : group.date;
-        const centerX = Number(xValue == null ? NaN : xScale(Number(xValue)));
-        if (!Number.isFinite(centerX)) return null;
-        return <TransactionMarkerLabelGroup centerX={centerX} centerY={labelY} group={group} key={group.date} />;
-      })}
-    </g>
+    <div className="pointer-events-none absolute inset-x-0 bottom-5 h-8">
+      {points.map((point) => (
+        <button
+          aria-label={`${point.markers.length} transaction${point.markers.length > 1 ? "s" : ""}`}
+          className="pointer-events-auto absolute top-1/2 flex h-8 min-w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center border-0 bg-transparent p-0"
+          key={point.date}
+          onBlur={() => setActivePoint(null)}
+          onFocus={() => setActivePoint(point)}
+          onMouseEnter={() => setActivePoint(point)}
+          onMouseLeave={() => setActivePoint(null)}
+          style={{ left: point.left }}
+          type="button"
+        >
+          <TransactionMarkerBadge group={point} />
+        </button>
+      ))}
+      {activePoint && (
+        <div
+          className="pointer-events-none absolute bottom-10 z-20 max-w-[min(360px,calc(100vw-2rem))] -translate-x-1/2 rounded-lg bg-ink/90 p-3 text-xs text-slate-200 shadow-lg backdrop-blur"
+          style={{ left: activePoint.left }}
+        >
+          <TransactionMarkerTooltip currency={currency} markers={activePoint.markers} userTimezone={userTimezone} />
+        </div>
+      )}
+    </div>
   );
 }
 
-function TransactionMarkerLabelGroup({
-  centerX,
-  centerY,
-  group
-}: {
-  centerX: number;
-  centerY: number;
-  group: MarkerGroupPoint;
-}) {
+function TransactionMarkerBadge({ group }: { group: MarkerGroupPoint }) {
   const markers = group.markers;
   const visibleMarkers = markers.slice(0, 3);
   const extraCount = markers.length - visibleMarkers.length;
 
   return (
-    <g>
+    <span className="flex items-center">
       {visibleMarkers.map((marker, index) => {
-        const x = centerX + index * 4;
-        const y = centerY;
-        const tone = marker.type === "buy" ? "#22c55e8f" : "#ef444465";
+        const tone = marker.type === "buy" ? "border-emerald-500/80" : "border-red-500/70";
         return (
-          <g key={marker.id}>
-            <circle cx={x} cy={y} fill="#071014" r={12} stroke={tone} strokeWidth={1.5} />
-            <image
-              height={16}
-              href={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`}
-              preserveAspectRatio="xMidYMid meet"
-              width={16}
-              x={x - 8}
-              xlinkHref={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`}
-              y={y - 8}
-            />
-          </g>
+          <span
+            className={`flex h-6 w-6 items-center justify-center rounded-full border bg-ink shadow ${tone}`}
+            key={marker.id}
+            style={{ marginLeft: index === 0 ? 0 : -7 }}
+          >
+            <img alt="" className="h-4 w-4 rounded-sm object-contain" src={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`} />
+          </span>
         );
       })}
       {extraCount > 0 && (
-        <g>
-          <circle cx={centerX + visibleMarkers.length * 4} cy={centerY} fill="#071014" r={12} stroke="#94a3b8" strokeWidth={1.5} />
-          <text fill="#cbd5e1" fontSize={9} fontWeight={700} textAnchor="middle" x={centerX + visibleMarkers.length * 4} y={centerY + 3}>
-            +{extraCount}
-          </text>
-        </g>
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-400 bg-ink text-[9px] font-bold text-slate-200 shadow"
+          style={{ marginLeft: -7 }}
+        >
+          +{extraCount}
+        </span>
       )}
-    </g>
+    </span>
+  );
+}
+
+function TransactionMarkerTooltip({
+  currency,
+  markers,
+  userTimezone
+}: {
+  currency: string;
+  markers: PortfolioTransactionMarker[];
+  userTimezone?: string;
+}) {
+  return (
+    <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+      {markers.map((marker) => {
+        const isBuy = marker.type === "buy";
+        return (
+          <div className="flex gap-2" key={marker.id}>
+            <img alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-md object-contain p-0.5" src={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`} />
+            <div>
+              <p className="font-medium text-slate-100">{marker.name}</p>
+              <p className={isBuy ? "text-emerald-400" : "text-red-400"}>
+                {isBuy ? "+" : "-"} {formatNumber(marker.quantity)} {marker.symbol}
+              </p>
+              <p className="text-slate-400">
+                {isBuy ? "Achat" : "Vente"}{marker.price == null ? "" : ` a ${money(marker.price, currency)}`} - {formatChartDateTime(marker.transactionDate, userTimezone)}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -277,45 +299,62 @@ function HistoryTooltip({
   payload,
   label,
   currency,
-  labelFormatter,
-  markerGroupsByX,
-  userTimezone
+  labelFormatter
 }: HistoryTooltipProps) {
   if (!active) return null;
   const valuePayload = payload?.find((item) => item.dataKey === "value");
-  const markerPayload = payload?.find((item) => item.name === "Transactions");
-  const markersFromPayload = markerPayload?.payload && Array.isArray((markerPayload.payload as MarkerGroupPoint).markers)
-    ? (markerPayload.payload as MarkerGroupPoint).markers
-    : undefined;
-  const markers = markersFromPayload ?? markerGroupsByX.get(String(label)) ?? [];
 
   return (
     <div className="rounded-lg border-0 bg-ink/80 p-3 text-xs text-slate-200 shadow-lg backdrop-blur">
       <p className="mb-2 font-medium text-slate-300">{labelFormatter(typeof label === "number" || typeof label === "string" ? label : "")}</p>
       {valuePayload?.value != null && <p className="mb-2 text-slate-100">{money(Number(valuePayload.value), currency)}</p>}
-      {markers.length > 0 && (
-        <div className="space-y-2">
-          {markers.map((marker) => {
-            const isBuy = marker.type === "buy";
-            return (
-              <div className="flex gap-2" key={marker.id}>
-                <img alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-md object-contain p-0.5" src={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`} />
-                <div>
-                  <p className="font-medium text-slate-100">{marker.name}</p>
-                  <p className={isBuy ? "text-emerald-400" : "text-red-400"}>
-                    {isBuy ? "+" : "-"} {formatNumber(marker.quantity)} {marker.symbol}
-                  </p>
-                  <p className="text-slate-400">
-                    {isBuy ? "Achat" : "Vente"}{marker.price == null ? "" : ` a ${money(marker.price, currency)}`} · {formatChartDateTime(marker.transactionDate, userTimezone)}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
+}
+
+function positionMarkerGroups(
+  groups: MarkerGroupPoint[],
+  xDomain: number[] | [string, string],
+  compressTimeAxis: boolean,
+  containerWidth: number,
+  margin?: PriceHistoryChartProps["margin"]
+): MarkerOverlayPoint[] {
+  if (!containerWidth || groups.length === 0) return [];
+  const domainMin = Number(xDomain[0]);
+  const domainMax = Number(xDomain[1]);
+  if (!Number.isFinite(domainMin) || !Number.isFinite(domainMax) || domainMax <= domainMin) return [];
+
+  const leftMargin = margin?.left ?? 0;
+  const rightMargin = margin?.right ?? 0;
+  const plotWidth = Math.max(containerWidth - leftMargin - rightMargin, 1);
+
+  return groups.map((group) => {
+    const xValue = compressTimeAxis ? group.x : group.date;
+    const ratio = (Number(xValue) - domainMin) / (domainMax - domainMin);
+    const left = Math.min(Math.max(leftMargin + ratio * plotWidth, 12), containerWidth - 12);
+    return { ...group, left };
+  });
+}
+
+function useElementSize(ref: RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ height: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      setSize({ height: Math.round(rect.height), width: Math.round(rect.width) });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
 }
 
 function compressedTicks(length: number, range: RangeKey) {
