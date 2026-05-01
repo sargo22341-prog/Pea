@@ -1,6 +1,6 @@
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
 import { useId } from "react";
-import { Area, ComposedChart, Customized, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, ComposedChart, Customized, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { TooltipProps } from "recharts/types/component/Tooltip";
 import { usePriceHistoryChart, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
@@ -30,14 +30,7 @@ interface PriceHistoryChartProps {
 type MarkerGroupPoint = {
   date: number;
   x?: number;
-  markerY: number;
   markers: PortfolioTransactionMarker[];
-};
-
-type TransactionMarkerShapeProps = {
-  cx?: number;
-  cy?: number;
-  payload?: MarkerGroupPoint;
 };
 
 type ChartOffset = {
@@ -69,7 +62,7 @@ export function PriceHistoryChart({
   const compressTimeAxis = range === "1w" || range === "1m";
   const renderData = compressTimeAxis ? chartData.map((point, index) => ({ ...point, x: index })) : chartData;
   const xDataKey = compressTimeAxis ? "x" : "date";
-  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(chartData, marketSession) ?? ["dataMin", "dataMax"] : ["dataMin", "dataMax"];
+  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(chartData, marketSession) ?? chartDataDomain(chartData) : chartDataDomain(chartData);
   const xTicks = compressTimeAxis ? compressedTicks(renderData.length, range) : undefined;
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
@@ -114,7 +107,6 @@ export function PriceHistoryChart({
               (dataMax: number) => (showBaseline ? Math.max(dataMax, Number(baselinePrice)) : dataMax)
             ]}
           />
-          <YAxis yAxisId="markers" hide domain={[0, 1]} />
 
           <Tooltip
             contentStyle={{
@@ -160,17 +152,6 @@ export function PriceHistoryChart({
             type="monotone"
           />
           {markerGroups.length > 0 && (
-            <Scatter
-              data={markerGroups}
-              dataKey="markerY"
-              isAnimationActive={false}
-              name="Transactions"
-              shape={(props: TransactionMarkerShapeProps) => <TransactionMarkerHitArea {...props} />}
-              xAxisId={0}
-              yAxisId="markers"
-            />
-          )}
-          {markerGroups.length > 0 && (
             <Customized
               component={(props: CustomizedChartProps) => (
                 <TransactionMarkerLabels groups={markerGroups} xDataKey={xDataKey} {...props} />
@@ -197,20 +178,10 @@ function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartDat
     .map(([timestamp, group]) => ({
       date: timestamp,
       x: compressTimeAxis ? indexByTimestamp.get(timestamp) : undefined,
-      markerY: 0,
       markers: group
     }))
     .filter((group) => !compressTimeAxis || group.x != null)
     .sort((a, b) => a.date - b.date);
-}
-
-function TransactionMarkerHitArea(props: TransactionMarkerShapeProps) {
-  const { cx, cy, payload } = props;
-  const markers = (payload?.markers ?? []) as PortfolioTransactionMarker[];
-  const centerX = Number(cx);
-  const centerY = Number(cy);
-  if (!Number.isFinite(centerX) || !Number.isFinite(centerY) || markers.length === 0) return null;
-  return <circle cx={centerX} cy={centerY} fill="transparent" r={16} />;
 }
 
 function TransactionMarkerLabels({
@@ -346,6 +317,12 @@ function compressedTicks(length: number, range: RangeKey) {
     ticks.add(Math.round((index * lastIndex) / (targetTickCount - 1)));
   }
   return [...ticks].sort((a, b) => a - b);
+}
+
+function chartDataDomain(points: Array<{ date: number; value: number | null }>) {
+  const timestamps = points.map((point) => Number(point.date)).filter(Number.isFinite);
+  if (timestamps.length === 0) return ["dataMin", "dataMax"] as [string, string];
+  return [Math.min(...timestamps), Math.max(...timestamps)] as [number, number];
 }
 
 /** Calcule le domaine intraday depuis la session marche exposee par le backend. */
