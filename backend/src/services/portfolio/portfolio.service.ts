@@ -176,6 +176,31 @@ export class PortfolioService {
     }, 0);
   }
 
+  private getCostBasisHeldAtDate(positionId: number, date: string): number {
+    const time = new Date(date).getTime();
+    if (!Number.isFinite(time)) return 0;
+    const rows = db
+      .prepare("SELECT type, quantity, price, total_fees, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number; traded_at: string }>;
+
+    let quantity = 0;
+    let costBasis = 0;
+    for (const row of rows) {
+      if (new Date(row.traded_at).getTime() > time) continue;
+      const rowQuantity = Number(row.quantity);
+      if (row.type === "buy") {
+        quantity += rowQuantity;
+        costBasis += rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
+      } else if (row.type === "sell") {
+        const averageCost = quantity > 0 ? costBasis / quantity : 0;
+        quantity -= rowQuantity;
+        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+      }
+    }
+
+    return costBasis;
+  }
+
   recomputePositionFromDatedTransactions(positionId: number) {
     const rows = db
       .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
@@ -375,8 +400,17 @@ export class PortfolioService {
         timelinePoints: timeline.length,
         assets: histories.map((item) => `${item.position.symbol}:${item.history.length}`).join(",")
       });
-      const fallbackValue = histories.reduce((sum, item) => sum + item.fallbackPrice * item.position.quantity, 0);
-      return [{ date: new Date().toISOString(), value: fallbackValue, invested: 0, gain: fallbackValue, gainPercent: 0, stale: true }];
+      const fallbackDate = new Date().toISOString();
+      const fallbackValue = histories.reduce((sum, item) => {
+        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, fallbackDate) : item.position.quantity;
+        return sum + item.fallbackPrice * quantity;
+      }, 0);
+      const fallbackInvested = histories.reduce((sum, item) => {
+        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, fallbackDate) : item.position.quantity;
+        return sum + (this.hasDatedTransactions(item.position.id) ? this.getCostBasisHeldAtDate(item.position.id, fallbackDate) : item.position.averageBuyPrice * quantity);
+      }, 0);
+      const fallbackGain = fallbackValue - fallbackInvested;
+      return [{ date: fallbackDate, value: fallbackValue, invested: fallbackInvested, gain: fallbackGain, gainPercent: fallbackInvested ? (fallbackGain / fallbackInvested) * 100 : 0, stale: true }];
     }
 
     const cursors = new Map<string, number>();
@@ -400,7 +434,9 @@ export class PortfolioService {
         cursors.set(symbol, cursor);
         const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, date) : item.position.quantity;
         value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
-        invested += item.position.averageBuyPrice * quantity;
+        invested += this.hasDatedTransactions(item.position.id)
+          ? this.getCostBasisHeldAtDate(item.position.id, date)
+          : item.position.averageBuyPrice * quantity;
       }
 
       const gain = value - invested;
@@ -440,9 +476,14 @@ export class PortfolioService {
 
     const first = value[0] ?? 0;
     const last = value[value.length - 1] ?? first;
+    const firstGain = gain[0] ?? 0;
+    const lastGain = gain[gain.length - 1] ?? firstGain;
+    const firstInvested = invested[0] ?? 0;
+    const lastInvested = invested[invested.length - 1] ?? firstInvested;
     const baseline = range === "1d" ? await this.portfolioIntradayBaseline(options) : undefined;
     const performanceStart = baseline?.price ?? first;
-    const performanceEuro = last - performanceStart;
+    const performanceEuro = range === "1d" && baseline ? last - performanceStart : lastGain - firstGain;
+    const performanceBase = range === "1d" && baseline ? performanceStart : firstInvested || lastInvested;
     const cachedAt = nowMs();
     const preparation = await this.portfolioPreparationState(range, options);
     const payload: PortfolioChartDto = {
@@ -457,7 +498,7 @@ export class PortfolioService {
       baselineDatetime: baseline?.datetime,
       marketSession: range === "1d" ? this.portfolioMarketSession(positions) : undefined,
       performanceEuro,
-      performancePercent: performanceStart ? (performanceEuro / performanceStart) * 100 : 0,
+      performancePercent: performanceBase ? (performanceEuro / performanceBase) * 100 : 0,
       ...preparation,
       cachedAt,
       expiresAt: cachedAt,
@@ -807,10 +848,16 @@ export class PortfolioService {
 
     const currentMarketValue = effectivePosition.quantity * currentPrice;
     const intervalQuantity = this.hasDatedTransactions(effectivePosition.id) && firstPoint ? this.getQuantityHeldAtDate(effectivePosition.id, firstPoint.date) : effectivePosition.quantity;
-    const intervalStartMarketValue = intervalQuantity * intervalStartPrice;
-    const intervalPerformanceValue = currentMarketValue - intervalStartMarketValue;
-    const intervalPerformancePercent = intervalStartMarketValue ? (intervalPerformanceValue / intervalStartMarketValue) * 100 : 0;
     const totalCost = effectivePosition.quantity * effectivePosition.averageBuyPrice;
+    const intervalStartMarketValue = intervalQuantity * intervalStartPrice;
+    const intervalStartCost = this.hasDatedTransactions(effectivePosition.id) && firstPoint
+      ? this.getCostBasisHeldAtDate(effectivePosition.id, firstPoint.date)
+      : effectivePosition.averageBuyPrice * intervalQuantity;
+    const intervalStartGain = intervalStartMarketValue - intervalStartCost;
+    const currentGain = currentMarketValue - totalCost;
+    const intervalPerformanceValue = currentGain - intervalStartGain;
+    const intervalPerformanceBase = intervalStartCost || totalCost;
+    const intervalPerformancePercent = intervalPerformanceBase ? (intervalPerformanceValue / intervalPerformanceBase) * 100 : 0;
     const totalPerformanceValue = currentMarketValue - totalCost;
     const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
     const incompleteData = !firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale);
