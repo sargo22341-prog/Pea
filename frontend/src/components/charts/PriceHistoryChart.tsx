@@ -37,8 +37,8 @@ type MarkerOverlayPoint = MarkerGroupPoint & {
   left: number;
 };
 
-type ChartTooltipPayload = Array<{
-  dataKey?: string | number;
+type ChartTooltipPayload = ReadonlyArray<{
+  dataKey?: string | number | ((obj: unknown) => unknown);
   name?: string | number;
   payload?: unknown;
   value?: unknown;
@@ -142,12 +142,20 @@ export function PriceHistoryChart({
               borderRadius: 8,
               backdropFilter: "blur(6px)"
             }}
-            content={(props: { active?: boolean; label?: unknown; payload?: ChartTooltipPayload }) => (
+            content={(props) => (
               <HistoryTooltip
                 active={props.active}
                 currency={currency}
                 label={props.label}
-                labelFormatter={(value) => formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat, userTimezone, marketSession)}
+                labelFormatter={(value) =>
+                  formatHistoryTooltipLabel(
+                    resolveXDate(value),
+                    range,
+                    oneDayTooltipFormat,
+                    userTimezone,
+                    marketSession
+                  )
+                }
                 payload={props.payload}
               />
             )}
