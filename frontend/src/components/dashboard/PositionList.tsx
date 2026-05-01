@@ -74,9 +74,10 @@ export function PositionList({
     return [...positions].sort((a, b) => {
       const direction = sortDirection === "asc" ? 1 : -1;
       if (sortKey === "name") return a.name.localeCompare(b.name, "fr") * direction;
-      return (sortValue(a, sortKey) - sortValue(b, sortKey)) * direction;
+      const comparison = sortValue(a, sortKey, performanceById) - sortValue(b, sortKey, performanceById);
+      return comparison === 0 ? a.name.localeCompare(b.name, "fr") : comparison * direction;
     });
-  }, [positions, sortDirection, sortKey]);
+  }, [performanceById, positions, sortDirection, sortKey]);
 
   /**
    * Met a jour l'option de tri choisie dans le menu.
@@ -150,9 +151,10 @@ export function PositionList({
 /**
  * Retourne la valeur de tri stable disponible dans la synthese portefeuille.
  */
-function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey) {
-  if (key === "currentMarketValue") return basePosition.marketValue;
-  return basePosition.performancePercent;
+function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey, performanceById: Map<number, PositionRangePerformance>) {
+  const rangePerformance = performanceById.get(basePosition.id);
+  if (key === "currentMarketValue") return rangePerformance?.currentMarketValue ?? basePosition.marketValue;
+  return rangePerformance?.intervalPerformancePercent ?? basePosition.performancePercent;
 }
 
 /**
