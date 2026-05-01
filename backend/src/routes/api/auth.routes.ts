@@ -91,9 +91,8 @@ authRouter.get("/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
 authRouter.post(
   "/me/profile-icon",
   requireAuth,
-  express.raw({ type: "multipart/form-data", limit: "1100kb" }),
   asyncRoute(async (req, res) => {
-    const upload = parseMultipartIcon(req);
+    const upload = await parseMultipartIcon(req);
     if (!authService.isAllowedProfileIconMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("auth", "profile icon upload", { userId: req.user!.id, mimeType: upload.mimeType, size: upload.buffer.length });

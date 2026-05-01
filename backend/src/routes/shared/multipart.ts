@@ -1,82 +1,90 @@
 /**
- * Role du fichier : regrouper les petits parseurs multipart utilises par les routes.
+ * Role du fichier : parser les uploads multipart avec une librairie dediee.
  */
 
+import Busboy from "busboy";
 import type express from "express";
 import { HttpError } from "../../utils/http-error.js";
 
-/**
- * Extrait le fichier d'icone depuis une requete multipart brute.
- */
-export function parseMultipartIcon(req: express.Request) {
-  const contentType = req.headers["content-type"] ?? "";
-  const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
-  if (!boundary || !Buffer.isBuffer(req.body)) throw new HttpError(400, "Fichier image requis.");
-
-  const body = req.body as Buffer;
-  const marker = Buffer.from(`--${boundary}`);
-  const parts: Buffer[] = [];
-  let start = body.indexOf(marker);
-  while (start !== -1) {
-    const next = body.indexOf(marker, start + marker.length);
-    if (next === -1) break;
-    parts.push(body.subarray(start + marker.length, next));
-    start = next;
-  }
-
-  for (const rawPart of parts) {
-    const part = trimMultipartPart(rawPart);
-    const separator = part.indexOf(Buffer.from("\r\n\r\n"));
-    if (separator === -1) continue;
-    const headers = part.subarray(0, separator).toString("utf8");
-    if (!/name="icon"/i.test(headers) && !/filename="/i.test(headers)) continue;
-    const mimeType = /content-type:\s*([^\r\n]+)/i.exec(headers)?.[1]?.trim().toLowerCase() ?? "application/octet-stream";
-    const buffer = part.subarray(separator + 4);
-    if (!buffer.length) throw new HttpError(400, "Fichier image vide.");
-    return { buffer, mimeType };
-  }
-
-  throw new HttpError(400, "Fichier image requis.");
+export interface UploadedFile {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
 }
 
-/**
- * Extrait une liste de fichiers depuis une requete multipart brute.
- */
-export function parseMultipartFiles(req: express.Request, fieldName: string) {
-  const contentType = req.headers["content-type"] ?? "";
-  const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[1] ?? /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType))?.[2];
-  if (!boundary || !Buffer.isBuffer(req.body)) throw new HttpError(400, "Fichier requis.");
+function ensureMultipart(req: express.Request) {
+  if (!String(req.headers["content-type"] ?? "").toLowerCase().includes("multipart/form-data")) {
+    throw new HttpError(400, "Requete multipart requise.");
+  }
+}
 
-  const body = req.body as Buffer;
-  const marker = Buffer.from(`--${boundary}`);
-  const files: Array<{ fileName: string; buffer: Buffer }> = [];
-  let start = body.indexOf(marker);
-  while (start !== -1) {
-    const next = body.indexOf(marker, start + marker.length);
-    if (next === -1) break;
-    const part = trimMultipartPart(body.subarray(start + marker.length, next));
-    const separator = part.indexOf(Buffer.from("\r\n\r\n"));
-    if (separator !== -1) {
-      const headers = part.subarray(0, separator).toString("utf8");
-      const field = /name="([^"]+)"/i.exec(headers)?.[1];
-      const fileName = /filename="([^"]+)"/i.exec(headers)?.[1];
-      if (field === fieldName && fileName) {
-        files.push({ fileName, buffer: part.subarray(separator + 4) });
+export function parseMultipartFiles(req: express.Request, fieldName: string, options: { maxFiles?: number; maxFileSize?: number } = {}) {
+  ensureMultipart(req);
+  const maxFiles = options.maxFiles ?? 20;
+  const maxFileSize = options.maxFileSize ?? 10 * 1024 * 1024;
+
+  return new Promise<UploadedFile[]>((resolve, reject) => {
+    const files: UploadedFile[] = [];
+    let settled = false;
+
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const busboy = Busboy({
+      headers: req.headers,
+      limits: { files: maxFiles, fileSize: maxFileSize }
+    });
+
+    busboy.on("file", (name, stream, info) => {
+      if (name !== fieldName) {
+        stream.resume();
+        return;
       }
-    }
-    start = next;
-  }
-  if (!files.length) throw new HttpError(400, "Aucun PDF fourni.");
-  return files;
+
+      const chunks: Buffer[] = [];
+      let truncated = false;
+      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+      stream.on("limit", () => {
+        truncated = true;
+        stream.resume();
+      });
+      stream.on("error", fail);
+      stream.on("end", () => {
+        if (truncated) {
+          fail(new HttpError(400, "Fichier trop lourd."));
+          return;
+        }
+        const buffer = Buffer.concat(chunks);
+        if (!buffer.length) return;
+        files.push({
+          fileName: info.filename,
+          mimeType: info.mimeType.toLowerCase(),
+          buffer
+        });
+      });
+    });
+
+    busboy.on("filesLimit", () => fail(new HttpError(400, "Trop de fichiers fournis.")));
+    busboy.on("error", fail);
+    busboy.on("finish", () => {
+      if (settled) return;
+      settled = true;
+      if (!files.length) {
+        reject(new HttpError(400, "Aucun fichier fourni."));
+        return;
+      }
+      resolve(files);
+    });
+
+    req.pipe(busboy);
+  });
 }
 
-/**
- * Nettoie les separateurs CRLF et fins de boundary d'une partie multipart.
- */
-export function trimMultipartPart(part: Buffer) {
-  let start = 0;
-  let end = part.length;
-  while (start < end && (part[start] === 13 || part[start] === 10)) start += 1;
-  while (end > start && (part[end - 1] === 13 || part[end - 1] === 10 || part[end - 1] === 45)) end -= 1;
-  return part.subarray(start, end);
+export async function parseMultipartIcon(req: express.Request) {
+  const [file] = await parseMultipartFiles(req, "icon", { maxFiles: 1, maxFileSize: 1024 * 1024 });
+  if (!file?.buffer.length) throw new HttpError(400, "Fichier image requis.");
+  return file;
 }

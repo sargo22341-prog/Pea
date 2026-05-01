@@ -69,7 +69,7 @@ export function AccountSettingsSection() {
             )}
           </div>
           <input
-            accept="image/png,image/jpeg,image/svg+xml"
+            accept="image/png,image/jpeg"
             className="input"
             onChange={(event) => selectProfileFile(event.target.files?.[0])}
             ref={fileInputRef}

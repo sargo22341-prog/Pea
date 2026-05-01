@@ -56,7 +56,6 @@ function mapIcon(row: any): AssetIcon {
 }
 
 function extensionForMime(mimeType: string) {
-  if (mimeType.includes("svg")) return "svg";
   if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
   return "png";
 }
@@ -146,7 +145,7 @@ export class IconService {
     const extension = extensionForMime(cleanMime);
     const filePath = path.join(iconsDir, `${key}.${extension}`);
 
-    for (const candidate of ["png", "jpg", "svg"]) {
+    for (const candidate of ["png", "jpg"]) {
       const candidatePath = path.join(iconsDir, `${key}.${candidate}`);
       if (candidatePath !== filePath && fs.existsSync(candidatePath)) fs.unlinkSync(candidatePath);
     }
@@ -254,7 +253,7 @@ export class IconService {
   }
 
   isAllowedImageMime(mimeType: string) {
-    return ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"].includes(mimeType.toLowerCase());
+    return ["image/png", "image/jpeg", "image/jpg"].includes(mimeType.toLowerCase());
   }
 
   listKnownAssets() {

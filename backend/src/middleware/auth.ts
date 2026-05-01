@@ -51,3 +51,15 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
   next();
 }
+
+export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user) {
+    next(new HttpError(401, "Authentification requise."));
+    return;
+  }
+  if (req.user.role !== "admin") {
+    next(new HttpError(403, "Droits administrateur requis."));
+    return;
+  }
+  next();
+}

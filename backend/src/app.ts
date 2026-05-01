@@ -61,7 +61,6 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     return;
   }
 
-  const message = error instanceof Error ? error.message : "Erreur inconnue";
   logger.error("api", "Unhandled error", { error });
-  res.status(500).json({ message });
+  res.status(500).json({ message: "Erreur interne du serveur." });
 });

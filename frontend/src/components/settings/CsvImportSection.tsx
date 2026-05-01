@@ -2,6 +2,26 @@ import type { BoursoramaImportRow, BoursoramaUpdateRow } from "@pea/shared";
 import { Database, Upload } from "lucide-react";
 import { useCsvImport } from "../../hooks/useCsvImport";
 
+function hasFieldError(errors: string[], field: "symbol" | "quantity" | "price" | "general") {
+  const text = errors.join(" ").toLowerCase();
+  if (field === "symbol") return /ticker|symbole|actif|yahoo|isin/.test(text);
+  if (field === "quantity") return /quantit|qte/.test(text);
+  if (field === "price") return /prix|pru|cours/.test(text);
+  return errors.length > 0;
+}
+
+function inputTone(hasError: boolean) {
+  return `input ${hasError ? "border-coral bg-coral/10 focus:border-coral" : ""}`;
+}
+
+function detectedAssetLabel(row: BoursoramaImportRow | BoursoramaUpdateRow) {
+  if (row.detectedAsset) {
+    return `Actif detecte : ${row.detectedAsset.symbol} - ${row.detectedAsset.name} ${Math.round(row.detectedAsset.confidenceScore * 100)}%`;
+  }
+  if (row.symbol) return `Actif detecte : ${row.symbol}`;
+  return "Actif detecte : a renseigner";
+}
+
 export function CsvImportSection() {
   const csvImport = useCsvImport();
 
@@ -76,12 +96,15 @@ function ImportPreviewTable({
         </thead>
         <tbody className="divide-y divide-line">
           {rows.map((row, index) => (
-            <tr key={`${row.line}-${row.isin}`}>
+            <tr className={row.errors.length ? "bg-coral/5" : ""} key={`${row.line}-${row.isin}`}>
               <td className="p-3">{row.name}</td>
               <td className="p-3">{row.isin}</td>
-              <td className="p-3">{row.quantity}</td>
-              <td className="p-3">{row.buyingPrice}</td>
-              <td className="p-3"><input className="input" onChange={(event) => onUpdateRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false })} value={row.symbol ?? ""} /></td>
+              <td className={`p-3 ${hasFieldError(row.errors, "quantity") ? "text-coral" : ""}`}>{row.quantity}</td>
+              <td className={`p-3 ${hasFieldError(row.errors, "price") ? "text-coral" : ""}`}>{row.buyingPrice}</td>
+              <td className="p-3">
+                <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false, errors: [] })} value={row.symbol ?? ""} />
+                <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row)}</p>
+              </td>
               <td className="p-3">
                 <select className="input" onChange={(event) => onUpdateRow(index, { action: event.target.value as BoursoramaImportRow["action"] })} value={row.action ?? "merge"}>
                   <option value="merge">Fusionner</option>
@@ -89,7 +112,7 @@ function ImportPreviewTable({
                   <option value="ignore">Ignorer</option>
                 </select>
               </td>
-              <td className={`p-3 ${row.needsReview || row.errors.length ? "text-amber" : "text-mint"}`}>{row.errors.length ? row.errors.join(", ") : row.needsReview ? "A verifier" : "OK"}</td>
+              <td className={`p-3 ${row.errors.length ? "text-coral" : row.needsReview ? "text-amber" : "text-mint"}`}>{row.errors.length ? row.errors.join(", ") : row.needsReview ? "A verifier" : "OK"}</td>
             </tr>
           ))}
         </tbody>
@@ -146,17 +169,18 @@ function UpdatePreviewTable({
             const averageBuyPriceChanged = Math.abs(averageBuyPriceDiff) >= 0.000001 && row.proposedAction !== "delete";
 
             return (
-              <tr key={`${row.symbol}-${row.line}-${index}`}>
+              <tr className={row.errors.length ? "bg-coral/5" : ""} key={`${row.symbol}-${row.line}-${index}`}>
                 <td className="p-3">{row.name}</td>
                 <td className="p-3">{row.isin || "n/a"}</td>
                 <td className="p-3">
-                  <input className="input" onChange={(event) => onUpdateRow(row, { symbol: event.target.value.toUpperCase() })} value={row.symbol ?? ""} />
+                  <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(row, { symbol: event.target.value.toUpperCase(), errors: [] })} value={row.symbol ?? ""} />
+                  <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row)}</p>
                 </td>
                 <td className="p-3">{row.currentQuantity ?? 0}</td>
-                <td className="p-3">{row.csvQuantity}</td>
+                <td className={`p-3 ${hasFieldError(row.errors, "quantity") ? "text-coral" : ""}`}>{row.csvQuantity}</td>
                 <td className={`p-3 ${row.quantityDiff >= 0 ? "text-mint" : "text-coral"}`}>{row.quantityDiff}</td>
                 <td className="p-3">{row.currentAverageBuyPrice ?? "n/a"}</td>
-                <td className="p-3">{row.csvAverageBuyPrice}</td>
+                <td className={`p-3 ${hasFieldError(row.errors, "price") ? "text-coral" : ""}`}>{row.csvAverageBuyPrice}</td>
                 <td className={`p-3 ${averageBuyPriceDiff >= 0 ? "text-mint" : "text-coral"}`}>
                   {averageBuyPriceChanged ? averageBuyPriceDiff.toLocaleString("fr-FR", { maximumFractionDigits: 4 }) : "0"}
                   {averageBuyPriceChanged && (
@@ -165,7 +189,10 @@ function UpdatePreviewTable({
                     </span>
                   )}
                 </td>
-                <td className="p-3">{row.proposedAction}</td>
+                <td className="p-3">
+                  <p>{row.proposedAction}</p>
+                  {row.errors.length ? <p className="mt-1 text-xs text-coral">{row.errors.join(", ")}</p> : null}
+                </td>
               </tr>
             );
           })}

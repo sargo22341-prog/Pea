@@ -3,6 +3,16 @@ import { useState } from "react";
 import { api } from "../lib/api";
 import { notifyDataConstructionChanged } from "../lib/dataConstruction";
 
+type ImportError = { line: number; message: string };
+
+function rowsWithImportErrors(rows: ParsedAvisOperation[], errors: ImportError[]) {
+  if (!errors.length) return rows.map((row) => ({ ...row, errors: [] }));
+  return rows.map((row, index) => ({
+    ...row,
+    errors: errors.filter((error) => error.line === index + 1).map((error) => error.message)
+  }));
+}
+
 export function useAvisOperesPdfImport() {
   const [rows, setRows] = useState<ParsedAvisOperation[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,7 +38,7 @@ export function useAvisOperesPdfImport() {
       const result = await api.confirmAvisOperesPdf(rows);
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
       setMessage(`${result.imported.length} operation(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
-      setRows([]);
+      setRows((current) => result.errors.length ? rowsWithImportErrors(current, result.errors) : []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Import PDF impossible.");
     } finally {

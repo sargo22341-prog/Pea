@@ -45,6 +45,22 @@ export function EditPositionModal({
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   }
 
+  function patchTransactionType(index: number, type: EditablePortfolioTransaction["type"]) {
+    setRows((current) =>
+      current.map((row, rowIndex) => {
+        if (rowIndex !== index) return row;
+        const quantity = type === "sell" ? Math.min(Number(row.quantity) || 0, position.quantity) : row.quantity;
+        return { ...row, type, quantity };
+      })
+    );
+  }
+
+  function patchTransactionQuantity(index: number, rawValue: string, type: EditablePortfolioTransaction["type"]) {
+    const value = Number(rawValue);
+    const quantity = type === "sell" ? Math.min(value, position.quantity) : value;
+    patchRow(index, { quantity });
+  }
+
   function addDraftTransaction() {
     const now = currentDateTimeLocalValue();
     setRows((current) => [
@@ -72,6 +88,10 @@ export function EditPositionModal({
   async function save(row: EditablePortfolioTransaction) {
     if (row.id.startsWith("legacy-")) {
       setError("Cette ligne legacy vient de la position CSV. Ajoute une transaction datee pour l'editer finement.");
+      return;
+    }
+    if (row.type === "sell" && row.quantity > position.quantity) {
+      setError(`La quantite vendue ne peut pas depasser ${position.quantity}.`);
       return;
     }
     setError(null);
@@ -147,14 +167,14 @@ export function EditPositionModal({
                       </label>
                       <label>
                         <span className="muted mb-1 block">Sens</span>
-                        <select className="input" onChange={(event) => patchRow(index, { type: event.target.value as EditablePortfolioTransaction["type"] })} value={row.type}>
+                        <select className="input" onChange={(event) => patchTransactionType(index, event.target.value as EditablePortfolioTransaction["type"])} value={row.type}>
                           <option value="buy">Achat</option>
                           <option value="sell">Vente</option>
                         </select>
                       </label>
                       <label>
                         <span className="muted mb-1 block">Quantite</span>
-                        <input className="input" min="0" onChange={(event) => patchRow(index, { quantity: Number(event.target.value) })} step="any" type="number" value={row.quantity} />
+                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => patchTransactionQuantity(index, event.target.value, row.type)} step="any" type="number" value={row.quantity} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">Prix</span>

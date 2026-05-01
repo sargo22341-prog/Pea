@@ -30,9 +30,8 @@ assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
 
 assetIconsRouter.post(
   "/assets/:symbol/icon",
-  express.raw({ type: "multipart/form-data", limit: "1100kb" }),
   asyncRoute(async (req, res) => {
-    const upload = parseMultipartIcon(req);
+    const upload = await parseMultipartIcon(req);
     if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("icons", "icon upload", { symbol: req.params.symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });

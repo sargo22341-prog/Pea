@@ -526,6 +526,7 @@ export interface AssetIcon {
 export interface User {
   id: number;
   username: string;
+  role: "admin" | "user";
   profileIconUrl?: string;
   hasProfileIcon?: boolean;
   dashboardDefaultSortKey: DashboardSortKey;
@@ -556,6 +557,11 @@ export interface BoursoramaImportRow {
   variation: number;
   symbol: string | null;
   peaEligibility?: PeaEligibilityResult;
+  detectedAsset?: {
+    symbol: string;
+    name: string;
+    confidenceScore: number;
+  };
   needsReview: boolean;
   errors: string[];
   existingPositionId?: number;
@@ -606,13 +612,14 @@ export interface ParsedAvisOperation {
   nomValeur?: string;
   isin?: string;
   ticker?: string;
-  quantite?: number;
+  quantite?: number | string;
   sensOperation: "achat" | "vente" | "inconnu";
-  coursExecute?: number;
-  montantTotalFrais?: number;
+  coursExecute?: number | string;
+  montantTotalFrais?: number | string;
   devise: CurrencyCode;
   sourceFileName?: string;
   rawTextSnippet?: string;
+  errors?: string[];
   warnings: string[];
   potentialDuplicate?: boolean;
   resolvedAsset?: {

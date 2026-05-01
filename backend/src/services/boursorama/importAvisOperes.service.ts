@@ -13,22 +13,66 @@ import { portfolioService } from "../portfolio/portfolio.service.js";
 import { yahooService } from "../yahoo/index.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 
+function normalizeNumericInput(value: unknown) {
+  if (typeof value === "string") return value.trim().replace(",", ".");
+  return value;
+}
+
+function numberSchema(label: string) {
+  return z.number({ invalid_type_error: `${label} doit etre un nombre.` }).finite(`${label} doit etre un nombre.`);
+}
+
+function requiredNumber(schema: z.ZodNumber) {
+  return z.preprocess(
+    (value) => {
+      const normalized = normalizeNumericInput(value);
+      if (normalized === "" || normalized === null || normalized === undefined) return Number.NaN;
+      return Number(normalized);
+    },
+    schema
+  );
+}
+
+function optionalNumber(schema: z.ZodOptional<z.ZodNumber>) {
+  return z.preprocess(
+    (value) => {
+      const normalized = normalizeNumericInput(value);
+      if (normalized === "" || normalized === null || normalized === undefined) return undefined;
+      return Number(normalized);
+    },
+    schema
+  );
+}
+
 const confirmOperationSchema = z.object({
   sourceFileName: z.string().optional(),
   dateExecution: z.string().optional(),
   nomValeur: z.string().optional(),
   isin: z.string().optional(),
   ticker: z.string().optional(),
-  quantite: z.coerce.number().positive(),
+  quantite: requiredNumber(numberSchema("Quantite").positive("Quantite doit etre superieure a 0.")),
   sensOperation: z.enum(["achat", "vente", "inconnu"]),
-  coursExecute: z.coerce.number().nonnegative(),
-  montantTotalFrais: z.coerce.number().nonnegative().optional(),
+  coursExecute: requiredNumber(numberSchema("Cours").nonnegative("Cours doit etre positif ou nul.")),
+  montantTotalFrais: optionalNumber(numberSchema("Total frais").nonnegative("Total frais doit etre positif ou nul.").optional()),
   devise: z.string().default("EUR"),
   rawTextSnippet: z.string().optional(),
   selectedSymbol: z.string().optional(),
   selectedAssetName: z.string().optional(),
   action: z.enum(["import", "ignore"]).optional()
 });
+
+function formatValidationError(error: z.ZodError) {
+  return error.issues.map((issue) => issue.message).join(" ");
+}
+
+async function assertYahooSymbolExists(symbol: string) {
+  const key = symbol.trim().toUpperCase();
+  const result = await yahooService.quote(key);
+  const foundSymbol = result.data.symbol?.toUpperCase();
+  if (!foundSymbol || foundSymbol !== key) {
+    throw new Error(`Ticker Yahoo introuvable: ${key}.`);
+  }
+}
 
 /**
  * Représente un fichier PDF envoyé pour l’import d’avis d’opéré.
@@ -272,28 +316,38 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
   const errors: Array<{ line: number; message: string }> = [];
 
   for (let index = 0; index < rows.length; index += 1) {
-    const row = confirmOperationSchema.parse(rows[index]);
-
-    if (row.action === "ignore") {
-      skipped.push(row.nomValeur ?? row.selectedSymbol ?? `ligne ${index + 1}`);
-      continue;
-    }
-
-    if (!row.selectedSymbol) {
-      errors.push({ line: index + 1, message: "Actif non resolu." });
-      continue;
-    }
-
-    if (row.sensOperation === "inconnu") {
-      errors.push({ line: index + 1, message: "Sens achat/vente requis." });
-      continue;
-    }
-
     try {
+      const row = confirmOperationSchema.parse(rows[index]);
+
+      if (row.action === "ignore") {
+        skipped.push(row.nomValeur ?? row.selectedSymbol ?? `ligne ${index + 1}`);
+        continue;
+      }
+
+      if (!row.selectedSymbol) {
+        errors.push({ line: index + 1, message: "Actif non resolu." });
+        continue;
+      }
+
+      if (row.sensOperation === "inconnu") {
+        errors.push({ line: index + 1, message: "Sens achat/vente requis." });
+        continue;
+      }
+
       const symbol = row.selectedSymbol.toUpperCase();
+      await assertYahooSymbolExists(symbol);
       const name = row.selectedAssetName || row.nomValeur || symbol;
       const position = await portfolioService.ensurePosition(symbol, name, row.devise);
       const type = row.sensOperation === "vente" ? "sell" : "buy";
+      const tradedAt = row.dateExecution ?? new Date().toISOString();
+      portfolioService.assertValidTransactionMutation(position.id, {
+        tradedAt,
+        type,
+        quantity: row.quantite,
+        price: row.coursExecute,
+        totalFees: row.montantTotalFrais ?? 0,
+        currency: row.devise
+      });
 
       db.prepare(
         `INSERT INTO transactions (
@@ -306,7 +360,7 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
         row.quantite,
         row.coursExecute,
         row.devise,
-        row.dateExecution ?? new Date().toISOString(),
+        tradedAt,
         row.sourceFileName ?? null,
         row.nomValeur ?? name,
         row.isin ?? null,
@@ -320,7 +374,7 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
     } catch (error) {
       errors.push({
         line: index + 1,
-        message: error instanceof Error ? error.message : "Import impossible."
+        message: error instanceof z.ZodError ? formatValidationError(error) : error instanceof Error ? error.message : "Import impossible."
       });
     }
   }

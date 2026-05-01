@@ -213,6 +213,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
     profile_icon_url TEXT,
     profile_icon_path TEXT,
     profile_icon_mime_type TEXT,
@@ -475,6 +476,7 @@ if (assetIconColumns.includes("icon_url") || !assetIconColumns.includes("file_pa
 }
 
 for (const migration of [
+  "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user';",
   "ALTER TABLE users ADD COLUMN profile_icon_path TEXT;",
   "ALTER TABLE users ADD COLUMN profile_icon_mime_type TEXT;",
   "ALTER TABLE users ADD COLUMN profile_icon_size INTEGER;",
@@ -491,6 +493,11 @@ for (const migration of [
   } catch {
     // Column already exists in existing SQLite files.
   }
+}
+
+const userCountRow = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count?: number } | undefined;
+if (Number(userCountRow?.count ?? 0) === 1) {
+  db.exec("UPDATE users SET role = 'admin' WHERE role IS NULL OR role <> 'admin';");
 }
 
 for (const migration of [

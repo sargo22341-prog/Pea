@@ -33,6 +33,24 @@ export interface PortfolioMarketDataOptions {
   intradayNow?: Date;
 }
 
+type TransactionMutationInput = {
+  tradedAt: string;
+  type: "buy" | "sell";
+  quantity: number;
+  price: number;
+  totalFees?: number;
+  currency: string;
+};
+
+type TransactionSequenceRow = {
+  id?: number;
+  type: string;
+  quantity: number;
+  price: number;
+  total_fees?: number;
+  traded_at: string;
+};
+
 /**
  * Convertit une ligne SQLite de position en contrat partagé.
  *
@@ -265,9 +283,10 @@ export class PortfolioService {
     return calculateTransactionStats(rows, totalDividendsReceived, currency);
   }
 
-  createTransaction(positionId: number, input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }) {
+  createTransaction(positionId: number, input: TransactionMutationInput) {
     const position = db.prepare("SELECT id FROM positions WHERE id = ?").get(positionId);
     if (!position) throw new HttpError(404, "Position introuvable");
+    this.assertValidTransactionMutation(positionId, input);
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')`
@@ -277,9 +296,10 @@ export class PortfolioService {
     return this.listTransactions(positionId);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }) {
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput) {
     const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
     if (!existing) throw new HttpError(404, "Transaction introuvable");
+    this.assertValidTransactionMutation(positionId, input, transactionId);
     db.prepare(
       `UPDATE transactions
        SET traded_at = ?, type = ?, quantity = ?, price = ?, total_fees = ?, currency = ?
@@ -324,6 +344,50 @@ export class PortfolioService {
     db.prepare("UPDATE positions SET quantity = ?, average_buy_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(quantity, quantity > 0 ? costBasis / quantity : 0, positionId);
     this.persistUserAssetPosition("default", positionId);
+  }
+
+  assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
+    if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
+      throw new HttpError(400, "La quantite doit etre strictement positive.");
+    }
+    if (!Number.isFinite(input.price) || input.price < 0) {
+      throw new HttpError(400, "Le prix doit etre positif ou nul.");
+    }
+
+    const rows = db
+      .prepare("SELECT id, type, quantity, price, total_fees, traded_at FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as TransactionSequenceRow[];
+    const mutation: TransactionSequenceRow = {
+      id: transactionIdToReplace,
+      type: input.type,
+      quantity: input.quantity,
+      price: input.price,
+      total_fees: input.totalFees ?? 0,
+      traded_at: input.tradedAt
+    };
+    const nextRows = transactionIdToReplace
+      ? rows.map((row) => (Number(row.id) === transactionIdToReplace ? mutation : row))
+      : [...rows, mutation];
+    this.assertTransactionSequenceDoesNotGoNegative(nextRows);
+  }
+
+  private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {
+    let quantity = 0;
+    const sortedRows = [...rows].sort((a, b) => {
+      const dateOrder = String(a.traded_at).localeCompare(String(b.traded_at));
+      if (dateOrder !== 0) return dateOrder;
+      return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
+    });
+
+    for (const row of sortedRows) {
+      const rowQuantity = Number(row.quantity);
+      if (row.type === "buy") quantity += rowQuantity;
+      if (row.type === "sell") quantity -= rowQuantity;
+      if (quantity < -0.000001) {
+        throw new HttpError(400, "Cette vente rendrait la quantite detenue negative.");
+      }
+      if (Math.abs(quantity) < 0.000001) quantity = 0;
+    }
   }
 
   deletePosition(id: number): boolean {

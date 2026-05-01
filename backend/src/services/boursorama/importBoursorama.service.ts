@@ -24,12 +24,18 @@ export interface BoursoramaRow {
   variation: number;
   symbol: string | null;
   peaEligibility?: ReturnType<typeof evaluatePeaEligibility>;
+  detectedAsset?: {
+    symbol: string;
+    name: string;
+    confidenceScore: number;
+  };
   needsReview: boolean;
   errors: string[];
   existingPositionId?: number;
 }
 
 const headers = ["name", "isin", "quantity", "buyingPrice", "lastPrice", "intradayVariation", "amount", "amountVariation", "variation"];
+const maxImportRows = 1000;
 
 export function normalizeFrenchNumber(value: string): number {
   const normalized = value.replace(/\s/g, "").replace(",", ".");
@@ -110,6 +116,15 @@ async function findBestCandidate(query: string): Promise<{ symbol: string | null
   };
 }
 
+async function assertYahooSymbolExists(symbol: string) {
+  const key = symbol.trim().toUpperCase();
+  const result = await yahooService.quote(key);
+  const foundSymbol = result.data.symbol?.toUpperCase();
+  if (!foundSymbol || foundSymbol !== key) {
+    throw new Error(`Ticker Yahoo introuvable: ${key}.`);
+  }
+}
+
 export async function previewBoursoramaImport(content: string): Promise<BoursoramaRow[]> {
   const parsed = parseBoursoramaCsv(content);
   const rows: BoursoramaRow[] = [];
@@ -127,6 +142,9 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
     rows.push({
       ...row,
       symbol,
+      detectedAsset: resolved.asset
+        ? { symbol: resolved.asset.symbol.toUpperCase(), name: resolved.asset.name, confidenceScore: resolved.needsReview ? 0.75 : 0.95 }
+        : undefined,
       peaEligibility: resolved.asset?.peaEligibility ?? (symbol ? evaluatePeaEligibility({ symbol, name: row.name }) : undefined),
       needsReview: resolved.needsReview || row.errors.length > 0,
       existingPositionId: existing?.id
@@ -140,12 +158,18 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
   const skipped: string[] = [];
   const errors: Array<{ line: number; message: string }> = [];
 
+  if (rows.length > maxImportRows) {
+    return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
+  }
+
   for (const row of rows) {
     try {
       if (row.action === "ignore" || !row.symbol) {
         skipped.push(row.name);
         continue;
       }
+      if (row.errors.length) throw new Error(row.errors.join(", "));
+      await assertYahooSymbolExists(row.symbol);
       const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any;
       if (existing && row.action === "replace") {
         db.prepare(
@@ -240,18 +264,24 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
   const skipped: string[] = [];
   const errors: Array<{ line: number; message: string }> = [];
 
+  if (rows.length > maxImportRows) {
+    return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
+  }
+
   for (const row of rows) {
     try {
       if (row.proposedAction === "ignore" || row.proposedAction === "unchanged" || !row.symbol) {
         skipped.push(row.name);
         continue;
       }
+      if (row.errors.length) throw new Error(row.errors.join(", "));
       if (row.proposedAction === "delete") {
         if (!row.positionId) throw new Error("Position introuvable pour suppression.");
         portfolioService.deletePosition(row.positionId);
         imported.push(row.symbol);
         continue;
       }
+      await assertYahooSymbolExists(row.symbol);
       const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any;
       if (existing) {
         db.prepare(

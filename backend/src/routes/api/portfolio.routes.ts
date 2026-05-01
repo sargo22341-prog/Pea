@@ -72,7 +72,7 @@ portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute(async (
   const body = z.object({
     tradedAt: z.string().min(1),
     type: z.enum(["buy", "sell"]),
-    quantity: z.coerce.number().nonnegative(),
+    quantity: z.coerce.number().positive(),
     price: z.coerce.number().nonnegative(),
     totalFees: z.coerce.number().nonnegative().optional(),
     currency: z.string().min(3).max(8).default("EUR")
@@ -86,7 +86,7 @@ portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyn
   const body = z.object({
     tradedAt: z.string().min(1),
     type: z.enum(["buy", "sell"]),
-    quantity: z.coerce.number().nonnegative(),
+    quantity: z.coerce.number().positive(),
     price: z.coerce.number().nonnegative(),
     totalFees: z.coerce.number().nonnegative().optional(),
     currency: z.string().min(3).max(8).default("EUR")

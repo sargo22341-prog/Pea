@@ -4,6 +4,19 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { notifyDataConstructionChanged } from "../lib/dataConstruction";
 
+type ImportError = { line: number; message: string };
+
+function rowsWithImportErrors<T extends { line: number; errors: string[] }>(rows: T[], errors: ImportError[]) {
+  if (!errors.length) return rows.map((row) => ({ ...row, errors: row.errors.filter((message) => !message.startsWith("Confirmation:")) }));
+  return rows.map((row, index) => {
+    const lineErrors = errors
+      .filter((error) => error.line === row.line || error.line === index + 1)
+      .map((error) => `Confirmation: ${error.message}`);
+    const previousErrors = row.errors.filter((message) => !message.startsWith("Confirmation:"));
+    return { ...row, errors: [...previousErrors, ...lineErrors] };
+  });
+}
+
 export function useCsvImport() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<BoursoramaImportRow[]>([]);
@@ -46,20 +59,32 @@ export function useCsvImport() {
   async function confirmUpdate() {
     if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm("Confirmer les suppressions de positions absentes du CSV ?")) return;
     setLoading(true);
-    const result = await api.confirmBoursoramaUpdate(updateRows);
-    if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-    setMessage(`${result.imported.length} changement(s) applique(s), ${result.skipped.length} ignore(s), ${result.errors.length} erreur(s).`);
-    setLoading(false);
-    if (result.errors.length === 0) navigate("/");
+    try {
+      const result = await api.confirmBoursoramaUpdate(updateRows);
+      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
+      setMessage(`${result.imported.length} changement(s) applique(s), ${result.skipped.length} ignore(s), ${result.errors.length} erreur(s).`);
+      setUpdateRows((current) => rowsWithImportErrors(current, result.errors));
+      if (result.errors.length === 0) navigate("/");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Validation impossible.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function confirmImport() {
     setLoading(true);
-    const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
-    if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-    setMessage(`${result.imported.length} ligne(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
-    setLoading(false);
-    if (result.errors.length === 0) navigate("/");
+    try {
+      const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
+      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
+      setMessage(`${result.imported.length} ligne(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
+      setRows((current) => rowsWithImportErrors(current, result.errors));
+      if (result.errors.length === 0) navigate("/");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Validation impossible.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function updateImportRow(index: number, patch: Partial<BoursoramaImportRow>) {

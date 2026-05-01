@@ -15,6 +15,7 @@ import { HttpError } from "../../utils/http-error.js";
 export interface AuthUser {
   id: number;
   username: string;
+  role: "admin" | "user";
   profileIconUrl?: string;
   hasProfileIcon?: boolean;
   dashboardDefaultSortKey: DashboardSortKey;
@@ -44,7 +45,6 @@ function isRangeKey(value: unknown): value is RangeKey {
 }
 
 function extensionForMime(mimeType: string) {
-  if (mimeType.includes("svg")) return "svg";
   if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
   return "png";
 }
@@ -57,6 +57,7 @@ function mapUser(row: any): AuthUser {
   return {
     id: Number(row.id),
     username: String(row.username),
+    role: row.role === "admin" ? "admin" : "user",
     profileIconUrl: row.profile_icon_url ? String(row.profile_icon_url) : undefined,
     hasProfileIcon: Boolean(row.profile_icon_path && fs.existsSync(String(row.profile_icon_path))),
     dashboardDefaultSortKey: isDashboardSortKey(row.dashboard_default_sort_key) ? row.dashboard_default_sort_key : "name",
@@ -197,7 +198,7 @@ export class AuthService {
 
     const cleanMime = mimeType.toLowerCase();
     const filePath = path.join(profileIconsDir, `user-${userId}.${extensionForMime(cleanMime)}`);
-    for (const candidate of ["png", "jpg", "svg"]) {
+    for (const candidate of ["png", "jpg"]) {
       const candidatePath = path.join(profileIconsDir, `user-${userId}.${candidate}`);
       if (candidatePath !== filePath && fs.existsSync(candidatePath)) fs.unlinkSync(candidatePath);
     }
@@ -224,7 +225,7 @@ export class AuthService {
   }
 
   isAllowedProfileIconMime(mimeType: string) {
-    return ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"].includes(mimeType.toLowerCase());
+    return ["image/png", "image/jpeg", "image/jpg"].includes(mimeType.toLowerCase());
   }
 
   private async createUser(username: string, password: string, profileIconUrl?: string) {
@@ -233,9 +234,11 @@ export class AuthService {
     if (!password) throw new HttpError(400, "Mot de passe requis.");
 
     const passwordHash = await bcrypt.hash(password, 12);
-    db.prepare("INSERT INTO users (username, password_hash, profile_icon_url) VALUES (?, ?, ?)").run(
+    const role = this.userCount() === 0 ? "admin" : "user";
+    db.prepare("INSERT INTO users (username, password_hash, role, profile_icon_url) VALUES (?, ?, ?, ?)").run(
       cleanUsername,
       passwordHash,
+      role,
       profileIconUrl || null
     );
     const row = db.prepare("SELECT * FROM users WHERE username = ?").get(cleanUsername);

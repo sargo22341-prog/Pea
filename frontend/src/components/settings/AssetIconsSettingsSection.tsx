@@ -24,7 +24,7 @@ export function AssetIconsSettingsSection() {
               <div className="flex items-center gap-3">
                 {settings.previews[item.symbol] && <img alt="" className="h-10 w-10 rounded-md object-contain" src={settings.previews[item.symbol]} />}
                 <input
-                  accept="image/png,image/jpeg,image/svg+xml"
+                  accept="image/png,image/jpeg"
                   className="input"
                   onChange={(event) => settings.selectFile(item.symbol, event.target.files?.[0])}
                   ref={(node) => {

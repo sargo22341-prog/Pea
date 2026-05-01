@@ -3,7 +3,7 @@
  */
 
 import express from "express";
-import { attachUser, requireAuth } from "../middleware/auth.js";
+import { attachUser, requireAdmin, requireAuth } from "../middleware/auth.js";
 import { HttpError } from "../utils/http-error.js";
 import { adminRouter } from "./api/admin.routes.js";
 import { assetIconsRouter } from "./api/asset-icons.routes.js";
@@ -34,7 +34,7 @@ apiRouter.use(topAndLosersRouter);
 apiRouter.use(portfolioRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
-apiRouter.use(adminRouter);
+apiRouter.use(requireAdmin, adminRouter);
 
 apiRouter.use((req) => {
   throw new HttpError(404, `Route API introuvable: ${req.method} ${req.path}`);
