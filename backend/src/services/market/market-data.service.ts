@@ -347,6 +347,86 @@ export class MarketDataService {
     return { skipped: false, finalized: true, closeIso, closePrice: close.price };
   }
 
+  /**
+   * Charge l'intraday complet d'une derniere seance fermee trouvee via Yahoo
+   * daily. Le daily ne sert ici qu'a resoudre la date et le close de reference.
+   */
+  private async fetchClosedIntradaySession(input: {
+    asset: AssetRow;
+    tradingDay: YahooTradingDay;
+    quote?: Quote;
+    persist?: boolean;
+  }) {
+    const { asset, tradingDay, quote, persist = false } = input;
+    const interval = chartConfigService.getIntervalForRange("1d");
+    const period2 = new Date(tradingDay.period2.getTime() + intervalDurationMs(interval));
+    const chart = await yahooApi.chart(asset.symbol, {
+      period1: tradingDay.period1,
+      period2,
+      interval: yahooInterval(interval)
+    });
+    let points = validateChartPoints({
+      symbol: asset.symbol,
+      range: "1d",
+      points: chart.quotes,
+      marketCloseTime: tradingDay.period2
+    });
+    const close = this.closePriceForFinalization(asset, quote, tradingDay);
+    const closeTime = tradingDay.period2.getTime();
+    const lastTime = points.length ? new Date(points[points.length - 1].date).getTime() : undefined;
+    const hasClosePoint = points.some((point) => new Date(point.date).getTime() === closeTime);
+
+    if (close.price && (!hasClosePoint || Number(lastTime) < closeTime)) {
+      points = points.filter((point) => new Date(point.date).getTime() !== closeTime);
+      points.push({
+        date: tradingDay.period2.toISOString(),
+        open: points[points.length - 1]?.close ?? close.price,
+        high: Math.max(points[points.length - 1]?.close ?? close.price, close.price),
+        low: Math.min(points[points.length - 1]?.close ?? close.price, close.price),
+        close: close.price
+      });
+      points.sort((a, b) => a.date.localeCompare(b.date));
+      logger.info("market-data", hasClosePoint ? "close point replaced" : "close point appended", {
+        symbol: asset.symbol,
+        tradingDate: tradingDay.date,
+        marketCloseTime: tradingDay.period2.toISOString(),
+        closePrice: close.price,
+        source: close.source,
+        context: "closed-intraday-session"
+      });
+    }
+
+    if (points.length === 0) points = [storedDailyPointForTradingDay(asset, tradingDay) ?? fallbackClosePoint(tradingDay)];
+
+    if (persist) {
+      const candles = candleBuilder.buildCandles({
+        assetId: asset.id,
+        symbol: asset.symbol,
+        exchange: asset.exchange,
+        range: "1d",
+        interval,
+        points
+      });
+      candleRepository.upsertCandles(candles);
+      await this.finalizeClosedOneDayCandles({
+        asset,
+        session: tradingDay,
+        quote,
+        yahooTradingDay: tradingDay,
+        rebuildContext: "forced-rebuild"
+      });
+    }
+
+    logger.info("market-data", "closed intraday session resolved", {
+      symbol: asset.symbol,
+      tradingDate: tradingDay.date,
+      yahooPoints: chart.quotes.length,
+      fallbackPoints: points.length,
+      marketCloseTime: tradingDay.period2.toISOString()
+    });
+    return points;
+  }
+
   async refreshCandlesForAsset(asset: AssetRow, ranges: StoredChartRange[] = storedConstructionRanges) {
     let updated = 0;
     let latestYahooTradingDay: YahooTradingDay | undefined;
@@ -382,14 +462,15 @@ export class MarketDataService {
       });
       if (range === "1d" && validatedPoints.length === 0) {
         latestYahooTradingDay = latestYahooTradingDay ?? (await getLastAvailableTradingDayFromYahoo(asset.symbol, new Date(), asset.exchange).catch(() => undefined));
-        const stored = latestYahooTradingDay ? storedDailyPointForTradingDay(asset, latestYahooTradingDay) : undefined;
-        validatedPoints = stored ? [{ ...stored, date: latestYahooTradingDay?.period2.toISOString() ?? stored.date }] : latestYahooTradingDay ? [fallbackClosePoint(latestYahooTradingDay)] : [];
+        validatedPoints = latestYahooTradingDay
+          ? await this.fetchClosedIntradaySession({ asset, tradingDay: latestYahooTradingDay, quote, persist: false })
+          : [];
         if (latestYahooTradingDay) {
           session = latestYahooTradingDay;
           logger.info("market-data", "intraday empty; yahoo daily fallback used", {
             symbol: asset.symbol,
             tradingDate: latestYahooTradingDay.date,
-            source: stored ? "stored-all" : "yahoo-daily"
+            intradayPoints: validatedPoints.length
           });
         }
       }
@@ -563,7 +644,7 @@ export class MarketDataService {
     const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
     const points = filterRangePoints(rawPoints, range, asset);
     const latestFinalizedTradingDate = storedRange === "1d" ? candleRepository.latestFinalizedTradingDate(asset.id, "1d") : undefined;
-    if (storedRange === "1d" && latestFinalizedTradingDate && !isMarketOpen(quote?.marketState) && points.length > 0) {
+    if (storedRange === "1d" && latestFinalizedTradingDate && !isMarketOpen(quote?.marketState) && points.length > 1) {
       logger.info("market-data", "dashboard skipped rebuild because finalized", {
         symbol: asset.symbol,
         tradingDate: latestFinalizedTradingDate,
@@ -578,7 +659,7 @@ export class MarketDataService {
       if (storedRange === "1d" && !isMarketOpen(quote?.marketState)) {
         const yahooTradingDay = await getLastAvailableTradingDayFromYahoo(asset.symbol, new Date(), asset.exchange).catch(() => undefined);
         const fallbackPoints = yahooTradingDay
-          ? [storedDailyPointForTradingDay(asset, yahooTradingDay) ?? fallbackClosePoint(yahooTradingDay)]
+          ? await this.fetchClosedIntradaySession({ asset, tradingDay: yahooTradingDay, quote, persist: true })
           : points;
         logger.info("market-data", "closed market with few intraday points; serving fallback without rebuild", {
           symbol: asset.symbol,

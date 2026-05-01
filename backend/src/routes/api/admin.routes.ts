@@ -32,6 +32,10 @@ adminRouter.post("/admin/market-data/rebuild-all", asyncRoute(async (_req, res) 
   res.json(marketDataCleaner.rebuildMarketData({ range: "all_ranges" }));
 }));
 
+adminRouter.post("/admin/market-data/cleanup-unlinked-assets", asyncRoute(async (_req, res) => {
+  res.json(marketDataCleaner.cleanupUnlinkedAssets());
+}));
+
 adminRouter.post("/admin/market-data/refresh-financials", asyncRoute(async (_req, res) => {
   res.json(dataConstructionQueue.enqueueForSymbols("financials", assetRepository.listTrackedSymbols()));
 }));

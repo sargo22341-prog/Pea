@@ -6,7 +6,7 @@ import { api, type MarketDataRebuildRange } from "../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../lib/dataConstruction";
 import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
 
-type ActionKey = `rebuild:${MarketDataRebuildRange}` | "financials" | "dividends" | "snapshots";
+type ActionKey = `rebuild:${MarketDataRebuildRange}` | "financials" | "dividends" | "snapshots" | "cleanup-unlinked-assets";
 
 interface QuickAction {
   key: ActionKey;
@@ -84,6 +84,14 @@ const annexActions: QuickAction[] = [
     icon: RefreshCcw,
     confirm: "Cette action va rafraichir les dividendes connus par asset sans toucher aux transactions du portefeuille. Continuer ?",
     run: api.refreshDividends
+  },
+  {
+    key: "cleanup-unlinked-assets",
+    label: "Supprimer assets non lies",
+    info: "Supprime les donnees des actions et ETF explores qui ne sont ni en portefeuille ni en liste de suivi.",
+    icon: Database,
+    confirm: "Cette action va supprimer les donnees des assets explores qui ne sont lies ni a une transaction ni a la liste de suivi. Les assets suivis et ceux en portefeuille seront conserves. Continuer ?",
+    run: api.cleanupUnlinkedMarketAssets
   }
 ];
 
@@ -108,7 +116,7 @@ export function MarketDataActionsSection() {
     try {
       const result = await action.run();
       if (hasDataConstructionJob(result)) notifyDataConstructionChanged(result);
-      setToast({ tone: "success", text: `${result.totalTasks} taches planifiees` });
+      setToast({ tone: "success", text: result.currentMessage || `${result.totalTasks} taches planifiees` });
     } catch (error) {
       setToast({ tone: "error", text: error instanceof Error ? error.message : "Action impossible" });
     } finally {

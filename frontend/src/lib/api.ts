@@ -203,6 +203,7 @@ export const api = {
   rebuildAllMarketData: () =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
   refreshMarketSnapshots: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-snapshots", { method: "POST" }),
+  cleanupUnlinkedMarketAssets: () => request<DataConstructionJobDto>("/api/admin/market-data/cleanup-unlinked-assets", { method: "POST" }),
   refreshFinancials: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-financials", { method: "POST" }),
   refreshDividends: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-dividends", { method: "POST" }),
   previewBoursorama: (content: string) =>
