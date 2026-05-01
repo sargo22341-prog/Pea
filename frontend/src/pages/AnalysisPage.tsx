@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { AssetIcon } from "../components/AssetIcon";
+import { AssetIcon } from "../components/common/AssetIcon";
 import { CountryAllocationChart } from "../components/charts/CountryAllocationChart";
 import { FinancialComboChart } from "../components/charts/FinancialComboChart";
 import { NetMarginBarChart } from "../components/charts/NetMarginBarChart";
 import { PortfolioTreemap } from "../components/charts/PortfolioTreemap";
 import { SectorAllocationChart } from "../components/charts/SectorAllocationChart";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState } from "../components/common/EmptyState";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 

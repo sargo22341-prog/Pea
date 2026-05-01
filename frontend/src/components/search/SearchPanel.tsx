@@ -6,7 +6,7 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Search, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import { money, percent } from "../lib/format";
+import { money, percent } from "../../lib/format";
 
 /** Panneau autonome de recherche d'actifs utilise par la page /search. */
 export function SearchPanel({

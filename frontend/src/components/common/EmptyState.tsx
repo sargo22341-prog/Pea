@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : afficher l'etat vide partage lorsque le portefeuille ne
+ * contient encore aucune position exploitable.
+ */
+
 import { PlusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 

@@ -1,3 +1,8 @@
+/**
+ * Role du fichier : afficher l'icone d'un actif avec fallback texte et prise
+ * en compte des mises a jour d'icone declenchees ailleurs dans l'application.
+ */
+
 import { useEffect, useState } from "react";
 
 export function AssetIcon({ symbol, className = "h-10 w-10", cacheBust }: { symbol: string; className?: string; cacheBust?: number }) {

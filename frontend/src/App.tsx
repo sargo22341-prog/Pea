@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Shell } from "./components/Shell";
+import { Shell } from "./components/common/Shell";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
 import { AssetDetailPage } from "./pages/AssetDetailPage";
@@ -31,7 +31,7 @@ export function App() {
 
   return (
     <Routes>
-      <Route element={<Shell user={me.data.user} onLogout={me.reload} />}>
+      <Route element={<Shell user={me.data.user} />}>
         <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
         <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
         <Route path="/portfolio" element={<Navigate replace to="/news" />} />

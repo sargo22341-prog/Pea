@@ -1,7 +1,12 @@
+/**
+ * Role du fichier : afficher l'estimation annuelle des dividendes avec un
+ * graphique mensuel et les controles d'annee.
+ */
+
 import type { CurrencyCode } from "@pea/shared";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AssetIcon } from "./AssetIcon";
-import { money } from "../lib/format";
+import { AssetIcon } from "../common/AssetIcon";
+import { money } from "../../lib/format";
 
 export interface MonthlyDividendEntry {
   symbol: string;

@@ -1,15 +1,15 @@
 /**
- * Rôle du fichier : afficher la liste des positions avec un chargement paresseux
- * ligne par ligne pour réduire le travail initial du Dashboard.
+ * Role du fichier : afficher la liste des positions avec un chargement
+ * paresseux ligne par ligne pour reduire le travail initial du Dashboard.
  */
 
 import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
-import { formatRangeLabel, money, percent } from "../lib/format";
-import { AssetIcon } from "./AssetIcon";
+import { api } from "../../lib/api";
+import { formatRangeLabel, money, percent } from "../../lib/format";
+import { AssetIcon } from "../common/AssetIcon";
 
 const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: SortDirection }> = [
   { label: "Nom A -> Z", key: "name", direction: "asc" },
@@ -79,10 +79,7 @@ export function PositionList({
   }, [positions, sortDirection, sortKey]);
 
   /**
-   * Met à jour l'option de tri choisie dans le menu.
-   *
-   * @param value Valeur encodée sous la forme cle:direction.
-   * @returns Rien.
+   * Met a jour l'option de tri choisie dans le menu.
    */
   function updateSort(value: string) {
     const [key, direction] = value.split(":") as [DashboardSortKey, SortDirection];
@@ -91,12 +88,6 @@ export function PositionList({
     setSortOpen(false);
   }
 
-  /**
-   * Stocke la performance chargée par une ligne visible.
-   *
-   * @param position Performance calculée par le backend.
-   * @returns Rien.
-   */
   const rangeLabel = formatRangeLabel(range);
   const activeSort = sortOptions.find((option) => option.key === sortKey && option.direction === sortDirection) ?? sortOptions[0];
   const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
@@ -157,11 +148,7 @@ export function PositionList({
 }
 
 /**
- * Retourne la valeur de tri stable disponible dans la synthèse portefeuille.
- *
- * @param basePosition Position issue du résumé portefeuille.
- * @param key Clé de tri active.
- * @returns Nombre utilisé par le tri.
+ * Retourne la valeur de tri stable disponible dans la synthese portefeuille.
  */
 function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey) {
   if (key === "currentMarketValue") return basePosition.marketValue;
@@ -170,9 +157,6 @@ function sortValue(basePosition: PositionWithMarket, key: DashboardSortKey) {
 
 /**
  * Charge une ligne de position quand elle approche du viewport.
- *
- * @param props Position de base, range, libellé et callback de mémorisation.
- * @returns Ligne skeleton ou lien complet vers l'actif.
  */
 function LazyPositionRow({
   position,
@@ -224,10 +208,7 @@ function LazyPositionRow({
 }
 
 /**
- * Affiche une ligne réservée pendant le chargement d'une position.
- *
- * @param props Nom, symbole et erreur éventuelle.
- * @returns Skeleton à hauteur stable.
+ * Affiche une ligne reservee pendant le chargement d'une position.
  */
 function PositionRowSkeleton({ name, symbol, error }: { name: string; symbol: string; error: string | null }) {
   return (
@@ -315,20 +296,14 @@ function DesktopPositionRow({ position, positive, rangeLabel }: { position: Posi
 }
 
 /**
- * Formate une quantité de titres en français.
- *
- * @param value Quantité numérique.
- * @returns Quantité formatée.
+ * Formate une quantite de titres en francais.
  */
 function formatQuantity(value: number) {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
 
 /**
- * Affiche une paire libellé/valeur dans la ligne desktop.
- *
- * @param props Libellé et valeur déjà formatée.
- * @returns Bloc texte aligné à droite.
+ * Affiche une paire libelle/valeur dans la ligne desktop.
  */
 function Info({ label, value }: { label: string; value: string }) {
   return (

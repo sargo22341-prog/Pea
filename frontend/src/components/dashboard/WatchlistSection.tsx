@@ -1,12 +1,17 @@
+/**
+ * Role du fichier : afficher la liste de suivi du Dashboard avec tri local et
+ * performances calculees sur la range active.
+ */
+
 import type { RangeKey, SortDirection, WatchlistItem } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAsync } from "../hooks/useAsync";
-import { api } from "../lib/api";
-import { money, percent } from "../lib/format";
-import { AssetIcon } from "./AssetIcon";
-import { StaleBadge } from "./StaleBadge";
+import { useAsync } from "../../hooks/useAsync";
+import { api } from "../../lib/api";
+import { money, percent } from "../../lib/format";
+import { AssetIcon } from "../common/AssetIcon";
+import { StaleBadge } from "../common/StaleBadge";
 
 type WatchlistSortKey = "name" | "price" | "performancePercent";
 
@@ -110,8 +115,7 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
 
                 return (
                   <button
-                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-panel2 ${active ? "bg-sky/15 text-sky" : "text-slate-100"
-                      }`}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-panel2 ${active ? "bg-sky/15 text-sky" : "text-slate-100"}`}
                     key={`${option.key}:${option.direction}`}
                     onClick={() => updateSort(`${option.key}:${option.direction}`)}
                     role="menuitemradio"
@@ -135,7 +139,8 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
 
           return (
             <div
-              className="grid min-w-0 grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4" key={item.symbol}
+              className="grid min-w-0 grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4"
+              key={item.symbol}
             >
               <Link className="flex min-w-0 items-center gap-3 overflow-hidden" to={`/assets/${item.symbol}`}>
                 <AssetIcon symbol={item.symbol} />
@@ -166,8 +171,7 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
                 <p className="hidden text-sm text-slate-400 sm:block">Valeur | Perf</p>
 
                 <p
-                  className={`flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums sm:text-sm ${positive ? "text-mint" : "text-coral"
-                    }`}
+                  className={`flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums sm:text-sm ${positive ? "text-mint" : "text-coral"}`}
                 >
                   <Icon size={12} className="shrink-0 sm:hidden" />
                   <Icon size={16} className="hidden shrink-0 sm:block" />
@@ -193,10 +197,13 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
           );
         })}
       </div>
-    </section >
+    </section>
   );
 }
 
+/**
+ * Calcule les valeurs de tri et de performance a partir de l'historique charge.
+ */
 function watchlistMetrics(item: WatchlistItem) {
   const first = item.history[0]?.close;
   const last = item.history[item.history.length - 1]?.close ?? item.quote?.price;

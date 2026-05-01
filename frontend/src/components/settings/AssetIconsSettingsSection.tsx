@@ -1,5 +1,5 @@
 import { Trash2, Upload } from "lucide-react";
-import { AssetIcon } from "../AssetIcon";
+import { AssetIcon } from "../common/AssetIcon";
 import { useAssetIconsSettings } from "../../hooks/useAssetIconsSettings";
 import { Collapsible, Toast } from "./SettingsSection";
 

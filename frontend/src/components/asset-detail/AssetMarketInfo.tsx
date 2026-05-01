@@ -1,7 +1,12 @@
+/**
+ * Role du fichier : afficher les informations de marche detaillees d'un actif
+ * sous forme de grille de tuiles.
+ */
+
 import type { AssetDetails, Quote } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, BadgeEuro, BarChart3, CalendarDays, CircleDollarSign, Database, Gauge, Landmark, Percent, Timer, Wallet } from "lucide-react";
-import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../lib/format";
-import { type InfoTone, toneFromNumber } from "../utils/assetTone";
+import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../../lib/format";
+import { type InfoTone, toneFromNumber } from "../../utils/assetTone";
 import { AssetInfoTile } from "./AssetInfoTile";
 
 export function AssetMarketInfo({

@@ -1,6 +1,6 @@
 import type { AllocationChartItem } from "@pea/shared";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { AssetIcon } from "../AssetIcon";
+import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
 import { chartColors, formatPercent } from "./chartFormat";
 import { useResponsivePieTooltip } from "./chartInteraction";

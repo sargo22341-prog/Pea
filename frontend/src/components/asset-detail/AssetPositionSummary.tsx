@@ -1,7 +1,12 @@
+/**
+ * Role du fichier : resumer la position portefeuille de l'actif courant avec
+ * valorisation, performance et statistiques de transactions.
+ */
+
 import type { PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins, ReceiptText, WalletCards } from "lucide-react";
-import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../lib/format";
-import { toneClass, toneFromNumber } from "../utils/assetTone";
+import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../../lib/format";
+import { toneClass, toneFromNumber } from "../../utils/assetTone";
 import { AssetInfoTile } from "./AssetInfoTile";
 
 export function AssetPositionSummary({

@@ -6,7 +6,7 @@
 import type { TopAndLosersResponse, TopMover } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { formatSignedMoney, money, percent } from "../lib/format";
+import { formatSignedMoney, money, percent } from "../../lib/format";
 
 export function TopMoversSection({
   data,

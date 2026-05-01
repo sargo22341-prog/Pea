@@ -1,8 +1,13 @@
+/**
+ * Role du fichier : afficher les dividendes regroupes par actif pour l'annee
+ * selectionnee sur la page Dividendes.
+ */
+
 import type { CurrencyCode } from "@pea/shared";
 import { CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AssetIcon } from "./AssetIcon";
-import { money } from "../lib/format";
+import { AssetIcon } from "../common/AssetIcon";
+import { money } from "../../lib/format";
 
 export interface DividendGroup {
   symbol: string;

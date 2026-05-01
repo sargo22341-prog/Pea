@@ -1,7 +1,7 @@
 import type { NetMarginItem } from "@pea/shared";
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AssetIcon } from "../AssetIcon";
+import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
 import { formatPercent } from "./chartFormat";
 

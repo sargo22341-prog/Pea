@@ -1,6 +1,6 @@
 import type { PortfolioTreemapItem } from "@pea/shared";
 import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
-import { AssetIcon } from "../AssetIcon";
+import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
 import { chartColors, formatPercent } from "./chartFormat";
 

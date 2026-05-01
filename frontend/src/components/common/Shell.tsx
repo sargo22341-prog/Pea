@@ -1,9 +1,14 @@
+/**
+ * Role du fichier : fournir le layout applicatif commun avec navigation
+ * desktop/mobile et acces aux parametres de profil.
+ */
+
 import type { User } from "@pea/shared";
 import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
-export function Shell({ user }: { user: User; onLogout: () => void }) {
+export function Shell({ user }: { user: User }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);

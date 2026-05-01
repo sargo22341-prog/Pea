@@ -3,8 +3,8 @@
  * classements Yahoo Finance du jour.
  */
 
-import { SearchPanel } from "../components/SearchPanel";
-import { TopMoversSection } from "../components/TopMoversSection";
+import { SearchPanel } from "../components/search/SearchPanel";
+import { TopMoversSection } from "../components/search/TopMoversSection";
 import { useAsync } from "../hooks/useAsync";
 import { useEnrichedSearch } from "../hooks/useEnrichedSearch";
 import { api } from "../lib/api";

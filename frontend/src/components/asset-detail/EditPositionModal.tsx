@@ -5,8 +5,8 @@
 import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
-import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../lib/dateTimeInput";
-import { api } from "../lib/api";
+import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../../lib/dateTimeInput";
+import { api } from "../../lib/api";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export function EditPositionModal({

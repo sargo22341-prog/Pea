@@ -1,6 +1,11 @@
+/**
+ * Role du fichier : proposer le choix de range de graphique sous forme de
+ * select mobile et de boutons desktop.
+ */
+
 import type { RangeKey } from "@pea/shared";
 import { ChevronDown } from "lucide-react";
-import { formatRangeLabel } from "../lib/format";
+import { formatRangeLabel } from "../../lib/format";
 
 const ranges: RangeKey[] = ["1d", "1w", "1m", "ytd", "1y", "5y", "10y", "all"];
 

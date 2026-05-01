@@ -1,7 +1,7 @@
 import type { CurrencyCode, PortfolioDividendEvent } from "@pea/shared";
 import { useMemo } from "react";
-import type { DividendGroup } from "../components/DividendGroupedList";
-import type { MonthlyDividend } from "../components/DividendAnnualEstimate";
+import type { DividendGroup } from "../components/dividends/DividendGroupedList";
+import type { MonthlyDividend } from "../components/dividends/DividendAnnualEstimate";
 import { FALLBACK_TIMEZONE } from "../lib/timezone";
 
 const currentYear = new Date().getUTCFullYear();

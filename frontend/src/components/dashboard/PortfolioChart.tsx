@@ -1,11 +1,11 @@
 /**
- * Rôle du fichier : afficher le chart de portefeuille à partir du DTO compact
- * pré-calculé par le backend.
+ * Role du fichier : afficher le chart de portefeuille a partir du DTO compact
+ * pre-calcule par le backend.
  */
 
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
-import { PriceHistoryChart } from "./charts/PriceHistoryChart";
-import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
+import { PriceHistoryChart } from "../charts/PriceHistoryChart";
+import { formatMarketSessionHours, normalizeTimeZone } from "../../lib/timezone";
 
 const fallbackIntradaySession: MarketSessionDto = {
   timezone: "Europe/Paris",
@@ -54,9 +54,6 @@ export function PortfolioChart({
 
 /**
  * Convertit les tableaux backend en points attendus par Recharts.
- *
- * @param chart DTO compact du portefeuille.
- * @returns Points date/value directement affichables.
  */
 function toChartPoints(chart: PortfolioChartDto) {
   return chart.timestamps.map((timestamp, index) => ({
