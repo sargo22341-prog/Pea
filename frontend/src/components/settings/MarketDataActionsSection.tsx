@@ -1,6 +1,7 @@
 import type { DataConstructionJobDto } from "@pea/shared";
-import { Database, Info, RefreshCcw, type LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Database, Info, RefreshCcw, X, type LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, type MarketDataRebuildRange } from "../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../lib/dataConstruction";
 import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
@@ -65,6 +66,7 @@ const annexActions: QuickAction[] = [
     label: "Rafraichir snapshots marche",
     info: "Rafraichit les derniers prix, variations et volumes connus des assets suivis.",
     icon: Database,
+    confirm: "Cette action va rafraichir les derniers prix, variations et volumes connus pour tous les assets suivis. Continuer ?",
     run: api.refreshMarketSnapshots
   },
   {
@@ -72,6 +74,7 @@ const annexActions: QuickAction[] = [
     label: "Rafraichir donnees financieres",
     info: "Rafraichit les donnees financieres annuelles disponibles via Yahoo.",
     icon: RefreshCcw,
+    confirm: "Cette action va rafraichir les donnees financieres annuelles disponibles pour tous les assets suivis. Continuer ?",
     run: api.refreshFinancials
   },
   {
@@ -79,16 +82,27 @@ const annexActions: QuickAction[] = [
     label: "Rafraichir dividendes",
     info: "Rafraichit les dividendes par asset sans toucher aux transactions du portefeuille.",
     icon: RefreshCcw,
+    confirm: "Cette action va rafraichir les dividendes connus par asset sans toucher aux transactions du portefeuille. Continuer ?",
     run: api.refreshDividends
   }
 ];
 
 export function MarketDataActionsSection() {
   const [running, setRunning] = useState<ActionKey | null>(null);
+  const [pendingAction, setPendingAction] = useState<QuickAction | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
+  function requestAction(action: QuickAction) {
+    if (running) return;
+    if (action.confirm) {
+      setPendingAction(action);
+      return;
+    }
+    void runAction(action);
+  }
+
   async function runAction(action: QuickAction) {
-    if (action.confirm && !window.confirm(action.confirm)) return;
+    setPendingAction(null);
     setRunning(action.key);
     setToast(null);
     try {
@@ -105,8 +119,15 @@ export function MarketDataActionsSection() {
   return (
     <Collapsible title="Actions rapides">
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
-      <ActionGroup actions={rebuildActions} onRun={runAction} running={running} title="Marche - Reconstruction" />
-      <ActionGroup actions={annexActions} onRun={runAction} running={running} title="Marche - Donnees annexes" />
+      <ActionGroup actions={rebuildActions} onRun={requestAction} running={running} title="Marche - Reconstruction" />
+      <ActionGroup actions={annexActions} onRun={requestAction} running={running} title="Marche - Donnees annexes" />
+      {pendingAction && (
+        <ConfirmActionDialog
+          action={pendingAction}
+          onCancel={() => setPendingAction(null)}
+          onConfirm={() => void runAction(pendingAction)}
+        />
+      )}
     </Collapsible>
   );
 }
@@ -164,5 +185,78 @@ function ActionButton({
         <Info size={16} />
       </button>
     </div>
+  );
+}
+
+function ConfirmActionDialog({
+  action,
+  onCancel,
+  onConfirm
+}: {
+  action: QuickAction;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const Icon = action.icon;
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onCancel]);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center"
+      onClick={onCancel}
+      role="presentation"
+    >
+      <div
+        aria-describedby="quick-action-confirm-description"
+        aria-labelledby="quick-action-confirm-title"
+        aria-modal="true"
+        className="w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="flex items-start gap-3 border-b border-line p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-amber/40 bg-amber/10 text-amber">
+            <AlertTriangle size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="muted">Validation requise</p>
+            <h3 className="text-base font-semibold" id="quick-action-confirm-title">
+              {action.label}
+            </h3>
+          </div>
+          <button aria-label="Fermer" className="btn-ghost shrink-0 px-2" onClick={onCancel} type="button">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-3 p-4">
+          <p className="text-sm leading-6 text-slate-300" id="quick-action-confirm-description">
+            {action.confirm}
+          </p>
+          <div className="flex items-center gap-2 rounded-md border border-line bg-panel2/70 p-3 text-sm text-slate-300">
+            <Icon className="shrink-0 text-sky" size={17} />
+            <span>{action.info}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-line p-4 sm:flex-row sm:justify-end">
+          <button className="btn-ghost" onClick={onCancel} type="button">
+            Annuler
+          </button>
+          <button className="btn-primary" onClick={onConfirm} type="button">
+            Valider l'action
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
