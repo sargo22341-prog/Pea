@@ -3,7 +3,7 @@ import { useId } from "react";
 import { Area, ComposedChart, Customized, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { TooltipProps } from "recharts/types/component/Tooltip";
-import { usePriceHistoryChart, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
+import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
 
@@ -60,9 +60,10 @@ export function PriceHistoryChart({
 }: PriceHistoryChartProps) {
   const { chartData, trend } = usePriceHistoryChart(data, range);
   const compressTimeAxis = range === "1w" || range === "1m";
-  const renderData = compressTimeAxis ? chartData.map((point, index) => ({ ...point, x: index })) : chartData;
+  const timeChartData = range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData;
+  const renderData = compressTimeAxis ? timeChartData.map((point, index) => ({ ...point, x: index })) : timeChartData;
   const xDataKey = compressTimeAxis ? "x" : "date";
-  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(chartData, marketSession) ?? chartDataDomain(chartData) : chartDataDomain(chartData);
+  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(timeChartData, marketSession) ?? chartDataDomain(timeChartData) : chartDataDomain(timeChartData);
   const xTicks = compressTimeAxis ? compressedTicks(renderData.length, range) : undefined;
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
@@ -323,6 +324,17 @@ function chartDataDomain(points: Array<{ date: number; value: number | null }>) 
   const timestamps = points.map((point) => Number(point.date)).filter(Number.isFinite);
   if (timestamps.length === 0) return ["dataMin", "dataMax"] as [string, string];
   return [Math.min(...timestamps), Math.max(...timestamps)] as [number, number];
+}
+
+function withIntradaySessionPlaceholders(points: PriceHistoryChartPoint[], marketSession?: MarketSessionDto) {
+  if (!marketSession || points.length === 0) return points;
+  const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
+  if (!firstTimestamp) return points;
+  const session = marketSessionDomain(new Date(firstTimestamp), marketSession);
+  const byDate = new Map(points.map((point) => [point.date, point]));
+  if (!byDate.has(session.open)) byDate.set(session.open, { date: session.open, value: null });
+  if (!byDate.has(session.close)) byDate.set(session.close, { date: session.close, value: null });
+  return [...byDate.values()].sort((a, b) => a.date - b.date);
 }
 
 /** Calcule le domaine intraday depuis la session marche exposee par le backend. */

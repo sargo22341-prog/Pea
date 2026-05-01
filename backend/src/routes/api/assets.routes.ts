@@ -21,6 +21,14 @@ import { userNewsLanguages } from "../shared/news.helpers.js";
 
 export const assetsRouter = express.Router();
 
+function intradayDebugClock(range: string) {
+  if (range !== "1d" || !config.debugDate) return undefined;
+  return {
+    forceIntradayOpen: true,
+    intradayNow: config.debugDate
+  };
+}
+
 assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = req.params.symbol.toUpperCase();
@@ -48,7 +56,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
 
   const [assetStatic, assetChart, assetDividends, assetArticles, assetMarket, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
     assetDataService.static(symbol),
-    assetDataService.chart(symbol, range),
+    assetDataService.chart(symbol, range, intradayDebugClock(range)),
     assetDataService.dividends(symbol),
     req.user!.assetNewsEnabled ? assetDataService.articles(symbol, userNewsLanguages(req)) : Promise.resolve(undefined),
     assetDataService.market(symbol),

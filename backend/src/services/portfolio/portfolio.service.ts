@@ -528,16 +528,24 @@ export class PortfolioService {
       const asset = assetRepository.findBySymbol(position.symbol);
       return getMarketSessionInfo(position.symbol, asset?.exchange);
     });
-    const first = sessions[0];
-    const sameSession = sessions.every((session) =>
-      session.timezone === first.timezone &&
-      session.open === first.open &&
-      session.close === first.close
-    );
-    if (!sameSession) return undefined;
+    const groups = new Map<string, { session: MarketSessionDto; count: number; cities: Set<string> }>();
+    for (const session of sessions) {
+      const key = `${session.timezone}|${session.open}|${session.close}`;
+      const group = groups.get(key);
+      if (group) {
+        group.count += 1;
+        group.cities.add(session.city);
+      } else {
+        groups.set(key, { session, count: 1, cities: new Set([session.city]) });
+      }
+    }
 
-    const cities = [...new Set(sessions.map((session) => session.city))];
-    return { ...first, city: cities.length === 1 ? first.city : first.timezone };
+    const dominant = [...groups.values()].sort((a, b) => b.count - a.count)[0];
+    if (!dominant) return undefined;
+    return {
+      ...dominant.session,
+      city: dominant.cities.size === 1 ? dominant.session.city : dominant.session.timezone
+    };
   }
 
   private async portfolioIntradayBaseline(options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {

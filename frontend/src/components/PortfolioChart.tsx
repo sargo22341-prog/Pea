@@ -3,9 +3,16 @@
  * pré-calculé par le backend.
  */
 
-import type { PortfolioChartDto, RangeKey } from "@pea/shared";
+import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
 import { PriceHistoryChart } from "./charts/PriceHistoryChart";
 import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
+
+const fallbackIntradaySession: MarketSessionDto = {
+  timezone: "Europe/Paris",
+  city: "Paris",
+  open: "09:00",
+  close: "17:30"
+};
 
 export function PortfolioChart({
   chart,
@@ -17,6 +24,7 @@ export function PortfolioChart({
   userTimezone?: string;
 }) {
   const chartData = toChartPoints(chart);
+  const marketSession = range === "1d" ? chart.marketSession ?? fallbackIntradaySession : undefined;
 
   return (
     <div>
@@ -29,15 +37,15 @@ export function PortfolioChart({
         data={chartData}
         margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
         minTickGap={28}
-        marketSession={chart.marketSession}
+        marketSession={marketSession}
         oneDayTooltipFormat="time"
         range={range}
         transactionMarkers={range === "1d" ? [] : chart.transactionMarkers}
         userTimezone={userTimezone}
       />
-      {range === "1d" && chart.marketSession && chart.marketSession.timezone !== normalizeTimeZone(userTimezone) && (
+      {range === "1d" && marketSession && marketSession.timezone !== normalizeTimeZone(userTimezone) && (
         <p className="px-4 pt-2 text-xs text-slate-400">
-          Horaires du marche : {chart.marketSession.city} {formatMarketSessionHours(chart.marketSession.open, chart.marketSession.close)}, heure locale du marche
+          Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.open, marketSession.close)}, heure locale du marche
         </p>
       )}
     </div>

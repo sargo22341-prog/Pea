@@ -18,7 +18,7 @@ import { db } from "../../db.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends.service.js";
-import { marketDataService } from "../market/market-data.service.js";
+import { marketDataService, type ChartDataOptions } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { expiresIn, nowMs, readStaticJsonCache, writeStaticJsonCache } from "../shared/cache.service.js";
@@ -53,8 +53,8 @@ export class AssetDataService {
     };
   }
 
-  async chart(symbol: string, range: RangeKey): Promise<AssetChartDto> {
-    return marketDataService.getChartData(symbol.toUpperCase(), range);
+  async chart(symbol: string, range: RangeKey, options: ChartDataOptions = {}): Promise<AssetChartDto> {
+    return marketDataService.getChartData(symbol.toUpperCase(), range, options);
   }
 
   async market(symbol: string): Promise<AssetMarketDto> {
