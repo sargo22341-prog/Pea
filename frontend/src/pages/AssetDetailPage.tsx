@@ -102,7 +102,6 @@ export function AssetDetailPage({ user }: { user: User }) {
    */
   async function deletePosition() {
     if (!position) return;
-    if (!window.confirm(`Supprimer la position ${position.symbol} ?`)) return;
     await api.deletePosition(position.id);
     setToast("Position supprimée");
     navigate("/search");

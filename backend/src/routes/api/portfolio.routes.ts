@@ -67,6 +67,19 @@ portfolioRouter.get("/portfolio/positions/:id/transactions", asyncRoute(async (r
   res.json(portfolioService.listTransactions(id));
 }));
 
+portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute(async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const body = z.object({
+    tradedAt: z.string().min(1),
+    type: z.enum(["buy", "sell"]),
+    quantity: z.coerce.number().nonnegative(),
+    price: z.coerce.number().nonnegative(),
+    totalFees: z.coerce.number().nonnegative().optional(),
+    currency: z.string().min(3).max(8).default("EUR")
+  }).parse(req.body);
+  res.status(201).json(portfolioService.createTransaction(id, body));
+}));
+
 portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute(async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);

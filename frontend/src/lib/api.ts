@@ -136,6 +136,14 @@ export const api = {
     request(`/api/portfolio/positions/${id}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePosition: (id: number) => request<void>(`/api/portfolio/positions/${id}`, { method: "DELETE" }),
   positionTransactions: (id: number) => request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${id}/transactions`),
+  createPositionTransaction: (
+    positionId: number,
+    input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }
+  ) =>
+    request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${positionId}/transactions`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
   updatePositionTransaction: (
     positionId: number,
     transactionId: string,

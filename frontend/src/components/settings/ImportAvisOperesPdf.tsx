@@ -1,6 +1,11 @@
+/**
+ * Role du fichier : afficher la previsualisation des avis d'operes PDF avant import.
+ */
+
 import type { ParsedAvisOperation } from "@pea/shared";
 import { Database, FileText, Trash2, Upload } from "lucide-react";
 import { useAvisOperesPdfImport } from "../../hooks/useAvisOperesPdfImport";
+import { toDateTimeLocalValue } from "../../lib/dateTimeInput";
 
 export function ImportAvisOperesPdf() {
   const pdfImport = useAvisOperesPdfImport();
@@ -64,7 +69,7 @@ function AvisOperesPreview({
             <div className="grid gap-3 lg:grid-cols-[minmax(210px,1.1fr)_minmax(180px,0.8fr)_minmax(150px,0.7fr)]">
               <label>
                 <span className="muted mb-1 block">Date execution</span>
-                <input className="input" onChange={(event) => onUpdateRow(index, { dateExecution: event.target.value })} type="datetime-local" value={toDateTimeLocal(row.dateExecution)} />
+                <input className="input" onChange={(event) => onUpdateRow(index, { dateExecution: event.target.value })} type="datetime-local" value={toDateTimeLocalValue(row.dateExecution)} />
               </label>
               <TextField label="Ticker" onChange={(value) => onUpdateRow(index, { selectedSymbol: value.toUpperCase() })} placeholder={row.isin ?? row.nomValeur ?? ""} value={row.selectedSymbol ?? row.ticker ?? ""} />
               <label>
@@ -103,11 +108,6 @@ function AvisOperesPreview({
       </div>
     </div>
   );
-}
-
-function toDateTimeLocal(value?: string) {
-  if (!value) return "";
-  return value.slice(0, 16);
 }
 
 function TextField({ label, onChange, placeholder, value }: { label: string; onChange: (value: string) => void; placeholder?: string; value: string }) {

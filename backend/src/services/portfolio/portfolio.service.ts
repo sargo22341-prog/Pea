@@ -178,7 +178,7 @@ export class PortfolioService {
 
   recomputePositionFromDatedTransactions(positionId: number) {
     const rows = db
-      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
       .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
     if (!rows.length) return;
 
@@ -240,6 +240,18 @@ export class PortfolioService {
     return calculateTransactionStats(rows, totalDividendsReceived, currency);
   }
 
+  createTransaction(positionId: number, input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }) {
+    const position = db.prepare("SELECT id FROM positions WHERE id = ?").get(positionId);
+    if (!position) throw new HttpError(404, "Position introuvable");
+    db.prepare(
+      `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')`
+    ).run(positionId, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, input.tradedAt);
+    this.recomputePositionFromAnyTransactions(positionId);
+    this.invalidatePositionCaches(positionId);
+    return this.listTransactions(positionId);
+  }
+
   updateTransaction(positionId: number, transactionId: number, input: { tradedAt: string; type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string }) {
     const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
     if (!existing) throw new HttpError(404, "Transaction introuvable");
@@ -263,7 +275,11 @@ export class PortfolioService {
     const rows = db
       .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
       .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
-    if (!rows.length) return;
+    if (!rows.length) {
+      db.prepare("UPDATE positions SET quantity = 0, average_buy_price = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(positionId);
+      this.persistUserAssetPosition("default", positionId);
+      return;
+    }
 
     let quantity = 0;
     let costBasis = 0;
@@ -722,7 +738,7 @@ export class PortfolioService {
 
   private positionFromDatedTransactions(position: Position): Position {
     const rows = db
-      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? AND source = 'pdf_avis_opere' ORDER BY traded_at ASC, id ASC")
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
       .all(position.id) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
     if (!rows.length) return position;
 
