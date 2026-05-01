@@ -15,7 +15,6 @@ const configuredTimezone = process.env.APP_TIMEZONE?.trim() || fallbackTimezone;
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
-  yahooCacheTtlSeconds: 0,
   debug: process.env.DEBUG === "true",
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
   nodeEnv: process.env.NODE_ENV ?? "development",

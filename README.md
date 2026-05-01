@@ -66,7 +66,6 @@ Variables et secrets attendus cote Gitea:
 
 - `PORT`: port du serveur Express, defaut `4000`
 - `SQLITE_PATH`: chemin du fichier SQLite, defaut `./data/pea.sqlite`
-- `YAHOO_CACHE_TTL_SECONDS`: duree du cache des cotations, defaut `300`
 - `FRONTEND_DIST`: chemin du build frontend a servir en production
 - `VITE_API_BASE_URL`: URL API utilisee par Vite en developpement
 - `WAIT_FOR_HEALTH_TIMEOUT_MS`: timeout du script de demarrage dev, defaut `30000`

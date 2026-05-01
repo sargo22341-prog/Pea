@@ -4,7 +4,6 @@
  */
 
 import type { Quote, SearchResult } from "@pea/shared";
-import { config } from "../../../config.js";
 import type { MarketDataResult } from "../../market/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
@@ -18,6 +17,7 @@ import { normalizeQuote } from "./quote.mapper.js";
 
 const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number }>();
 const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
+const quoteCacheTtlSeconds = 0;
 
 /** Recherche des symboles Yahoo, avec cache memoire 24h. */
 export async function searchYahoo(query: string): Promise<MarketDataResult<SearchResult[]>> {
@@ -75,7 +75,7 @@ export async function fetchQuote(symbol: string): Promise<MarketDataResult<Quote
       const item = (await yahooClient.quote(key)) as any;
       return normalizeQuote(item, key);
     },
-    () => readCache<Quote>("cached_quotes", key, config.yahooCacheTtlSeconds),
+    () => readCache<Quote>("cached_quotes", key, quoteCacheTtlSeconds),
     (data) => writeCache("cached_quotes", key, data)
   );
 
@@ -91,7 +91,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
   const staleCachedQuotes = new Map<string, Quote>();
   const symbolsToFetch: string[] = [];
   for (const key of keys) {
-    const cached = readCache<Quote>("cached_quotes", key, config.yahooCacheTtlSeconds);
+    const cached = readCache<Quote>("cached_quotes", key, quoteCacheTtlSeconds);
     if (cached && !cached.stale) {
       cachedQuotes.set(key, markStale(cached.data, false));
       logMarketData("cache-hit", { provider: "local-cache", method: "quoteBatch", symbol: key, stale: false, durationMs: 0 });
