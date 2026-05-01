@@ -3,6 +3,7 @@
  * les donnees et les blocs UI aux modules specialises de components/news.
  */
 
+import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { NewsArticleList } from "../components/common/NewsArticleList";
 import { NewsHeader } from "../components/news/NewsHeader";
@@ -21,6 +22,13 @@ export function NewsPage({ user }: { user: User }) {
     changePage,
     toggleMode
   } = useNewsPageData(user);
+
+  useEffect(() => {
+    document.title = "News | PEA Portfolio";
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, []);
 
   const sectionTitle = portfolioOnly ? "Actualites de mes actifs" : "Actualites globales";
 

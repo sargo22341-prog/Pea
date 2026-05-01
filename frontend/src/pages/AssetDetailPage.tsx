@@ -61,31 +61,55 @@ export function AssetDetailPage({ user }: { user: User }) {
       return nextRange;
     });
   }
+useEffect(() => {
+  if (asset.data) {
+    setWatchlisted(Boolean(asset.data.isInWatchlist));
+  }
+}, [asset.data]);
 
-  useEffect(() => {
-    if (asset.data) setWatchlisted(Boolean(asset.data.isInWatchlist));
-  }, [asset.data]);
+useEffect(() => {
+  if (!assetChartPreparing) return;
 
-  useEffect(() => {
-    if (!assetChartPreparing) return;
-    notifyDataConstructionChanged();
-    let cancelled = false;
-    let timer: number | undefined;
-    async function poll() {
-      const status = await api.dataConstructionStatus().catch(() => null);
-      if (cancelled) return;
-      if (!isDataConstructionActive(status)) {
-        await assetReload();
-        return;
-      }
-      timer = window.setTimeout(poll, 2000);
+  notifyDataConstructionChanged();
+
+  let cancelled = false;
+  let timer: number | undefined;
+
+  async function poll() {
+    const status = await api.dataConstructionStatus().catch(() => null);
+
+    if (cancelled) return;
+
+    if (!isDataConstructionActive(status)) {
+      await assetReload();
+      return;
     }
+
     timer = window.setTimeout(poll, 2000);
-    return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [assetChartPreparing, assetReload]);
+  }
+
+  timer = window.setTimeout(poll, 2000);
+
+  return () => {
+    cancelled = true;
+    if (timer) window.clearTimeout(timer);
+  };
+}, [assetChartPreparing, assetReload]);
+
+useEffect(() => {
+  const title = asset.data
+    ? `${quote.name.toUpperCase()} | PEA Portfolio`
+    : symbol
+      ? `${symbol.toUpperCase()} | PEA Portfolio`
+      : "PEA Portfolio";
+
+  document.title = title;
+
+  return () => {
+    document.title = "PEA Portfolio";
+  };
+}, [asset.data, symbol]);
+
 
   if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
@@ -94,6 +118,9 @@ export function AssetDetailPage({ user }: { user: User }) {
   const { quote, dividends, news, position, marketInfo, chart, marketSession } = asset.data;
   const userTimezone = normalizeTimeZone(asset.data.appTimezone);
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
+
+
+
 
   /**
    * Supprime la position détenue puis redirige vers la recherche.

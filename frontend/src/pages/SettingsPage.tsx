@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AccountSettingsSection } from "../components/settings/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "../components/settings/AssetIconsSettingsSection";
 import { CsvImportSection } from "../components/settings/CsvImportSection";
@@ -8,6 +9,14 @@ import { UserPreferencesSection } from "../components/settings/UserPreferencesSe
 import { api } from "../lib/api";
 
 export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
+
+    useEffect(() => {
+      document.title = "Parametres | PEA Portfolio";
+      return () => {
+        document.title = "PEA Portfolio";
+      };
+    }, []);
+
   return (
     <div className="space-y-6">
       <div>

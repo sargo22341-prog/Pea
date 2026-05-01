@@ -3,6 +3,7 @@
  * classements Yahoo Finance du jour.
  */
 
+import { useEffect } from "react";
 import { SearchPanel } from "../components/search/SearchPanel";
 import { TopMoversSection } from "../components/search/TopMoversSection";
 import { useAsync } from "../hooks/useAsync";
@@ -11,6 +12,14 @@ import { api } from "../lib/api";
 
 /** Page de recherche principale, protegee par les appels API authentifies. */
 export function SearchPage() {
+
+  useEffect(() => {
+    document.title = "Chercher | PEA Portfolio";
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, []);
+
   const me = useAsync(() => api.me(), []);
   const topMovers = useAsync((signal) => api.topAndLosers(signal), []);
   const search = useEnrichedSearch({ localPeaSearchEnabled: me.data?.user?.localPeaSearchEnabled });

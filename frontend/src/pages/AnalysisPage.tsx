@@ -32,6 +32,13 @@ export function AnalysisPage() {
   );
 
   useEffect(() => {
+    document.title = "Analysis | PEA Portfolio";
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, []);
+
+  useEffect(() => {
     if (!selectedFinancialSymbol && analysis.data?.financialsByAsset[0]) {
       setSelectedFinancialSymbol(analysis.data.financialsByAsset[0].symbol);
     }
@@ -39,12 +46,12 @@ export function AnalysisPage() {
 
   const hasAnyData = Boolean(
     analysis.data &&
-      (analysis.data.countryAllocation.length ||
-        analysis.data.sectorAllocation.length ||
-        analysis.data.treemap.length ||
-        analysis.data.netMargins.length ||
-        analysis.data.financialsByAsset.length ||
-        analysis.data.financials.length)
+    (analysis.data.countryAllocation.length ||
+      analysis.data.sectorAllocation.length ||
+      analysis.data.treemap.length ||
+      analysis.data.netMargins.length ||
+      analysis.data.financialsByAsset.length ||
+      analysis.data.financials.length)
   );
 
   function renderChart() {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DividendAnnualEstimate } from "../components/dividends/DividendAnnualEstimate";
 import { DividendGroupedList } from "../components/dividends/DividendGroupedList";
 import { StaleBadge } from "../components/common/StaleBadge";
@@ -9,6 +9,14 @@ import { api } from "../lib/api";
 const currentYear = getCurrentDividendYear();
 
 export function DividendsPage() {
+
+  useEffect(() => {
+    document.title = "Dividendes | PEA Portfolio";
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, []);
+
   const dividends = useAsync(() => api.portfolioDividends(), []);
   const [year, setYear] = useState(String(currentYear));
 
