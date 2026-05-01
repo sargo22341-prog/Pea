@@ -16,7 +16,7 @@ import { getZonedDateParts } from "../timezone/date-time.service.js";
 import { marketSnapshotService } from "./market-snapshot.service.js";
 
 const postCloseDelayMs = 20 * 60 * 1000;
-const postCloseTargetMinutes = 20 * 60 + 32;
+const postCloseTargetMinutes = 23 * 60 + 32;
 
 /** Lit l'heure de pilotage applicative sans changer les instants UTC stockes. */
 function appClock(date: Date) {

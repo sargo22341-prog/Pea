@@ -1,12 +1,11 @@
 /**
- * Rôle du fichier : initialiser la base SQLite embarquée, exposer un petit adaptateur
- * compatible avec sql.js et créer les tables nécessaires aux données utilisateur et caches.
+ * Role du fichier : initialiser la base SQLite embarquee avec better-sqlite3
+ * et creer les tables necessaires aux donnees utilisateur et caches.
  */
 
+import BetterSqlite3, { type Database as BetterSqliteDatabase, type Statement } from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
-import initSqlJs, { type BindParams, type Database as SqlJsDatabase, type Statement } from "sql.js";
 import { config } from "./config.js";
 
 const directory = path.dirname(config.sqlitePath);
@@ -14,23 +13,14 @@ if (directory && directory !== ".") {
   fs.mkdirSync(directory, { recursive: true });
 }
 
-const require = createRequire(import.meta.url);
-const wasmPath = require.resolve("sql.js/dist/sql-wasm.wasm");
-const SQL = await initSqlJs({ locateFile: () => wasmPath });
-const fileBuffer = fs.existsSync(config.sqlitePath) ? fs.readFileSync(config.sqlitePath) : undefined;
-
 /**
- * Encapsule une requête préparée sql.js pour uniformiser les méthodes get/all/run.
+ * Encapsule une requete preparee better-sqlite3 pour uniformiser get/all/run.
  *
- * @param database Adaptateur chargé de persister la base après écriture.
- * @param statement Requête préparée par sql.js.
- * @returns Instance capable d'exécuter la requête avec des paramètres liés.
+ * @param statement Requete preparee par better-sqlite3.
+ * @returns Instance capable d'executer la requete avec des parametres lies.
  */
 class PreparedStatement {
-  constructor(
-    private database: DatabaseAdapter,
-    private statement: Statement
-  ) {}
+  constructor(private statement: Statement) {}
 
   /**
    * Retourne la première ligne produite par la requête.
@@ -39,10 +29,7 @@ class PreparedStatement {
    * @returns Ligne sous forme d'objet ou undefined si aucun résultat n'existe.
    */
   get(...params: unknown[]) {
-    this.statement.bind(params as BindParams);
-    const row = this.statement.step() ? this.statement.getAsObject() : undefined;
-    this.statement.free();
-    return row;
+    return this.statement.get(...params);
   }
 
   /**
@@ -52,11 +39,7 @@ class PreparedStatement {
    * @returns Liste d'objets correspondant aux lignes SQLite.
    */
   all(...params: unknown[]) {
-    this.statement.bind(params as BindParams);
-    const rows: Record<string, unknown>[] = [];
-    while (this.statement.step()) rows.push(this.statement.getAsObject());
-    this.statement.free();
-    return rows;
+    return this.statement.all(...params);
   }
 
   /**
@@ -66,37 +49,34 @@ class PreparedStatement {
    * @returns Nombre de lignes modifiees par SQLite.
    */
   run(...params: unknown[]) {
-    this.statement.bind(params as BindParams);
-    this.statement.step();
-    this.statement.free();
-    const rowsModified = this.database.rowsModified();
-    this.database.persist();
-    return rowsModified;
+    return this.statement.run(...params).changes;
   }
 }
 
 /**
- * Fournit une façade minimale autour de sql.js avec persistance automatique sur disque.
+ * Fournit une facade minimale autour de better-sqlite3.
  *
- * @param buffer Contenu SQLite existant, lorsqu'un fichier de base est déjà présent.
- * @returns Adaptateur de base utilisé par les services backend.
+ * @param filePath Chemin du fichier SQLite.
+ * @returns Adaptateur de base utilise par les services backend.
  */
 class DatabaseAdapter {
-  private database: SqlJsDatabase;
+  private database: BetterSqliteDatabase;
 
-  constructor(buffer?: Buffer) {
-    this.database = buffer ? new SQL.Database(buffer) : new SQL.Database();
+  constructor(filePath: string) {
+    this.database = new BetterSqlite3(filePath);
+    this.database.pragma("journal_mode = WAL");
+    this.database.pragma("foreign_keys = ON");
+    this.database.pragma("busy_timeout = 5000");
   }
 
   /**
-   * Exécute un bloc SQL complet et sauvegarde la base.
+   * Execute un bloc SQL complet.
    *
    * @param sql Instructions SQL à appliquer.
    * @returns Rien.
    */
   exec(sql: string) {
     this.database.exec(sql);
-    this.persist();
   }
 
   /**
@@ -106,29 +86,12 @@ class DatabaseAdapter {
    * @returns Requête préparée via l'adaptateur local.
    */
   prepare(sql: string) {
-    return new PreparedStatement(this, this.database.prepare(sql));
+    return new PreparedStatement(this.database.prepare(sql));
   }
 
-  /**
-   * Retourne le nombre de lignes modifiees par la derniere instruction.
-   *
-   * @returns Compteur SQLite de modifications.
-   */
-  rowsModified() {
-    return this.database.getRowsModified();
-  }
-
-  /**
-   * Sauvegarde l'état courant de sql.js dans le fichier configuré.
-   *
-   * @returns Rien.
-   */
-  persist() {
-    fs.writeFileSync(config.sqlitePath, Buffer.from(this.database.export()));
-  }
 }
 
-export const db = new DatabaseAdapter(fileBuffer);
+export const db = new DatabaseAdapter(config.sqlitePath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS positions (
