@@ -150,8 +150,8 @@ export const api = {
   performance: (range: RangeKey) => request<PortfolioPerformancePoint[]>(`/api/portfolio/performance?range=${range}`),
   portfolioChart: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioChartDto>(`/api/portfolio/chart?range=${range}`, signal),
-  positionsPerformance: (range: RangeKey) =>
-    request<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`),
+  positionsPerformance: (range: RangeKey, signal?: AbortSignal) =>
+    dedupedRequest<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`, signal),
   positionPerformance: (id: number, range: RangeKey, signal?: AbortSignal) =>
     request<PositionRangePerformance>(`/api/portfolio/positions/${id}/performance?range=${range}`, { signal }),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),

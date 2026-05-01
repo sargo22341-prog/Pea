@@ -4,7 +4,7 @@
  */
 
 import type { RangeKey } from "@pea/shared";
-import { getLastTradingDay, isMarketOpen } from "../../market/marketCalendar.service.js";
+import { getLastTradingDay } from "../../market/marketCalendar.service.js";
 
 export const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -20,7 +20,8 @@ export function markStaleList<T extends object>(data: T[], stale: boolean): Arra
 
 /** Un cache n'expire que lorsque le marche concerne est ouvert. */
 export function cacheIsStale(symbol: string, exchange: string | undefined, fetchedAtSeconds: number, ttlSeconds: number) {
-  if (!isMarketOpen(symbol, exchange)) return false;
+  void symbol;
+  void exchange;
   return nowSeconds() - fetchedAtSeconds > ttlSeconds;
 }
 
@@ -29,7 +30,6 @@ export function historyCacheIsStale(symbol: string, range: RangeKey, fetchedAtSe
   if (range !== "1d" && range !== "1w") {
     return nowSeconds() - fetchedAtSeconds > 60 * 60;
   }
-  if (isMarketOpen(symbol)) return true;
   const lastCloseAtSeconds = Math.floor(getLastTradingDay(symbol).period2.getTime() / 1000);
   return fetchedAtSeconds < lastCloseAtSeconds;
 }

@@ -1,12 +1,13 @@
 /**
- * Rôle du fichier : décrire les calendriers de marché utilisés par le backend
- * pour décider quand rafraîchir les caches financiers.
+ * Role du fichier : decrire les horaires de session utilises pour construire
+ * les fenetres Yahoo. L'etat ouvert/ferme et la derniere seance disponible
+ * viennent de Yahoo, jamais d'un calendrier de jours feries maintenu localement.
  */
 
-import holidays from "../../data/market-holidays.json" with { type: "json" };
 import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 import { logger } from "../shared/logger.service.js";
+import { yahooApi } from "../yahoo/yahoo.api.js";
 
 export interface MarketCalendar {
   market: "euronext" | "italy" | "xetra" | "madrid" | "london" | "us" | "toronto" | "fallback";
@@ -14,8 +15,6 @@ export interface MarketCalendar {
   city: string;
   openTime: string;
   closeTime: string;
-  holidays: string[];
-  earlyCloses: Record<string, string>;
 }
 
 export interface OpenMarketDay {
@@ -23,6 +22,11 @@ export interface OpenMarketDay {
   period1: Date;
   period2: Date;
   calendar: MarketCalendar;
+}
+
+export interface YahooTradingDay extends OpenMarketDay {
+  close: number;
+  pointDate: string;
 }
 
 const defaultHours = {
@@ -36,35 +40,22 @@ function normalizeMarketInput(symbol?: string, exchange?: string) {
   return `${symbol ?? ""} ${exchange ?? ""}`.toUpperCase();
 }
 
-function holidayList(market: "euronext" | "us") {
-  const data = holidays[market];
-  return Object.values(data.holidays).flat();
-}
-
 export function getMarketCalendar(symbol?: string, exchange?: string): MarketCalendar {
   const input = normalizeMarketInput(symbol, exchange);
   if (input.includes(".PA") || input.includes(".AS") || input.includes(".BR") || input.includes(".LS") || input.includes("EURONEXT") || input.includes("PARIS") || input.includes("AMSTERDAM") || input.includes("BRUSSELS") || input.includes("LISBON")) {
     const timezone = input.includes(".AS") || input.includes("AMSTERDAM") ? "Europe/Amsterdam" : input.includes(".BR") || input.includes("BRUSSELS") ? "Europe/Brussels" : input.includes(".LS") || input.includes("LISBON") ? "Europe/Lisbon" : "Europe/Paris";
     const city = timezone === "Europe/Amsterdam" ? "Amsterdam" : timezone === "Europe/Brussels" ? "Brussels" : timezone === "Europe/Lisbon" ? "Lisbon" : "Paris";
-    return {
-      market: "euronext",
-      timezone,
-      city,
-      openTime: timezone === "Europe/Lisbon" ? "08:00" : "09:00",
-      closeTime: timezone === "Europe/Lisbon" ? "16:30" : "17:30",
-      holidays: holidayList("euronext"),
-      earlyCloses: {}
-    };
+    return { market: "euronext", timezone, city, openTime: timezone === "Europe/Lisbon" ? "08:00" : "09:00", closeTime: timezone === "Europe/Lisbon" ? "16:30" : "17:30" };
   }
-  if (input.includes(".MI") || input.includes("MILAN") || input.includes("ITALIANA")) return { market: "italy", timezone: "Europe/Rome", city: "Milan", openTime: "09:00", closeTime: "17:30", holidays: [], earlyCloses: {} };
-  if (input.includes(".DE") || input.includes("XETRA") || input.includes("FRANKFURT")) return { market: "xetra", timezone: "Europe/Berlin", city: "Frankfurt", openTime: "09:00", closeTime: "17:30", holidays: [], earlyCloses: {} };
-  if (input.includes(".MC") || input.includes("MADRID")) return { market: "madrid", timezone: "Europe/Madrid", city: "Madrid", openTime: "09:00", closeTime: "17:30", holidays: [], earlyCloses: {} };
-  if (input.includes(".L") || input.includes("LONDON")) return { market: "london", timezone: "Europe/London", city: "London", openTime: "08:00", closeTime: "16:30", holidays: [], earlyCloses: {} };
-  if (input.includes(".TO") || input.includes("TORONTO")) return { market: "toronto", timezone: "America/Toronto", city: "Toronto", openTime: "09:30", closeTime: "16:00", holidays: [], earlyCloses: {} };
+  if (input.includes(".MI") || input.includes("MILAN") || input.includes("ITALIANA")) return { market: "italy", timezone: "Europe/Rome", city: "Milan", openTime: "09:00", closeTime: "17:30" };
+  if (input.includes(".DE") || input.includes("XETRA") || input.includes("FRANKFURT")) return { market: "xetra", timezone: "Europe/Berlin", city: "Frankfurt", openTime: "09:00", closeTime: "17:30" };
+  if (input.includes(".MC") || input.includes("MADRID")) return { market: "madrid", timezone: "Europe/Madrid", city: "Madrid", openTime: "09:00", closeTime: "17:30" };
+  if (input.includes(".L") || input.includes("LONDON")) return { market: "london", timezone: "Europe/London", city: "London", openTime: "08:00", closeTime: "16:30" };
+  if (input.includes(".TO") || input.includes("TORONTO")) return { market: "toronto", timezone: "America/Toronto", city: "Toronto", openTime: "09:30", closeTime: "16:00" };
   if (!String(symbol ?? "").includes(".") || input.includes("NASDAQ") || input.includes("NYSE") || input.includes("AMEX") || input.includes("NEW YORK")) {
-    return { market: "us", timezone: "America/New_York", city: "New York", openTime: "09:30", closeTime: "16:00", holidays: holidayList("us"), earlyCloses: holidays.us.earlyCloses };
+    return { market: "us", timezone: "America/New_York", city: "New York", openTime: "09:30", closeTime: "16:00" };
   }
-  return { market: "fallback", holidays: [], earlyCloses: {}, ...defaultHours };
+  return { market: "fallback", ...defaultHours };
 }
 
 function getLocalDateParts(date: Date, timeZone: string) {
@@ -81,7 +72,6 @@ function addDaysToIsoDate(isoDate: string, days: number) {
 function tradingDayReason(symbol: string | undefined, exchange: string | undefined, date: Date, calendar: MarketCalendar) {
   const local = getLocalDateParts(date, calendar.timezone);
   if (local.weekday === "Sat" || local.weekday === "Sun") return "weekend";
-  if (calendar.holidays.includes(local.isoDate)) return "holiday";
   if (!isTradingDay(symbol, exchange, date)) return "closed";
   return undefined;
 }
@@ -108,15 +98,22 @@ export function getMarketDateKey(symbol?: string, exchange?: string, date = new 
 export function isTradingDay(symbol?: string, exchange?: string, date = new Date()) {
   const calendar = getMarketCalendar(symbol, exchange);
   const local = getLocalDateParts(date, calendar.timezone);
-  return local.weekday !== "Sat" && local.weekday !== "Sun" && !calendar.holidays.includes(local.isoDate);
+  return local.weekday !== "Sat" && local.weekday !== "Sun";
 }
 
-export function isMarketOpen(symbol?: string, exchange?: string, date = new Date()) {
+/** Retourne l'ouverture marche uniquement depuis `quote.marketState` Yahoo. */
+export function isMarketOpen(marketState?: string | null) {
+  return String(marketState ?? "").toUpperCase() === "REGULAR";
+}
+
+export function getSessionForDate(symbol: string | undefined, exchange: string | undefined, isoDate: string): OpenMarketDay {
   const calendar = getMarketCalendar(symbol, exchange);
-  if (!isTradingDay(symbol, exchange, date)) return false;
-  const local = getLocalDateParts(date, calendar.timezone);
-  const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
-  return local.minutes >= timeToMinutes(calendar.openTime) && local.minutes < timeToMinutes(closeTime);
+  return {
+    date: isoDate,
+    period1: zonedTimeToUtc(isoDate, calendar.openTime, calendar.timezone),
+    period2: zonedTimeToUtc(isoDate, calendar.closeTime, calendar.timezone),
+    calendar
+  };
 }
 
 export function getLastTradingDay(symbol?: string, exchange?: string, date = new Date()) {
@@ -125,27 +122,37 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
   for (let index = 0; index < 10; index += 1) {
     const cursor = zonedTimeToUtc(cursorDate, "12:00", calendar.timezone);
     const local = getLocalDateParts(cursor, calendar.timezone);
-    const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
     if (isTradingDay(symbol, exchange, cursor)) {
       const endLocal = index === 0 ? getLocalDateParts(date, calendar.timezone) : local;
-      if (endLocal.minutes >= timeToMinutes(calendar.openTime) || index > 0) {
-        return {
-          date: local.isoDate,
-          period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
-          period2: zonedTimeToUtc(local.isoDate, closeTime, calendar.timezone),
-          calendar
-        };
-      }
+      if (endLocal.minutes >= timeToMinutes(calendar.openTime) || index > 0) return getSessionForDate(symbol, exchange, local.isoDate);
     }
     cursorDate = addDaysToIsoDate(cursorDate, -1);
   }
   const local = getLocalDateParts(date, calendar.timezone);
-  return {
-    date: local.isoDate,
-    period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
-    period2: zonedTimeToUtc(local.isoDate, calendar.closeTime, calendar.timezone),
-    calendar
-  };
+  return getSessionForDate(symbol, exchange, local.isoDate);
+}
+
+/**
+ * Demande a Yahoo les candles daily recentes et retourne la derniere seance
+ * ayant une cloture exploitable. Pas de cache: cette fonction est reservee aux
+ * jobs/constructions backend qui doivent resynchroniser la base.
+ */
+export async function getLastAvailableTradingDayFromYahoo(symbol: string, now = new Date(), exchange?: string): Promise<YahooTradingDay | undefined> {
+  const period1 = new Date(now);
+  period1.setDate(period1.getDate() - 15);
+  const chart = await yahooApi.chart(symbol, { period1, period2: now, interval: "1d" });
+  const valid = [...chart.quotes].reverse().find((point) => Number.isFinite(point.close) && point.close > 0);
+  if (!valid) return undefined;
+  const date = getMarketDateKey(symbol, exchange, new Date(valid.date));
+  const session = getSessionForDate(symbol, exchange, date);
+  logger.debug("market-data", "last yahoo trading day resolved", {
+    symbol,
+    date,
+    close: valid.close,
+    pointDate: valid.date,
+    dailyPoints: chart.quotes.length
+  });
+  return { ...session, close: valid.close, pointDate: valid.date };
 }
 
 function resolveMarketInput(market: string | { symbol?: string; exchange?: string }) {
@@ -170,13 +177,7 @@ export function getPreviousOpenMarketDays(
     const local = getLocalDateParts(cursor, calendar.timezone);
     const reason = tradingDayReason(symbol, exchange, cursor, calendar);
     if (!reason) {
-      const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
-      days.push({
-        date: local.isoDate,
-        period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
-        period2: zonedTimeToUtc(local.isoDate, closeTime, calendar.timezone),
-        calendar
-      });
+      days.push(getSessionForDate(symbol, exchange, local.isoDate));
     } else {
       ignored.push({ date: local.isoDate, reason });
     }
@@ -198,20 +199,16 @@ export function getPreviousOpenMarketDays(
 }
 
 /**
- * Décide si une donnée de marché doit être rafraîchie selon la range demandée.
+ * Decide si une donnee de marche doit etre rafraichie selon la range demandee.
  *
  * @param symbol Symbole Yahoo Finance.
  * @param exchange Place de cotation optionnelle.
  * @param cacheUpdatedAt Date du cache en millisecondes.
- * @param range Range historique demandée.
- * @returns true si le cache ne couvre pas la dernière clôture ou si le marché est ouvert.
+ * @param range Range historique demandee.
+ * @returns true si le cache ne couvre pas la derniere cloture estimee.
  */
 export function shouldRefreshMarketData(symbol: string, exchange: string | undefined, cacheUpdatedAt: number | undefined, range: RangeKey) {
   if (!cacheUpdatedAt) return true;
-  if (range === "1d" || range === "1w") {
-    if (isMarketOpen(symbol, exchange)) return true;
-    return cacheUpdatedAt < getLastTradingDay(symbol, exchange).period2.getTime();
-  }
-  if (!isMarketOpen(symbol, exchange)) return false;
+  if (range === "1d" || range === "1w") return cacheUpdatedAt < getLastTradingDay(symbol, exchange).period2.getTime();
   return Date.now() - cacheUpdatedAt > 60 * 60 * 1000;
 }

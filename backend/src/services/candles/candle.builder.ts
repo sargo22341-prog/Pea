@@ -1,7 +1,6 @@
 /**
  * Role du fichier : construire les candles OHLCV stockees en base a partir des
- * points Yahoo. Les buckets intraday sont alignes sur l'ouverture du marche et
- * respectent week-ends, jours feries et early close via MarketCalendarService.
+ * points Yahoo. Les buckets intraday sont alignes sur l'ouverture du marche.
  */
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
@@ -20,7 +19,7 @@ export interface BuiltCandle {
   low: number | null;
   close: number;
   volume: number | null;
-  source: "yahoo-finance2" | "snapshot_close" | "stored_final";
+  source: "yahoo-finance2" | "snapshot_close" | "yahoo_daily_fallback_close" | "stored_final";
 }
 
 function intervalMs(interval: ChartInterval) {
@@ -52,8 +51,8 @@ function inSession(pointDate: Date, symbol: string, exchange: string | undefined
   const day = localDayKey(pointDate, calendar.timezone);
   const parts = getZonedDateParts(pointDate, calendar.timezone);
   const minutes = parts.hour * 60 + parts.minute;
-  const closeTime = calendar.earlyCloses[day] ?? calendar.closeTime;
-  return minutes >= timeToMinutes(calendar.openTime) && minutes <= timeToMinutes(closeTime);
+  void day;
+  return minutes >= timeToMinutes(calendar.openTime) && minutes <= timeToMinutes(calendar.closeTime);
 }
 
 export class CandleBuilder {

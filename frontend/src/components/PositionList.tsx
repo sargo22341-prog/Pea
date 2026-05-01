@@ -53,10 +53,11 @@ export function PositionList({
   }, [sortOpen]);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
     setPerformanceError(null);
     setPerformanceById(new Map());
-    api.positionsPerformance(range)
+    api.positionsPerformance(range, controller.signal)
       .then((items) => {
         if (!cancelled) setPerformanceById(new Map(items.map((item) => [item.id, item])));
       })
@@ -65,6 +66,7 @@ export function PositionList({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [range]);
 

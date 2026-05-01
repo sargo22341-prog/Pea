@@ -3,7 +3,7 @@
  * priorité pour éviter les blocages globaux et les sauts de layout.
  */
 
-import type { PortfolioSummary, RangeKey, User } from "@pea/shared";
+import type { PortfolioChartDto, PortfolioSummary, RangeKey, User } from "@pea/shared";
 import { Activity, LineChart, ReceiptText, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
@@ -22,6 +22,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
     return initialRange;
   });
   const portfolio = useAsync((signal) => api.portfolio(selectedRange, signal), [selectedRange]);
+  const portfolioChart = useAsync((signal) => api.portfolioChart(selectedRange, signal), [selectedRange]);
 
   /**
    * Met à jour la range affichée pour tous les blocs dépendants du temps.
@@ -33,7 +34,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   function setSelectedRange(source: string, nextRange: RangeKey) {
     setSelectedRangeState((previousRange) => {
       void source;
-      void previousRange;
+      if (previousRange === nextRange) return previousRange;
       return nextRange;
     });
   }
@@ -46,7 +47,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
 
   return (
     <div className="space-y-6">
-      <TopMetrics loading={portfolio.loading || !summary} range={selectedRange} summary={summary} />
+      <TopMetrics chart={portfolioChart.data} chartLoading={portfolioChart.loading} loading={portfolio.loading || !summary} range={selectedRange} summary={summary} />
 
       {summary ? (
         <PortfolioEvolutionSection
@@ -55,6 +56,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
           range={selectedRange}
           setRange={setSelectedRange}
           summary={summary}
+          portfolioChart={portfolioChart}
           userTimezone={appTimezone}
         />
       ) : (
@@ -70,7 +72,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
  * @param props Résumé éventuel, range et état de chargement.
  * @returns Grille de quatre métriques avec skeletons stables.
  */
-function TopMetrics({ summary, range, loading }: { summary: PortfolioSummary | null; range: RangeKey; loading: boolean }) {
+function TopMetrics({ summary, range, loading, chart, chartLoading }: { summary: PortfolioSummary | null; range: RangeKey; loading: boolean; chart: PortfolioChartDto | null; chartLoading: boolean }) {
   return (
     <section className="space-y-3">
       <PortfolioTotal loading={loading} value={summary?.totalValue} />
@@ -84,7 +86,7 @@ function TopMetrics({ summary, range, loading }: { summary: PortfolioSummary | n
           tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
           value={summary ? `${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})` : undefined}
         />
-        <RangeMetric currency={summary?.currency ?? "EUR"} range={range} summaryReady={!loading && summary != null} />
+        <RangeMetric chart={chart} chartLoading={chartLoading} currency={summary?.currency ?? "EUR"} range={range} summaryReady={!loading && summary != null} />
       </div>
     </section>
   );
@@ -126,11 +128,11 @@ function formatMainTotal(value?: number) {
  * @param props Devise, range et disponibilité du résumé.
  * @returns Tuile de performance de range.
  */
-function RangeMetric({ currency, range, summaryReady }: { currency: string; range: RangeKey; summaryReady: boolean }) {
+function RangeMetric({ currency, range, summaryReady, chart, chartLoading }: { currency: string; range: RangeKey; summaryReady: boolean; chart: PortfolioChartDto | null; chartLoading: boolean }) {
   if (!summaryReady) {
     return <Metric icon={Activity} label={`Performance sur ${formatRangeLabel(range)}`} loading />;
   }
-  return <LoadedRangeMetric currency={currency} range={range} />;
+  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} range={range} />;
 }
 
 /**
@@ -139,17 +141,16 @@ function RangeMetric({ currency, range, summaryReady }: { currency: string; rang
  * @param props Devise et range.
  * @returns Tuile chargée ou skeleton dédié.
  */
-function LoadedRangeMetric({ currency, range }: { currency: string; range: RangeKey }) {
-  const portfolioChart = useAsync((signal) => api.portfolioChart(range, signal), [range]);
+function LoadedRangeMetric({ currency, range, chart, chartLoading }: { currency: string; range: RangeKey; chart: PortfolioChartDto | null; chartLoading: boolean }) {
   return (
     <Metric
       icon={Activity}
       label={`Performance sur ${formatRangeLabel(range)}`}
-      loading={portfolioChart.loading || !portfolioChart.data}
-      tone={portfolioChart.data == null ? undefined : portfolioChart.data.performanceEuro >= 0 ? "positive" : "negative"}
+      loading={chartLoading || !chart}
+      tone={chart == null ? undefined : chart.performanceEuro >= 0 ? "positive" : "negative"}
       value={
-        portfolioChart.data
-          ? `${money(portfolioChart.data.performanceEuro, currency)} · ${percent(portfolioChart.data.performancePercent)}`
+        chart
+          ? `${money(chart.performanceEuro, currency)} · ${percent(chart.performancePercent)}`
           : undefined
       }
     />
@@ -168,6 +169,7 @@ function PortfolioEvolutionSection({
   defaultSortKey,
   defaultSortDirection,
   setRange,
+  portfolioChart,
   userTimezone
 }: {
   summary: PortfolioSummary;
@@ -175,9 +177,9 @@ function PortfolioEvolutionSection({
   defaultSortKey: User["dashboardDefaultSortKey"];
   defaultSortDirection: User["dashboardDefaultSortDirection"];
   setRange: (source: string, nextRange: RangeKey) => void;
+  portfolioChart: ReturnType<typeof useAsync<PortfolioChartDto>>;
   userTimezone: string;
 }) {
-  const portfolioChart = useAsync((signal) => api.portfolioChart(range, signal), [range]);
   const chartReady = Boolean(portfolioChart.data) && !portfolioChart.loading;
   const portfolioChartReload = portfolioChart.reload;
   const portfolioChartPreparing = Boolean(portfolioChart.data?.isPreparing);
@@ -351,3 +353,4 @@ function Metric({
     </div>
   );
 }
+

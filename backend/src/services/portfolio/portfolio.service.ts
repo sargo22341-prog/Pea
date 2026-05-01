@@ -557,7 +557,7 @@ export class PortfolioService {
     const jobIds: string[] = [];
     for (const position of this.listPositions()) {
       const chart = await marketDataService.getChartData(position.symbol, range);
-      if (chart.isPreparing || chart.prices.length < 2) {
+      if (chart.isPreparing) {
         missingAssets.push(position.symbol);
         if (chart.jobId) jobIds.push(chart.jobId);
       }

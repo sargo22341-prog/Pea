@@ -13,6 +13,7 @@ import { dividendsService } from "./dividends.service.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getZonedDateParts } from "../timezone/date-time.service.js";
+import { marketSnapshotService } from "./market-snapshot.service.js";
 
 const postCloseDelayMs = 20 * 60 * 1000;
 const fallbackIntervalMs = 10 * 60 * 1000;
@@ -45,16 +46,17 @@ export class MarketScheduler {
     const appTime = appClock(now);
     if (appTime.minutes >= 17 * 60 + 40 && this.lastCronDate !== appTime.date) {
       this.lastCronDate = appTime.date;
-      this.enqueuePostCloseFinalization(`cron-17:40-${config.appTimezone}`);
+      void this.enqueuePostCloseFinalization(`cron-17:40-${config.appTimezone}`);
     }
 
     if (now.getTime() - this.lastFallbackAt > fallbackIntervalMs) {
       this.lastFallbackAt = now.getTime();
-      this.enqueuePostCloseFinalization("fallback");
+      void this.enqueuePostCloseFinalization("fallback");
     }
 
     for (const asset of assetRepository.listTrackedAssets()) {
-      const open = isMarketOpen(asset.symbol, asset.exchange, now);
+      const quote = await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
+      const open = isMarketOpen(quote?.marketState);
       const wasOpen = this.lastOpenSymbols.has(asset.symbol);
       if (open) this.lastOpenSymbols.add(asset.symbol);
       if (!open && wasOpen) {
@@ -69,20 +71,21 @@ export class MarketScheduler {
   async runPostMarketTask(symbol?: string) {
     logger.info("market-data", "post-market finalization enqueue", { symbol: symbol ?? "all" });
     const assets = symbol ? assetRepository.findBySymbol(symbol) ? [assetRepository.findBySymbol(symbol)!] : [] : assetRepository.listTrackedAssets();
-    const symbols = assets
-      .filter((asset) => {
-        const session = getLastTradingDay(asset.symbol, asset.exchange);
-        return !candleRepository.isFinalized(asset.id, session.date, "1d");
-      })
-      .map((asset) => asset.symbol);
+    const symbols: string[] = [];
+    for (const asset of assets) {
+      const session = getLastTradingDay(asset.symbol, asset.exchange);
+      if (!candleRepository.isFinalized(asset.id, session.date, "1d")) symbols.push(asset.symbol);
+    }
     return dataConstructionQueue.enqueuePostCloseFinalization(symbols);
   }
 
-  private enqueuePostCloseFinalization(reason: string) {
-    const candidates = assetRepository.listTrackedAssets().filter((asset) => {
+  private async enqueuePostCloseFinalization(reason: string) {
+    const candidates = [];
+    for (const asset of assetRepository.listTrackedAssets()) {
+      const quote = await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
       const session = getLastTradingDay(asset.symbol, asset.exchange);
-      return !isMarketOpen(asset.symbol, asset.exchange) && Date.now() >= session.period2.getTime() && !candleRepository.isFinalized(asset.id, session.date, "1d");
-    });
+      if (!isMarketOpen(quote?.marketState) && Date.now() >= session.period2.getTime() && !candleRepository.isFinalized(asset.id, session.date, "1d")) candidates.push(asset);
+    }
     if (!candidates.length) return;
     const job = dataConstructionQueue.enqueuePostCloseFinalization(candidates.map((asset) => asset.symbol));
     logger.info("market-data", "post-close finalization scheduled", { reason, assets: candidates.length, jobId: job.id });

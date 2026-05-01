@@ -62,6 +62,20 @@ export class CandleRepository {
     return Number(row?.count ?? 0);
   }
 
+  /**
+   * Retourne la derniere date finalisee connue pour une range asset.
+   *
+   * @param assetId Identifiant interne de l'asset.
+   * @param range Range stockee recherchee.
+   * @returns Date de trading finalisee la plus recente, si elle existe.
+   */
+  latestFinalizedTradingDate(assetId: number, range: StoredChartRange) {
+    const row = db
+      .prepare("SELECT trading_date FROM market_data_finalizations WHERE asset_id = ? AND range = ? AND finalized = 1 ORDER BY trading_date DESC LIMIT 1")
+      .get(assetId, range) as { trading_date?: string } | undefined;
+    return row?.trading_date ? String(row.trading_date) : undefined;
+  }
+
   pruneBefore(assetId: number, range: StoredChartRange, interval: ChartInterval, cutoffIso: string) {
     db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ? AND datetime_start < ?")
       .run(assetId, range, interval, cutoffIso);

@@ -5,17 +5,17 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 - `data/config.json` pilote les intervals configurables des ranges stockees `1d`, `1w`, `1m`. En prod Docker, ce fichier vit dans le volume `/app/data` pour rester modifiable.
 - `assets` et `asset_profiles` stockent les metadonnees stables issues de `quote()` et `quoteSummary()`. Les champs absents chez Yahoo restent `NULL`.
 - `chart_candles` stocke les candles OHLCV pre-calculées par range/interval avec `UNIQUE(asset_id, range, interval, datetime_start)`.
-- `asset_market_snapshots` contient une seule ligne par asset: le dernier etat connu du marche. Quand le marche est ferme, les lectures utilisent cette table et n'appellent pas Yahoo, sauf action manuelle.
+- `asset_market_snapshots` contient une seule ligne par asset: le dernier etat connu du marche Yahoo.
 - `asset_financials` est alimente par `fundamentalsTimeSeries` quand disponible. `net_margin` est calcule uniquement si `total_revenue` et `net_income` existent.
 - `asset_dividends` est alimente par `chart(..., events: 'div|split')`. Yahoo ne fournit pas `payment_date` ou `record_date`, donc ces champs ne sont pas crees.
 
 ## Logique intraday
 
-`1d` est live si le marche est ouvert: le backend appelle Yahoo `chart()` avec l'interval configure et renvoie aussi `baselinePrice`. La baseline utilise la derniere cloture precedente, avec fallback sur `asset_market_snapshots.previous_close` puis sur les dernieres candles disponibles. La performance intraday est calculee par le backend avec `((price - baseline_price) / baseline_price) * 100`.
+`1d` est live si `quote.marketState === "REGULAR"`: le backend appelle Yahoo `chart()` avec l'interval configure et renvoie aussi `baselinePrice`. Si l'intraday Yahoo revient vide alors que le marche est ferme, le backend demande a Yahoo les candles daily recentes, retrouve la derniere seance disponible et sert les candles persistantes de cette seance, avec fallback sur la cloture daily Yahoo. La baseline utilise la derniere cloture precedente, avec fallback sur `asset_market_snapshots.previous_close` puis sur les dernieres candles disponibles.
 
 ## Ranges stockees
 
-`1w`, `1m` et `all` sont stockes dans `chart_candles`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis `all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche et filtrent week-ends, jours feries et early closes depuis `market-holidays.json`.
+`1w`, `1m` et `all` sont stockes dans `chart_candles`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis `all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche; aucun calendrier de jours feries manuel n'est maintenu.
 
 ## Portfolio et Dashboard
 

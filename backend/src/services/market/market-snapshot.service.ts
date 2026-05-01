@@ -6,29 +6,40 @@
 import type { AssetMarketDto, Quote } from "@pea/shared";
 import { db } from "../../db.js";
 import { normalizeMarketState } from "../shared/cache.service.js";
-import { isMarketOpen } from "./marketCalendar.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
+import { candleRepository } from "../candles/candle.repository.js";
+import { isMarketOpen } from "./marketCalendar.service.js";
 
 export class MarketSnapshotService {
+  private snapshotQuoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
+
   async refreshMarketSnapshot(asset: AssetRow | string): Promise<Quote> {
     const symbol = typeof asset === "string" ? asset.toUpperCase() : asset.symbol;
     const result = await yahooApi.quote(symbol);
     const assetRow = assetRepository.upsertFromQuote(result.snapshot);
     this.upsertSnapshot(assetRow.id, result.snapshot);
+    this.snapshotQuoteCache.set(assetRow.symbol, { quote: result.quote, expiresAt: Date.now() + 30_000 });
     return result.quote;
   }
 
   async getQuote(symbol: string, options: { forceRefresh?: boolean } = {}): Promise<Quote> {
     const key = symbol.toUpperCase();
     const knownAsset = assetRepository.findBySymbol(key);
-    if (options.forceRefresh || !knownAsset || isMarketOpen(key, knownAsset.exchange)) {
+    if (options.forceRefresh || !knownAsset) {
       return this.refreshMarketSnapshot(knownAsset ?? key);
     }
 
+    const memoized = this.snapshotQuoteCache.get(key);
+    if (memoized && memoized.expiresAt > Date.now()) return memoized.quote;
+
     const snapshot = this.readSnapshot(knownAsset.id);
-    if (snapshot) return snapshot;
+    const latestFinalizedTradingDate = candleRepository.latestFinalizedTradingDate(knownAsset.id, "1d");
+    if (snapshot && latestFinalizedTradingDate && !isMarketOpen(snapshot.marketState)) {
+      this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+      return snapshot;
+    }
     return this.refreshMarketSnapshot(knownAsset);
   }
 
@@ -112,7 +123,13 @@ export class MarketSnapshotService {
     );
   }
 
-  private readSnapshot(assetId: number): Quote | undefined {
+  /**
+   * Lit la derniere quote persistee sans appel Yahoo.
+   *
+   * @param assetId Identifiant interne de l'asset.
+   * @returns Quote locale si le snapshot existe.
+   */
+  readSnapshot(assetId: number): Quote | undefined {
     const row = db.prepare("SELECT a.symbol, a.name, s.* FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE s.asset_id = ?").get(assetId) as any;
     if (!row) return undefined;
     return {
