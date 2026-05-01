@@ -3,7 +3,7 @@
  * Le service calcule les DTO prêts à afficher et invalide les caches utilisateur.
  */
 
-import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, PortfolioTransactionMarker, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -25,6 +25,8 @@ const createPositionSchema = z.object({
   currency: z.string().trim().min(3).max(8).default("EUR"),
   notes: z.string().trim().optional()
 });
+
+const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all", "max"]);
 
 /**
  * Convertit une ligne SQLite de position en contrat partagé.
@@ -53,6 +55,26 @@ function mapPosition(row: any): Position {
  */
 function normalizedUserId(userId?: string | number) {
   return String(userId ?? "default");
+}
+
+function nearestTimestamp(target: number, sortedTimestamps: number[]) {
+  let nearest = sortedTimestamps[0];
+  let nearestDistance = Math.abs(nearest - target);
+  for (const timestamp of sortedTimestamps) {
+    const distance = Math.abs(timestamp - target);
+    if (distance >= nearestDistance) continue;
+    nearest = timestamp;
+    nearestDistance = distance;
+  }
+  return nearest;
+}
+
+function isTransactionVisibleInRange(transactionDate: string, transactionTime: number, firstTimestamp: number, lastTimestamp: number, range: RangeKey) {
+  if (range === "1w" || range === "1m") return transactionTime >= firstTimestamp && transactionTime <= lastTimestamp;
+  const transactionDay = transactionDate.slice(0, 10);
+  const firstDay = new Date(firstTimestamp).toISOString().slice(0, 10);
+  const lastDay = new Date(lastTimestamp).toISOString().slice(0, 10);
+  return transactionDay >= firstDay && transactionDay <= lastDay;
 }
 
 export class PortfolioService {
@@ -414,9 +436,78 @@ export class PortfolioService {
       performancePercent: performanceStart ? (performanceEuro / performanceStart) * 100 : 0,
       ...preparation,
       cachedAt,
-      expiresAt: cachedAt
+      expiresAt: cachedAt,
+      transactionMarkers: this.transactionMarkersForChart(range, timestamps)
     };
     return payload;
+  }
+
+  /**
+   * Construit les marqueurs de transactions visibles sur le chart deja calcule.
+   *
+   * @param range Range affichee, intraday exclu.
+   * @param timestamps Points X du chart de portefeuille.
+   * @returns Markers enrichis et accroches au point de chart le plus proche.
+   */
+  private transactionMarkersForChart(range: RangeKey, timestamps: number[]): PortfolioTransactionMarker[] {
+    if (!portfolioTransactionMarkerRanges.has(range) || timestamps.length === 0) return [];
+
+    const sortedTimestamps = [...timestamps].filter(Number.isFinite).sort((a, b) => a - b);
+    const firstTimestamp = sortedTimestamps[0];
+    const lastTimestamp = sortedTimestamps[sortedTimestamps.length - 1];
+    if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) return [];
+
+    const rows = db
+      .prepare(
+        `SELECT
+           t.id,
+           t.position_id,
+           t.type,
+           t.quantity,
+           t.price,
+           t.traded_at,
+           p.symbol,
+           p.name AS position_name,
+           a.id AS asset_row_id,
+           a.name AS asset_name
+         FROM transactions t
+         JOIN positions p ON p.id = t.position_id
+         LEFT JOIN assets a ON a.symbol = p.symbol
+         WHERE t.traded_at IS NOT NULL
+           AND t.type IN ('buy', 'sell')
+         ORDER BY t.traded_at ASC, t.id ASC`
+      )
+      .all() as Array<{
+        id: number | string;
+        position_id: number | string;
+        type: "buy" | "sell";
+        quantity: number | string;
+        price: number | string | null;
+        traded_at: string;
+        symbol: string;
+        position_name: string;
+        asset_row_id?: number | string | null;
+        asset_name?: string | null;
+      }>;
+
+    return rows.flatMap((row) => {
+      const transactionTime = new Date(row.traded_at).getTime();
+      if (!Number.isFinite(transactionTime) || !isTransactionVisibleInRange(row.traded_at, transactionTime, firstTimestamp, lastTimestamp, range)) return [];
+      const symbol = String(row.symbol).toUpperCase();
+      const price = row.price == null ? undefined : Number(row.price);
+      return [{
+        id: String(row.id),
+        assetId: String(row.asset_row_id ?? row.position_id),
+        symbol,
+        name: String(row.asset_name ?? row.position_name ?? symbol),
+        logoUrl: `/api/assets/${encodeURIComponent(symbol)}/icon`,
+        quantity: Number(row.quantity),
+        price: Number.isFinite(price) ? price : undefined,
+        transactionDate: new Date(transactionTime).toISOString(),
+        type: row.type,
+        nearestChartPointDatetime: nearestTimestamp(transactionTime, sortedTimestamps)
+      }];
+    });
   }
 
   /**

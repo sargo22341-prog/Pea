@@ -178,10 +178,24 @@ export interface PortfolioChartDto {
   marketSession?: MarketSessionDto;
   cachedAt: number;
   expiresAt: number;
+  transactionMarkers: PortfolioTransactionMarker[];
   isPreparing?: boolean;
   missingRanges?: RangeKey[];
   missingAssets?: string[];
   jobId?: string;
+}
+
+export interface PortfolioTransactionMarker {
+  id: string;
+  assetId: string;
+  symbol: string;
+  name: string;
+  logoUrl?: string;
+  quantity: number;
+  price?: number;
+  transactionDate: string;
+  type: "buy" | "sell";
+  nearestChartPointDatetime: number;
 }
 
 export interface DataConstructionJobDto {

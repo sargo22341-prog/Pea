@@ -32,6 +32,7 @@ export function PortfolioChart({
         marketSession={chart.marketSession}
         oneDayTooltipFormat="time"
         range={range}
+        transactionMarkers={range === "1d" ? [] : chart.transactionMarkers}
         userTimezone={userTimezone}
       />
       {range === "1d" && chart.marketSession && chart.marketSession.timezone !== normalizeTimeZone(userTimezone) && (
