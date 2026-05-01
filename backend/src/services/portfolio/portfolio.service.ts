@@ -663,9 +663,12 @@ export class PortfolioService {
   }
 
   private totalDividendsReceived(positions: PositionWithMarket[]): number {
+    const now = Date.now();
     return positions.reduce((portfolioTotal, position) => {
       const dividends = dividendsService.readDividends(position.symbol);
       const positionTotal = dividends.reduce((sum, event) => {
+        const eventTime = new Date(event.date).getTime();
+        if (!Number.isFinite(eventTime) || eventTime > now) return sum;
         const quantity = this.hasDatedTransactions(position.id)
           ? this.getQuantityHeldAtDate(position.id, event.date)
           : position.quantity;

@@ -13,6 +13,17 @@ function addOneYear(date: string): string {
   return next.toISOString();
 }
 
+function yearFromDate(date: string): number | undefined {
+  const year = new Date(date).getFullYear();
+  return Number.isFinite(year) ? year : undefined;
+}
+
+function yearMonthFromDate(date: string): string | undefined {
+  const parsed = new Date(date);
+  if (!Number.isFinite(parsed.getTime())) return undefined;
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function dividendMetrics(position: PositionWithMarket) {
   const annualDividendRate = position.quote?.dividendRate;
   const hasAnnualDividendRate = Number.isFinite(annualDividendRate);
@@ -45,8 +56,10 @@ export class DividendService {
         stale = true;
       }
 
+      const realDividendYears = new Set(dividends.map((event) => yearFromDate(event.date)).filter((year): year is number => year !== undefined));
+      const realDividendPeriods = new Set(dividends.map((event) => yearMonthFromDate(event.date)).filter((period): period is string => period !== undefined));
       const lastYear = currentYear - 1;
-      const lastYearDividends = dividends.filter((event) => new Date(event.date).getFullYear() === lastYear);
+      const lastYearDividends = dividends.filter((event) => yearFromDate(event.date) === lastYear);
 
       for (const event of dividends) {
         const year = new Date(event.date).getFullYear();
@@ -71,6 +84,9 @@ export class DividendService {
 
       for (const event of lastYearDividends) {
         const date = addOneYear(event.date);
+        const estimatedYear = yearFromDate(date);
+        const estimatedPeriod = yearMonthFromDate(date);
+        if (estimatedYear === undefined || estimatedPeriod === undefined || realDividendPeriods.has(estimatedPeriod)) continue;
         const amountPerShare = event.amount;
         const quantity = portfolioService.hasDatedTransactions(position.id)
           ? portfolioService.getQuantityHeldAtDate(position.id, date)
@@ -79,7 +95,7 @@ export class DividendService {
           symbol: position.symbol,
           name: position.name,
           date,
-          year: new Date(date).getFullYear(),
+          year: estimatedYear,
           amountPerShare,
           quantity,
           totalAmount: amountPerShare * quantity,
@@ -90,7 +106,7 @@ export class DividendService {
         });
       }
 
-      if (!lastYearDividends.length && position.estimatedAnnualDividend) {
+      if (!lastYearDividends.length && !realDividendYears.has(currentYear) && position.estimatedAnnualDividend) {
         const amountPerShare = position.quantity ? position.estimatedAnnualDividend / position.quantity : 0;
         upcoming.push({
           symbol: position.symbol,
