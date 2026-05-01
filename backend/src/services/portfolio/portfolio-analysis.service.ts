@@ -26,8 +26,19 @@ function safeText(value: unknown) {
 }
 
 function safeNumber(value: unknown) {
+  if (value && typeof value === "object") {
+    const candidate = value as { raw?: unknown; reportedValue?: { raw?: unknown } };
+    return safeNumber(candidate.raw ?? candidate.reportedValue?.raw);
+  }
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
+}
+
+function safeYear(value: unknown) {
+  const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
+  const timestamp = typeof candidate === "number" && candidate < 10_000_000_000 ? candidate * 1000 : candidate;
+  const year = candidate ? new Date(timestamp as any).getFullYear() : undefined;
+  return Number.isInteger(year) ? year : undefined;
 }
 
 function isEtf(position: Pick<PositionWithMarket, "quote">, fundamentals?: Fundamentals) {
@@ -87,12 +98,22 @@ function finalizeAllocation(allocations: Map<string, AllocationChartItem>) {
 }
 
 function annualFinancialRows(fundamentals?: Fundamentals): FinancialYearItem[] {
+  if (Array.isArray(fundamentals?.annualFinancials)) {
+    return fundamentals.annualFinancials
+      .filter(
+        (row: FinancialYearItem) =>
+          Number.isInteger(row.year) && Number.isFinite(row.revenue) && Number.isFinite(row.netIncome) && Number.isFinite(row.netMargin)
+      )
+      .sort((a: FinancialYearItem, b: FinancialYearItem) => a.year - b.year)
+      .slice(-5);
+  }
+
   const rows = fundamentals?.incomeStatementHistory?.incomeStatementHistory ?? [];
   return rows
     .map((row: any) => {
       const revenue = safeNumber(row.totalRevenue);
       const netIncome = safeNumber(row.netIncome);
-      const year = row.endDate ? new Date(row.endDate).getFullYear() : undefined;
+      const year = safeYear(row.endDate);
       if (!year || revenue === undefined || netIncome === undefined || revenue === 0) return undefined;
       return {
         year,

@@ -3,7 +3,7 @@
  * quoteSummary Yahoo brut.
  */
 
-import type { AssetMarketInfo } from "@pea/shared";
+import type { AssetMarketInfo, FinancialYearItem } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
 
 function rawNumber(value: unknown): number | undefined {
@@ -26,6 +26,52 @@ function rawDate(value: unknown): string | undefined {
     return Number.isFinite(time) ? new Date(time).toISOString() : undefined;
   }
   return undefined;
+}
+
+function timeSeriesRows(raw: any): any[] {
+  if (Array.isArray(raw)) return raw.flatMap((row) => timeSeriesRows(row));
+  if (Array.isArray(raw?.timeseries?.result)) return raw.timeseries.result.flatMap((row: any) => expandTimeSeriesResult(row));
+  if (Array.isArray(raw?.result)) return raw.result.flatMap((row: any) => expandTimeSeriesResult(row));
+  if (raw && typeof raw === "object") return expandTimeSeriesResult(raw);
+  return [];
+}
+
+function expandTimeSeriesResult(row: any): any[] {
+  const metricKey = Object.keys(row ?? {}).find((key) => key.startsWith("annual") && Array.isArray(row[key]));
+  if (!metricKey || !Array.isArray(row?.timestamp)) return [row];
+  return row.timestamp.map((timestamp: unknown, index: number) => ({
+    date: timestamp,
+    [metricKey]: row[metricKey]?.[index]
+  }));
+}
+
+function rowYear(row: any) {
+  const date = row.asOfDate ?? row.endDate ?? row.period ?? row.date;
+  const timestamp = typeof date === "number" && date < 10_000_000_000 ? date * 1000 : date;
+  const year = date ? new Date(timestamp).getFullYear() : Number(row.fiscalYear);
+  return Number.isInteger(year) ? year : undefined;
+}
+
+export function financialRowsFromTimeSeries(raw: any): FinancialYearItem[] {
+  const byYear = new Map<number, { revenue?: number; netIncome?: number }>();
+
+  for (const row of timeSeriesRows(raw)) {
+    const year = rowYear(row);
+    const revenue = rawNumber(row.annualTotalRevenue ?? row.totalRevenue);
+    const netIncome = rawNumber(row.annualNetIncome ?? row.netIncome);
+    if (!year || revenue === undefined || netIncome === undefined || revenue === 0) continue;
+    byYear.set(year, { revenue, netIncome });
+  }
+
+  return [...byYear.entries()]
+    .map(([year, row]) => ({
+      year,
+      revenue: row.revenue as number,
+      netIncome: row.netIncome as number,
+      netMargin: ((row.netIncome as number) / (row.revenue as number)) * 100
+    }))
+    .sort((a, b) => a.year - b.year)
+    .slice(-5);
 }
 
 /** Convertit quoteSummary en AssetMarketInfo consomme par l'API. */
