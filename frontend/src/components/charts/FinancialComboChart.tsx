@@ -1,7 +1,8 @@
 import type { FinancialYearItem } from "@pea/shared";
-import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { ChartEmpty } from "./ChartEmpty";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 import { compactMoney, formatPercent } from "./chartFormat";
 
 function MarginLabel({ x, y, value }: LabelProps) {
@@ -19,7 +20,7 @@ export function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
 
   return (
     <div className="h-[420px] min-w-0">
-      <ResponsiveContainer>
+      <SafeResponsiveContainer>
         <ComposedChart data={data} margin={{ bottom: 8, left: 0, right: 8, top: 34 }}>
           <CartesianGrid stroke="#263844" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="year" tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} />
@@ -45,7 +46,7 @@ export function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
             yAxisId="margin"
           />
         </ComposedChart>
-      </ResponsiveContainer>
+      </SafeResponsiveContainer>
     </div>
   );
 }

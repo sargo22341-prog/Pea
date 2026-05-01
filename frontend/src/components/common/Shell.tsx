@@ -7,6 +7,15 @@ import type { User } from "@pea/shared";
 import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import type { NavLinkRenderProps } from "react-router-dom";
+
+function navButtonClass({ isActive }: NavLinkRenderProps) {
+  return isActive ? "btn bg-panel2 text-mint" : "btn-ghost";
+}
+
+function mobileNavClass({ isActive }: NavLinkRenderProps) {
+  return `min-w-0 flex flex-col items-center gap-1 px-0.5 py-3 text-[10px] ${isActive ? "text-mint" : "text-slate-400"}`;
+}
 
 export function Shell({ user }: { user: User }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
@@ -65,7 +74,7 @@ export function Shell({ user }: { user: User }) {
           <nav className="hidden items-center gap-2 lg:flex">
             {links.map((link) => (
               <NavLink
-                className={({ isActive }) => (isActive ? "btn bg-panel2 text-mint" : "btn-ghost")}
+                className={navButtonClass}
                 key={link.to}
                 to={link.to}
               >
@@ -73,7 +82,7 @@ export function Shell({ user }: { user: User }) {
                 {link.label}
               </NavLink>
             ))}
-            <NavLink className={({ isActive }) => (isActive ? "btn bg-panel2 text-mint" : "btn-ghost")} title="Parametres" to="/settings">
+            <NavLink className={navButtonClass} title="Parametres" to="/settings">
               {!hasProfileIcon || profileFailed ? (
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                   {user.username.slice(0, 1).toUpperCase()}
@@ -99,9 +108,7 @@ export function Shell({ user }: { user: User }) {
       <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-ink/95 lg:hidden" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
         {links.map((link) => (
           <NavLink
-            className={({ isActive }) =>
-              `min-w-0 flex flex-col items-center gap-1 px-0.5 py-3 text-[10px] ${isActive ? "text-mint" : "text-slate-400"}`
-            }
+            className={mobileNavClass}
             key={link.to}
             to={link.to}
           >

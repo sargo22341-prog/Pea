@@ -9,6 +9,7 @@ import { logger } from "../../services/shared/logger.service.js";
 import { yahooService } from "../../services/yahoo/index.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { sortArticlesByDateDesc, userNewsLanguages } from "../shared/news.helpers.js";
+import { routeParam } from "../shared/params.js";
 import {
   type AssetNewsCandidate,
   assetNewsAggregateCacheKey,
@@ -145,6 +146,6 @@ newsRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
     res.json([]);
     return;
   }
-  const result = await yahooService.news(req.params.symbol, userNewsLanguages(req));
+  const result = await yahooService.news(routeParam(req.params.symbol, "symbol"), userNewsLanguages(req));
   res.json(result.data);
 }));

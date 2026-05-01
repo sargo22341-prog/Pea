@@ -17,6 +17,7 @@ import { evaluatePeaEligibility, rankAssetForPea } from "../../services/assets/p
 import { isMarketDataUnavailable, yahooService } from "../../services/yahoo/index.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
+import { routeParam } from "../shared/params.js";
 import { userNewsLanguages } from "../shared/news.helpers.js";
 
 export const assetsRouter = express.Router();
@@ -31,7 +32,7 @@ function intradayDebugClock(range: string) {
 
 assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
-  const symbol = req.params.symbol.toUpperCase();
+  const symbol = routeParam(req.params.symbol, "symbol").toUpperCase();
   const positionPromise = portfolioService.getPosition(symbol);
   const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE symbol = ?").get(symbol);
   let marketUnavailable = false;

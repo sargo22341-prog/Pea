@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const frontendRoot = path.resolve(projectRoot, "frontend");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, projectRoot, "");
@@ -15,6 +16,16 @@ export default defineConfig(({ mode }) => {
     },
     envDir: projectRoot,
     plugins: [react()],
+    resolve: {
+      alias: {
+        react: path.resolve(frontendRoot, "node_modules/react"),
+        "react/jsx-runtime": path.resolve(frontendRoot, "node_modules/react/jsx-runtime.js"),
+        "react/jsx-dev-runtime": path.resolve(frontendRoot, "node_modules/react/jsx-dev-runtime.js"),
+        "react-dom/client": path.resolve(frontendRoot, "node_modules/react-dom/client.js"),
+        "react-dom": path.resolve(frontendRoot, "node_modules/react-dom")
+      },
+      dedupe: ["react", "react-dom"]
+    },
     server: {
       port: 5173,
       proxy: {

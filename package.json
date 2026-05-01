@@ -8,6 +8,10 @@
     "frontend",
     "shared"
   ],
+  "overrides": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
   "scripts": {
     "dev": "node scripts/ensure-port-free.mjs 4000 && concurrently -k \"npm run dev:backend\" \"node scripts/wait-for-health.mjs http://127.0.0.1:4000/health && npm run dev:frontend\"",
     "dev:clear": "node scripts/clear-market-cache.mjs && npm run dev",
@@ -20,12 +24,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "concurrently": "^8.2.2",
-    "eslint": "^10.2.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^8.59.0"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.1"
   },
   "dependencies": {
     "vite": "^8.0.10"

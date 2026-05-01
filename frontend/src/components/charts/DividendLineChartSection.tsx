@@ -1,7 +1,8 @@
 import type { AssetMarketInfo, DividendEvent } from "@pea/shared";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { formatMaybeDate, formatMonthYear, formatPlainPercent, money } from "../../lib/format";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 type DividendChartPoint = {
   date: string;
@@ -65,7 +66,7 @@ export function DividendLineChartSection({
         </h2>
       </div>
       <div className="h-[320px] min-w-0 px-1 py-4 sm:h-[360px] sm:px-3">
-        <ResponsiveContainer>
+        <SafeResponsiveContainer>
           <LineChart data={chartData} margin={{ bottom: 8, left: 0, right: 20, top: 36 }}>
             <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 3" vertical={false} />
 
@@ -109,7 +110,7 @@ export function DividendLineChartSection({
               type="monotone"
             />
           </LineChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
     </section>
   );

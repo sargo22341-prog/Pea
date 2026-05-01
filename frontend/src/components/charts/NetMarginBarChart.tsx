@@ -1,8 +1,9 @@
 import type { NetMarginItem } from "@pea/shared";
 import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 import { formatPercent } from "./chartFormat";
 
 type NetMarginTooltipProps = {
@@ -66,7 +67,7 @@ export function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
 
   return (
     <div className="h-[420px] min-w-0">
-      <ResponsiveContainer>
+      <SafeResponsiveContainer>
         <BarChart data={data} layout="vertical" margin={{ bottom: 8, left: 0, right: 20, top: 8 }}>
           <CartesianGrid horizontal={false} stroke="#263844" strokeDasharray="3 3" />
           <XAxis tick={{ fill: "#94a3b8", fontSize: 12 }} tickFormatter={(value) => formatPercent(Number(value))} type="number" />
@@ -80,7 +81,7 @@ export function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
           <Tooltip content={<NetMarginTooltip />} />
           <Bar dataKey="netMargin" fill="#4ade80" name="Marge nette" radius={[0, 6, 6, 0]} />
         </BarChart>
-      </ResponsiveContainer>
+      </SafeResponsiveContainer>
     </div>
   );
 }

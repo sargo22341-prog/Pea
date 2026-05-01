@@ -1,8 +1,9 @@
 import type { PortfolioTreemapItem } from "@pea/shared";
-import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
+import { Tooltip, Treemap } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
 import { chartColors, formatPercent } from "./chartFormat";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 type TreemapContentProps = Partial<PortfolioTreemapItem> & {
   x?: number;
@@ -58,14 +59,15 @@ function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
 
 export function PortfolioTreemap({ data }: { data: PortfolioTreemapItem[] }) {
   if (!data.length) return <ChartEmpty />;
+  const treemapData = data as unknown as Array<Record<string, unknown>>;
 
   return (
     <div className="h-[420px] min-w-0">
-      <ResponsiveContainer>
-        <Treemap content={<TreemapContent />} data={data} dataKey="value" isAnimationActive={false} nameKey="symbol" stroke="#071014">
+      <SafeResponsiveContainer>
+        <Treemap content={<TreemapContent />} data={treemapData} dataKey="value" isAnimationActive={false} nameKey="symbol" stroke="#071014">
           <Tooltip content={<TreemapTooltip />} />
         </Treemap>
-      </ResponsiveContainer>
+      </SafeResponsiveContainer>
     </div>
   );
 }

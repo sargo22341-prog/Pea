@@ -1,11 +1,10 @@
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
 import { useId } from "react";
-import { Area, ComposedChart, Customized, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
-import type { TooltipProps } from "recharts/types/component/Tooltip";
+import { Area, ComposedChart, Customized, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 interface PriceHistoryChartProps {
   data: PriceHistoryInputPoint[];
@@ -45,6 +44,23 @@ type CustomizedChartProps = {
   xAxisMap?: Record<string, { scale?: (value: number) => number }>;
 };
 
+type ChartTooltipPayload = Array<{
+  dataKey?: string | number;
+  name?: string | number;
+  payload?: unknown;
+  value?: unknown;
+}>;
+
+type HistoryTooltipProps = {
+  active?: boolean;
+  payload?: ChartTooltipPayload;
+  label?: unknown;
+  currency: string;
+  labelFormatter: (value: string | number) => string;
+  markerGroupsByX: Map<string, PortfolioTransactionMarker[]>;
+  userTimezone?: string;
+};
+
 export function PriceHistoryChart({
   data,
   range,
@@ -79,7 +95,7 @@ export function PriceHistoryChart({
 
   return (
     <div className={`chart-fade ${heightClassName}`}>
-      <ResponsiveContainer>
+      <SafeResponsiveContainer>
         <ComposedChart data={renderData} margin={{ ...margin, bottom: Math.max(margin?.bottom ?? 0, markerGroups.length > 0 ? 34 : 0) }}>
           <defs>
             <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
@@ -116,7 +132,7 @@ export function PriceHistoryChart({
               borderRadius: 8,
               backdropFilter: "blur(6px)"
             }}
-            content={(props) => (
+            content={(props: { active?: boolean; label?: unknown; payload?: ChartTooltipPayload }) => (
               <HistoryTooltip
                 active={props.active}
                 currency={currency}
@@ -154,13 +170,13 @@ export function PriceHistoryChart({
           />
           {markerGroups.length > 0 && (
             <Customized
-              component={(props: CustomizedChartProps) => (
-                <TransactionMarkerLabels groups={markerGroups} xDataKey={xDataKey} {...props} />
+              component={(props: unknown) => (
+                <TransactionMarkerLabels groups={markerGroups} xDataKey={xDataKey} {...(props as CustomizedChartProps)} />
               )}
             />
           )}
         </ComposedChart>
-      </ResponsiveContainer>
+      </SafeResponsiveContainer>
     </div>
   );
 }
@@ -264,12 +280,7 @@ function HistoryTooltip({
   labelFormatter,
   markerGroupsByX,
   userTimezone
-}: Pick<TooltipProps<ValueType, NameType>, "active" | "payload" | "label"> & {
-  currency: string;
-  labelFormatter: (value: string | number) => string;
-  markerGroupsByX: Map<string, PortfolioTransactionMarker[]>;
-  userTimezone?: string;
-}) {
+}: HistoryTooltipProps) {
   if (!active) return null;
   const valuePayload = payload?.find((item) => item.dataKey === "value");
   const markerPayload = payload?.find((item) => item.name === "Transactions");

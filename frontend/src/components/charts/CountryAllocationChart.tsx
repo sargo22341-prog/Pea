@@ -1,7 +1,8 @@
 import type { AllocationChartItem } from "@pea/shared";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, Tooltip } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
+import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 import { chartColors, formatPercent } from "./chartFormat";
 import { useResponsivePieTooltip } from "./chartInteraction";
 
@@ -38,7 +39,7 @@ export function CountryAllocationChart({ data }: { data: AllocationChartItem[] }
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]" ref={containerRef} onPointerDownCapture={onPointerDownCapture}>
       <div className="h-80 min-w-0">
-        <ResponsiveContainer>
+        <SafeResponsiveContainer>
           <PieChart>
             <Pie data={data} dataKey="value" innerRadius="56%" nameKey="name" outerRadius="86%" paddingAngle={2}>
               {data.map((entry, index) => (
@@ -47,7 +48,7 @@ export function CountryAllocationChart({ data }: { data: AllocationChartItem[] }
             </Pie>
             <Tooltip content={<AllocationTooltip />} key={tooltipResetKey} trigger={tooltipTrigger} wrapperStyle={{ outline: "none" }} />
           </PieChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
       <div className="grid content-center gap-2">
         {data.map((item, index) => (

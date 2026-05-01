@@ -19,7 +19,7 @@ function normalizeNumericInput(value: unknown) {
 }
 
 function numberSchema(label: string) {
-  return z.number({ invalid_type_error: `${label} doit etre un nombre.` }).finite(`${label} doit etre un nombre.`);
+  return z.number({ error: `${label} doit etre un nombre.` }).finite(`${label} doit etre un nombre.`);
 }
 
 function requiredNumber(schema: z.ZodNumber) {

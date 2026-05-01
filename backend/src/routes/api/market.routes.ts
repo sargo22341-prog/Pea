@@ -9,6 +9,7 @@ import { marketDataService } from "../../services/market/market-data.service.js"
 import { marketSnapshotService } from "../../services/market/market-snapshot.service.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
+import { routeParam } from "../shared/params.js";
 
 export const marketRouter = express.Router();
 
@@ -21,14 +22,14 @@ function intradayDebugClock(range: string) {
 }
 
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
-  res.json(await marketSnapshotService.getQuote(req.params.symbol));
+  res.json(await marketSnapshotService.getQuote(routeParam(req.params.symbol, "symbol")));
 }));
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
-  res.json(await marketDataService.getChartData(req.params.symbol, range, intradayDebugClock(range)));
+  res.json(await marketDataService.getChartData(routeParam(req.params.symbol, "symbol"), range, intradayDebugClock(range)));
 }));
 
 marketRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
-  res.json(dividendsService.readDividends(req.params.symbol));
+  res.json(dividendsService.readDividends(routeParam(req.params.symbol, "symbol")));
 }));

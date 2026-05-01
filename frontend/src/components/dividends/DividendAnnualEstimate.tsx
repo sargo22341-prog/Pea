@@ -4,8 +4,9 @@
  */
 
 import type { CurrencyCode } from "@pea/shared";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
+import { SafeResponsiveContainer } from "../charts/SafeResponsiveContainer";
 import { money } from "../../lib/format";
 
 export interface MonthlyDividendEntry {
@@ -54,7 +55,7 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
       </div>
 
       <div className="h-72 min-w-0 p-4">
-        <ResponsiveContainer>
+        <SafeResponsiveContainer>
           <BarChart data={monthlyDividends}>
             <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 12 }} />
             <YAxis hide />
@@ -65,7 +66,7 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
             />
             <Bar dataKey="total" fill="#22c55e" radius={[6, 6, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
     </section>
   );

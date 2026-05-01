@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 
 export function useResponsivePieTooltip(): {
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
   tooltipResetKey: number;
   tooltipTrigger: "hover" | "click";
   onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -46,4 +46,3 @@ export function useResponsivePieTooltip(): {
     onPointerDownCapture
   };
 }
-

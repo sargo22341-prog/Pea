@@ -8,40 +8,44 @@ import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartIcon } from "../shared/multipart.js";
+import { routeParam } from "../shared/params.js";
 
 export const assetIconsRouter = express.Router();
 
 assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
-  let icon = iconService.getIconFile(req.params.symbol);
+  const symbol = routeParam(req.params.symbol, "symbol");
+  let icon = iconService.getIconFile(symbol);
   if (icon?.filePath && icon.mimeType) {
     res.type(icon.mimeType).sendFile(icon.filePath);
     return;
   }
 
-  await iconService.fetchAndStoreIcon(req.params.symbol);
-  icon = iconService.getIconFile(req.params.symbol);
+  await iconService.fetchAndStoreIcon(symbol);
+  icon = iconService.getIconFile(symbol);
   if (icon?.filePath && icon.mimeType) {
     res.type(icon.mimeType).sendFile(icon.filePath);
     return;
   }
 
-  res.type("image/svg+xml").send(iconService.placeholder(req.params.symbol));
+  res.type("image/svg+xml").send(iconService.placeholder(symbol));
 }));
 
 assetIconsRouter.post(
   "/assets/:symbol/icon",
   asyncRoute(async (req, res) => {
     const upload = await parseMultipartIcon(req);
+    const symbol = routeParam(req.params.symbol, "symbol");
     if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
-    logger.debug("icons", "icon upload", { symbol: req.params.symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
-    res.json(await iconService.saveIconFromBuffer(req.params.symbol, upload.buffer, upload.mimeType, "manual"));
+    logger.debug("icons", "icon upload", { symbol: symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
+    res.json(await iconService.saveIconFromBuffer(symbol, upload.buffer, upload.mimeType, "manual"));
   })
 );
 
 assetIconsRouter.delete("/assets/:symbol/icon", asyncRoute(async (req, res) => {
-  iconService.resetIcon(req.params.symbol);
-  logger.debug("icons", "icon delete", { symbol: req.params.symbol.toUpperCase() });
+  const symbol = routeParam(req.params.symbol, "symbol");
+  iconService.resetIcon(symbol);
+  logger.debug("icons", "icon delete", { symbol: symbol.toUpperCase() });
   res.status(204).send();
 }));
 
