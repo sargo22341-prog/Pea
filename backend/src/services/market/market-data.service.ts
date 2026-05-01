@@ -80,11 +80,24 @@ function openMarketWindow(asset: Pick<AssetRow, "symbol" | "exchange">, range: R
   };
 }
 
+function shortRangeEndDate(asset: Pick<AssetRow, "symbol" | "exchange">, now = new Date()) {
+  const session = getLastTradingDay(asset.symbol, asset.exchange, now);
+  if (now.getTime() >= session.period1.getTime() && now.getTime() <= session.period2.getTime()) return now;
+  return session.period2;
+}
+
 function periodForRange(asset: Pick<AssetRow, "symbol" | "exchange">, range: StoredChartRange, now = new Date()) {
   if (range === "all") return { period1: new Date("2000-01-01"), period2: now };
-  const window = openMarketWindow(asset, range, now);
-  if (window) return { period1: window.period1, period2: now };
-  return { period1: now, period2: now };
+  const endDate = openMarketDayCountByRange[range] ? shortRangeEndDate(asset, now) : now;
+  const window = openMarketWindow(asset, range, endDate);
+  if (window) return { period1: window.period1, period2: endDate };
+  logger.warn("market-data", "open market window unavailable; using last trading session fallback", {
+    symbol: asset.symbol,
+    exchange: asset.exchange,
+    range,
+    endDate: endDate.toISOString()
+  });
+  return { period1: endDate, period2: endDate };
 }
 
 function yahooInterval(interval: ChartInterval): "5m" | "15m" | "30m" | "1h" | "1d" {
@@ -143,6 +156,10 @@ function filterRangePoints(points: HistoryPoint[], range: RangeKey, asset?: Pick
   const cutoff = rangeCutoff(range);
   if (!cutoff) return points;
   return points.filter((point) => new Date(point.date).getTime() >= cutoff);
+}
+
+function marketDateCount(points: HistoryPoint[], asset: Pick<AssetRow, "symbol" | "exchange">) {
+  return new Set(points.map((point) => getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date)))).size;
 }
 
 function validateChartPoints(input: {
@@ -219,6 +236,18 @@ export class MarketDataService {
       const session = range === "1d" ? getLastTradingDay(asset.symbol, asset.exchange) : undefined;
       const period = session ? { period1: session.period1, period2: session.period2 } : periodForRange(asset, range);
       const periodWithInclusiveClose = session ? { ...period, period2: new Date(session.period2.getTime() + intervalDurationMs(interval)) } : period;
+      const window = openMarketWindow(asset, range, period.period2);
+      logger.debug("market-data", "yahoo chart request prepared", {
+        symbol: asset.symbol,
+        range,
+        interval,
+        yahooInterval: yahooInterval(interval),
+        period1: periodWithInclusiveClose.period1.toISOString(),
+        period2: periodWithInclusiveClose.period2?.toISOString(),
+        windowStartDate: window?.days[window.days.length - 1]?.date,
+        returnedOpenDays: window?.days.length,
+        requestedOpenDays: openMarketDayCountByRange[range]
+      });
       const chart = await yahooApi.chart(asset.symbol, { ...periodWithInclusiveClose, interval: yahooInterval(interval) });
       const validatedPoints = validateChartPoints({
         symbol: asset.symbol,
@@ -227,6 +256,22 @@ export class MarketDataService {
         marketCloseTime: session?.period2
       });
       const points = filterRangePoints(validatedPoints, range, asset, period.period2);
+      const distinctMarketDays = marketDateCount(points, asset);
+      if (window && distinctMarketDays < window.days.length) {
+        logger.warn("market-data", "short range yahoo response is incomplete", {
+          symbol: asset.symbol,
+          range,
+          requestedOpenDays: window.days.length,
+          returnedMarketDays: distinctMarketDays,
+          yahooPoints: chart.quotes.length,
+          validatedPoints: validatedPoints.length,
+          period1: periodWithInclusiveClose.period1.toISOString(),
+          period2: periodWithInclusiveClose.period2?.toISOString()
+        });
+        if (distinctMarketDays <= 1) {
+          throw new Error(`Yahoo response incomplete for ${asset.symbol} ${range}: ${distinctMarketDays}/${window.days.length} open market days`);
+        }
+      }
       const candles = candleBuilder.buildCandles({
         assetId: asset.id,
         symbol: asset.symbol,
@@ -235,13 +280,12 @@ export class MarketDataService {
         interval,
         points
       });
-      const window = openMarketWindow(asset, range, period.period2);
       if (window) {
         candleRepository.deleteRange(asset.id, range, interval);
-        candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
       }
       updated += candleRepository.upsertCandles(candles);
-      logger.debug("market-data", "candles rebuilt", { symbol: asset.symbol, range, interval, yahooPoints: chart.quotes.length, validatedPoints: validatedPoints.length, rangePoints: points.length, candles: candles.length });
+      if (window) candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
+      logger.debug("market-data", "candles rebuilt", { symbol: asset.symbol, range, interval, yahooPoints: chart.quotes.length, validatedPoints: validatedPoints.length, rangePoints: points.length, returnedMarketDays: distinctMarketDays, candles: candles.length });
     }
     return { updated };
   }

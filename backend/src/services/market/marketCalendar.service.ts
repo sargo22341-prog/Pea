@@ -6,6 +6,7 @@
 import holidays from "../../data/market-holidays.json" with { type: "json" };
 import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
+import { logger } from "../shared/logger.service.js";
 
 export interface MarketCalendar {
   market: "euronext" | "italy" | "xetra" | "madrid" | "london" | "us" | "toronto" | "fallback";
@@ -71,6 +72,20 @@ function getLocalDateParts(date: Date, timeZone: string) {
   return { ...parts, minutes: parts.hour * 60 + parts.minute };
 }
 
+function addDaysToIsoDate(isoDate: string, days: number) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function tradingDayReason(symbol: string | undefined, exchange: string | undefined, date: Date, calendar: MarketCalendar) {
+  const local = getLocalDateParts(date, calendar.timezone);
+  if (local.weekday === "Sat" || local.weekday === "Sun") return "weekend";
+  if (calendar.holidays.includes(local.isoDate)) return "holiday";
+  if (!isTradingDay(symbol, exchange, date)) return "closed";
+  return undefined;
+}
+
 /**
  * Expose la session locale du marche pour le frontend, sans convertir les
  * timestamps API: les champs `open` et `close` sont des heures locales marche.
@@ -106,12 +121,14 @@ export function isMarketOpen(symbol?: string, exchange?: string, date = new Date
 
 export function getLastTradingDay(symbol?: string, exchange?: string, date = new Date()) {
   const calendar = getMarketCalendar(symbol, exchange);
-  const cursor = new Date(date);
+  let cursorDate = getLocalDateParts(date, calendar.timezone).isoDate;
   for (let index = 0; index < 10; index += 1) {
+    const cursor = zonedTimeToUtc(cursorDate, "12:00", calendar.timezone);
     const local = getLocalDateParts(cursor, calendar.timezone);
     const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
     if (isTradingDay(symbol, exchange, cursor)) {
-      if (local.minutes >= timeToMinutes(calendar.openTime) || index > 0) {
+      const endLocal = index === 0 ? getLocalDateParts(date, calendar.timezone) : local;
+      if (endLocal.minutes >= timeToMinutes(calendar.openTime) || index > 0) {
         return {
           date: local.isoDate,
           period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
@@ -120,8 +137,7 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
         };
       }
     }
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-    cursor.setUTCHours(23, 59, 0, 0);
+    cursorDate = addDaysToIsoDate(cursorDate, -1);
   }
   const local = getLocalDateParts(date, calendar.timezone);
   return {
@@ -144,29 +160,40 @@ export function getPreviousOpenMarketDays(
 ): OpenMarketDay[] {
   const { symbol, exchange } = resolveMarketInput(market);
   const calendar = getMarketCalendar(symbol, exchange);
-  const cursor = new Date(endDate);
   const days: OpenMarketDay[] = [];
+  const ignored: Array<{ date: string; reason: string }> = [];
   const maxLookbackDays = Math.max(20, count * 4 + 20);
-  const seen = new Set<string>();
+  let cursorDate = getLocalDateParts(endDate, calendar.timezone).isoDate;
 
   for (let index = 0; index < maxLookbackDays && days.length < count; index += 1) {
+    const cursor = zonedTimeToUtc(cursorDate, "12:00", calendar.timezone);
     const local = getLocalDateParts(cursor, calendar.timezone);
-    if (!seen.has(local.isoDate)) {
-      seen.add(local.isoDate);
-      if (isTradingDay(symbol, exchange, cursor)) {
-        const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
-        days.push({
-          date: local.isoDate,
-          period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
-          period2: zonedTimeToUtc(local.isoDate, closeTime, calendar.timezone),
-          calendar
-        });
-      }
+    const reason = tradingDayReason(symbol, exchange, cursor, calendar);
+    if (!reason) {
+      const closeTime = calendar.earlyCloses[local.isoDate] ?? calendar.closeTime;
+      days.push({
+        date: local.isoDate,
+        period1: zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone),
+        period2: zonedTimeToUtc(local.isoDate, closeTime, calendar.timezone),
+        calendar
+      });
+    } else {
+      ignored.push({ date: local.isoDate, reason });
     }
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-    cursor.setUTCHours(12, 0, 0, 0);
+    cursorDate = addDaysToIsoDate(cursorDate, -1);
   }
 
+  logger.debug("market-data", "open market window resolved", {
+    market: calendar.market,
+    timezone: calendar.timezone,
+    symbol,
+    exchange,
+    endDate: endDate.toISOString(),
+    requestedOpenDays: count,
+    returnedOpenDays: days.length,
+    startDate: days[days.length - 1]?.date,
+    ignoredDays: ignored
+  });
   return days;
 }
 

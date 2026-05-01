@@ -39,7 +39,7 @@ function nowIso() {
 
 function taskKey(task: Omit<ConstructionTask, "key">) {
   return task.type === "candles" || task.type === "finalize" || task.type === "rebuild-stored"
-    ? `${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase()
+    ? `${task.type}:${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase()
     : `${task.symbol ?? "all"}:${task.type}`.toUpperCase();
 }
 
@@ -51,9 +51,18 @@ export class DataConstructionQueueService {
   private sequence = 0;
 
   enqueue(tasks: Array<Omit<ConstructionTask, "key">>, message = "Construction des donnees en attente"): DataConstructionJobDto {
-    const uniqueTasks = tasks
-      .map((task) => ({ ...task, key: taskKey(task) }))
-      .filter((task) => !this.activeTaskKeys.has(task.key));
+    const preparedTasks = tasks.map((task) => ({ ...task, key: taskKey(task) }));
+    const uniqueTasks = preparedTasks.filter((task) => {
+      const active = this.activeTaskKeys.has(task.key);
+      logger.debug("market-data", active ? "construction task skipped" : "construction task created", {
+        task: task.key,
+        type: task.type,
+        symbol: task.symbol,
+        range: task.range,
+        reason: active ? "already-active" : "queued"
+      });
+      return !active;
+    });
 
     if (!uniqueTasks.length) return this.latest();
 
@@ -162,13 +171,31 @@ export class DataConstructionQueueService {
     job.updatedAt = nowIso();
 
     try {
+      logger.debug("market-data", "construction task started", {
+        task: task.key,
+        type: task.type,
+        symbol: task.symbol,
+        range: task.range
+      });
       await this.execute(task);
       job.completedTasks += 1;
+      logger.debug("market-data", "construction task success", {
+        task: task.key,
+        type: task.type,
+        symbol: task.symbol,
+        range: task.range
+      });
     } catch (error) {
       job.failedTasks += 1;
       const message = error instanceof Error ? error.message : String(error);
       job.errors.push(`${task.key}: ${message}`);
-      logger.warn("market-data", "background construction task failed", { task: task.key, error: message });
+      logger.warn("market-data", "construction task failed", {
+        task: task.key,
+        type: task.type,
+        symbol: task.symbol,
+        range: task.range,
+        reason: message
+      });
     } finally {
       job.updatedAt = nowIso();
       if (job.completedTasks + job.failedTasks >= job.totalTasks) {
