@@ -50,16 +50,16 @@ export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
 
-  enqueue(tasks: Array<Omit<ConstructionTask, "key">>, message = "Construction des donnees en attente"): DataConstructionJobDto {
+  enqueue(tasks: Array<Omit<ConstructionTask, "key">>, message = "Construction des donnees en attente", options: { force?: boolean } = {}): DataConstructionJobDto {
     const preparedTasks = tasks.map((task) => ({ ...task, key: taskKey(task) }));
     const uniqueTasks = preparedTasks.filter((task) => {
-      const active = this.activeTaskKeys.has(task.key);
+      const active = !options.force && this.activeTaskKeys.has(task.key);
       logger.debug("market-data", active ? "construction task skipped" : "construction task created", {
         task: task.key,
         type: task.type,
         symbol: task.symbol,
         range: task.range,
-        reason: active ? "already-active" : "queued"
+        reason: active ? "already-active" : options.force ? "forced" : "queued"
       });
       return !active;
     });
@@ -106,6 +106,21 @@ export class DataConstructionQueueService {
       { type: "dividends" as const, symbol, message: `${symbol} - dividends` }
     ]);
     return this.enqueue(tasks, `Construction de ${uniqueSymbols.length} asset(s) planifiee`);
+  }
+
+  enqueueMarketDataRebuild(symbols: string[], ranges: StoredChartRange[], options: { force?: boolean } = {}) {
+    const uniqueSymbols = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
+    const uniqueRanges = [...new Set(ranges)];
+    const tasks = uniqueSymbols.flatMap((symbol) =>
+      uniqueRanges.map((range) => ({
+        type: "candles" as const,
+        symbol,
+        range,
+        message: `${symbol} - rebuild ${range}`
+      }))
+    );
+    const rangeLabel = uniqueRanges.length === 1 ? uniqueRanges[0] : "toutes ranges";
+    return this.enqueue(tasks, `Reconstruction marche ${rangeLabel} de ${uniqueSymbols.length} asset(s) planifiee`, options);
   }
 
   enqueuePostCloseFinalization(symbols: string[]) {
@@ -167,7 +182,7 @@ export class DataConstructionQueueService {
     if (!job) return;
     job.status = "running";
     job.currentMessage = task.message;
-    job.currentTaskLabel = task.range ? `${task.symbol} - ${task.range}` : `${task.symbol} - ${task.type}`;
+    job.currentTaskLabel = task.message;
     job.updatedAt = nowIso();
 
     try {

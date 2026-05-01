@@ -25,20 +25,20 @@ Les charts portefeuille ne sont pas stockes. `PortfolioService` reconstruit dyna
 
 Les routes admin suivantes sont exposees:
 
-- `POST /admin/market-data/clear`
 - `GET /admin/market-data/construction`
-- `POST /admin/market-data/rebuild-all`
+- `POST /admin/market-data/rebuild` avec `{ "range": "1d" | "1w" | "1m" | "all" | "all_ranges" }`
+- `POST /admin/market-data/rebuild-all` garde une compatibilite et reconstruit `all_ranges`
 - `POST /admin/market-data/refresh-snapshots`
 - `POST /admin/market-data/refresh-financials`
 - `POST /admin/market-data/refresh-dividends`
 
-Le nettoyage supprime les donnees marche reconstruites et anciens caches marche, sans supprimer utilisateurs, transactions, positions, watchlist ou preferences.
+La reconstruction par range supprime uniquement les candles, finalisations et caches chart de la range demandee, sans supprimer utilisateurs, transactions, positions, watchlist, preferences ou donnees annexes.
 
 ## Construction en arriere-plan
 
 Les routes de lecture ne reconstruisent pas massivement les donnees. Si une chart manque de candles, le backend renvoie les points disponibles avec `isPreparing`, `missingRanges`, `missingAssets` et `jobId`, puis planifie une sous-tache en queue.
 
-La queue limite Yahoo a une tache active et deduplique globalement par asset/range pour les candles. Une reconstruction complete cree 4 sous-taches de candles par asset (`1d`, `1w`, `1m`, `all`) plus snapshot, financials et dividends. La finalisation post-cloture expose les sous-taches `finalisation 1d`, `mise a jour 1w`, `mise a jour 1m` et `mise a jour all`. Le statut expose `totalTasks`, `completedTasks`, `failedTasks`, `pendingTasks`, `progressPercent` et `currentTaskLabel`.
+La queue limite Yahoo a une tache active et deduplique globalement par type/asset/range pour les candles. Une reconstruction `all_ranges` cree 4 sous-taches de candles par asset (`1d`, `1w`, `1m`, `all`); les snapshots, financials et dividends restent des actions annexes separees. La finalisation post-cloture expose les sous-taches `finalisation 1d`, `mise a jour 1w`, `mise a jour 1m` et `mise a jour all`. Le statut expose `totalTasks`, `completedTasks`, `failedTasks`, `pendingTasks`, `progressPercent` et `currentTaskLabel`.
 
 ## Limites yahoo-finance2
 

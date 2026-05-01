@@ -63,13 +63,15 @@ class PreparedStatement {
    * Exécute une requête d'écriture puis force la persistance du fichier SQLite.
    *
    * @param params Valeurs liées aux marqueurs SQL.
-   * @returns Rien.
+   * @returns Nombre de lignes modifiees par SQLite.
    */
   run(...params: unknown[]) {
     this.statement.bind(params as BindParams);
     this.statement.step();
     this.statement.free();
+    const rowsModified = this.database.rowsModified();
     this.database.persist();
+    return rowsModified;
   }
 }
 
@@ -105,6 +107,15 @@ class DatabaseAdapter {
    */
   prepare(sql: string) {
     return new PreparedStatement(this, this.database.prepare(sql));
+  }
+
+  /**
+   * Retourne le nombre de lignes modifiees par la derniere instruction.
+   *
+   * @returns Compteur SQLite de modifications.
+   */
+  rowsModified() {
+    return this.database.getRowsModified();
   }
 
   /**

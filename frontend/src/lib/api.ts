@@ -37,6 +37,8 @@ import type {
   WatchlistItem
 } from "@pea/shared";
 
+export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
+
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const inFlightRequests = new Map<string, Promise<unknown>>();
 
@@ -195,9 +197,11 @@ export const api = {
   },
   resetAssetIcon: (symbol: string) => request<void>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
   assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons"),
-  clearMarketData: () => request<{ clearedTables: string[] }>("/api/admin/market-data/clear", { method: "POST" }),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
-  rebuildAllMarketData: () => request<DataConstructionJobDto>("/api/admin/market-data/rebuild-all", { method: "POST" }),
+  rebuildMarketData: (range: MarketDataRebuildRange) =>
+    request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
+  rebuildAllMarketData: () =>
+    request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
   refreshMarketSnapshots: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-snapshots", { method: "POST" }),
   refreshFinancials: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-financials", { method: "POST" }),
   refreshDividends: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-dividends", { method: "POST" }),
