@@ -21,10 +21,10 @@ export function DividendLineChartSection({
   currentPrice?: number;
   averageBuyPrice?: number;
 }) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getUTCFullYear();
   const fiveYearsAgo = new Date();
   fiveYearsAgo.setFullYear(currentYear - 5);
-  const chartEvents = mergeMarketDividend(dividends, marketInfo);
+  const chartEvents = mergeMarketDividend(dividends, marketInfo, currentYear);
 
   const chartData = chartEvents
     .filter((event) => {
@@ -41,13 +41,17 @@ export function DividendLineChartSection({
 
   if (chartData.length === 0) return null;
 
-  const annualDividendPerShare = Number.isFinite(marketInfo?.dividendRate) && Number(marketInfo?.dividendRate) > 0
-    ? Number(marketInfo?.dividendRate)
-    : chartEvents.reduce((total, event) => {
-        const date = new Date(event.date);
-        if (!Number.isFinite(date.getTime()) || date.getFullYear() !== currentYear || !Number.isFinite(event.amount)) return total;
-        return total + event.amount;
-      }, 0);
+  const marketDividendState = marketDividendYearState(marketInfo, currentYear);
+  const annualDividendPerShare =
+    marketDividendState === "outdated"
+      ? 0
+      : marketDividendState === "current" && Number.isFinite(marketInfo?.dividendRate) && Number(marketInfo?.dividendRate) > 0
+        ? Number(marketInfo?.dividendRate)
+        : chartEvents.reduce((total, event) => {
+            const date = new Date(event.date);
+            if (!Number.isFinite(date.getTime()) || date.getUTCFullYear() !== currentYear || !Number.isFinite(event.amount)) return total;
+            return total + event.amount;
+          }, 0);
 
   const marketYield = currentPrice && currentPrice > 0 ? (annualDividendPerShare / currentPrice) * 100 : undefined;
   const personalYield = averageBuyPrice && averageBuyPrice > 0 ? (annualDividendPerShare / averageBuyPrice) * 100 : undefined;
@@ -111,42 +115,78 @@ export function DividendLineChartSection({
   );
 }
 
-function mergeMarketDividend(dividends: DividendEvent[], marketInfo?: AssetMarketInfo): DividendEvent[] {
-  const marketDividend = marketDividendEvent(dividends, marketInfo);
+function mergeMarketDividend(dividends: DividendEvent[], marketInfo: AssetMarketInfo | undefined, currentYear: number): DividendEvent[] {
+  const marketDividend = marketDividendEvent(dividends, marketInfo, currentYear);
   if (!marketDividend) return dividends;
   return [...dividends, marketDividend];
 }
 
-function marketDividendEvent(dividends: DividendEvent[], marketInfo?: AssetMarketInfo): DividendEvent | undefined {
+function marketDividendEvent(dividends: DividendEvent[], marketInfo: AssetMarketInfo | undefined, currentYear: number): DividendEvent | undefined {
   const amount = marketInfo?.dividendRate;
   const exDate = marketInfo?.exDividendDate;
-  if (!Number.isFinite(amount) || Number(amount) <= 0 || !exDate) return undefined;
+  if (!exDate) return undefined;
 
   const parsedExDate = new Date(exDate);
   if (!Number.isFinite(parsedExDate.getTime())) return undefined;
+  const exDateYear = parsedExDate.getUTCFullYear();
+  const currentYearDividends = dividendsForYear(dividends, currentYear);
+  const hasCurrentYearEvent = currentYearDividends.length > 0;
+  const currency = marketInfo.currency ?? dividends[0]?.currency ?? "EUR";
+
+  if (exDateYear !== currentYear) {
+    if (hasCurrentYearEvent) return undefined;
+    return {
+      symbol: dividends[0]?.symbol ?? "",
+      date: currentYearDateFor(parsedExDate, currentYear),
+      amount: 0,
+      currency,
+      status: "estimated"
+    };
+  }
+
+  if (!Number.isFinite(amount) || Number(amount) <= 0) return undefined;
 
   const sameDay = dividends.some((event) => sameUtcDay(event.date, parsedExDate));
   if (sameDay) return undefined;
 
-  const latestCompletedYear = latestDividendYear(dividends);
-  const latestCompletedYearCount = dividends.filter((event) => new Date(event.date).getUTCFullYear() === latestCompletedYear).length;
-  if (latestCompletedYearCount > 1) return undefined;
+  const knownCurrentYearAmount = latestDividendAmount(currentYearDividends);
+  const fractionCount = knownCurrentYearAmount === undefined ? previousYearDividendCount(dividends, currentYear) : 0;
+  const eventAmount = knownCurrentYearAmount ?? (fractionCount > 1 ? Number(amount) / fractionCount : Number(amount));
 
-  const currency = marketInfo.currency ?? dividends[0]?.currency ?? "EUR";
   return {
     symbol: dividends[0]?.symbol ?? "",
     date: parsedExDate.toISOString(),
-    amount: Number(amount),
+    amount: eventAmount,
     currency,
     status: "estimated"
   };
 }
 
-function latestDividendYear(dividends: DividendEvent[]) {
-  return dividends.reduce((latest, event) => {
-    const year = new Date(event.date).getUTCFullYear();
-    return Number.isFinite(year) ? Math.max(latest, year) : latest;
-  }, 0);
+function marketDividendYearState(marketInfo: AssetMarketInfo | undefined, currentYear: number) {
+  if (!marketInfo?.exDividendDate) return "unknown";
+  const exDate = new Date(marketInfo.exDividendDate);
+  if (!Number.isFinite(exDate.getTime())) return "unknown";
+  return exDate.getUTCFullYear() === currentYear ? "current" : "outdated";
+}
+
+function currentYearDateFor(date: Date, currentYear: number) {
+  return new Date(Date.UTC(currentYear, date.getUTCMonth(), date.getUTCDate(), 12)).toISOString();
+}
+
+function previousYearDividendCount(dividends: DividendEvent[], currentYear: number) {
+  return dividendsForYear(dividends, currentYear - 1).length;
+}
+
+function dividendsForYear(dividends: DividendEvent[], year: number) {
+  return dividends.filter((event) => {
+    const date = new Date(event.date);
+    return Number.isFinite(date.getTime()) && date.getUTCFullYear() === year && Number.isFinite(event.amount);
+  });
+}
+
+function latestDividendAmount(dividends: DividendEvent[]) {
+  const latest = [...dividends].sort((a, b) => b.date.localeCompare(a.date))[0];
+  return latest ? Number(latest.amount) : undefined;
 }
 
 function sameUtcDay(value: string, expected: Date) {

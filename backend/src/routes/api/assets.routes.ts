@@ -133,6 +133,17 @@ function logDividendDesync(symbol: string, dividends: DividendEvent[], marketInf
   if (!logger.isDebugEnabled() || !marketInfo?.exDividendDate || !Number.isFinite(marketInfo.dividendRate)) return;
   const marketExDate = new Date(marketInfo.exDividendDate);
   if (!Number.isFinite(marketExDate.getTime())) return;
+  const currentYear = new Date().getUTCFullYear();
+  if (marketExDate.getUTCFullYear() !== currentYear) {
+    logger.debug("market-data", "market dividend ex-date is outside current year", {
+      symbol,
+      exDividendDate: marketInfo.exDividendDate,
+      dividendRate: marketInfo.dividendRate,
+      currentYear,
+      latestDividendDate: dividends.at(-1)?.date
+    });
+    return;
+  }
   const hasMatchingEvent = dividends.some((event) => sameUtcDay(event.date, marketExDate));
   if (hasMatchingEvent) return;
   logger.debug("market-data", "market dividend not present in dividend history", {
