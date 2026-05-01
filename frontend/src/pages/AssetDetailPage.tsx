@@ -97,8 +97,10 @@ useEffect(() => {
 }, [assetChartPreparing, assetReload]);
 
 useEffect(() => {
-  const title = asset.data
-    ? `${quote.name.toUpperCase()} | PEA Portfolio`
+  const name = asset.data?.quote?.name;
+
+  const title = name
+    ? `${name.toUpperCase()} | PEA Portfolio`
     : symbol
       ? `${symbol.toUpperCase()} | PEA Portfolio`
       : "PEA Portfolio";
@@ -108,7 +110,7 @@ useEffect(() => {
   return () => {
     document.title = "PEA Portfolio";
   };
-}, [asset.data, symbol]);
+}, [asset.data?.quote?.name, symbol]);
 
 
   if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;

@@ -71,13 +71,27 @@ export function PriceHistoryChart({
   const timeChartData = range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData;
   const renderData = compressTimeAxis ? timeChartData.map((point, index) => ({ ...point, x: index })) : timeChartData;
   const xDataKey = compressTimeAxis ? "x" : "date";
-  const xDomain = compressTimeAxis ? [0, Math.max(renderData.length - 1, 0)] : range === "1d" ? getIntradayDomain(timeChartData, marketSession) ?? chartDataDomain(timeChartData) : chartDataDomain(timeChartData);
-  const xTicks = compressTimeAxis ? compressedTicks(renderData.length, range) : undefined;
+  const xDomain = useMemo(
+    () =>
+      compressTimeAxis
+        ? ([0, Math.max(renderData.length - 1, 0)] as [number, number])
+        : range === "1d"
+          ? getIntradayDomain(timeChartData, marketSession) ?? chartDataDomain(timeChartData)
+          : chartDataDomain(timeChartData),
+    [compressTimeAxis, renderData.length, range, timeChartData, marketSession]
+  );
+  const xTicks = useMemo(
+    () => (compressTimeAxis ? compressedTicks(renderData.length, range) : undefined),
+    [compressTimeAxis, renderData.length, range]
+  );
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
   const gradientId = `${id}-${trend}-gradient`;
   const showBaseline = range === "1d" && Number.isFinite(baselinePrice);
-  const markerGroups = range === "1d" ? [] : groupTransactionMarkers(transactionMarkers, chartData, compressTimeAxis);
+  const markerGroups = useMemo(
+    () => (range === "1d" ? [] : groupTransactionMarkers(transactionMarkers, chartData, compressTimeAxis)),
+    [range, transactionMarkers, chartData, compressTimeAxis]
+  );
   const resolveXDate = (value: string | number) => {
     if (!compressTimeAxis) return value;
     const index = Math.round(Number(value));
