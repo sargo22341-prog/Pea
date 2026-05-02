@@ -1,0 +1,27 @@
+# Dépendances — reconstruites dans le conteneur par npm ci
+**/node_modules
+
+# Artefacts de compilation — reconstruits dans le conteneur par npm run build
+**/dist
+
+# Base de données locale et logs — données persistées via volume Docker
+data/
+backend/data/
+*.log
+*.sqlite
+
+# Contrôle de version
+.git
+.gitignore
+.gitea
+
+# Configuration IDE et Claude Code
+.claude
+.vscode
+.idea
+
+# Fichiers de développement non nécessaires à la production
+*.md
+!README.md
+.env
+.env.*

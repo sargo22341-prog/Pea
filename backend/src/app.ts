@@ -17,6 +17,10 @@ const devCorsOrigin = "http://localhost:5173";
 
 export const app = express();
 
+// Nécessaire pour que req.ip contienne l'adresse du client réel derrière un reverse proxy
+// (Docker, Nginx…), et non l'IP du proxy. Sans cette ligne, le rate-limiter compte
+// toutes les requêtes dans le même bucket.
+app.set("trust proxy", 1);
 app.set("etag", false);
 app.use(
   helmet({

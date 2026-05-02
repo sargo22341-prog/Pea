@@ -1,12 +1,11 @@
-/**
- * Role du fichier : initialiser la base SQLite embarquee avec better-sqlite3
- * et creer les tables necessaires aux donnees utilisateur et caches.
- */
+// Rôle du fichier : initialiser la base SQLite embarquée avec better-sqlite3,
+// créer les tables initiales et appliquer les migrations de schéma.
 
 import BetterSqlite3, { type Database as BetterSqliteDatabase, type Statement } from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
+import { appliquerMigrations } from "./db-migrations.js";
 
 const directory = path.dirname(config.sqlitePath);
 if (directory && directory !== ".") {
@@ -53,13 +52,7 @@ class PreparedStatement {
   }
 }
 
-/**
- * Fournit une facade minimale autour de better-sqlite3.
- *
- * @param filePath Chemin du fichier SQLite.
- * @returns Adaptateur de base utilise par les services backend.
- */
-class DatabaseAdapter {
+export class DatabaseAdapter {
   private database: BetterSqliteDatabase;
 
   constructor(filePath: string) {
@@ -424,3 +417,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
 `);
+
+// Applique les migrations incrémentales après la création du schéma initial
+appliquerMigrations(db);

@@ -248,6 +248,8 @@ test("fresh SQLite schema contains transaction metadata and useful indexes", () 
   assert.ok(result.indexes.includes("idx_transactions_position_traded_at"));
   assert.ok(result.indexes.includes("idx_positions_user_symbol"));
   assert.ok(result.indexes.includes("idx_asset_chart_cache_expires_at"));
+  // Vérifie les index et colonnes créés par les migrations
+  assert.ok(result.indexes.includes("idx_user_sessions_expires_at"), "index sessions manquant");
 });
 
 test("portfolio transactions with fees work on a fresh database", () => {

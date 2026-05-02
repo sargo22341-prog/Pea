@@ -32,11 +32,20 @@ export function verifyMutatingRequestOrigin(): RequestHandler {
     }
 
     const origin = requestOrigin(req.headers.origin) ?? requestOrigin(req.headers.referer);
-    if (!origin || allowedOrigins(req).has(origin)) {
-      next();
+
+    // En production, toute requête mutante sans header Origin est bloquée :
+    // les navigateurs modernes envoient toujours Origin sur les requêtes cross-site,
+    // et une SPA same-origin l'envoie aussi. L'absence d'Origin est suspecte.
+    if (!origin && config.nodeEnv === "production") {
+      next(new HttpError(403, "Origine de requete absente."));
       return;
     }
 
-    next(new HttpError(403, "Origine de requete non autorisee."));
+    if (origin && !allowedOrigins(req).has(origin)) {
+      next(new HttpError(403, "Origine de requete non autorisee."));
+      return;
+    }
+
+    next();
   };
 }

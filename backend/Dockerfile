@@ -28,4 +28,10 @@ COPY --from=build /app/frontend/dist frontend-dist
 
 WORKDIR /app/backend
 EXPOSE 4000
+
+# Vérifie que le serveur répond correctement toutes les 30 secondes.
+# Docker arrête et redémarre le conteneur si 3 contrôles consécutifs échouent.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:4000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
 CMD ["node", "dist/server.js"]
