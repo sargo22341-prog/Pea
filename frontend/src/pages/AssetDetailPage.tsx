@@ -239,6 +239,7 @@ useEffect(() => {
             currency={quote.currency}
             data={chartPoints}
             heightClassName="h-80"
+            hideXAxisTicks
             marketSession={marketSession ?? chart?.marketSession}
             range={range}
             userTimezone={userTimezone}

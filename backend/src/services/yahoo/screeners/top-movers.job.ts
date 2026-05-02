@@ -7,7 +7,7 @@ import type { TopAndLosersResponse, TopMover } from "@pea/shared";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { retryTemporary, yahooClient } from "../yahoo.client.js";
-import { errorMessage, toYahooHttpError } from "../yahoo.errors.js";
+import { errorMessage } from "../yahoo.errors.js";
 
 type ScreenerId = "day_gainers" | "day_losers";
 
@@ -49,7 +49,7 @@ function mapScreenerQuotes(rawQuotes: unknown): TopMover[] {
 
       return {
         symbol,
-        shortName: optionalString(row.shortName) ?? optionalString(row.displayName) ?? optionalString(row.longName),
+        shortName: optionalString(row.shortName) ?? optionalString(row.displayName) ?? optionalString(row.longName) ?? symbol,
         price,
         changePercent,
         change,
@@ -62,8 +62,24 @@ function mapScreenerQuotes(rawQuotes: unknown): TopMover[] {
 
 /** Appelle un screener Yahoo unique, la version installee ne type pas plusieurs scrIds en un appel. */
 async function fetchScreener(scrId: ScreenerId): Promise<TopMover[]> {
-  const result = await retryTemporary(`screener:${scrId}`, () => yahooClient.screener({ scrIds: scrId, count: 5 }));
-  return mapScreenerQuotes((result as { quotes?: unknown })?.quotes);
+  try {
+    const result = await retryTemporary(`screener:${scrId}`, () =>
+      yahooClient.screener({ scrIds: scrId, count: 5 }, undefined, { validateResult: false })
+    );
+    return mapScreenerQuotes((result as { quotes?: unknown })?.quotes);
+  } catch (error) {
+    logger.warn("market-data", "Yahoo screener fallback used", { screener: scrId, error: errorMessage(error) });
+    return [];
+  }
+}
+
+function emptyTopAndLosersResponse(cacheDate: string): TopAndLosersResponse {
+  return {
+    gainers: [],
+    losers: [],
+    cachedAt: new Date().toISOString(),
+    cacheDate
+  };
 }
 
 /** Retourne les top gainers/losers du jour avec un cache valide seulement pour la date locale courante. */
@@ -90,6 +106,6 @@ export async function fetchTopAndLosers(): Promise<TopAndLosersResponse> {
     return cache;
   } catch (error) {
     logger.warn("market-data", "Yahoo top movers error", { cacheDate, error: errorMessage(error) });
-    throw toYahooHttpError(error);
+    return cache ?? emptyTopAndLosersResponse(cacheDate);
   }
 }
