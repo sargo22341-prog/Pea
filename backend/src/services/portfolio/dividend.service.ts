@@ -4,6 +4,7 @@
  */
 
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
+import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
 import { portfolioService } from "./portfolio.service.js";
 import { dividendsService } from "../market/dividends.service.js";
 
@@ -47,6 +48,10 @@ export class DividendService {
     const currentYear = new Date().getFullYear();
     let stale = positions.positions.some((position) => position.quote?.stale);
 
+    // Charge toutes les transactions en une passe pour éviter N×M requêtes DB
+    // (hasDatedTransactions + getQuantityHeldAtDate pour chaque position × dividende).
+    const txCache = buildTransactionCache(positions.positions.map((p) => p.id));
+
     for (const position of positions.positions) {
       const metrics = dividendMetrics(position);
       let dividends: DividendEvent[] = [];
@@ -56,6 +61,7 @@ export class DividendService {
         stale = true;
       }
 
+      const entry = txCache.get(position.id);
       const realDividendYears = new Set(dividends.map((event) => yearFromDate(event.date)).filter((year): year is number => year !== undefined));
       const realDividendPeriods = new Set(dividends.map((event) => yearMonthFromDate(event.date)).filter((period): period is string => period !== undefined));
       const lastYear = currentYear - 1;
@@ -64,9 +70,8 @@ export class DividendService {
       for (const event of dividends) {
         const year = new Date(event.date).getFullYear();
         const amountPerShare = event.amount;
-        const quantity = portfolioService.hasDatedTransactions(position.id)
-          ? portfolioService.getQuantityHeldAtDate(position.id, event.date)
-          : position.quantity;
+        const eventTime = new Date(event.date).getTime();
+        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, eventTime) : position.quantity;
         past.push({
           symbol: position.symbol,
           name: position.name,
@@ -88,9 +93,8 @@ export class DividendService {
         const estimatedPeriod = yearMonthFromDate(date);
         if (estimatedYear === undefined || estimatedPeriod === undefined || realDividendPeriods.has(estimatedPeriod)) continue;
         const amountPerShare = event.amount;
-        const quantity = portfolioService.hasDatedTransactions(position.id)
-          ? portfolioService.getQuantityHeldAtDate(position.id, date)
-          : position.quantity;
+        const estimatedTime = new Date(date).getTime();
+        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, estimatedTime) : position.quantity;
         upcoming.push({
           symbol: position.symbol,
           name: position.name,

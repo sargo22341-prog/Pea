@@ -17,7 +17,7 @@ import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cach
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
-import { buildTransactionCache, computeTotalDividendsReceived, downsamplePoints, getCostBasisAtTime, getQuantityAtTime } from "./portfolio-calculations.js";
+import { buildTransactionCache, computeTotalDividendsReceived, downsamplePoints, getCostBasisAtTime, getQuantityAtTime, positionFromTransactionCache, type PositionTransactionCache } from "./portfolio-calculations.js";
 import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
@@ -858,10 +858,12 @@ export class PortfolioService {
    * @param txCache Cache optionnel pré-chargé par buildTransactionCache.
    * @returns Position enrichie avec prix, valeur et performance.
    */
-  private enrichPositionWithQuote(position: Position, quote?: Quote, txCache?: Map<number, import("./portfolio-calculations.js").PositionTransactionCache>): PositionWithMarket {
-    const entry = txCache?.get(position.id);
-    const dated = entry !== undefined ? entry.hasDated : this.hasDatedTransactions(position.id);
-    const effectivePosition = dated ? this.positionFromDatedTransactions(position) : position;
+  private enrichPositionWithQuote(position: Position, quote?: Quote, txCache?: Map<number, PositionTransactionCache>): PositionWithMarket {
+    // Si aucun cache global n'est fourni, on en construit un pour cette seule position
+    const resolvedCache = txCache ?? buildTransactionCache([position.id]);
+    const entry = resolvedCache.get(position.id);
+    const dated = entry?.hasDated ?? false;
+    const effectivePosition = dated ? positionFromTransactionCache(position, entry!.transactions) : position;
     const currentPrice = quote?.price || effectivePosition.averageBuyPrice;
     const marketValue = currentPrice * effectivePosition.quantity;
     const costBasis = effectivePosition.averageBuyPrice * effectivePosition.quantity;
@@ -878,34 +880,6 @@ export class PortfolioService {
       performancePercent: costBasis ? (performance / costBasis) * 100 : 0,
       estimatedAnnualDividend: quote?.dividendRate ? quote.dividendRate * position.quantity : undefined,
       marketDataUnavailable: !quote || quote.unavailable
-    };
-  }
-
-  private positionFromDatedTransactions(position: Position): Position {
-    const rows = db
-      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
-      .all(position.id) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
-    if (!rows.length) return position;
-
-    let quantity = 0;
-    let costBasis = 0;
-    for (const row of rows) {
-      const rowQuantity = Number(row.quantity);
-      if (row.type === "buy") {
-        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
-        quantity += rowQuantity;
-        costBasis += buyCost;
-      } else if (row.type === "sell") {
-        const averageCost = quantity > 0 ? costBasis / quantity : 0;
-        quantity -= rowQuantity;
-        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-      }
-    }
-
-    return {
-      ...position,
-      quantity,
-      averageBuyPrice: quantity > 0 ? costBasis / quantity : 0
     };
   }
 
@@ -946,7 +920,7 @@ export class PortfolioService {
     // Charge le cache pour cette seule position si aucun cache global n'est fourni
     const cache = txCache ?? buildTransactionCache([position.id]);
     const entry = cache.get(position.id);
-    const effectivePosition = entry?.hasDated ? this.positionFromDatedTransactions(position) : position;
+    const effectivePosition = entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
 
     const [history, quoteResult] = await Promise.all([
       this.safeHistory(effectivePosition.symbol, range, options),

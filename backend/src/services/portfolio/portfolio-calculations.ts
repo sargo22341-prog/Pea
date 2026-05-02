@@ -7,7 +7,7 @@
  * pour chaque position × chaque point de la timeline lors du calcul de performance.
  */
 
-import type { DividendEvent, PortfolioPerformancePoint, PositionWithMarket } from "@pea/shared";
+import type { DividendEvent, PortfolioPerformancePoint, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends.service.js";
 
@@ -125,6 +125,37 @@ export function getCostBasisAtTime(transactions: TransactionRow[], timeMs: numbe
   }
 
   return costBasis;
+}
+
+/**
+ * Reconstruit la quantité et le prix moyen d'une position à partir du cache
+ * de transactions déjà chargé en mémoire. Remplace positionFromDatedTransactions
+ * qui faisait une requête DB supplémentaire même quand txCache était disponible.
+ *
+ * @param position Position de référence (id, symbol, name…).
+ * @param transactions Transactions triées par traded_at ASC issues du cache.
+ * @returns Position avec quantité et averageBuyPrice recalculés depuis l'historique.
+ */
+export function positionFromTransactionCache(position: Position, transactions: TransactionRow[]): Position {
+  if (!transactions.length) return position;
+  let quantity = 0;
+  let costBasis = 0;
+  for (const row of transactions) {
+    const rowQuantity = row.quantity;
+    if (row.type === "buy") {
+      quantity += rowQuantity;
+      costBasis += rowQuantity * row.price + (row.total_fees ?? 0);
+    } else if (row.type === "sell") {
+      const averageCost = quantity > 0 ? costBasis / quantity : 0;
+      quantity -= rowQuantity;
+      costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+    }
+  }
+  return {
+    ...position,
+    quantity,
+    averageBuyPrice: quantity > 0 ? costBasis / quantity : 0
+  };
 }
 
 /**

@@ -5,13 +5,18 @@
  * Optimisations :
  * - React.memo evite les re-renders quand les props n'ont pas change.
  * - useMemo sur toChartPoints evite de recreer le tableau de points a chaque render du parent.
+ * - PriceHistoryChart est charge en lazy : recharts (~430 KB) ne bloque pas le bundle principal.
  */
 
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
-import { memo, useMemo } from "react";
+import { Suspense, lazy, memo, useMemo } from "react";
 import { usePrivacy } from "../../contexts/PrivacyContext";
-import { PriceHistoryChart } from "../charts/PriceHistoryChart";
+import { ChartSkeleton } from "./DashboardSkeletons";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../lib/timezone";
+
+const PriceHistoryChart = lazy(() =>
+  import("../charts/PriceHistoryChart").then((module) => ({ default: module.PriceHistoryChart }))
+);
 
 const fallbackIntradaySession: MarketSessionDto = {
   timezone: "Europe/Paris",
@@ -39,20 +44,22 @@ export const PortfolioChart = memo(function PortfolioChart({
       {chart.isPreparing && (
         <p className="px-4 pb-2 text-xs text-amber">Donnees en cours de preparation{chart.missingAssets?.length ? `: ${chart.missingAssets.join(", ")}` : ""}</p>
       )}
-      <PriceHistoryChart
-        baselineDatetime={chart.baselineDatetime}
-        baselinePrice={chart.baselinePrice}
-        data={chartData}
-        hideXAxisTicks
-        margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
-        maskValues={prive}
-        minTickGap={28}
-        marketSession={marketSession}
-        oneDayTooltipFormat="time"
-        range={range}
-        transactionMarkers={range === "1d" ? [] : chart.transactionMarkers}
-        userTimezone={userTimezone}
-      />
+      <Suspense fallback={<ChartSkeleton />}>
+        <PriceHistoryChart
+          baselineDatetime={chart.baselineDatetime}
+          baselinePrice={chart.baselinePrice}
+          data={chartData}
+          hideXAxisTicks
+          margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
+          maskValues={prive}
+          minTickGap={28}
+          marketSession={marketSession}
+          oneDayTooltipFormat="time"
+          range={range}
+          transactionMarkers={range === "1d" ? [] : chart.transactionMarkers}
+          userTimezone={userTimezone}
+        />
+      </Suspense>
       {range === "1d" && marketSession && marketSession.timezone !== normalizeTimeZone(userTimezone) && (
         <p className="px-4 pt-2 text-xs text-slate-400">
           Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.open, marketSession.close)}, heure locale du marche
