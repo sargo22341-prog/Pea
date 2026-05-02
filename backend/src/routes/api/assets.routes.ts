@@ -6,6 +6,7 @@ import express from "express";
 import type { AssetDetails, AssetMarketInfo, DividendEvent, NewsArticle, Quote } from "@pea/shared";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
+import { currentUserId } from "../../services/auth/user-context.js";
 import { assetDataService } from "../../services/assets/asset-data.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { dividendsService } from "../../services/market/dividends.service.js";
@@ -34,7 +35,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = routeParam(req.params.symbol, "symbol").toUpperCase();
   const positionPromise = portfolioService.getPosition(symbol);
-  const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE symbol = ?").get(symbol);
+  const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), symbol);
   let marketUnavailable = false;
 
   const position = await positionPromise;

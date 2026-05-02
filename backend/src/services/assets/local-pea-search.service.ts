@@ -6,6 +6,7 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
 import { db } from "../../db.js";
+import { currentUserId } from "../auth/user-context.js";
 
 interface RawPeaAsset {
   code?: string | null;
@@ -80,8 +81,8 @@ export class LocalPeaSearchService {
     const normalizedQuery = normalize(query);
     if (normalizedQuery.length < 2) return [];
 
-    const watchlistSymbols = new Set(db.prepare("SELECT symbol FROM watchlist").all().map((row: any) => String(row.symbol).toUpperCase()));
-    const portfolioSymbols = new Set(db.prepare("SELECT symbol FROM positions").all().map((row: any) => String(row.symbol).toUpperCase()));
+    const watchlistSymbols = new Set(db.prepare("SELECT symbol FROM watchlist WHERE user_id = ?").all(currentUserId()).map((row: any) => String(row.symbol).toUpperCase()));
+    const portfolioSymbols = new Set(db.prepare("SELECT symbol FROM positions WHERE user_id = ?").all(currentUserId()).map((row: any) => String(row.symbol).toUpperCase()));
 
     return assets
       .filter((item) => item.searchText.includes(normalizedQuery))

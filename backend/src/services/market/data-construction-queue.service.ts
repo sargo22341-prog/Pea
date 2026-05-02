@@ -180,6 +180,7 @@ export class DataConstructionQueueService {
   private async run(jobId: string, task: ConstructionTask) {
     const job = this.jobs.get(jobId);
     if (!job) return;
+    const startedAt = performance.now();
     job.status = "running";
     job.currentMessage = task.message;
     job.currentTaskLabel = task.message;
@@ -198,7 +199,11 @@ export class DataConstructionQueueService {
         task: task.key,
         type: task.type,
         symbol: task.symbol,
-        range: task.range
+        range: task.range,
+        durationMs: Math.round(performance.now() - startedAt),
+        completedTasks: job.completedTasks,
+        failedTasks: job.failedTasks,
+        totalTasks: job.totalTasks
       });
     } catch (error) {
       job.failedTasks += 1;
@@ -209,7 +214,11 @@ export class DataConstructionQueueService {
         type: task.type,
         symbol: task.symbol,
         range: task.range,
-        reason: message
+        reason: message,
+        durationMs: Math.round(performance.now() - startedAt),
+        completedTasks: job.completedTasks,
+        failedTasks: job.failedTasks,
+        totalTasks: job.totalTasks
       });
     } finally {
       job.updatedAt = nowIso();
@@ -218,6 +227,14 @@ export class DataConstructionQueueService {
         job.currentMessage = job.status === "success" ? "Construction terminee" : "Construction terminee avec erreurs";
         job.currentTaskLabel = undefined;
         for (const completedTask of job.tasks) this.activeTaskKeys.delete(completedTask.key);
+        logger.info("market-data", "construction job finished", {
+          jobId,
+          status: job.status,
+          totalTasks: job.totalTasks,
+          completedTasks: job.completedTasks,
+          failedTasks: job.failedTasks,
+          durationMs: Date.now() - new Date(job.createdAt).getTime()
+        });
       }
     }
   }

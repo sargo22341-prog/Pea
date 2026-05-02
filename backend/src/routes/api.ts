@@ -4,6 +4,8 @@
 
 import express from "express";
 import { attachUser, requireAdmin, requireAuth } from "../middleware/auth.js";
+import { verifyMutatingRequestOrigin } from "../middleware/origin-protection.js";
+import { runWithUser } from "../services/auth/user-context.js";
 import { HttpError } from "../utils/http-error.js";
 import { adminRouter } from "./api/admin.routes.js";
 import { assetIconsRouter } from "./api/asset-icons.routes.js";
@@ -20,10 +22,12 @@ import { watchlistRouter } from "./api/watchlist.routes.js";
 export const apiRouter = express.Router();
 
 apiRouter.use(attachUser);
+apiRouter.use(verifyMutatingRequestOrigin());
 
 apiRouter.use("/auth", authRouter);
 
 apiRouter.use(requireAuth);
+apiRouter.use((req, _res, next) => runWithUser(req.user!.id, next));
 
 apiRouter.use(searchRouter);
 apiRouter.use(marketRouter);

@@ -7,6 +7,7 @@ import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, M
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
+import { currentUserId, normalizeUserId } from "../auth/user-context.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends.service.js";
@@ -16,6 +17,8 @@ import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
+import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
 const createPositionSchema = z.object({
@@ -52,62 +55,23 @@ type TransactionSequenceRow = {
 };
 
 /**
- * Convertit une ligne SQLite de position en contrat partagé.
- *
- * @param row Ligne issue de la table positions.
- * @returns Position normalisée pour les services et réponses API.
- */
-function mapPosition(row: any): Position {
-  return {
-    id: row.id,
-    symbol: row.symbol,
-    name: row.name,
-    quantity: row.quantity,
-    averageBuyPrice: row.average_buy_price,
-    currency: row.currency,
-    notes: row.notes ?? undefined,
-    createdAt: row.created_at
-  };
-}
-
-/**
  * Calcule un identifiant utilisateur stable pour les caches historiques mono-utilisateur.
  *
  * @param userId Identifiant utilisateur éventuel fourni par l'authentification.
  * @returns Identifiant texte compatible avec les clés de cache.
  */
 function normalizedUserId(userId?: string | number) {
-  return String(userId ?? "default");
-}
-
-function nearestTimestamp(target: number, sortedTimestamps: number[]) {
-  let nearest = sortedTimestamps[0];
-  let nearestDistance = Math.abs(nearest - target);
-  for (const timestamp of sortedTimestamps) {
-    const distance = Math.abs(timestamp - target);
-    if (distance >= nearestDistance) continue;
-    nearest = timestamp;
-    nearestDistance = distance;
-  }
-  return nearest;
-}
-
-function isTransactionVisibleInRange(transactionDate: string, transactionTime: number, firstTimestamp: number, lastTimestamp: number, range: RangeKey) {
-  if (range === "1w" || range === "1m") return transactionTime >= firstTimestamp && transactionTime <= lastTimestamp;
-  const transactionDay = transactionDate.slice(0, 10);
-  const firstDay = new Date(firstTimestamp).toISOString().slice(0, 10);
-  const lastDay = new Date(lastTimestamp).toISOString().slice(0, 10);
-  return transactionDay >= firstDay && transactionDay <= lastDay;
+  return String(normalizeUserId(userId));
 }
 
 export class PortfolioService {
   listPositions(): Position[] {
-    const rows = db.prepare("SELECT * FROM positions ORDER BY symbol ASC").all();
+    const rows = portfolioRepository.listPositions();
     return rows.map(mapPosition);
   }
 
   async getPosition(symbol: string): Promise<PositionWithMarket | undefined> {
-    const row = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(symbol.toUpperCase());
+    const row = portfolioRepository.findPositionBySymbol(symbol);
     if (!row) return undefined;
     return this.enrichPosition(mapPosition(row));
   }
@@ -129,7 +93,7 @@ export class PortfolioService {
     }
 
     const name = parsed.name || quoteName || parsed.symbol;
-    const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(parsed.symbol) as any;
+    const existing = portfolioRepository.findPositionBySymbol(parsed.symbol);
 
     if (existing) {
       const oldQuantity = Number(existing.quantity);
@@ -142,16 +106,13 @@ export class PortfolioService {
       db.prepare(
         `UPDATE positions
          SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE symbol = ?`
-      ).run(newQuantity, weightedAverage, name, parsed.currency, parsed.symbol);
+         WHERE user_id = ? AND symbol = ?`
+      ).run(newQuantity, weightedAverage, name, parsed.currency, currentUserId(), parsed.symbol);
     } else {
-      db.prepare(
-        `INSERT INTO positions (symbol, name, quantity, average_buy_price, currency)
-         VALUES (?, ?, ?, ?, ?)`
-      ).run(parsed.symbol, name, parsed.quantity, parsed.averageBuyPrice, parsed.currency);
+      portfolioRepository.insertPosition({ symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency });
     }
 
-    const position = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(parsed.symbol) as any;
+    const position = portfolioRepository.findPositionBySymbol(parsed.symbol)!;
     await marketDataService.ensureAssetInitialized(parsed.symbol);
     if (options.scheduleConstruction !== false) dataConstructionQueue.enqueueAssetConstruction(parsed.symbol);
     db.prepare(
@@ -165,13 +126,13 @@ export class PortfolioService {
 
   async ensurePosition(symbol: string, name: string, currency = "EUR"): Promise<Position> {
     const normalizedSymbol = symbol.toUpperCase();
-    const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(normalizedSymbol) as any;
+    const existing = portfolioRepository.findPositionBySymbol(normalizedSymbol);
     if (existing) return mapPosition(existing);
     db.prepare(
-      `INSERT INTO positions (symbol, name, quantity, average_buy_price, currency)
-       VALUES (?, ?, 0, 0, ?)`
-    ).run(normalizedSymbol, name, currency);
-    const created = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(normalizedSymbol) as any;
+      `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
+       VALUES (?, ?, ?, 0, 0, ?)`
+    ).run(currentUserId(), normalizedSymbol, name, currency);
+    const created = portfolioRepository.findPositionBySymbol(normalizedSymbol)!;
     return mapPosition(created);
   }
 
@@ -249,11 +210,11 @@ export class PortfolioService {
   }
 
   listTransactions(positionId: number): EditablePortfolioTransaction[] {
-    const rows = db.prepare("SELECT * FROM transactions WHERE position_id = ? ORDER BY traded_at DESC, id DESC").all(positionId) as any[];
+    const ownedPosition = portfolioRepository.findPositionById(positionId);
+    if (!ownedPosition) return [];
+    const rows = portfolioRepository.listTransactions(positionId);
     if (!rows.length) {
-      const position = db.prepare("SELECT * FROM positions WHERE id = ?").get(positionId) as any;
-      if (!position) return [];
-      return [legacyTransactionFromPosition(mapPosition(position))];
+      return [legacyTransactionFromPosition(mapPosition(ownedPosition))];
     }
 
     return rows.map((row) => ({
@@ -267,7 +228,7 @@ export class PortfolioService {
       assetName: row.asset_name ?? undefined,
       isin: row.isin ?? undefined,
       ticker: row.ticker ?? undefined,
-      type: row.type,
+      type: row.type === "sell" ? "sell" : "buy",
       quantity: Number(row.quantity),
       executedPrice: Number(row.price),
       price: Number(row.price),
@@ -284,7 +245,7 @@ export class PortfolioService {
   }
 
   createTransaction(positionId: number, input: TransactionMutationInput) {
-    const position = db.prepare("SELECT id FROM positions WHERE id = ?").get(positionId);
+    const position = portfolioRepository.findPositionById(positionId);
     if (!position) throw new HttpError(404, "Position introuvable");
     this.assertValidTransactionMutation(positionId, input);
     db.prepare(
@@ -297,6 +258,7 @@ export class PortfolioService {
   }
 
   updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput) {
+    if (!portfolioRepository.findPositionById(positionId)) throw new HttpError(404, "Position introuvable");
     const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
     if (!existing) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
@@ -311,18 +273,17 @@ export class PortfolioService {
   }
 
   deleteTransaction(positionId: number, transactionId: number) {
+    if (!portfolioRepository.findPositionById(positionId)) throw new HttpError(404, "Position introuvable");
     db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
     this.recomputePositionFromAnyTransactions(positionId);
     this.invalidatePositionCaches(positionId);
   }
 
   recomputePositionFromAnyTransactions(positionId: number) {
-    const rows = db
-      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
+    const rows = portfolioRepository.listTransactionSequence(positionId);
     if (!rows.length) {
       db.prepare("UPDATE positions SET quantity = 0, average_buy_price = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(positionId);
-      this.persistUserAssetPosition("default", positionId);
+      this.persistUserAssetPosition(currentUserId().toString(), positionId);
       return;
     }
 
@@ -343,7 +304,7 @@ export class PortfolioService {
 
     db.prepare("UPDATE positions SET quantity = ?, average_buy_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(quantity, quantity > 0 ? costBasis / quantity : 0, positionId);
-    this.persistUserAssetPosition("default", positionId);
+    this.persistUserAssetPosition(currentUserId().toString(), positionId);
   }
 
   assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
@@ -354,9 +315,7 @@ export class PortfolioService {
       throw new HttpError(400, "Le prix doit etre positif ou nul.");
     }
 
-    const rows = db
-      .prepare("SELECT id, type, quantity, price, total_fees, traded_at FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as TransactionSequenceRow[];
+    const rows = portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[];
     const mutation: TransactionSequenceRow = {
       id: transactionIdToReplace,
       type: input.type,
@@ -391,10 +350,10 @@ export class PortfolioService {
   }
 
   deletePosition(id: number): boolean {
-    const existing = db.prepare("SELECT id FROM positions WHERE id = ?").get(id);
+    const existing = portfolioRepository.findPositionById(id);
     if (!existing) return false;
     this.invalidatePositionCaches(id);
-    db.prepare("DELETE FROM positions WHERE id = ?").run(id);
+    portfolioRepository.deletePosition(id);
     return true;
   }
 
@@ -402,7 +361,7 @@ export class PortfolioService {
     const parsed = createPositionSchema
       .omit({ symbol: true, name: true })
       .parse(input);
-    const existing = db.prepare("SELECT * FROM positions WHERE id = ?").get(id) as any;
+    const existing = portfolioRepository.findPositionById(id);
     if (!existing) throw new HttpError(404, "Position introuvable");
 
     db.prepare(
@@ -412,7 +371,7 @@ export class PortfolioService {
     ).run(parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.notes ?? null, id);
     this.invalidatePositionCaches(id);
 
-    const row = db.prepare("SELECT * FROM positions WHERE id = ?").get(id) as any;
+    const row = portfolioRepository.findPositionById(id)!;
     return this.enrichPosition(mapPosition(row));
   }
 
@@ -423,7 +382,14 @@ export class PortfolioService {
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
     const totalDividendsReceived = this.totalDividendsReceived(positions);
-    const totalFeesRow = db.prepare("SELECT COALESCE(SUM(total_fees), 0) AS total_fees FROM transactions").get() as { total_fees?: number } | undefined;
+    const totalFeesRow = db
+      .prepare(
+        `SELECT COALESCE(SUM(t.total_fees), 0) AS total_fees
+         FROM transactions t
+         JOIN positions p ON p.id = t.position_id
+         WHERE p.user_id = ?`
+      )
+      .get(currentUserId()) as { total_fees?: number } | undefined;
     const totalFees = Number(totalFeesRow?.total_fees ?? 0);
     const totalPerformance = totalValue - totalCost;
 
@@ -604,9 +570,10 @@ export class PortfolioService {
          LEFT JOIN assets a ON a.symbol = p.symbol
          WHERE t.traded_at IS NOT NULL
            AND t.type IN ('buy', 'sell')
+           AND p.user_id = ?
          ORDER BY t.traded_at ASC, t.id ASC`
       )
-      .all() as Array<{
+      .all(currentUserId()) as Array<{
         id: number | string;
         position_id: number | string;
         type: "buy" | "sell";
@@ -732,7 +699,7 @@ export class PortfolioService {
       };
     }
 
-    const position = db.prepare("SELECT id FROM positions WHERE symbol = ?").get(key) as { id: number } | undefined;
+    const position = portfolioRepository.findPositionBySymbol(key, cacheUserId);
     if (!position) return undefined;
     return this.persistUserAssetPosition(cacheUserId, position.id);
   }
@@ -751,7 +718,7 @@ export class PortfolioService {
    * @returns Performance de position prête à afficher.
    */
   async singlePositionPerformance(positionId: number, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance> {
-    const row = db.prepare("SELECT * FROM positions WHERE id = ?").get(positionId) as any;
+    const row = portfolioRepository.findPositionById(positionId);
     if (!row) throw new HttpError(404, "Position introuvable");
     logger.debug("portfolio", "single position performance calculation", { range, positionId });
     return this.positionRangePerformance(mapPosition(row), range, options);
@@ -959,14 +926,9 @@ export class PortfolioService {
    * @returns DTO position utilisateur.
    */
   private persistUserAssetPosition(userId: string, positionId: number): UserAssetPositionDto | undefined {
-    const position = db.prepare("SELECT * FROM positions WHERE id = ?").get(positionId) as any;
+    const position = portfolioRepository.findPositionById(positionId, userId);
     if (!position) return undefined;
-    const transactions = db.prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ?").all(positionId) as Array<{
-      type: string;
-      quantity: number;
-      price: number;
-      total_fees?: number;
-    }>;
+    const transactions = portfolioRepository.listTransactionSequence(positionId);
     const transactionCount = transactions.length;
     const totalFees = transactions.reduce((sum, row) => sum + Number(row.total_fees ?? 0), 0);
     const investedAmount = Number(position.quantity) * Number(position.average_buy_price);
@@ -995,8 +957,8 @@ export class PortfolioService {
    * @returns Rien.
    */
   private invalidatePositionCaches(positionId: number, fallbackSymbol?: string) {
-    const row = db.prepare("SELECT symbol FROM positions WHERE id = ?").get(positionId) as { symbol?: string } | undefined;
-    invalidateUserAssetCaches("*", row?.symbol ?? fallbackSymbol);
+    const row = portfolioRepository.findPositionById(positionId);
+    invalidateUserAssetCaches(currentUserId().toString(), row?.symbol ?? fallbackSymbol);
   }
 
   /**

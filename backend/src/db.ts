@@ -96,14 +96,17 @@ export const db = new DatabaseAdapter(config.sqlitePath);
 db.exec(`
   CREATE TABLE IF NOT EXISTS positions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    symbol TEXT NOT NULL,
     name TEXT NOT NULL,
     quantity REAL NOT NULL,
     average_buy_price REAL NOT NULL,
     currency TEXT NOT NULL DEFAULT 'EUR',
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, symbol),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS transactions (
@@ -112,8 +115,15 @@ db.exec(`
     type TEXT NOT NULL,
     quantity REAL NOT NULL,
     price REAL NOT NULL,
+    total_fees REAL NOT NULL DEFAULT 0,
     currency TEXT NOT NULL,
     traded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source TEXT NOT NULL DEFAULT 'manual',
+    source_file_name TEXT,
+    asset_name TEXT,
+    isin TEXT,
+    ticker TEXT,
+    raw_text_snippet TEXT,
     FOREIGN KEY(position_id) REFERENCES positions(id) ON DELETE CASCADE
   );
 
@@ -203,11 +213,14 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS watchlist (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    symbol TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    symbol TEXT NOT NULL,
     name TEXT NOT NULL,
     exchange TEXT,
     currency TEXT,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, symbol),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS assets (
@@ -399,4 +412,15 @@ db.exec(`
     cached_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
   );
+
+  CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
+  CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
+  CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);
+  CREATE INDEX IF NOT EXISTS idx_watchlist_user_symbol ON watchlist(user_id, symbol);
+  CREATE INDEX IF NOT EXISTS idx_asset_static_cache_expires_at ON asset_static_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_asset_market_cache_expires_at ON asset_market_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_asset_chart_cache_expires_at ON asset_chart_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_asset_dividend_cache_expires_at ON asset_dividend_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
 `);

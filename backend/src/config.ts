@@ -5,9 +5,12 @@ import { isValidTimeZone, zonedTimeToUtc } from "./services/timezone/date-time.s
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootEnvPath = path.resolve(__dirname, "../../.env");
+const initialNodeEnv = process.env.NODE_ENV ?? "development";
 
-dotenv.config({ path: rootEnvPath });
-dotenv.config();
+if (initialNodeEnv !== "production") {
+  dotenv.config({ path: rootEnvPath });
+  dotenv.config();
+}
 
 const fallbackTimezone = "Europe/Paris";
 const configuredTimezone = process.env.APP_TIMEZONE?.trim() || fallbackTimezone;
@@ -30,7 +33,7 @@ export const config = {
   debug: process.env.DEBUG === "true",
   debugDate: parseDebugDate(process.env.DEBUG_DATE, appTimezone),
   frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv: initialNodeEnv,
   appTimezone,
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
   chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json")

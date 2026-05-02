@@ -4,6 +4,7 @@
 
 import type { NewsArticle, NewsLanguage } from "@pea/shared";
 import { db } from "../../db.js";
+import { currentUserId } from "../../services/auth/user-context.js";
 
 export interface AssetNewsPositionRow {
   id: number;
@@ -62,7 +63,7 @@ export function companyNewsQuery(name: string | undefined, symbol: string) {
  * Lit les positions utiles aux news directement en base, sans enrichissement Yahoo.
  */
 export function listAssetNewsPositionRows(): AssetNewsPositionRow[] {
-  return db.prepare("SELECT id, symbol, name, quantity, average_buy_price, currency, updated_at FROM positions ORDER BY symbol ASC").all().map((row: any) => ({
+  return db.prepare("SELECT id, symbol, name, quantity, average_buy_price, currency, updated_at FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(currentUserId()).map((row: any) => ({
     id: Number(row.id),
     symbol: String(row.symbol),
     name: String(row.name),

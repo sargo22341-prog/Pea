@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
+import { currentUserId } from "../auth/user-context.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooClient } from "../yahoo/index.js";
@@ -260,11 +261,13 @@ export class IconService {
     return db
       .prepare(
         `SELECT symbol, name FROM positions
+         WHERE user_id = ?
          UNION
          SELECT symbol, name FROM watchlist
+         WHERE user_id = ?
          ORDER BY symbol ASC`
       )
-      .all()
+      .all(currentUserId(), currentUserId())
       .map((row: any) => {
         const symbol = String(row.symbol);
         return { symbol, name: String(row.name), icon: this.getCached(symbol) };
@@ -276,11 +279,13 @@ export class IconService {
     const known = db
       .prepare(
         `SELECT symbol, name FROM positions WHERE symbol = ?
+           AND user_id = ?
          UNION
          SELECT symbol, name FROM watchlist WHERE symbol = ?
+           AND user_id = ?
          LIMIT 1`
       )
-      .get(key, key) as { name?: string } | undefined;
+      .get(key, currentUserId(), key, currentUserId()) as { name?: string } | undefined;
     const quote = readCachedQuote(key);
     return {
       name: quote?.name ?? known?.name,

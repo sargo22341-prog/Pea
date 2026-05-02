@@ -5,7 +5,7 @@ COPY package.json package-lock.json* ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
-RUN npm install
+RUN npm ci
 
 COPY shared shared
 COPY backend backend
@@ -20,7 +20,7 @@ COPY package.json package-lock.json* ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
-RUN npm install --omit=dev -w backend
+RUN npm ci --omit=dev -w backend
 
 COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/backend/dist backend/dist

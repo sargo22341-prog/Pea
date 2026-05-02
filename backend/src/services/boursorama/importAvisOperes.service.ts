@@ -8,6 +8,7 @@ import type { ParsedAvisOperation, PortfolioTransaction, SearchResult } from "@p
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
+import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { yahooService } from "../yahoo/index.js";
@@ -168,8 +169,8 @@ function markDuplicateWarning(operation: ParsedAvisOperation): ParsedAvisOperati
   if (!symbol) return operation;
 
   const position = db
-    .prepare("SELECT id FROM positions WHERE symbol = ?")
-    .get(symbol.toUpperCase()) as { id: number } | undefined;
+    .prepare("SELECT id FROM positions WHERE user_id = ? AND symbol = ?")
+    .get(currentUserId(), symbol.toUpperCase()) as { id: number } | undefined;
 
   if (!position) return operation;
 
@@ -252,8 +253,8 @@ function findExistingPosition(operation: ParsedAvisOperation) {
     .map((value) => String(value).toUpperCase());
 
   const rows = db
-    .prepare("SELECT symbol, name FROM positions")
-    .all() as Array<{ symbol: string; name: string }>;
+    .prepare("SELECT symbol, name FROM positions WHERE user_id = ?")
+    .all(currentUserId()) as Array<{ symbol: string; name: string }>;
 
   for (const row of rows) {
     const symbol = String(row.symbol).toUpperCase();

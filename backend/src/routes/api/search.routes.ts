@@ -5,6 +5,7 @@
 import express from "express";
 import type { EnrichedSearchResult } from "@pea/shared";
 import { db } from "../../db.js";
+import { currentUserId } from "../../services/auth/user-context.js";
 import { localPeaSearchService } from "../../services/assets/local-pea-search.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { yahooService } from "../../services/yahoo/index.js";
@@ -38,8 +39,8 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   const quoteBySymbol = new Map(quotes.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
 
   const dbStartedAt = performance.now();
-  const watchlistSymbols = new Set(db.prepare("SELECT symbol FROM watchlist").all().map((row: any) => String(row.symbol).toUpperCase()));
-  const portfolioSymbols = new Set(db.prepare("SELECT symbol FROM positions").all().map((row: any) => String(row.symbol).toUpperCase()));
+  const watchlistSymbols = new Set(db.prepare("SELECT symbol FROM watchlist WHERE user_id = ?").all(currentUserId()).map((row: any) => String(row.symbol).toUpperCase()));
+  const portfolioSymbols = new Set(db.prepare("SELECT symbol FROM positions WHERE user_id = ?").all(currentUserId()).map((row: any) => String(row.symbol).toUpperCase()));
   const dbMs = performance.now() - dbStartedAt;
 
   const enriched: EnrichedSearchResult[] = items.map((item) => {

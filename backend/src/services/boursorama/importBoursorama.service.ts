@@ -6,6 +6,7 @@
 import type { SearchResult } from "@pea/shared";
 import type { BoursoramaUpdateRow } from "@pea/shared";
 import { db } from "../../db.js";
+import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -138,7 +139,7 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
       }
     }
     const symbol = resolved.symbol?.toUpperCase() ?? null;
-    const existing = symbol ? (db.prepare("SELECT id FROM positions WHERE symbol = ?").get(symbol) as { id: number } | undefined) : undefined;
+    const existing = symbol ? (db.prepare("SELECT id FROM positions WHERE user_id = ? AND symbol = ?").get(currentUserId(), symbol) as { id: number } | undefined) : undefined;
     rows.push({
       ...row,
       symbol,
@@ -170,13 +171,13 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
       }
       if (row.errors.length) throw new Error(row.errors.join(", "));
       await assertYahooSymbolExists(row.symbol);
-      const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any;
+      const existing = db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(currentUserId(), row.symbol) as any;
       if (existing && row.action === "replace") {
         db.prepare(
           `UPDATE positions
            SET name = ?, quantity = ?, average_buy_price = ?, currency = 'EUR', updated_at = CURRENT_TIMESTAMP
-           WHERE symbol = ?`
-        ).run(row.name, row.quantity, row.buyingPrice, row.symbol);
+           WHERE user_id = ? AND symbol = ?`
+        ).run(row.name, row.quantity, row.buyingPrice, currentUserId(), row.symbol);
       } else {
         await portfolioService.createPosition({
           symbol: row.symbol,
@@ -201,7 +202,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   const rows: BoursoramaUpdateRow[] = [];
 
   for (const row of previewRows) {
-    const existing = row.symbol ? db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any : undefined;
+    const existing = row.symbol ? db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(currentUserId(), row.symbol) as any : undefined;
     const currentQuantity = existing ? Number(existing.quantity) : undefined;
     const currentAverageBuyPrice = existing ? Number(existing.average_buy_price) : undefined;
     const quantityDiff = row.quantity - (currentQuantity ?? 0);
@@ -227,7 +228,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
     });
   }
 
-  const existingRows = db.prepare("SELECT * FROM positions ORDER BY symbol ASC").all() as any[];
+  const existingRows = db.prepare("SELECT * FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(currentUserId()) as any[];
   for (const existing of existingRows) {
     const symbol = String(existing.symbol).toUpperCase();
     if (csvSymbols.has(symbol)) continue;
@@ -282,13 +283,13 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
         continue;
       }
       await assertYahooSymbolExists(row.symbol);
-      const existing = db.prepare("SELECT * FROM positions WHERE symbol = ?").get(row.symbol) as any;
+      const existing = db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(currentUserId(), row.symbol) as any;
       if (existing) {
         db.prepare(
           `UPDATE positions
            SET name = ?, quantity = ?, average_buy_price = ?, currency = 'EUR', updated_at = CURRENT_TIMESTAMP
-           WHERE symbol = ?`
-        ).run(row.name, row.csvQuantity, row.csvAverageBuyPrice, row.symbol);
+           WHERE user_id = ? AND symbol = ?`
+        ).run(row.name, row.csvQuantity, row.csvAverageBuyPrice, currentUserId(), row.symbol);
       } else {
         await portfolioService.createPosition({
           symbol: row.symbol,

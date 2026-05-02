@@ -5,6 +5,7 @@
 
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { db } from "../../db.js";
+import { currentUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
@@ -23,7 +24,7 @@ function mapWatchlistRow(row: any): WatchlistItem {
 
 export class WatchlistService {
   async list(range: RangeKey = "1d"): Promise<WatchlistItem[]> {
-    const rows = db.prepare("SELECT * FROM watchlist ORDER BY created_at DESC").all();
+    const rows = db.prepare("SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC").all(currentUserId());
     return Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
   }
 
@@ -43,20 +44,20 @@ export class WatchlistService {
     }
 
     db.prepare(
-      `INSERT INTO watchlist (symbol, name, exchange, currency)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(symbol) DO UPDATE SET name = excluded.name, exchange = excluded.exchange, currency = excluded.currency`
-    ).run(key, name, exchange ?? null, currency ?? null);
+      `INSERT INTO watchlist (user_id, symbol, name, exchange, currency)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, symbol) DO UPDATE SET name = excluded.name, exchange = excluded.exchange, currency = excluded.currency`
+    ).run(currentUserId(), key, name, exchange ?? null, currency ?? null);
 
-    const row = db.prepare("SELECT * FROM watchlist WHERE symbol = ?").get(key);
+    const row = db.prepare("SELECT * FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
     return this.enrich(mapWatchlistRow(row), "1d");
   }
 
   remove(symbol: string): boolean {
     const key = symbol.toUpperCase();
-    const existing = db.prepare("SELECT id FROM watchlist WHERE symbol = ?").get(key);
+    const existing = db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
     if (!existing) return false;
-    db.prepare("DELETE FROM watchlist WHERE symbol = ?").run(key);
+    db.prepare("DELETE FROM watchlist WHERE user_id = ? AND symbol = ?").run(currentUserId(), key);
     return true;
   }
 
