@@ -1,0 +1,28 @@
+012345 F1234 P1234 1/1
+012345
+P6747
+MR joe boe
+23 RUE CHARLE FOR
+74500 VILLE
+AA1
+OPERATION DE BOURSE
+le 08/02/2024
+Références de votre compte titres
+12345 23456 01234567890 Compte PEA
+Résident Français
+ACHAT COMPTANT
+ACTION
+Date et heure
+locale d'exécution Quantité Informations sur la valeur Informations sur l'exécution
+08/07/2024
+09:00:16
+1 DANONE Référence : 010181728107
+Type d'ordre : à cours limite
+Cours demandé : 60,5000 EUR
+Code ISIN : FR0000120644 Cours exécuté : 60,10 EUR
+Lieu d'exécution : EURONEXT PARIS
+Montant brut Commission Frais (♦) Montant net au débit de votre compte
+60,10 EUR 0,30 EUR 0,18 EUR 60,58 EUR
+Sous réserve de bonne fin.
+(♦) Frais inhérents à la Taxe sur les Transactions Financières française
+Cet avis ne tient pas compte des frais inhérents aux Taxes sur les Transactions Financières européennes (hors France), s'ils doivent s'appliquer.

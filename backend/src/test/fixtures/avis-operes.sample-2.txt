@@ -1,0 +1,28 @@
+012345 F1234 P1234 1/1
+012345
+P6747
+MR joe boe
+23 RUE CHARLE FOR
+74500 VILLE
+AA1
+OPERATION DE BOURSE
+le 08/07/2024
+Références de votre compte titres
+12345 23456 01234567890 Compte PEA
+Résident Français
+ACHAT COMPTANT
+ACTION
+Date et heure
+locale d'exécution Quantité Informations sur la valeur Informations sur l'exécution
+08/07/2021
+09:00:06
+1 STMICROELECTRONICS Référence : 010181727885
+Type d'ordre : à cours limite
+Cours demandé : 31,8900 EUR
+Code ISIN : NL0000226223 Cours exécuté : 31,660 EUR
+Lieu d'exécution : EURONEXT PARIS
+Montant brut Commission Frais (♦) Montant net au débit de votre compte
+31,66 EUR 0,16 EUR 31,82 EUR
+Sous réserve de bonne fin.
+(♦) Frais inhérents à la Taxe sur les Transactions Financières française
+Cet avis ne tient pas compte des frais inhérents aux Taxes sur les Transactions Financières européennes (hors France), s'ils doivent s'appliquer.
