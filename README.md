@@ -1,7 +1,7 @@
 # PEA Portfolio
 
-**Self-hosted portfolio tracker for French PEA accounts (Plan d'Épargne en Actions).**  
-Track your positions, dividends, and performance in real time — without sending your data to any third-party service.
+**Suivi de portefeuille auto-hébergé pour les comptes PEA (Plan d'Épargne en Actions).**  
+Suivez vos positions, dividendes et performances en temps réel — sans envoyer vos données à un service tiers.
 
 [![Version](https://img.shields.io/badge/version-0.1.25-blue)](CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org/)
@@ -9,95 +9,95 @@ Track your positions, dividends, and performance in real time — without sendin
 
 ---
 
-## Overview
+## Présentation
 
-PEA Portfolio is a full-stack web application designed for individual investors who hold a French PEA account. It aggregates market data from Yahoo Finance, stores everything locally in SQLite, and exposes a clean dark UI with charts, a dividend calendar, and portfolio analytics.
+PEA Portfolio est une application web full-stack destinée aux investisseurs particuliers détenteurs d'un PEA. Elle agrège les données de marché depuis Yahoo Finance, stocke tout localement dans SQLite et propose une interface sombre soignée avec des graphiques, un calendrier de dividendes et des outils d'analyse de portefeuille.
 
-**Key principles:**
-- **Self-hosted** — your positions and financial data never leave your server.
-- **Cache-first** — Yahoo Finance is only called to refresh data; the UI always reads from local SQLite.
-- **Single user** — designed for one account, no multi-tenancy overhead.
-- **Privacy mode** — hide all personal figures (values, quantities, performance) with one toggle, keeping only market data visible.
+**Principes fondamentaux :**
+- **Auto-hébergé** — vos positions et données financières ne quittent jamais votre serveur.
+- **Cache-first** — Yahoo Finance n'est appelé que pour rafraîchir les données ; l'interface lit toujours depuis SQLite.
+- **Mono-utilisateur** — conçu pour un seul compte, sans complexité multi-tenant.
+- **Mode privé** — masquez tous les chiffres personnels (valeurs, quantités, performances) d'un seul clic, en conservant uniquement les données de marché visibles.
 
 ---
 
-## Features
+## Fonctionnalités
 
-### Portfolio
-- Real-time portfolio valuation aggregated from Yahoo Finance market data
-- Per-position breakdown: quantity, average buy price, current value, fees paid, dividends received
-- Range performance chart (1 day → all time) with transaction markers
-- Dashboard sort by name, market value, or period performance
-- Watchlist alongside your positions
+### Portefeuille
+- Valorisation du portefeuille en temps réel agrégée depuis Yahoo Finance
+- Détail par position : quantité, prix moyen d'achat, valeur actuelle, frais payés, dividendes reçus
+- Graphique de performance par intervalle (1 jour → tout) avec marqueurs de transactions
+- Tri du dashboard par nom, valeur de marché ou performance sur la période
+- Liste de surveillance affichée aux côtés des positions
 
-### Dividends
-- Annual dividend estimate with monthly bar chart
-- Grouped view per asset with quarterly breakdown (Q1–Q4)
-- Dividend yield and yield-on-cost per position
-- Historical dividend chart per asset (5 years)
+### Dividendes
+- Estimation annuelle des dividendes avec graphique mensuel en barres
+- Vue regroupée par actif avec répartition trimestrielle (Q1–Q4)
+- Rendement sur dividende et rendement sur coût d'achat par position
+- Historique des dividendes par actif sur 5 ans
 
-### Analysis
-- Portfolio treemap (weight per asset)
-- Country and sector allocation pie/bar charts
-- Net margin comparison across holdings
-- Revenue / Net Income / Margin combo chart per company
+### Analyse
+- Treemap du portefeuille (poids par actif)
+- Graphiques de répartition par pays et par secteur
+- Comparaison des marges nettes entre les positions
+- Graphique combiné Revenue / Résultat net / Marge par entreprise
 
-### Asset detail
-- Price history chart with all time ranges
-- Market info panel: 52-week range, volume, dividend rate, ex-date
-- Your position summary: value, P&L, period performance
-- Yahoo Finance news articles (optional, toggleable)
+### Détail d'un actif
+- Graphique d'historique des prix sur tous les intervalles
+- Panneau d'informations de marché : fourchette 52 semaines, volume, dividende annuel, date ex-dividende
+- Résumé de votre position : valeur, plus-value, performance sur la période
+- Articles Yahoo Finance (optionnel, activable dans les paramètres)
 
 ### Import
-- **CSV Boursorama** — preview before import, correctable rows, merge or replace existing positions
-- **PDF avis opérés** — parse broker trade confirmations, editable preview, timestamped transactions
+- **CSV Boursorama** — prévisualisation avant import, lignes corrigeables, fusion ou remplacement des positions existantes
+- **PDF avis opérés** — extraction automatique des opérations depuis les avis du courtier, prévisualisation éditable, transactions horodatées
 
-### Settings
-- Privacy mode: replace all personal figures with `••••` across every page
-- Default dashboard sort and chart range
-- Local PEA search to limit API calls
-- Yahoo Finance news toggle and language selection (FR / EN)
-- Profile icon upload
-- Asset icon management
+### Paramètres
+- Mode privé : remplace tous les chiffres personnels par `••••` sur toutes les pages
+- Tri par défaut du dashboard et intervalle de graphique par défaut
+- Recherche locale PEA pour limiter les appels API
+- Activation des actualités Yahoo Finance et choix de la langue (FR / EN)
+- Photo de profil
+- Gestion des icônes d'actifs
 
 ---
 
-## Tech Stack
+## Stack technique
 
-| Layer | Technology |
+| Couche | Technologie |
 |---|---|
 | Frontend | React 19, Vite, Tailwind CSS 4, Recharts, React Router 7 |
 | Backend | Node.js, Express 5, TypeScript |
-| Database | SQLite via `better-sqlite3` |
-| Market data | `yahoo-finance2` (rate-limited, cache-first) |
-| Auth | Cookie session (`httpOnly`), bcryptjs password hashing |
+| Base de données | SQLite via `better-sqlite3` |
+| Données de marché | `yahoo-finance2` (rate-limité, cache-first) |
+| Authentification | Cookie de session (`httpOnly`), hachage bcryptjs |
 | Validation | Zod |
-| Deployment | Docker multi-stage build, docker-compose |
+| Déploiement | Build Docker multi-étapes, docker-compose |
 
 ---
 
-## Prerequisites
+## Prérequis
 
 - **Node.js** ≥ 20
 - **npm** ≥ 10
-- or **Docker** + **Docker Compose** for containerised deployment
+- ou **Docker** + **Docker Compose** pour un déploiement conteneurisé
 
 ---
 
-## Quick Start (Development)
+## Démarrage rapide (développement)
 
 ```bash
-# 1. Clone the repository
+# 1. Cloner le dépôt
 git clone https://github.com/your-username/pea-portfolio.git
 cd pea-portfolio
 
-# 2. Copy environment file
+# 2. Copier le fichier d'environnement
 cp .env.example .env
 
-# 3. Install dependencies (monorepo)
+# 3. Installer les dépendances (monorepo)
 npm install
 
-# 4. Start backend + frontend concurrently
+# 4. Démarrer le backend et le frontend en parallèle
 npm run dev
 ```
 
@@ -106,24 +106,24 @@ npm run dev
 | Frontend (Vite) | http://localhost:5173 |
 | Backend API | http://localhost:4000 |
 
-On first launch, the app prompts you to create a local account (username + password). All subsequent logins use that credential.
+Au premier lancement, l'application vous invite à créer un compte local (identifiant + mot de passe). Les connexions suivantes utilisent ce même compte.
 
-### Individual services
+### Services individuels
 
 ```bash
-npm run dev:backend    # backend only (port 4000, tsx watch)
-npm run dev:frontend   # frontend only (port 5173, Vite HMR)
+npm run dev:backend    # backend uniquement (port 4000, tsx watch)
+npm run dev:frontend   # frontend uniquement (port 5173, Vite HMR)
 ```
 
-### Useful scripts
+### Scripts utiles
 
 ```bash
-npm run build          # compile all workspaces (shared → backend → frontend)
-npm run typecheck      # type-check all workspaces without emitting
-npm run lint           # ESLint across backend, frontend, shared
-npm run test           # run all test suites
-npm run cache:clear    # wipe Yahoo Finance market data cache
-npm run dev:clear      # clear cache then start dev servers
+npm run build          # compile tous les workspaces (shared → backend → frontend)
+npm run typecheck      # vérification des types sans émission de fichiers
+npm run lint           # ESLint sur backend, frontend et shared
+npm run test           # lance toutes les suites de tests
+npm run cache:clear    # vide le cache des données de marché Yahoo Finance
+npm run dev:clear      # vide le cache puis démarre les serveurs de développement
 ```
 
 ---
@@ -134,10 +134,10 @@ npm run dev:clear      # clear cache then start dev servers
 docker compose up --build
 ```
 
-The application is available at **http://localhost:4000**.  
-The SQLite database and uploaded icons are persisted in the `./data` volume.
+L'application est accessible sur **http://localhost:4000**.  
+La base de données SQLite et les icônes téléversées sont persistées dans le volume `./data`.
 
-### docker-compose.yml snippet
+### Extrait docker-compose.yml
 
 ```yaml
 services:
@@ -155,152 +155,152 @@ services:
 
 ---
 
-## Environment Variables
+## Variables d'environnement
 
-Copy `.env.example` to `.env` and adjust as needed.
+Copiez `.env.example` vers `.env` et ajustez selon vos besoins.
 
-| Variable | Default | Description |
+| Variable | Valeur par défaut | Description |
 |---|---|---|
-| `PORT` | `4000` | Express server port |
-| `SQLITE_PATH` | `./data/pea.sqlite` | Path to the SQLite database file |
-| `APP_TIMEZONE` | `Europe/Paris` | Timezone used for market session calculations |
-| `FRONTEND_DIST` | `../frontend/dist` | Path to the built frontend (production) |
-| `VITE_API_BASE_URL` | `http://localhost:4000` | API base URL used by Vite dev proxy |
-| `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout for the dev health-check script |
-| `LOGO_DEV_API_KEY` | *(optional)* | API key for automatic asset logo fetching |
-| `DEBUG` | `false` | Enable verbose backend logging |
-| `DEBUG_DATE` | *(optional)* | Override current date for testing (ISO string) |
+| `PORT` | `4000` | Port du serveur Express |
+| `SQLITE_PATH` | `./data/pea.sqlite` | Chemin vers le fichier de base de données SQLite |
+| `APP_TIMEZONE` | `Europe/Paris` | Fuseau horaire utilisé pour les calculs de séance de marché |
+| `FRONTEND_DIST` | `../frontend/dist` | Chemin vers le build frontend (production) |
+| `VITE_API_BASE_URL` | `http://localhost:4000` | URL de base de l'API utilisée par le proxy Vite |
+| `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script de vérification de santé en développement |
+| `LOGO_DEV_API_KEY` | *(optionnel)* | Clé API pour la récupération automatique des logos d'actifs |
+| `DEBUG` | `false` | Active les logs détaillés du backend |
+| `DEBUG_DATE` | *(optionnel)* | Remplace la date courante pour les tests (chaîne ISO) |
 
 ---
 
 ## CI / CD (Gitea)
 
-The workflow `.gitea/workflows/docker-release.yml` runs on every push and on manual dispatch:
+Le workflow `.gitea/workflows/docker-release.yml` s'exécute à chaque push et sur déclenchement manuel :
 
-1. Installs dependencies (`npm ci`)
-2. Runs `typecheck` and `build`
-3. Builds the Docker image from `backend/Dockerfile`
-4. On manual trigger: bumps the version (`patch` / `minor` / `major`), commits, and creates a `vX.Y.Z` tag
-5. Publishes the image when `publish=true` or when the workflow runs on a `v*` tag
+1. Installation des dépendances (`npm ci`)
+2. Exécution de `typecheck` et `build`
+3. Construction de l'image Docker depuis `backend/Dockerfile`
+4. Sur déclenchement manuel : montée de version (`patch` / `minor` / `major`), commit et création d'un tag `vX.Y.Z`
+5. Publication de l'image si `publish=true` ou si le workflow s'exécute sur un tag `v*`
 
-**Required Gitea secrets:**
+**Secrets Gitea requis :**
 
 | Secret | Description |
 |---|---|
-| `DOCKER_REGISTRY` | Registry host without protocol (e.g. `registry.example.com/my-org`) |
-| `DOCKER_USERNAME` | Registry username |
-| `DOCKER_PASSWORD` | Registry password or token |
+| `DOCKER_REGISTRY` | Hôte du registre sans protocole (ex. `registry.example.com/mon-org`) |
+| `DOCKER_USERNAME` | Identifiant du registre |
+| `DOCKER_PASSWORD` | Mot de passe ou token du registre |
 
 ---
 
-## API Reference
+## Référence API
 
-### Auth
-| Method | Endpoint | Description |
+### Authentification
+| Méthode | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/auth/setup` | Create the first account |
-| `POST` | `/api/auth/login` | Authenticate |
-| `POST` | `/api/auth/logout` | Invalidate session |
-| `GET` | `/api/auth/me` | Get current user + preferences |
-| `PATCH` | `/api/auth/me` | Update preferences (sort, range, privacy mode…) |
-| `POST` | `/api/auth/me/profile-icon` | Upload profile picture |
-| `DELETE` | `/api/auth/me/profile-icon` | Remove profile picture |
+| `POST` | `/api/auth/setup` | Création du premier compte |
+| `POST` | `/api/auth/login` | Authentification |
+| `POST` | `/api/auth/logout` | Invalidation de la session |
+| `GET` | `/api/auth/me` | Récupération de l'utilisateur courant et de ses préférences |
+| `PATCH` | `/api/auth/me` | Mise à jour des préférences (tri, intervalle, mode privé…) |
+| `POST` | `/api/auth/me/profile-icon` | Téléversement de la photo de profil |
+| `DELETE` | `/api/auth/me/profile-icon` | Suppression de la photo de profil |
 
-### Portfolio
-| Method | Endpoint | Description |
+### Portefeuille
+| Méthode | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/portfolio` | Portfolio summary (total value, positions) |
-| `GET` | `/api/portfolio/chart?range=` | Portfolio value chart data |
-| `GET` | `/api/portfolio/performance?range=` | Per-position range performance |
-| `GET` | `/api/portfolio/dividends` | Dividends grouped by asset + monthly estimates |
-| `GET` | `/api/portfolio/analysis` | Country/sector allocation, treemap, financials |
-| `POST` | `/api/portfolio/positions` | Add a position |
-| `PATCH` | `/api/portfolio/positions/:id` | Update a position |
-| `DELETE` | `/api/portfolio/positions/:id` | Remove a position |
+| `GET` | `/api/portfolio` | Synthèse du portefeuille (valeur totale, positions) |
+| `GET` | `/api/portfolio/chart?range=` | Données du graphique de valorisation |
+| `GET` | `/api/portfolio/performance?range=` | Performance par position sur l'intervalle |
+| `GET` | `/api/portfolio/dividends` | Dividendes regroupés par actif + estimations mensuelles |
+| `GET` | `/api/portfolio/analysis` | Répartition pays/secteur, treemap, données financières |
+| `POST` | `/api/portfolio/positions` | Ajout d'une position |
+| `PATCH` | `/api/portfolio/positions/:id` | Modification d'une position |
+| `DELETE` | `/api/portfolio/positions/:id` | Suppression d'une position |
 
-### Market data
-| Method | Endpoint | Description |
+### Données de marché
+| Méthode | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/assets/:symbol` | Asset detail (quote, chart, dividends, position) |
-| `GET` | `/api/assets/:symbol/icon` | Asset logo |
-| `POST` | `/api/assets/:symbol/icon` | Upload custom asset logo |
-| `DELETE` | `/api/assets/:symbol/icon` | Reset asset logo |
-| `GET` | `/api/search?q=` | Search assets (Yahoo or local PEA list) |
-| `GET` | `/api/market/top-movers` | Daily gainers and losers |
+| `GET` | `/api/assets/:symbol` | Détail d'un actif (cotation, graphique, dividendes, position) |
+| `GET` | `/api/assets/:symbol/icon` | Logo de l'actif |
+| `POST` | `/api/assets/:symbol/icon` | Téléversement d'un logo personnalisé |
+| `DELETE` | `/api/assets/:symbol/icon` | Réinitialisation du logo |
+| `GET` | `/api/search?q=` | Recherche d'actifs (Yahoo ou liste locale PEA) |
+| `GET` | `/api/market/top-movers` | Meilleures hausses et plus fortes baisses du jour |
 
 ### Import
-| Method | Endpoint | Description |
+| Méthode | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/import/boursorama/preview` | Preview CSV Boursorama import |
-| `POST` | `/api/import/boursorama/confirm` | Confirm CSV import |
-| `POST` | `/api/import/avis-operes/preview` | Preview PDF avis opérés |
-| `POST` | `/api/import/avis-operes/confirm` | Confirm PDF import |
+| `POST` | `/api/import/boursorama/preview` | Prévisualisation de l'import CSV Boursorama |
+| `POST` | `/api/import/boursorama/confirm` | Confirmation de l'import CSV |
+| `POST` | `/api/import/avis-operes/preview` | Prévisualisation des avis opérés PDF |
+| `POST` | `/api/import/avis-operes/confirm` | Confirmation de l'import PDF |
 
 ---
 
-## Market Data
+## Données de marché
 
-The backend follows a **cache-first** strategy:
+Le backend applique une stratégie **cache-first** :
 
-- All requests from the frontend go to the local backend only — no direct calls to Yahoo Finance from the browser.
-- The backend reads from SQLite first; Yahoo Finance is called only to refresh stale or missing data.
-- Quotes, historical prices, dividends, and fundamentals are all cached in SQLite.
-- The intraday `1d` view uses `yahooFinance.chart` at `2m` intervals, bounded to the current or last Euronext Paris session.
-- Yahoo Finance calls are rate-limited via Bottleneck (`maxConcurrent=1`, `minTime=250ms`) with exponential-backoff retries.
-- On `429`, `401`, crumb errors, or `Too Many Requests`, the backend falls back to the last cached data and marks responses as `stale`.
-- Stale data is surfaced visually in the UI as "Données différées".
-- The market data layer is abstracted behind `MarketDataProvider`, making it straightforward to swap Yahoo Finance for another provider (EODHD, Twelve Data, Alpha Vantage…).
+- Toutes les requêtes du frontend passent par le backend local uniquement — aucun appel direct à Yahoo Finance depuis le navigateur.
+- Le backend lit SQLite en priorité ; Yahoo Finance n'est appelé que pour rafraîchir les données périmées ou manquantes.
+- Cotations, historiques de prix, dividendes et données fondamentales sont tous mis en cache dans SQLite.
+- La vue intraday `1d` utilise `yahooFinance.chart` avec un intervalle de `2m`, bornée à la séance Euronext Paris courante ou précédente.
+- Les appels Yahoo Finance sont limités via Bottleneck (`maxConcurrent=1`, `minTime=250ms`) avec des tentatives en backoff exponentiel.
+- En cas d'erreur `429`, `401`, d'erreur de crumb ou de `Too Many Requests`, le backend renvoie les dernières données en cache et marque les réponses comme `stale`.
+- Les données périmées sont signalées visuellement dans l'interface par « Données différées ».
+- La couche de données de marché est abstraite derrière `MarketDataProvider`, ce qui facilite le remplacement de Yahoo Finance par un autre fournisseur (EODHD, Twelve Data, Alpha Vantage…).
 
-### Yahoo Finance limitations
+### Limites de Yahoo Finance
 
-Yahoo Finance does not guarantee exhaustive dividend coverage or future calendars for all securities. The app uses real dividends when available and estimates future payments from the prior year's data when no reliable forward data exists.
+Yahoo Finance ne garantit pas une couverture exhaustive des dividendes ni les calendriers futurs pour tous les titres. L'application utilise les dividendes réels quand ils sont disponibles et estime les prochains versements à partir des données de l'année précédente en l'absence de données futures fiables.
 
-PEA eligibility shown in search results is computed locally using symbol, exchange, and ISIN heuristics — it is not verified by Yahoo Finance and is displayed with a confidence level accordingly.
+L'éligibilité PEA affichée dans les résultats de recherche est calculée localement à partir du symbole, de la bourse et de l'ISIN — elle n'est pas vérifiée par Yahoo Finance et est affichée avec un niveau de confiance associé.
 
 ---
 
-## Project Structure
+## Structure du projet
 
 ```
 pea-portfolio/
-├── backend/              # Express API + SQLite
+├── backend/              # API Express + SQLite
 │   ├── src/
-│   │   ├── routes/       # API route handlers
-│   │   ├── services/     # Business logic (auth, portfolio, yahoo, …)
-│   │   ├── middleware/   # Auth, rate limiting, CORS
-│   │   ├── db.ts         # SQLite adapter
+│   │   ├── routes/       # Gestionnaires de routes API
+│   │   ├── services/     # Logique métier (auth, portefeuille, yahoo…)
+│   │   ├── middleware/   # Authentification, rate limiting, CORS
+│   │   ├── db.ts         # Adaptateur SQLite
 │   │   ├── db-migrations.ts
 │   │   └── server.ts
 │   └── Dockerfile
-├── frontend/             # React + Vite SPA
+├── frontend/             # SPA React + Vite
 │   └── src/
-│       ├── components/   # Reusable + feature UI components
-│       ├── contexts/     # React contexts (PrivacyContext, …)
-│       ├── hooks/        # Custom hooks
-│       ├── lib/          # API client, formatting, privacy helpers
-│       ├── pages/        # Route-level page components
-│       └── utils/        # Asset tone, misc helpers
-├── shared/               # Shared TypeScript types (DTOs)
-├── scripts/              # Dev helper scripts
-├── data/                 # SQLite db + profile icons (gitignored)
+│       ├── components/   # Composants UI réutilisables et métier
+│       ├── contexts/     # Contextes React (PrivacyContext…)
+│       ├── hooks/        # Hooks personnalisés
+│       ├── lib/          # Client API, formatage, utilitaires de confidentialité
+│       ├── pages/        # Composants de page (niveau route)
+│       └── utils/        # Tonalité des actifs, utilitaires divers
+├── shared/               # Types TypeScript partagés (DTOs)
+├── scripts/              # Scripts d'aide au développement
+├── data/                 # Base SQLite + icônes de profil (ignoré par git)
 ├── docker-compose.yml
 └── .env.example
 ```
 
 ---
 
-## Contributing
+## Contribuer
 
-Contributions are welcome. Before opening a pull request:
+Les contributions sont les bienvenues. Avant d'ouvrir une pull request :
 
-1. Fork the repository and create a branch from `main`.
-2. Run `npm run typecheck` and `npm run lint` — both must pass.
-3. If you add a feature that touches the database schema, add a migration in `backend/src/db-migrations.ts`.
-4. Write or update tests where appropriate (`npm run test`).
-5. Keep commits focused and write clear commit messages.
+1. Forkez le dépôt et créez une branche depuis `main`.
+2. Exécutez `npm run typecheck` et `npm run lint` — les deux doivent passer sans erreur.
+3. Si votre contribution touche le schéma de base de données, ajoutez une migration dans `backend/src/db-migrations.ts`.
+4. Écrivez ou mettez à jour les tests concernés (`npm run test`).
+5. Gardez les commits ciblés et rédigez des messages de commit clairs.
 
 ---
 
-## License
+## Licence
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT — voir [LICENSE](LICENSE) pour les détails.
