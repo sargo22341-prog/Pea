@@ -80,7 +80,7 @@ L'application est pensee en mode cache-first:
 - Les quotes, historiques et dividendes sont mis en cache dans SQLite.
 - La vue historique `1J` utilise `yahooFinance.chart` en intervalle `2m`, bornee a la seance Euronext Paris courante ou precedente, sans demander de donnees futures.
 - Le cache intraday est journalier (`symbol`, `range=1d`, `interval=2m`, `tradingDay`) et peut servir de fallback stale si Yahoo echoue.
-- Les appels Yahoo passent par Bottleneck avec `maxConcurrent=1` et `minTime=100ms`.
+- Les appels Yahoo passent par un rate limiter Bottleneck centralise avec `maxConcurrent=1` et `minTime=250ms`.
 - Les erreurs temporaires utilisent un retry avec backoff exponentiel.
 - Si Yahoo retourne `429`, `401`, `Invalid Crumb`, `User is not logged in` ou `Edge: Too Many Requests`, le backend renvoie les dernieres donnees en cache si elles existent.
 - Les donnees issues d'un cache perime sont marquees `stale` et l'UI affiche `Donnees differees`.

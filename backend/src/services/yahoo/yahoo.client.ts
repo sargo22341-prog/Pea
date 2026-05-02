@@ -15,9 +15,13 @@ import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
 export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
 const limiter = new Bottleneck({
-  minTime: 100,
+  minTime: 250,
   maxConcurrent: 1
 });
+
+export function scheduleYahooCall<T>(fn: () => Promise<T>) {
+  return limiter.schedule(fn);
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,7 +33,7 @@ export async function retryTemporary<T>(key: string, fn: () => Promise<T>, attem
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      return await limiter.schedule(fn);
+      return await scheduleYahooCall(fn);
     } catch (error) {
       lastError = error;
       if (!isTemporaryYahooError(error) || attempt === attempts - 1) break;

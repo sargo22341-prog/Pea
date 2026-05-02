@@ -22,7 +22,7 @@ export async function fetchDividends(symbol: string, quoteReader: QuoteReader): 
     async () => {
       const period1 = new Date();
       period1.setFullYear(period1.getFullYear() - 5);
-      const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = buildHistoricalOptions("max", { period1 });
+      const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = buildHistoricalOptions("all", { period1 });
       const chart = (await dedupeInFlight(`chart:${key}:dividends:${yahooOptions.interval}`, () =>
         yahooClient.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)
       )) as any;

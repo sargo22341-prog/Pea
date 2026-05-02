@@ -50,7 +50,6 @@ export function yahooRange(
     case "ytd":
       return { period1: new Date(now.getFullYear(), 0, 1), interval: "1d", displayInterval: "1d" };
     case "all":
-    case "max":
       return { period1: new Date("2000-01-01"), interval: "1d", displayInterval: "1d" };
     default:
       return { period1: start, interval: "1d", displayInterval: "1d" };

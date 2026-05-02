@@ -18,7 +18,24 @@ const devCorsOrigin = "http://localhost:5173";
 export const app = express();
 
 app.set("etag", false);
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "https:"],
+        "font-src": ["'self'", "data:"],
+        "connect-src": ["'self'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"]
+      }
+    }
+  })
+);
 if (config.nodeEnv !== "production") {
   app.use(
     cors({

@@ -3,8 +3,10 @@
  */
 
 import express from "express";
+import type { RequestHandler } from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
+import { createRateLimit } from "../../middleware/rate-limit.js";
 import { requireAuth, clearAuthCookie, readCookie, setAuthCookie } from "../../middleware/auth.js";
 import { authCookieName, authService } from "../../services/auth/auth.service.js";
 import { logger } from "../../services/shared/logger.service.js";
@@ -13,16 +15,25 @@ import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartIcon } from "../shared/multipart.js";
 
 export const authRouter = express.Router();
+const passwordSchema = z.string().min(10, "Le mot de passe doit contenir au moins 10 caracteres.");
+const authSensitiveRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+const passwordChangeRateLimit: RequestHandler = (req, res, next) => {
+  if (typeof req.body === "object" && req.body !== null && "password" in req.body) {
+    authSensitiveRateLimit(req, res, next);
+    return;
+  }
+  next();
+};
 
 authRouter.get("/me", asyncRoute(async (req, res) => {
   res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers(), appTimezone: config.appTimezone });
 }));
 
-authRouter.post("/setup", asyncRoute(async (req, res) => {
+authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) => {
   const body = z.object({
     username: z.string().trim().min(1),
-    password: z.string().min(1),
-    confirmPassword: z.string().min(1),
+    password: passwordSchema,
+    confirmPassword: passwordSchema,
     profileIconUrl: z.string().url().optional().or(z.literal(""))
   }).parse(req.body);
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
@@ -32,7 +43,7 @@ authRouter.post("/setup", asyncRoute(async (req, res) => {
   res.status(201).json(result.user);
 }));
 
-authRouter.post("/login", asyncRoute(async (req, res) => {
+authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) => {
   const body = z.object({ username: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
   let result: Awaited<ReturnType<typeof authService.login>>;
   try {
@@ -53,15 +64,15 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
   res.status(204).send();
 }));
 
-authRouter.patch("/me", requireAuth, asyncRoute(async (req, res) => {
+authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (req, res) => {
   const body = z.object({
     username: z.string().trim().min(1).optional(),
-    password: z.string().min(1).optional(),
+    password: passwordSchema.optional(),
     confirmPassword: z.string().optional(),
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
-    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all", "max"]).optional(),
+    defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional()

@@ -17,13 +17,13 @@ const displayRangesByStoredRange: Record<StoredChartRange, string[]> = {
   "1d": ["intraday"],
   "1w": ["1W"],
   "1m": ["1M"],
-  all: ["YTD", "1Y", "5Y", "10Y", "ALL", "MAX"]
+  all: ["YTD", "1Y", "5Y", "10Y", "ALL"]
 };
 const historicalCacheRangesByStoredRange: Record<StoredChartRange, string[]> = {
   "1d": ["1d"],
   "1w": ["1w"],
   "1m": ["1m"],
-  all: ["ytd", "1y", "5y", "10y", "all", "max"]
+  all: ["ytd", "1y", "5y", "10y", "all"]
 };
 
 function rangesForRebuild(range: MarketDataRebuildRange): StoredChartRange[] {

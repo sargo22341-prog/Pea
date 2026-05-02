@@ -14,8 +14,7 @@ const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = {
   "1y": "1Y",
   "5y": "5Y",
   "10y": "10Y",
-  all: "ALL",
-  max: "MAX"
+  all: "ALL"
 };
 
 export interface CacheRecord<T> {
@@ -51,7 +50,8 @@ export function normalizeMarketState(value: unknown): MarketState {
 
 /** Lit un cache JSON sans controle d'etat de marche. */
 export function readStaticJsonCache<T>(table: string, keyColumn: string, key: string): CacheRecord<T> | null {
-  const row = db.prepare(`SELECT payload, cached_at, expires_at FROM ${table} WHERE ${keyColumn} = ?`).get(key) as
+  const cacheTarget = staticCacheTarget(table, keyColumn);
+  const row = db.prepare(`SELECT payload, cached_at, expires_at FROM ${cacheTarget.table} WHERE ${cacheTarget.keyColumn} = ?`).get(key) as
     | { payload: string; cached_at: number; expires_at: number }
     | undefined;
   if (!row) return null;
@@ -65,11 +65,22 @@ export function readStaticJsonCache<T>(table: string, keyColumn: string, key: st
 
 /** Ecrit un cache JSON dans une table sans colonne d'etat de marche. */
 export function writeStaticJsonCache(table: string, keyColumn: string, key: string, payload: unknown, cachedAt: number, expiresAt: number) {
+  const cacheTarget = staticCacheTarget(table, keyColumn);
   db.prepare(
-    `INSERT INTO ${table} (${keyColumn}, payload, cached_at, expires_at)
+    `INSERT INTO ${cacheTarget.table} (${cacheTarget.keyColumn}, payload, cached_at, expires_at)
      VALUES (?, ?, ?, ?)
-     ON CONFLICT(${keyColumn}) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
+     ON CONFLICT(${cacheTarget.keyColumn}) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
   ).run(key, JSON.stringify(payload), cachedAt, expiresAt);
+}
+
+const staticJsonCacheTargets = new Map<string, { table: string; keyColumn: string }>([
+  ["asset_article_cache:symbol", { table: "asset_article_cache", keyColumn: "symbol" }]
+]);
+
+function staticCacheTarget(table: string, keyColumn: string) {
+  const target = staticJsonCacheTargets.get(`${table}:${keyColumn}`);
+  if (!target) throw new Error(`Cache SQL non autorise: ${table}.${keyColumn}`);
+  return target;
 }
 
 /** Supprime les caches dependants des transactions d'un utilisateur. */

@@ -27,7 +27,7 @@ const createPositionSchema = z.object({
   notes: z.string().trim().optional()
 });
 
-const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all", "max"]);
+const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all"]);
 export interface PortfolioMarketDataOptions {
   forceIntradayOpen?: boolean;
   intradayNow?: Date;

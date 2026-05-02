@@ -3,16 +3,13 @@
  * source de marche. Ce module ne gere aucun TTL et ne persiste rien.
  */
 
-import Bottleneck from "bottleneck";
-import { yahooClient } from "./yahoo.client.js";
+import { scheduleYahooCall, yahooClient } from "./yahoo.client.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableString, type YahooSnapshotPayload } from "./yahoo.mapper.js";
 import type { HistoryPoint, Quote } from "@pea/shared";
 
-const limiter = new Bottleneck({ minTime: 100, maxConcurrent: 1 });
-
 function limited<T>(key: string, task: () => Promise<T>) {
-  return dedupeInFlight(key, () => limiter.schedule(task));
+  return dedupeInFlight(key, () => scheduleYahooCall(task));
 }
 
 export interface YahooAssetProfilePayload {

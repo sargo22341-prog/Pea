@@ -11,8 +11,7 @@ const rangeLabels: Record<RangeKey, string> = {
   "5y": "5 ans",
   "10y": "10 ans",
   ytd: "YTD",
-  all: "Tout",
-  max: "Max"
+  all: "Tout"
 };
 
 const compactRangeLabels: Record<RangeKey, string> = {
@@ -23,8 +22,7 @@ const compactRangeLabels: Record<RangeKey, string> = {
   "5y": "5 ans",
   "10y": "10 ans",
   ytd: "YTD",
-  all: "Tout",
-  max: "Max"
+  all: "Tout"
 };
 
 export function formatRangeLabel(range: ChartRange | string, options: { compact?: boolean } = {}) {
