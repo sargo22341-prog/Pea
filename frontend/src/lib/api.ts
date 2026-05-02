@@ -24,6 +24,7 @@ import type {
   PortfolioAnalysis,
   PortfolioPerformancePoint,
   PortfolioChartDto,
+  PortfolioFullDto,
   PositionRangePerformance,
   PortfolioSummary,
   ParsedAvisOperation,
@@ -130,6 +131,8 @@ export const api = {
     request<NewsAssetsPage>(`/api/news-assets?limit=${limit}&offset=${offset}`, { signal }),
   portfolio: (range?: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
+  portfolioFull: (range: RangeKey, signal?: AbortSignal) =>
+    dedupedRequest<PortfolioFullDto>(`/api/portfolio/full?range=${range}`, signal),
   addPosition: (input: CreatePositionInput) =>
     request("/api/portfolio/positions", { method: "POST", body: JSON.stringify(input) }),
   updatePosition: (id: number, input: UpdatePositionInput) =>

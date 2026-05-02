@@ -7,7 +7,7 @@
  * pour chaque position × chaque point de la timeline lors du calcul de performance.
  */
 
-import type { DividendEvent, PositionWithMarket } from "@pea/shared";
+import type { DividendEvent, PortfolioPerformancePoint, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends.service.js";
 
@@ -168,4 +168,26 @@ export function computeTotalDividendsReceived(
   }
 
   return total;
+}
+
+/**
+ * Réduit un tableau de points de performance à au plus maxPoints éléments en
+ * conservant uniformément le premier, le dernier et des points intermédiaires
+ * régulièrement espacés. Utilisé pour les grandes plages (5y, 10y, all) dont
+ * les milliers de points quotidiens ralentissent la sérialisation JSON et
+ * l'interpolation côté frontend.
+ *
+ * @param points Points de performance triés par date croissante.
+ * @param maxPoints Nombre maximum de points à conserver.
+ * @returns Sous-ensemble réduit, ou l'original si déjà sous le seuil.
+ */
+export function downsamplePoints(points: PortfolioPerformancePoint[], maxPoints: number): PortfolioPerformancePoint[] {
+  if (points.length <= maxPoints) return points;
+  const result: PortfolioPerformancePoint[] = [];
+  const last = points.length - 1;
+  for (let index = 0; index < maxPoints; index += 1) {
+    const sourceIndex = Math.round((index * last) / (maxPoints - 1));
+    result.push(points[sourceIndex]);
+  }
+  return result;
 }

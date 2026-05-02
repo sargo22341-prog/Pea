@@ -3,7 +3,7 @@
  * Le service calcule les DTO prêts à afficher et invalide les caches utilisateur.
  */
 
-import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioPerformancePoint, PortfolioSummary, PortfolioTransactionMarker, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioPerformancePoint, PortfolioSummary, PortfolioTransactionMarker, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -17,7 +17,7 @@ import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cach
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
-import { buildTransactionCache, computeTotalDividendsReceived, getCostBasisAtTime, getQuantityAtTime } from "./portfolio-calculations.js";
+import { buildTransactionCache, computeTotalDividendsReceived, downsamplePoints, getCostBasisAtTime, getQuantityAtTime } from "./portfolio-calculations.js";
 import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
@@ -356,14 +356,30 @@ export class PortfolioService {
     return this.enrichPosition(mapPosition(row));
   }
 
+  /**
+   * Retourne en un seul appel le summary et le chart du portefeuille.
+   * Évite deux allers-retours réseau distincts depuis le dashboard.
+   *
+   * @param range Range demandée par le frontend.
+   * @param userId Identifiant utilisateur pour le cache chart.
+   * @param options Options de marché (debug clock).
+   */
+  async full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {
+    const [summary, chart] = await Promise.all([
+      this.summary(range),
+      this.chart(range, userId, options)
+    ]);
+    return { summary, chart };
+  }
+
   async summary(_range: RangeKey = "1d"): Promise<PortfolioSummary> {
     const basePositions = this.listPositions();
     const quotesBySymbol = await this.quotesForPositions(basePositions);
-    const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase())));
+    // Pré-charge toutes les transactions pour éviter N requêtes hasDatedTransactions dans enrichPositionWithQuote
+    const txCache = buildTransactionCache(basePositions.map((p) => p.id));
+    const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
-    // Pré-charge toutes les transactions en une passe pour éviter le N+1 dans le calcul des dividendes
-    const txCache = buildTransactionCache(basePositions.map((p) => p.id));
     const totalDividendsReceived = this.totalDividendsReceived(positions, txCache);
     const totalFeesRow = db
       .prepare(
@@ -447,7 +463,7 @@ export class PortfolioService {
     // de recréer des objets Date à chaque tour de la double boucle positions × dates.
     const timelineMs = timeline.map((date) => new Date(date).getTime());
 
-    return timeline.map((date, timelineIndex) => {
+    const rawPoints = timeline.map((date, timelineIndex) => {
       let value = 0;
       let invested = 0;
       const dateMs = timelineMs[timelineIndex];
@@ -473,10 +489,31 @@ export class PortfolioService {
       const gain = value - invested;
       return { date, value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0, stale: histories.some((item) => item.history.some((point) => point.stale)) };
     });
+
+    // Réduit le nombre de points pour les grandes plages (5y/10y/all) afin d'alléger
+    // la sérialisation JSON et le rendu recharts côté frontend.
+    const maxPointsByRange: Partial<Record<RangeKey, number>> = { "5y": 520, "10y": 520, all: 520 };
+    const maxPoints = maxPointsByRange[range];
+    return maxPoints !== undefined ? downsamplePoints(rawPoints, maxPoints) : rawPoints;
   }
 
+  /** TTL du cache chart en ms selon la range : l'intraday change constamment, les autres rarement. */
+  private static readonly CHART_CACHE_TTL_MS: Partial<Record<RangeKey, number>> = {
+    "1d": 5 * 60 * 1000,
+    "1w": 60 * 60 * 1000,
+    "1m": 4 * 60 * 60 * 1000,
+    "ytd": 4 * 60 * 60 * 1000,
+    "1y": 4 * 60 * 60 * 1000,
+    "5y": 12 * 60 * 60 * 1000,
+    "10y": 12 * 60 * 60 * 1000,
+    "all": 12 * 60 * 60 * 1000
+  };
+
   /**
-   * Retourne le chart de portefeuille pré-calculé et mis en cache.
+   * Retourne le chart de portefeuille pré-calculé et mis en cache en base SQLite.
+   * Le cache est invalidé par invalidateUserAssetCaches() lors d'une mutation de position.
+   * En cas de données manquantes (isPreparing), le résultat n'est pas mis en cache
+   * pour forcer un recalcul dès que les données sont disponibles.
    *
    * @param range Range demandée par le frontend.
    * @param userId Identifiant utilisateur propriétaire du portefeuille.
@@ -484,6 +521,18 @@ export class PortfolioService {
    */
   async chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
     const cacheUserId = normalizedUserId(userId);
+
+    // Lecture du cache persistant — évite le recalcul de performance() (~2-8s)
+    if (!options.forceIntradayOpen && !options.intradayNow) {
+      const cacheKey = `${cacheUserId}:${range}`;
+      const cached = db.prepare(
+        "SELECT payload, expires_at FROM portfolio_chart_cache WHERE cache_key = ? AND expires_at > ?"
+      ).get(cacheKey, nowMs()) as { payload: string; expires_at: number } | undefined;
+      if (cached) {
+        return JSON.parse(cached.payload) as PortfolioChartDto;
+      }
+    }
+
     const points = await this.performance(range, options);
     const positions = this.listPositions();
     const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
@@ -535,6 +584,20 @@ export class PortfolioService {
       expiresAt: cachedAt,
       transactionMarkers: this.transactionMarkersForChart(range, timestamps)
     };
+
+    // Persiste le résultat sauf si des données sont encore en cours de préparation.
+    // La clé inclut userId + range pour isoler les utilisateurs et les plages.
+    if (!payload.isPreparing && !options.forceIntradayOpen && !options.intradayNow) {
+      const ttl = PortfolioService.CHART_CACHE_TTL_MS[range] ?? 4 * 60 * 60 * 1000;
+      const expiresAt = cachedAt + ttl;
+      const cacheKey = `${cacheUserId}:${range}`;
+      db.prepare(
+        `INSERT INTO portfolio_chart_cache (cache_key, user_id, range, payload, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
+      ).run(cacheKey, cacheUserId, range, JSON.stringify({ ...payload, expiresAt }), cachedAt, expiresAt);
+    }
+
     return payload;
   }
 
@@ -787,13 +850,17 @@ export class PortfolioService {
 
   /**
    * Enrichit une position avec une quote déjà récupérée, sans nouvel appel Yahoo.
+   * Le cache de transactions optionnel évite l'appel DB hasDatedTransactions() quand
+   * on enrichit plusieurs positions en boucle (summary, enrichPosition).
    *
    * @param position Position enregistrée en base.
    * @param quote Quote optionnelle issue du batch.
+   * @param txCache Cache optionnel pré-chargé par buildTransactionCache.
    * @returns Position enrichie avec prix, valeur et performance.
    */
-  private enrichPositionWithQuote(position: Position, quote?: Quote): PositionWithMarket {
-    const dated = this.hasDatedTransactions(position.id);
+  private enrichPositionWithQuote(position: Position, quote?: Quote, txCache?: Map<number, import("./portfolio-calculations.js").PositionTransactionCache>): PositionWithMarket {
+    const entry = txCache?.get(position.id);
+    const dated = entry !== undefined ? entry.hasDated : this.hasDatedTransactions(position.id);
     const effectivePosition = dated ? this.positionFromDatedTransactions(position) : position;
     const currentPrice = quote?.price || effectivePosition.averageBuyPrice;
     const marketValue = currentPrice * effectivePosition.quantity;

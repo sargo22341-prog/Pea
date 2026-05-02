@@ -29,6 +29,12 @@ portfolioRouter.get("/portfolio", asyncRoute(async (req, res) => {
   res.json(await portfolioService.summary(range));
 }));
 
+portfolioRouter.get("/portfolio/full", asyncRoute(async (req, res) => {
+  const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
+  logger.debug("portfolio", "full requested", { range, userId: req.user!.id });
+  res.json(await portfolioService.full(range, req.user!.id, dashboardIntradayDebugClock(range)));
+}));
+
 portfolioRouter.get("/portfolio/analysis", asyncRoute(async (req, res) => {
   logger.debug("portfolio", "analysis requested", { userId: req.user!.id });
   res.json(await portfolioAnalysisService.analysis());

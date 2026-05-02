@@ -378,6 +378,12 @@ export interface PortfolioSummary {
   positions: PositionWithMarket[];
 }
 
+/** Réponse unifiée pour le dashboard : summary + chart en un seul aller-retour réseau. */
+export interface PortfolioFullDto {
+  summary: PortfolioSummary;
+  chart: PortfolioChartDto;
+}
+
 export interface PortfolioPerformancePoint {
   date: string;
   value: number;

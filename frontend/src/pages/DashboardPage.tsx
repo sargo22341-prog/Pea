@@ -1,6 +1,7 @@
 /**
  * Role du fichier : orchestrer les donnees du Dashboard et deleguer l'affichage
  * aux composants specialises du dossier components/dashboard.
+ * L'appel a /api/portfolio/full regroupe summary + chart en un seul aller-retour reseau.
  */
 
 import type { RangeKey, User } from "@pea/shared";
@@ -17,8 +18,11 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
     const initialRange = user.defaultChartRange ?? "1d";
     return initialRange;
   });
-  const portfolio = useAsync((signal) => api.portfolio(selectedRange, signal), [selectedRange]);
-  const portfolioChart = useAsync((signal) => api.portfolioChart(selectedRange, signal), [selectedRange]);
+
+  // Un seul appel réseau remplace les deux appels /portfolio et /portfolio/chart distincts.
+  const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), [selectedRange]);
+  const summary = portfolioFull.data?.summary ?? null;
+  const chart = portfolioFull.data?.chart ?? null;
 
   /**
    * Met a jour la range affichee pour tous les blocs dependants du temps.
@@ -36,18 +40,17 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
     });
   }, []);
 
-  const summary = portfolio.data;
-  const portfolioIsEmpty = !portfolio.loading && summary != null && summary.positions.length === 0;
+  const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
 
-  if (portfolio.error) return <div className="card border-coral p-6 text-coral">{portfolio.error}</div>;
+  if (portfolioFull.error) return <div className="card border-coral p-6 text-coral">{portfolioFull.error}</div>;
   if (portfolioIsEmpty) return <EmptyState />;
 
   return (
     <div className="space-y-6">
       <TopMetrics
-        chart={portfolioChart.data}
-        chartLoading={portfolioChart.loading}
-        loading={portfolio.loading || !summary}
+        chart={chart}
+        chartLoading={portfolioFull.loading}
+        loading={portfolioFull.loading || !summary}
         range={selectedRange}
         summary={summary}
       />
@@ -59,7 +62,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
           range={selectedRange}
           setRange={setSelectedRange}
           summary={summary}
-          portfolioChart={portfolioChart}
+          portfolioChart={{ loading: portfolioFull.loading, data: chart, error: portfolioFull.error, reload: portfolioFull.reload }}
           userTimezone={appTimezone}
         />
       ) : (
