@@ -17,7 +17,7 @@ export function PrivacyProvider({ privacyEnabled, children }: { privacyEnabled: 
   return <PrivacyContext.Provider value={{ privacyEnabled }}>{children}</PrivacyContext.Provider>;
 }
 
-/** Retourne vrai si le mode privé est actif. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePrivacy(): boolean {
   return useContext(PrivacyContext).privacyEnabled;
 }
