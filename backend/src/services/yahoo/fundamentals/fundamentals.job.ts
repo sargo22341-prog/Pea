@@ -37,7 +37,7 @@ async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<a
         module: "financials",
         type: "annual"
       }),
-    () => readCache<any[]>("cached_fundamentals", `${key}:annual-financials`, 24 * 60 * 60),
+    () => readCache<any[]>("cached_fundamentals", `${key}:annual-financials`, 7 * 24 * 60 * 60),
     (data) => writeCache("cached_fundamentals", `${key}:annual-financials`, data)
   );
 }
@@ -47,7 +47,7 @@ async function fetchFundamentalsSummary(symbol: string): Promise<MarketDataResul
   return safeYahooCall<any>(
     `fundamentals:${key}`,
     () => yahooClient.quoteSummary(key, { modules: fundamentalsModules } as any),
-    () => readCache<any>("cached_fundamentals", key, 24 * 60 * 60),
+    () => readCache<any>("cached_fundamentals", key, 7 * 24 * 60 * 60),
     (data) => writeCache("cached_fundamentals", key, data)
   );
 }
