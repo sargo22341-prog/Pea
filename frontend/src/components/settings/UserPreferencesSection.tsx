@@ -76,6 +76,25 @@ export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () =
           </span>
         </span>
       </label>
+      {/* Masquage des chiffres du portefeuille */}
+      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
+        <button
+          aria-checked={preferences.privacyModeEnabled}
+          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.privacyModeEnabled ? "bg-mint" : "bg-panel2"}`}
+          onClick={() => preferences.setPrivacyModeEnabled((current) => !current)}
+          role="switch"
+          type="button"
+        >
+          <span className={`h-4 w-4 rounded-full bg-white transition ${preferences.privacyModeEnabled ? "translate-x-5" : ""}`} />
+        </button>
+        <span>
+          <span className="block font-semibold">Mode prive</span>
+          <span className="muted block">Masque les chiffres lies a votre portefeuille sur toutes les pages.</span>
+          <span className="mt-2 block text-sm text-slate-300">
+            Les donnees de marche (cours, variations journalieres) restent visibles. Seuls les montants personnels (valeur totale, dividendes, frais, performances) sont remplaces par des points.
+          </span>
+        </span>
+      </label>
       <div className="rounded-md border border-line bg-ink p-3">
         <p className="font-semibold">Langues des actualites</p>
         <p className="muted mt-1 text-sm">Gardez au moins une langue activee pour les articles.</p>

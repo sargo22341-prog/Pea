@@ -6,8 +6,10 @@
 import type { CurrencyCode } from "@pea/shared";
 import { CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { usePrivacy } from "../../contexts/PrivacyContext";
 import { AssetIcon } from "../common/AssetIcon";
 import { money } from "../../lib/format";
+import { masquerValeur } from "../../lib/privacy";
 
 export interface DividendGroup {
   symbol: string;
@@ -30,6 +32,8 @@ interface DividendGroupedListProps {
 }
 
 export function DividendGroupedList({ currency, groups, total, year }: DividendGroupedListProps) {
+  const prive = usePrivacy();
+
   return (
     <section className="card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -40,20 +44,20 @@ export function DividendGroupedList({ currency, groups, total, year }: DividendG
           </div>
           <p className="muted mt-1">Liste regroupee par action</p>
         </div>
-        <p className="text-lg font-semibold text-mint">{money(total, currency)}</p>
+        <p className="text-lg font-semibold text-mint">{masquerValeur(money(total, currency), prive)}</p>
       </div>
 
       <div className="divide-y divide-line">
         {groups.length === 0 && <p className="p-4 text-slate-400">Aucun dividende disponible.</p>}
         {groups.map((group) => (
-          <DividendAssetRow group={group} key={group.symbol} />
+          <DividendAssetRow group={group} key={group.symbol} prive={prive} />
         ))}
       </div>
     </section>
   );
 }
 
-function DividendAssetRow({ group }: { group: DividendGroup }) {
+function DividendAssetRow({ group, prive }: { group: DividendGroup; prive: boolean }) {
   return (
     <Link className="grid min-w-0 grid-cols-[minmax(0,1fr)_110px_minmax(80px,auto)] items-center gap-1 p-4 transition hover:bg-panel2/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-mint sm:gap-3 sm:grid-cols-[minmax(0,1fr)_150px_minmax(126px,1fr)]" to={`/assets/${group.symbol}`}>
       {/* LEFT */}
@@ -68,25 +72,26 @@ function DividendAssetRow({ group }: { group: DividendGroup }) {
             {group.name}
           </p>
           <p className="mt-1 text-sm text-slate-400">
-            {formatQuantity(group.quantity)} titres
+            {masquerValeur(`${formatQuantity(group.quantity)}`, prive)} titres
           </p>
         </div>
       </div>
 
       {/* CENTER */}
       <div className="ml-auto mr-[50px] w-[80px] sm:mx-auto sm:mr-0 sm:w-[150px]">
-        <QuarterBars quarters={group.quarters} currency={group.currency} />
+        <QuarterBars quarters={group.quarters} currency={group.currency} prive={prive} />
       </div>
-      
+
       {/* RIGHT */}
       <div className="min-w-0 justify-self-end text-right">
         <p className="truncate font-semibold text-mint">
-          {money(group.total, group.currency)}
+          {masquerValeur(money(group.total, group.currency), prive)}
         </p>
         <p className="mt-1 truncate text-xs text-slate-400 sm:text-sm">
+          {/* dividendPercent = rendement marché, visible. yieldOnCostPercent = rendement sur coût d'achat, personnel. */}
           {formatOptionalPercent(group.dividendPercent)}
           {group.yieldOnCostPercent !== undefined
-            ? ` / ${formatOptionalPercent(group.yieldOnCostPercent)}`
+            ? ` / ${masquerValeur(formatOptionalPercent(group.yieldOnCostPercent), prive)}`
             : ""}
         </p>
 
@@ -100,7 +105,7 @@ function DividendAssetRow({ group }: { group: DividendGroup }) {
   );
 }
 
-function QuarterBars({ quarters, currency }: { quarters: [number, number, number, number]; currency: CurrencyCode }) {
+function QuarterBars({ quarters, currency, prive }: { quarters: [number, number, number, number]; currency: CurrencyCode; prive: boolean }) {
   const max = Math.max(...quarters, 0);
 
   return (
@@ -108,7 +113,7 @@ function QuarterBars({ quarters, currency }: { quarters: [number, number, number
       {quarters.map((amount, index) => {
         const height = max > 0 ? Math.max(8, Math.round((amount / max) * 40)) : 4;
         return (
-          <div className="flex min-w-0 flex-col items-center gap-1" key={`q${index + 1}`} title={`Q${index + 1} - ${money(amount, currency)}`}>
+          <div className="flex min-w-0 flex-col items-center gap-1" key={`q${index + 1}`} title={`Q${index + 1} - ${masquerValeur(money(amount, currency), prive)}`}>
             <div
               className={`w-full max-w-6 rounded-t-sm ${amount > 0 ? "bg-mint" : "bg-line"}`}
               style={{ height }}

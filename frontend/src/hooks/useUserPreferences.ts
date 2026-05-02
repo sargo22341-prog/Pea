@@ -11,6 +11,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
   const [newsLanguages, setNewsLanguages] = useState<NewsLanguage[]>(["fr"]);
+  const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
     setNewsLanguages(user.newsLanguages?.length ? user.newsLanguages : ["fr"]);
+    setPrivacyModeEnabled(user.privacyModeEnabled);
   }, [me.data?.user]);
 
   function toggleNewsLanguage(language: NewsLanguage) {
@@ -36,7 +38,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     const [dashboardDefaultSortKey, dashboardDefaultSortDirection] = sortValue.split(":") as [DashboardSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, privacyModeEnabled });
       setToast({ tone: "success", text: "Preferences enregistrees." });
       await me.reload();
       await onUserUpdated?.();
@@ -50,10 +52,12 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     localPeaSearchEnabled,
     me,
     newsLanguages,
+    privacyModeEnabled,
     range,
     save,
     setAssetNewsEnabled,
     setLocalPeaSearchEnabled,
+    setPrivacyModeEnabled,
     setRange,
     setSortValue,
     sortValue,

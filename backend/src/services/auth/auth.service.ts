@@ -22,6 +22,7 @@ export interface AuthUser {
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];
+  privacyModeEnabled: boolean;
   createdAt: string;
 }
 
@@ -41,6 +42,7 @@ interface LigneUtilisateur {
   asset_news_enabled: number | null;
   news_language_fr_enabled: number | null;
   news_language_en_enabled: number | null;
+  privacy_mode_enabled: number | null;
   created_at: string;
 }
 
@@ -94,6 +96,7 @@ function convertirLigneEnUtilisateur(ligne: LigneUtilisateur): AuthUser {
     localPeaSearchEnabled: ligne.local_pea_search_enabled === undefined || ligne.local_pea_search_enabled === null ? true : Boolean(ligne.local_pea_search_enabled),
     assetNewsEnabled: ligne.asset_news_enabled === undefined || ligne.asset_news_enabled === null ? true : Boolean(ligne.asset_news_enabled),
     newsLanguages: langues.length ? langues : ["fr"],
+    privacyModeEnabled: Boolean(ligne.privacy_mode_enabled),
     createdAt: String(ligne.created_at)
   };
 }
@@ -185,6 +188,7 @@ export class AuthService {
       localPeaSearchEnabled?: boolean;
       assetNewsEnabled?: boolean;
       newsLanguages?: NewsLanguage[];
+      privacyModeEnabled?: boolean;
     }
   ) {
     const actuel = db.prepare("SELECT * FROM users WHERE id = ?").get(idUtilisateur) as LigneUtilisateur | undefined;
@@ -203,6 +207,7 @@ export class AuthService {
     const languesFrActivee = donnees.newsLanguages === undefined ? Number(actuel.news_language_fr_enabled ?? 1) : languesValides.includes("fr") ? 1 : 0;
     const languesEnActivee = donnees.newsLanguages === undefined ? Number(actuel.news_language_en_enabled ?? 0) : languesValides.includes("en") ? 1 : 0;
     if (!languesFrActivee && !languesEnActivee) throw new HttpError(400, "Au moins une langue d'actualites doit etre activee.");
+    const modePrive = donnees.privacyModeEnabled === undefined ? Number(actuel.privacy_mode_enabled ?? 0) : donnees.privacyModeEnabled ? 1 : 0;
 
     try {
       db.prepare(
@@ -217,6 +222,7 @@ export class AuthService {
              asset_news_enabled = ?,
              news_language_fr_enabled = ?,
              news_language_en_enabled = ?,
+             privacy_mode_enabled = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`
       ).run(
@@ -230,6 +236,7 @@ export class AuthService {
         actualitesActivees,
         languesFrActivee,
         languesEnActivee,
+        modePrive,
         idUtilisateur
       );
     } catch {

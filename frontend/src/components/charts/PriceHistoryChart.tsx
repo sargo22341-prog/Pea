@@ -4,6 +4,7 @@ import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recha
 import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
+import { masquerValeur } from "../../lib/privacy";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 interface PriceHistoryChartProps {
@@ -25,6 +26,8 @@ interface PriceHistoryChartProps {
   transactionMarkers?: PortfolioTransactionMarker[];
   userTimezone?: string;
   hideXAxisTicks?: boolean;
+  /** Quand vrai, masque les montants dans le tooltip (mode privé sur le chart portefeuille). */
+  maskValues?: boolean;
 }
 
 type MarkerGroupPoint = {
@@ -50,6 +53,7 @@ type HistoryTooltipProps = {
   label?: unknown;
   currency: string;
   labelFormatter: (value: string | number) => string;
+  maskValues?: boolean;
 };
 
 export function PriceHistoryChart({
@@ -64,7 +68,8 @@ export function PriceHistoryChart({
   marketSession,
   transactionMarkers = [],
   userTimezone,
-  hideXAxisTicks = false
+  hideXAxisTicks = false,
+  maskValues = false
 }: PriceHistoryChartProps) {
   const { chartData, trend } = usePriceHistoryChart(data, range, baselinePrice);
   const compressTimeAxis = range === "1w" || range === "1m";
@@ -156,6 +161,7 @@ export function PriceHistoryChart({
                     marketSession
                   )
                 }
+                maskValues={maskValues}
                 payload={props.payload}
               />
             )}
@@ -187,7 +193,7 @@ export function PriceHistoryChart({
         </ComposedChart>
       </SafeResponsiveContainer>
       {markerOverlayPoints.length > 0 && (
-        <TransactionMarkerOverlay currency={currency} points={markerOverlayPoints} userTimezone={userTimezone} />
+        <TransactionMarkerOverlay currency={currency} maskValues={maskValues} points={markerOverlayPoints} userTimezone={userTimezone} />
       )}
     </div>
   );
@@ -216,11 +222,13 @@ function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartDat
 function TransactionMarkerOverlay({
   currency,
   points,
-  userTimezone
+  userTimezone,
+  maskValues
 }: {
   currency: string;
   points: MarkerOverlayPoint[];
   userTimezone?: string;
+  maskValues: boolean;
 }) {
   const [activePoint, setActivePoint] = useState<MarkerOverlayPoint | null>(null);
 
@@ -246,7 +254,7 @@ function TransactionMarkerOverlay({
           className="pointer-events-none absolute bottom-10 z-20 max-w-[min(360px,calc(100vw-2rem))] -translate-x-1/2 rounded-lg bg-ink/90 p-3 text-xs text-slate-200 shadow-lg backdrop-blur"
           style={{ left: activePoint.left }}
         >
-          <TransactionMarkerTooltip currency={currency} markers={activePoint.markers} userTimezone={userTimezone} />
+          <TransactionMarkerTooltip currency={currency} markers={activePoint.markers} maskValues={maskValues} userTimezone={userTimezone} />
         </div>
       )}
     </div>
@@ -287,11 +295,13 @@ function TransactionMarkerBadge({ group }: { group: MarkerGroupPoint }) {
 function TransactionMarkerTooltip({
   currency,
   markers,
-  userTimezone
+  userTimezone,
+  maskValues
 }: {
   currency: string;
   markers: PortfolioTransactionMarker[];
   userTimezone?: string;
+  maskValues: boolean;
 }) {
   return (
     <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
@@ -303,10 +313,10 @@ function TransactionMarkerTooltip({
             <div>
               <p className="font-medium text-slate-100">{marker.name}</p>
               <p className={isBuy ? "text-emerald-400" : "text-red-400"}>
-                {isBuy ? "+" : "-"} {formatNumber(marker.quantity)} {marker.symbol}
+                {isBuy ? "+" : "-"} {masquerValeur(formatNumber(marker.quantity), maskValues)} {marker.symbol}
               </p>
               <p className="text-slate-400">
-                {isBuy ? "Achat" : "Vente"}{marker.price == null ? "" : ` a ${money(marker.price, currency)}`} - {formatChartDateTime(marker.transactionDate, userTimezone)}
+                {isBuy ? "Achat" : "Vente"}{marker.price == null ? "" : ` a ${masquerValeur(money(marker.price, currency), maskValues)}`} - {formatChartDateTime(marker.transactionDate, userTimezone)}
               </p>
             </div>
           </div>
@@ -321,7 +331,8 @@ function HistoryTooltip({
   payload,
   label,
   currency,
-  labelFormatter
+  labelFormatter,
+  maskValues = false
 }: HistoryTooltipProps) {
   if (!active) return null;
   const valuePayload = payload?.find((item) => item.dataKey === "value");
@@ -329,7 +340,9 @@ function HistoryTooltip({
   return (
     <div className="rounded-lg border-0 bg-ink/80 p-3 text-xs text-slate-200 shadow-lg backdrop-blur">
       <p className="mb-2 font-medium text-slate-300">{labelFormatter(typeof label === "number" || typeof label === "string" ? label : "")}</p>
-      {valuePayload?.value != null && <p className="mb-2 text-slate-100">{money(Number(valuePayload.value), currency)}</p>}
+      {valuePayload?.value != null && (
+        <p className="mb-2 text-slate-100">{masquerValeur(money(Number(valuePayload.value), currency), maskValues)}</p>
+      )}
     </div>
   );
 }

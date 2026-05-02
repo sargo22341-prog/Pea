@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Shell } from "./components/common/Shell";
+import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
 import { AuthPage } from "./pages/AuthPage";
@@ -36,6 +37,7 @@ export function App() {
   const appTimezone = me.data.appTimezone;
 
   return (
+    <PrivacyProvider privacyEnabled={me.data.user.privacyModeEnabled}>
     <Suspense fallback={<LoadingPage />}>
       <Routes>
         <Route element={<Shell user={me.data.user} />}>
@@ -51,5 +53,6 @@ export function App() {
         </Route>
       </Routes>
     </Suspense>
+    </PrivacyProvider>
   );
 }

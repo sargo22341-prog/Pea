@@ -38,6 +38,16 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 4,
+    description: "Colonne privacy_mode_enabled sur users pour masquer les chiffres du portefeuille",
+    appliquer: (db) => {
+      const colonnes = db.prepare("PRAGMA table_info(users)").all() as ColonneDb[];
+      if (!colonnes.some((c) => c.name === "privacy_mode_enabled")) {
+        db.exec("ALTER TABLE users ADD COLUMN privacy_mode_enabled INTEGER NOT NULL DEFAULT 0");
+      }
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {

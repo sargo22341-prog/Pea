@@ -4,6 +4,7 @@
  */
 
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
+import { usePrivacy } from "../../contexts/PrivacyContext";
 import { PriceHistoryChart } from "../charts/PriceHistoryChart";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../lib/timezone";
 
@@ -23,6 +24,7 @@ export function PortfolioChart({
   range: RangeKey;
   userTimezone?: string;
 }) {
+  const prive = usePrivacy();
   const chartData = toChartPoints(chart);
   const marketSession = range === "1d" ? chart.marketSession ?? fallbackIntradaySession : undefined;
 
@@ -37,6 +39,7 @@ export function PortfolioChart({
         data={chartData}
         hideXAxisTicks
         margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
+        maskValues={prive}
         minTickGap={28}
         marketSession={marketSession}
         oneDayTooltipFormat="time"

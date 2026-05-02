@@ -5,7 +5,9 @@
 
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
 import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
+import { usePrivacy } from "../../contexts/PrivacyContext";
 import { formatRangeLabel, money, percent } from "../../lib/format";
+import { masquerValeur } from "../../lib/privacy";
 import { Metric } from "./Metric";
 
 export function TopMetrics({
@@ -21,21 +23,23 @@ export function TopMetrics({
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
 }) {
+  const prive = usePrivacy();
+
   return (
     <section className="space-y-3">
-      <PortfolioTotal loading={loading} value={summary?.totalValue} />
+      <PortfolioTotal loading={loading} prive={prive} value={summary?.totalValue} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Metric icon={TrendingUp} label="Total investi" loading={loading} value={summary ? money(summary.totalCost, summary.currency) : undefined} />
-        <Metric icon={Coins} label="Total dividendes" loading={loading} value={summary ? money(summary.totalDividendsReceived, summary.currency) : undefined} />
-        <Metric icon={ReceiptText} label="Total frais" loading={loading} value={summary ? money(summary.totalFees, summary.currency) : undefined} />
+        <Metric icon={TrendingUp} label="Total investi" loading={loading} value={summary ? masquerValeur(money(summary.totalCost, summary.currency), prive) : undefined} />
+        <Metric icon={Coins} label="Total dividendes" loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, summary.currency), prive) : undefined} />
+        <Metric icon={ReceiptText} label="Total frais" loading={loading} value={summary ? masquerValeur(money(summary.totalFees, summary.currency), prive) : undefined} />
         <Metric
           icon={LineChart}
           label="Performance"
           loading={loading}
           tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
-          value={summary ? `${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})` : undefined}
+          value={summary ? masquerValeur(`${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})`, prive) : undefined}
         />
-        <RangeMetric chart={chart} chartLoading={chartLoading} currency={summary?.currency ?? "EUR"} range={range} summaryReady={!loading && summary != null} />
+        <RangeMetric chart={chart} chartLoading={chartLoading} currency={summary?.currency ?? "EUR"} prive={prive} range={range} summaryReady={!loading && summary != null} />
       </div>
     </section>
   );
@@ -44,7 +48,7 @@ export function TopMetrics({
 /**
  * Affiche la valorisation du PEA comme information principale du Dashboard.
  */
-function PortfolioTotal({ value, loading }: { value?: number; loading: boolean }) {
+function PortfolioTotal({ value, loading, prive }: { value?: number; loading: boolean; prive: boolean }) {
   return (
     <div className="flex min-h-[118px] items-start justify-center pt-2 text-center">
       {loading ? (
@@ -54,7 +58,7 @@ function PortfolioTotal({ value, loading }: { value?: number; loading: boolean }
           className="break-words bg-gradient-to-b from-white via-slate-100 to-teal-100 bg-clip-text font-black leading-none text-transparent text-[70px] sm:text-[86px]"
           style={{ textShadow: "0 0 28px rgba(45, 212, 191, 0.18)" }}
         >
-          {formatMainTotal(value)}
+          {prive ? "••••" : formatMainTotal(value)}
         </p>
       )}
     </div>
@@ -76,18 +80,20 @@ function RangeMetric({
   range,
   summaryReady,
   chart,
-  chartLoading
+  chartLoading,
+  prive
 }: {
   currency: string;
   range: RangeKey;
   summaryReady: boolean;
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
+  prive: boolean;
 }) {
   if (!summaryReady) {
     return <Metric icon={Activity} label={`Performance sur ${formatRangeLabel(range)}`} loading />;
   }
-  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} range={range} />;
+  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} prive={prive} range={range} />;
 }
 
 /**
@@ -97,12 +103,14 @@ function LoadedRangeMetric({
   currency,
   range,
   chart,
-  chartLoading
+  chartLoading,
+  prive
 }: {
   currency: string;
   range: RangeKey;
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
+  prive: boolean;
 }) {
   return (
     <Metric
@@ -110,7 +118,7 @@ function LoadedRangeMetric({
       label={`Performance sur ${formatRangeLabel(range)}`}
       loading={chartLoading || !chart}
       tone={chart == null ? undefined : chart.performanceEuro >= 0 ? "positive" : "negative"}
-      value={chart ? `${money(chart.performanceEuro, currency)} · ${percent(chart.performancePercent)}` : undefined}
+      value={chart ? masquerValeur(`${money(chart.performanceEuro, currency)} · ${percent(chart.performancePercent)}`, prive) : undefined}
     />
   );
 }

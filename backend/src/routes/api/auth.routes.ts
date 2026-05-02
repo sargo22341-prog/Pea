@@ -75,7 +75,8 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
     defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
-    newsLanguages: z.array(z.enum(["fr", "en"])).optional()
+    newsLanguages: z.array(z.enum(["fr", "en"])).optional(),
+    privacyModeEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const updated = await authService.updateUser(req.user!.id, body);

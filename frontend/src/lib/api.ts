@@ -190,6 +190,7 @@ export const api = {
     localPeaSearchEnabled?: boolean;
     assetNewsEnabled?: boolean;
     newsLanguages?: NewsLanguage[];
+    privacyModeEnabled?: boolean;
   }) =>
     request<User>("/api/auth/me", { method: "PATCH", body: JSON.stringify(input) }),
   uploadProfileIcon: (file: File) => {

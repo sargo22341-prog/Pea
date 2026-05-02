@@ -535,6 +535,8 @@ export interface User {
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];
+  /** Quand vrai, les chiffres liés au portefeuille de l'utilisateur sont remplacés par des étoiles. */
+  privacyModeEnabled: boolean;
   createdAt: string;
 }
 

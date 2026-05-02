@@ -7,8 +7,10 @@ import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, Ra
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePrivacy } from "../../contexts/PrivacyContext";
 import { api } from "../../lib/api";
 import { formatRangeLabel, money, percent } from "../../lib/format";
+import { masquerValeur } from "../../lib/privacy";
 import { AssetIcon } from "../common/AssetIcon";
 
 const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: SortDirection }> = [
@@ -89,6 +91,7 @@ export function PositionList({
     setSortOpen(false);
   }
 
+  const prive = usePrivacy();
   const rangeLabel = formatRangeLabel(range);
   const activeSort = sortOptions.find((option) => option.key === sortKey && option.direction === sortDirection) ?? sortOptions[0];
   const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
@@ -140,6 +143,7 @@ export function PositionList({
             loadedPosition={performanceById.get(position.id) ?? null}
             error={performanceError}
             position={position}
+            prive={prive}
             rangeLabel={rangeLabel}
           />
         ))}
@@ -164,12 +168,14 @@ function LazyPositionRow({
   position,
   rangeLabel,
   loadedPosition,
-  error
+  error,
+  prive
 }: {
   position: PositionWithMarket;
   rangeLabel: string;
   loadedPosition: PositionRangePerformance | null;
   error: string | null;
+  prive: boolean;
 }) {
   const [visibleSoon, setVisibleSoon] = useState(false);
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -202,8 +208,8 @@ function LazyPositionRow({
   return (
     <div ref={rowRef}>
       <Link className="block min-h-[76px] min-w-0 p-3 transition hover:bg-panel2 sm:min-h-[88px] sm:p-4" to={`/assets/${loadedPosition.symbol}`}>
-        <MobilePositionRow position={loadedPosition} positive={positive} />
-        <DesktopPositionRow position={loadedPosition} positive={positive} rangeLabel={rangeLabel} />
+        <MobilePositionRow position={loadedPosition} positive={positive} prive={prive} />
+        <DesktopPositionRow position={loadedPosition} positive={positive} prive={prive} rangeLabel={rangeLabel} />
       </Link>
     </div>
   );
@@ -235,7 +241,7 @@ function PositionRowSkeleton({ name, symbol, error }: { name: string; symbol: st
   );
 }
 
-function MobilePositionRow({ position, positive }: { position: PositionRangePerformance; positive: boolean }) {
+function MobilePositionRow({ position, positive, prive }: { position: PositionRangePerformance; positive: boolean; prive: boolean }) {
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
@@ -246,18 +252,19 @@ function MobilePositionRow({ position, positive }: { position: PositionRangePerf
           <p className="truncate text-sm font-semibold">{position.name}</p>
         </div>
         <p className="truncate text-[11px] text-slate-400">
-          {formatQuantity(position.quantity)} | {money(position.averageBuyPrice, position.currency)}
+          {masquerValeur(`${formatQuantity(position.quantity)}`, prive)} | {masquerValeur(money(position.averageBuyPrice, position.currency), prive)}
         </p>
       </div>
+      {/* Le cours actuel est une donnée de marché : toujours visible */}
       <p className="truncate whitespace-nowrap text-right text-xs font-semibold tabular-nums">
         {position.stale && !position.currentPrice ? "n/a" : money(position.currentPrice, position.currency)}
       </p>
       <div className="min-w-0 text-right leading-tight">
-        <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums">{money(position.currentMarketValue, position.currency)}</p>
+        <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums">{masquerValeur(money(position.currentMarketValue, position.currency), prive)}</p>
         <p className={`mt-0.5 flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums ${positive ? "text-mint" : "text-coral"}`}>
           <Icon size={12} />
           <span className="min-w-0 truncate">
-            {money(position.intervalPerformanceValue, position.currency)} | {percent(position.intervalPerformancePercent)}
+            {masquerValeur(`${money(position.intervalPerformanceValue, position.currency)} | ${percent(position.intervalPerformancePercent)}`, prive)}
           </span>
         </p>
       </div>
@@ -265,7 +272,7 @@ function MobilePositionRow({ position, positive }: { position: PositionRangePerf
   );
 }
 
-function DesktopPositionRow({ position, positive, rangeLabel }: { position: PositionRangePerformance; positive: boolean; rangeLabel: string }) {
+function DesktopPositionRow({ position, positive, prive, rangeLabel }: { position: PositionRangePerformance; positive: boolean; prive: boolean; rangeLabel: string }) {
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
@@ -281,16 +288,17 @@ function DesktopPositionRow({ position, positive, rangeLabel }: { position: Posi
         </div>
       </div>
 
-      <Info label="Quantite" value={`${formatQuantity(position.quantity)} actions`} />
+      <Info label="Quantite" value={masquerValeur(`${formatQuantity(position.quantity)} actions`, prive)} />
+      {/* Prix actuel = donnée de marché, toujours visible */}
       <Info label="Prix actuel" value={position.stale && !position.currentPrice ? "Prix indisponible" : money(position.currentPrice, position.currency)} />
-      <Info label="Prix moyen" value={money(position.averageBuyPrice, position.currency)} />
+      <Info label="Prix moyen" value={masquerValeur(money(position.averageBuyPrice, position.currency), prive)} />
 
       <div className="text-right">
         <p className="text-sm text-slate-400">Valeur | Perf {rangeLabel}</p>
-        <p className="font-semibold">{money(position.currentMarketValue, position.currency)}</p>
+        <p className="font-semibold">{masquerValeur(money(position.currentMarketValue, position.currency), prive)}</p>
         <p className={`mt-1 flex items-center justify-end gap-1 text-sm font-semibold ${positive ? "text-mint" : "text-coral"}`}>
           <Icon size={16} />
-          {money(position.intervalPerformanceValue, position.currency)} | {percent(position.intervalPerformancePercent)}
+          {masquerValeur(`${money(position.intervalPerformanceValue, position.currency)} | ${percent(position.intervalPerformancePercent)}`, prive)}
         </p>
       </div>
     </div>
