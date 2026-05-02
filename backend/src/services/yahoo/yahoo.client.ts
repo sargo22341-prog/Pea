@@ -2,6 +2,17 @@
  * Role du fichier : posseder l'instance yahoo-finance2 et le rate limiter global.
  * Les jobs passent par retryTemporary/safeYahooCall pour garder le comportement
  * de retry, dedupe et fallback cache de l'ancien service.
+ *
+ * Ordre d'exécution dans safeYahooCall :
+ *  1. Vérification du cache local AVANT de toucher le rate limiter.
+ *     Si la donnée est fraîche, on retourne immédiatement sans passer par Bottleneck.
+ *  2. Seulement si le cache est absent ou périmé, l'appel réseau est soumis au rate limiter.
+ *  3. dedupeInFlight empêche N appels concurrents pour la même clé d'aller tous en file :
+ *     un seul appel est émis, les N-1 autres attendent sa résolution.
+ *  4. En cas d'erreur réseau, le cache périmé (stale) est retourné comme fallback.
+ *
+ * Conséquence : le rate limiter (minTime 250ms, maxConcurrent 1) ne pénalise que
+ * les vrais appels réseau vers Yahoo Finance, pas les lectures de cache en mémoire.
  */
 
 import Bottleneck from "bottleneck";
@@ -14,6 +25,9 @@ import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
 
 export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
+// Rate limiter qui sérialise les appels réels vers Yahoo Finance.
+// 250ms minimum entre deux appels, 1 seul appel concurrent autorisé.
+// Ce limiteur n'est pas traversé pour les hits de cache (voir safeYahooCall).
 const limiter = new Bottleneck({
   minTime: 250,
   maxConcurrent: 1

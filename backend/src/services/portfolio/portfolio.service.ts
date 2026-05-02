@@ -10,7 +10,6 @@ import { HttpError } from "../../utils/http-error.js";
 import { currentUserId, normalizeUserId } from "../auth/user-context.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
-import { dividendsService } from "../market/dividends.service.js";
 import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
@@ -18,6 +17,7 @@ import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cach
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
+import { buildTransactionCache, computeTotalDividendsReceived, getCostBasisAtTime, getQuantityAtTime } from "./portfolio-calculations.js";
 import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
@@ -136,6 +136,11 @@ export class PortfolioService {
     return mapPosition(created);
   }
 
+  /**
+   * Indique si une position possède au moins une transaction avec date d'exécution.
+   * Utilisée par les routes externes (assets, dividends) pour décider si le calcul
+   * de quantité doit prendre en compte l'historique transactionnel ou la quantité fixe.
+   */
   hasDatedTransactions(positionId: number): boolean {
     const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL").get(positionId) as any;
     return Number(row?.count ?? 0) > 0;
@@ -155,30 +160,6 @@ export class PortfolioService {
     }, 0);
   }
 
-  private getCostBasisHeldAtDate(positionId: number, date: string): number {
-    const time = new Date(date).getTime();
-    if (!Number.isFinite(time)) return 0;
-    const rows = db
-      .prepare("SELECT type, quantity, price, total_fees, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number; traded_at: string }>;
-
-    let quantity = 0;
-    let costBasis = 0;
-    for (const row of rows) {
-      if (new Date(row.traded_at).getTime() > time) continue;
-      const rowQuantity = Number(row.quantity);
-      if (row.type === "buy") {
-        quantity += rowQuantity;
-        costBasis += rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
-      } else if (row.type === "sell") {
-        const averageCost = quantity > 0 ? costBasis / quantity : 0;
-        quantity -= rowQuantity;
-        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-      }
-    }
-
-    return costBasis;
-  }
 
   recomputePositionFromDatedTransactions(positionId: number) {
     const rows = db
@@ -381,7 +362,9 @@ export class PortfolioService {
     const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase())));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
-    const totalDividendsReceived = this.totalDividendsReceived(positions);
+    // Pré-charge toutes les transactions en une passe pour éviter le N+1 dans le calcul des dividendes
+    const txCache = buildTransactionCache(basePositions.map((p) => p.id));
+    const totalDividendsReceived = this.totalDividendsReceived(positions, txCache);
     const totalFeesRow = db
       .prepare(
         `SELECT COALESCE(SUM(t.total_fees), 0) AS total_fees
@@ -412,6 +395,11 @@ export class PortfolioService {
     if (!positions.length) return [];
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 
+    // Pré-charge toutes les transactions datées en une seule requête SQL avant la boucle.
+    // Sans ce cache, chaque point de la timeline × chaque position déclenchait 3 requêtes DB,
+    // soit jusqu'à 7 500+ requêtes pour 10 positions / 1 an de données quotidiennes.
+    const txCache = buildTransactionCache(positions.map((p) => p.id));
+
     const histories = await Promise.all(
       positions.map(async (position) => ({
         position,
@@ -431,13 +419,18 @@ export class PortfolioService {
         assets: histories.map((item) => `${item.position.symbol}:${item.history.length}`).join(",")
       });
       const fallbackDate = new Date().toISOString();
+      const fallbackTimeMs = new Date(fallbackDate).getTime();
       const fallbackValue = histories.reduce((sum, item) => {
-        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, fallbackDate) : item.position.quantity;
+        const entry = txCache.get(item.position.id);
+        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, fallbackTimeMs) : item.position.quantity;
         return sum + item.fallbackPrice * quantity;
       }, 0);
       const fallbackInvested = histories.reduce((sum, item) => {
-        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, fallbackDate) : item.position.quantity;
-        return sum + (this.hasDatedTransactions(item.position.id) ? this.getCostBasisHeldAtDate(item.position.id, fallbackDate) : item.position.averageBuyPrice * quantity);
+        const entry = txCache.get(item.position.id);
+        if (entry?.hasDated) {
+          return sum + getCostBasisAtTime(entry.transactions, fallbackTimeMs);
+        }
+        return sum + item.position.averageBuyPrice * item.position.quantity;
       }, 0);
       const fallbackGain = fallbackValue - fallbackInvested;
       return [{ date: fallbackDate, value: fallbackValue, invested: fallbackInvested, gain: fallbackGain, gainPercent: fallbackInvested ? (fallbackGain / fallbackInvested) * 100 : 0, stale: true }];
@@ -450,22 +443,30 @@ export class PortfolioService {
       lastPrices.set(item.position.symbol, item.fallbackPrice);
     }
 
-    return timeline.map((date) => {
+    // Pré-calcule les timestamps entiers des points de timeline pour éviter
+    // de recréer des objets Date à chaque tour de la double boucle positions × dates.
+    const timelineMs = timeline.map((date) => new Date(date).getTime());
+
+    return timeline.map((date, timelineIndex) => {
       let value = 0;
       let invested = 0;
+      const dateMs = timelineMs[timelineIndex];
 
       for (const item of histories) {
         const symbol = item.position.symbol;
         let cursor = cursors.get(symbol) ?? 0;
-        while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= new Date(date).getTime()) {
+        while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= dateMs) {
           lastPrices.set(symbol, item.history[cursor].close);
           cursor += 1;
         }
         cursors.set(symbol, cursor);
-        const quantity = this.hasDatedTransactions(item.position.id) ? this.getQuantityHeldAtDate(item.position.id, date) : item.position.quantity;
+
+        // Utilise le cache en mémoire : zéro requête DB dans cette boucle
+        const entry = txCache.get(item.position.id);
+        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, dateMs) : item.position.quantity;
         value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
-        invested += this.hasDatedTransactions(item.position.id)
-          ? this.getCostBasisHeldAtDate(item.position.id, date)
+        invested += entry?.hasDated
+          ? getCostBasisAtTime(entry.transactions, dateMs)
           : item.position.averageBuyPrice * quantity;
       }
 
@@ -636,18 +637,27 @@ export class PortfolioService {
     };
   }
 
+  /**
+   * Calcule le prix de référence de début de journée pour le graphique intraday.
+   * Le cache de transactions évite les requêtes répétées pour les positions datées.
+   */
   private async portfolioIntradayBaseline(options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
     const positions = this.listPositions();
     if (!positions.length) return undefined;
 
+    const txCache = buildTransactionCache(positions.map((p) => p.id));
     let price = 0;
     const datetimes: string[] = [];
     for (const position of positions) {
       const chart = await marketDataService.getChartData(position.symbol, "1d", options).catch(() => undefined);
       if (!chart?.baselinePrice || !Number.isFinite(chart.baselinePrice)) continue;
-      const quantity = chart.baselineDatetime && this.hasDatedTransactions(position.id)
-        ? this.getQuantityHeldAtDate(position.id, chart.baselineDatetime)
-        : position.quantity;
+      let quantity: number;
+      const entry = txCache.get(position.id);
+      if (chart.baselineDatetime && entry?.hasDated) {
+        quantity = getQuantityAtTime(entry.transactions, new Date(chart.baselineDatetime).getTime());
+      } else {
+        quantity = position.quantity;
+      }
       price += chart.baselinePrice * quantity;
       if (chart.baselineDatetime) datetimes.push(chart.baselineDatetime);
     }
@@ -707,7 +717,10 @@ export class PortfolioService {
   async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
     const positions = this.listPositions();
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
-    return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options)));
+    // Pré-charge toutes les transactions en une seule requête et partage le cache
+    // entre toutes les positions pour éviter N requêtes individuelles.
+    const txCache = buildTransactionCache(positions.map((p) => p.id));
+    return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options, txCache)));
   }
 
   /**
@@ -763,20 +776,13 @@ export class PortfolioService {
     return this.enrichPositionWithQuote(position, quote);
   }
 
-  private totalDividendsReceived(positions: PositionWithMarket[]): number {
-    const now = Date.now();
-    return positions.reduce((portfolioTotal, position) => {
-      const dividends = dividendsService.readDividends(position.symbol);
-      const positionTotal = dividends.reduce((sum, event) => {
-        const eventTime = new Date(event.date).getTime();
-        if (!Number.isFinite(eventTime) || eventTime > now) return sum;
-        const quantity = this.hasDatedTransactions(position.id)
-          ? this.getQuantityHeldAtDate(position.id, event.date)
-          : position.quantity;
-        return sum + event.amount * quantity;
-      }, 0);
-      return portfolioTotal + positionTotal;
-    }, 0);
+  /**
+   * Calcule le total des dividendes reçus pour toutes les positions.
+   * Le paramètre txCache évite de relancer des requêtes DB pour les quantités datées :
+   * on réutilise le cache déjà chargé en amont (dans summary() ou performance()).
+   */
+  private totalDividendsReceived(positions: PositionWithMarket[], txCache: Map<number, import("./portfolio-calculations.js").PositionTransactionCache>): number {
+    return computeTotalDividendsReceived(positions, txCache);
   }
 
   /**
@@ -859,8 +865,22 @@ export class PortfolioService {
     }
   }
 
-  private async positionRangePerformance(position: Position, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance> {
-    const effectivePosition = this.hasDatedTransactions(position.id) ? this.positionFromDatedTransactions(position) : position;
+  /**
+   * Calcule la performance sur une plage pour une seule position.
+   * Un cache de transactions optionnel peut être fourni pour éviter les requêtes
+   * redondantes quand plusieurs positions sont traitées en série (positionsPerformance).
+   */
+  private async positionRangePerformance(
+    position: Position,
+    range: RangeKey,
+    options: PortfolioMarketDataOptions = {},
+    txCache?: Map<number, import("./portfolio-calculations.js").PositionTransactionCache>
+  ): Promise<PositionRangePerformance> {
+    // Charge le cache pour cette seule position si aucun cache global n'est fourni
+    const cache = txCache ?? buildTransactionCache([position.id]);
+    const entry = cache.get(position.id);
+    const effectivePosition = entry?.hasDated ? this.positionFromDatedTransactions(position) : position;
+
     const [history, quoteResult] = await Promise.all([
       this.safeHistory(effectivePosition.symbol, range, options),
       this.safeQuote(effectivePosition)
@@ -878,11 +898,14 @@ export class PortfolioService {
       effectivePosition.averageBuyPrice;
 
     const currentMarketValue = effectivePosition.quantity * currentPrice;
-    const intervalQuantity = this.hasDatedTransactions(effectivePosition.id) && firstPoint ? this.getQuantityHeldAtDate(effectivePosition.id, firstPoint.date) : effectivePosition.quantity;
+    const firstPointTimeMs = firstPoint ? new Date(firstPoint.date).getTime() : undefined;
+    const intervalQuantity = entry?.hasDated && firstPointTimeMs !== undefined
+      ? getQuantityAtTime(entry.transactions, firstPointTimeMs)
+      : effectivePosition.quantity;
     const totalCost = effectivePosition.quantity * effectivePosition.averageBuyPrice;
     const intervalStartMarketValue = intervalQuantity * intervalStartPrice;
-    const intervalStartCost = this.hasDatedTransactions(effectivePosition.id) && firstPoint
-      ? this.getCostBasisHeldAtDate(effectivePosition.id, firstPoint.date)
+    const intervalStartCost = entry?.hasDated && firstPointTimeMs !== undefined
+      ? getCostBasisAtTime(entry.transactions, firstPointTimeMs)
       : effectivePosition.averageBuyPrice * intervalQuantity;
     const intervalStartGain = intervalStartMarketValue - intervalStartCost;
     const currentGain = currentMarketValue - totalCost;

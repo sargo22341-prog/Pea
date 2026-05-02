@@ -4,7 +4,7 @@
  */
 
 import type { RangeKey, User } from "@pea/shared";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { EmptyState } from "../components/common/EmptyState";
 import { PortfolioEvolutionSection } from "../components/dashboard/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "../components/dashboard/DashboardSkeletons";
@@ -22,18 +22,19 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
 
   /**
    * Met a jour la range affichee pour tous les blocs dependants du temps.
+   * useCallback stabilise la reference de la fonction : les composants enfants
+   * qui recoivent setSelectedRange en prop ne re-rendent pas si la range n'a pas change.
    *
    * @param source Origine de l'action, conservee pour instrumentation future.
    * @param nextRange Nouvelle range demandee.
-   * @returns Rien.
    */
-  function setSelectedRange(source: string, nextRange: RangeKey) {
+  const setSelectedRange = useCallback((source: string, nextRange: RangeKey) => {
     setSelectedRangeState((previousRange) => {
       void source;
       if (previousRange === nextRange) return previousRange;
       return nextRange;
     });
-  }
+  }, []);
 
   const summary = portfolio.data;
   const portfolioIsEmpty = !portfolio.loading && summary != null && summary.positions.length === 0;

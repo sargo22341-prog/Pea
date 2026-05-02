@@ -25,6 +25,22 @@ export default defineConfig(({ mode }) => {
       },
       dedupe: ["react", "react-dom"]
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // Isole recharts dans un chunk séparé pour deux raisons :
+          // 1. Le chunk principal est plus léger → premier affichage plus rapide.
+          // 2. recharts change rarement → son chunk est mis en cache navigateur longtemps.
+          // Vite 8 / rolldown requiert une fonction plutôt qu'un objet pour manualChunks.
+          manualChunks: (id: string) => {
+            if (id.includes("node_modules/recharts") || id.includes("node_modules/d3-")) {
+              return "recharts";
+            }
+            return undefined;
+          }
+        }
+      }
+    },
     server: {
       port: 5173,
       proxy: {

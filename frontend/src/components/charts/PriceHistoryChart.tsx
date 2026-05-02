@@ -1,5 +1,10 @@
+/**
+ * Role du fichier : graphique de prix generique utilise pour les actifs et le portefeuille.
+ * React.memo evite les re-renders quand le parent change sans que les props du chart bougent,
+ * ce qui est frequent lors des changements de plage ou de l'etat de chargement du dashboard.
+ */
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
-import { useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
@@ -56,7 +61,7 @@ type HistoryTooltipProps = {
   maskValues?: boolean;
 };
 
-export function PriceHistoryChart({
+export const PriceHistoryChart = memo(function PriceHistoryChart({
   data,
   range,
   currency = "EUR",
@@ -197,7 +202,7 @@ export function PriceHistoryChart({
       )}
     </div>
   );
-}
+});
 
 function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartData: Array<{ date: number; value: number | null }>, compressTimeAxis: boolean): MarkerGroupPoint[] {
   const indexByTimestamp = new Map(chartData.map((point, index) => [point.date, index]));

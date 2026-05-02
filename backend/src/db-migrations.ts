@@ -48,6 +48,16 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 5,
+    description: "Index sur chart_candles pour accélérer les lectures par (asset_id, range, interval) et les suppressions par (asset_id, range)",
+    appliquer: (db) => {
+      // Accélère la lecture des bougies lors du calcul des graphiques de portefeuille
+      db.exec("CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval ON chart_candles(asset_id, range, interval)");
+      // Accélère la suppression des bougies lors du recalcul d'une plage
+      db.exec("CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range ON chart_candles(asset_id, range)");
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {

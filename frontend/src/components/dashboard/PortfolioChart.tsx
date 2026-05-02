@@ -1,9 +1,14 @@
 /**
  * Role du fichier : afficher le chart de portefeuille a partir du DTO compact
  * pre-calcule par le backend.
+ *
+ * Optimisations :
+ * - React.memo evite les re-renders quand les props n'ont pas change.
+ * - useMemo sur toChartPoints evite de recreer le tableau de points a chaque render du parent.
  */
 
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
+import { memo, useMemo } from "react";
 import { usePrivacy } from "../../contexts/PrivacyContext";
 import { PriceHistoryChart } from "../charts/PriceHistoryChart";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../lib/timezone";
@@ -15,7 +20,7 @@ const fallbackIntradaySession: MarketSessionDto = {
   close: "17:30"
 };
 
-export function PortfolioChart({
+export const PortfolioChart = memo(function PortfolioChart({
   chart,
   range,
   userTimezone
@@ -25,7 +30,8 @@ export function PortfolioChart({
   userTimezone?: string;
 }) {
   const prive = usePrivacy();
-  const chartData = toChartPoints(chart);
+  // Mémoïsé : la conversion tableau → points Recharts ne se refait que si chart change
+  const chartData = useMemo(() => toChartPoints(chart), [chart]);
   const marketSession = range === "1d" ? chart.marketSession ?? fallbackIntradaySession : undefined;
 
   return (
@@ -54,7 +60,7 @@ export function PortfolioChart({
       )}
     </div>
   );
-}
+});
 
 /**
  * Convertit les tableaux backend en points attendus par Recharts.
