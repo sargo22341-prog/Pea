@@ -13,12 +13,20 @@ import { logger } from "./services/shared/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const devCorsOrigin = "http://localhost:5173";
 
 export const app = express();
 
 app.set("etag", false);
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ credentials: true, origin: true }));
+if (config.nodeEnv !== "production") {
+  app.use(
+    cors({
+      credentials: true,
+      origin: (origin, callback) => callback(null, origin === devCorsOrigin ? devCorsOrigin : false)
+    })
+  );
+}
 app.use(express.json());
 if (config.debug) {
   app.use(
