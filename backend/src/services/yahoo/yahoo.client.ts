@@ -15,7 +15,7 @@ import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
 export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
 const limiter = new Bottleneck({
-  minTime: 250,
+  minTime: 100,
   maxConcurrent: 1
 });
 
