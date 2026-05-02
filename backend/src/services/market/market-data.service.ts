@@ -9,6 +9,7 @@ import { getLastAvailableTradingDayFromYahoo, getLastTradingDay, getMarketDateKe
 import { logger } from "../shared/logger.service.js";
 import { db } from "../../db.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
+import { pruneIntradayCache } from "../yahoo/cache/history.cache.js";
 import { candleBuilder } from "../candles/candle.builder.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
@@ -22,6 +23,7 @@ const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, num
   "1w": 7,
   "1m": 30
 };
+const INTRADAY_CANDLE_RETENTION_OPEN_DAYS = 30;
 type ClosePointSource = "snapshot_close" | "yahoo_daily_fallback_close";
 export interface ChartDataOptions {
   forceIntradayOpen?: boolean;
@@ -525,6 +527,15 @@ export class MarketDataService {
         candleRepository.deleteRange(asset.id, range, interval);
       }
       updated += candleRepository.upsertCandles(candles);
+      if (range === "1d" && session && candles.length > 0) {
+        const retentionDays = getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, session.period2, INTRADAY_CANDLE_RETENTION_OPEN_DAYS);
+        const oldest = retentionDays.at(-1);
+        if (oldest) {
+          candleRepository.pruneBefore(asset.id, "1d", interval, oldest.period1.toISOString());
+          logger.debug("market-data", "1d candles pruned", { symbol: asset.symbol, cutoffIso: oldest.period1.toISOString(), retentionOpenDays: INTRADAY_CANDLE_RETENTION_OPEN_DAYS });
+        }
+        pruneIntradayCache(asset.symbol);
+      }
       if (range === "1d" && session && quote && !isMarketOpen(quote.marketState)) {
         logger.info("market-data", "1d rebuild completed before finalization", {
           symbol: asset.symbol,

@@ -201,7 +201,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3], "les 3 migrations doivent être enregistrées");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4], "les 4 migrations doivent être enregistrées");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

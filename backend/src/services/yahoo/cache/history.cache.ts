@@ -84,6 +84,20 @@ export function writeHistoryCache(symbol: string, range: RangeKey, interval: str
   ).run(historyCacheKey(symbol, range, interval), symbol.toUpperCase(), range, JSON.stringify(payload), nowSeconds());
 }
 
+/** Supprime les entrees cached_intraday_history superflues, en gardant les N dernieres trading_days. */
+export function pruneIntradayCache(symbol: string, keepTradingDays = 3) {
+  db.prepare(
+    `DELETE FROM cached_intraday_history
+     WHERE symbol = ? AND range = '1d' AND interval = '5m'
+       AND trading_day NOT IN (
+         SELECT trading_day FROM cached_intraday_history
+         WHERE symbol = ? AND range = '1d' AND interval = '5m'
+         ORDER BY trading_day DESC
+         LIMIT ?
+       )`
+  ).run(symbol.toUpperCase(), symbol.toUpperCase(), keepTradingDays);
+}
+
 /** Ecrit le cache intraday pour un trading day donne. */
 export function writeIntradayCache(symbol: string, payload: HistoryPoint[], tradingDay = getCurrentTradingDay(symbol)) {
   db.prepare(
