@@ -66,7 +66,7 @@ export function PriceHistoryChart({
   userTimezone,
   hideXAxisTicks = false
 }: PriceHistoryChartProps) {
-  const { chartData, trend } = usePriceHistoryChart(data, range);
+  const { chartData, trend } = usePriceHistoryChart(data, range, baselinePrice);
   const compressTimeAxis = range === "1w" || range === "1m";
   const timeChartData = range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData;
   const renderData = compressTimeAxis ? timeChartData.map((point, index) => ({ ...point, x: index })) : timeChartData;

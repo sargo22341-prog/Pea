@@ -11,7 +11,7 @@ export type PriceHistoryChartPoint = {
   value: number | null;
 };
 
-export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: RangeKey) {
+export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: RangeKey, baselinePrice?: number) {
   const chartData = useMemo(() => normalizePriceHistoryPoints(points), [points]);
   const validPoints = useMemo(
     () => chartData.filter((point): point is { date: number; value: number } => point.value != null),
@@ -20,9 +20,10 @@ export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: Ra
 
   const firstValue = validPoints[0]?.value;
   const lastValue = validPoints[validPoints.length - 1]?.value;
-  const change = firstValue != null && lastValue != null ? lastValue - firstValue : 0;
-  const changePercent = firstValue != null && lastValue != null && firstValue !== 0 ? (change / firstValue) * 100 : 0;
-  const trend = firstValue == null || lastValue == null ? "neutral" : lastValue > firstValue ? "up" : lastValue < firstValue ? "down" : "neutral";
+  const baselineValue = range === "1d" && Number.isFinite(baselinePrice) ? Number(baselinePrice) : firstValue;
+  const change = baselineValue != null && lastValue != null ? lastValue - baselineValue : 0;
+  const changePercent = baselineValue != null && lastValue != null && baselineValue !== 0 ? (change / baselineValue) * 100 : 0;
+  const trend = baselineValue == null || lastValue == null ? "neutral" : lastValue > baselineValue ? "up" : lastValue < baselineValue ? "down" : "neutral";
 
   return {
     range,
