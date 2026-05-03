@@ -36,12 +36,12 @@ function bucketStartFor(pointDate: Date, symbol: string, exchange: string | unde
   if (interval === "1d") {
     const calendar = getMarketCalendar(symbol, exchange);
     const day = localDayKey(pointDate, calendar.timezone);
-    return zonedTimeToUtc(day, calendar.openTime, calendar.timezone);
+    return zonedTimeToUtc(day, calendar.sessions[0].openTime, calendar.timezone);
   }
 
   const calendar = getMarketCalendar(symbol, exchange);
   const day = localDayKey(pointDate, calendar.timezone);
-  const open = zonedTimeToUtc(day, calendar.openTime, calendar.timezone);
+  const open = zonedTimeToUtc(day, calendar.sessions[0].openTime, calendar.timezone);
   const elapsed = Math.max(0, pointDate.getTime() - open.getTime());
   return new Date(open.getTime() + Math.floor(elapsed / intervalMs(interval)) * intervalMs(interval));
 }
@@ -53,7 +53,7 @@ function inSession(pointDate: Date, symbol: string, exchange: string | undefined
   const parts = getZonedDateParts(pointDate, calendar.timezone);
   const minutes = parts.hour * 60 + parts.minute;
   void day;
-  return minutes >= timeToMinutes(calendar.openTime) && minutes <= timeToMinutes(calendar.closeTime);
+  return minutes >= timeToMinutes(calendar.sessions[0].openTime) && minutes <= timeToMinutes(calendar.sessions[0].closeTime);
 }
 
 export class CandleBuilder {
