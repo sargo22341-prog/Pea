@@ -8,14 +8,9 @@ import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
+import { getMarketCalendar, type MarketCalendar } from "./getMarketCalendar.js";
 
-export interface MarketCalendar {
-  market: "euronext" | "italy" | "xetra" | "madrid" | "london" | "us" | "toronto" | "fallback";
-  timezone: string;
-  city: string;
-  openTime: string;
-  closeTime: string;
-}
+
 
 export interface OpenMarketDay {
   date: string;
@@ -29,34 +24,8 @@ export interface YahooTradingDay extends OpenMarketDay {
   pointDate: string;
 }
 
-const defaultHours = {
-  timezone: "Europe/Paris",
-  city: "Paris",
-  openTime: "09:00",
-  closeTime: "17:30"
-};
 
-function normalizeMarketInput(symbol?: string, exchange?: string) {
-  return `${symbol ?? ""} ${exchange ?? ""}`.toUpperCase();
-}
 
-export function getMarketCalendar(symbol?: string, exchange?: string): MarketCalendar {
-  const input = normalizeMarketInput(symbol, exchange);
-  if (input.includes(".PA") || input.includes(".AS") || input.includes(".BR") || input.includes(".LS") || input.includes("EURONEXT") || input.includes("PARIS") || input.includes("AMSTERDAM") || input.includes("BRUSSELS") || input.includes("LISBON")) {
-    const timezone = input.includes(".AS") || input.includes("AMSTERDAM") ? "Europe/Amsterdam" : input.includes(".BR") || input.includes("BRUSSELS") ? "Europe/Brussels" : input.includes(".LS") || input.includes("LISBON") ? "Europe/Lisbon" : "Europe/Paris";
-    const city = timezone === "Europe/Amsterdam" ? "Amsterdam" : timezone === "Europe/Brussels" ? "Brussels" : timezone === "Europe/Lisbon" ? "Lisbon" : "Paris";
-    return { market: "euronext", timezone, city, openTime: timezone === "Europe/Lisbon" ? "08:00" : "09:00", closeTime: timezone === "Europe/Lisbon" ? "16:30" : "17:30" };
-  }
-  if (input.includes(".MI") || input.includes("MILAN") || input.includes("ITALIANA")) return { market: "italy", timezone: "Europe/Rome", city: "Milan", openTime: "09:00", closeTime: "17:30" };
-  if (input.includes(".DE") || input.includes("XETRA") || input.includes("FRANKFURT")) return { market: "xetra", timezone: "Europe/Berlin", city: "Frankfurt", openTime: "09:00", closeTime: "17:30" };
-  if (input.includes(".MC") || input.includes("MADRID")) return { market: "madrid", timezone: "Europe/Madrid", city: "Madrid", openTime: "09:00", closeTime: "17:30" };
-  if (input.includes(".L") || input.includes("LONDON")) return { market: "london", timezone: "Europe/London", city: "London", openTime: "08:00", closeTime: "16:30" };
-  if (input.includes(".TO") || input.includes("TORONTO")) return { market: "toronto", timezone: "America/Toronto", city: "Toronto", openTime: "09:30", closeTime: "16:00" };
-  if (!String(symbol ?? "").includes(".") || input.includes("NASDAQ") || input.includes("NYSE") || input.includes("AMEX") || input.includes("NEW YORK")) {
-    return { market: "us", timezone: "America/New_York", city: "New York", openTime: "09:30", closeTime: "16:00" };
-  }
-  return { market: "fallback", ...defaultHours };
-}
 
 function getLocalDateParts(date: Date, timeZone: string) {
   const parts = getZonedDateParts(date, timeZone);
