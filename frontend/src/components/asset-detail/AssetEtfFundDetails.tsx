@@ -1,8 +1,5 @@
-// src/components/assets/AssetEtfFundDetails.tsx
-
 import { Building2, Coins, Percent, Repeat2 } from "lucide-react";
 import type { AllocationChartItem } from "@pea/shared";
-import { money } from "../../lib/format";
 import { AssetInfoTile } from "./AssetInfoTile";
 import { SectorAllocationChart } from "../charts/SectorAllocationChart";
 

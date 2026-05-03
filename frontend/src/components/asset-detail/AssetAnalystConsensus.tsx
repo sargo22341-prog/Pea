@@ -1,5 +1,3 @@
-// src/components/assets/AssetAnalystConsensus.tsx
-
 import { Target, TrendingUp, UsersRound } from "lucide-react";
 import { money } from "../../lib/format";
 
