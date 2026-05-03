@@ -41,18 +41,16 @@ export function AssetPositionSummary({
   return (
     <div className="space-y-4">
       <div
-        className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] ${
-          totalIsNegative
-            ? "bg-[linear-gradient(135deg,rgba(251,113,133,0.16),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(35,13,20,0.9))]"
-            : "bg-[linear-gradient(135deg,rgba(0,255,150,0.12),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(13,31,35,0.9))]"
-        }`}
+        className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] ${totalIsNegative
+          ? "bg-[linear-gradient(135deg,rgba(251,113,133,0.16),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(35,13,20,0.9))]"
+          : "bg-[linear-gradient(135deg,rgba(0,255,150,0.12),rgba(0,0,0,0)),linear-gradient(135deg,rgba(7,16,20,0.96),rgba(13,31,35,0.9))]"
+          }`}
       >
         <div
-          className={`absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full border ${
-            totalIsNegative
-              ? "border-coral/25 bg-coral/10 text-coral shadow-[0_0_24px_rgba(251,113,133,0.24)]"
-              : "border-mint/25 bg-mint/10 text-mint shadow-[0_0_24px_rgba(74,222,128,0.22)]"
-          }`}
+          className={`absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full border ${totalIsNegative
+            ? "border-coral/25 bg-coral/10 text-coral shadow-[0_0_24px_rgba(251,113,133,0.24)]"
+            : "border-mint/25 bg-mint/10 text-mint shadow-[0_0_24px_rgba(74,222,128,0.22)]"
+            }`}
         >
           <TotalTrendIcon size={24} />
         </div>
@@ -85,14 +83,29 @@ export function AssetPositionSummary({
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <AssetInfoTile icon={<Coins size={18} />} iconTone="sky" label="Quantité" value={masquerValeur(formatNumber(position.quantity), prive)} />
-        <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label="Prix moyen" value={masquerValeur(money(position.averageBuyPrice, position.currency), prive)} />
+      <div className="grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] xl:grid-cols-3">
+        <AssetInfoTile
+          icon={<Coins size={18} />}
+          iconTone="sky"
+          label="Quantité"
+          value={masquerValeur(formatNumber(position.quantity), prive)}
+          variant="market"
+        />
+
+        <AssetInfoTile
+          icon={<CircleDollarSign size={18} />}
+          iconTone="cyan"
+          label="Prix moyen"
+          value={masquerValeur(money(position.averageBuyPrice, position.currency), prive)}
+          variant="market"
+        />
+
         <AssetInfoTile
           icon={<PeriodTrendIcon size={18} />}
           iconTone={periodTone === "negative" ? "red" : "green"}
           label={`Performance ${formatRangeLabel(range, { compact: true })}`}
           tone={periodTone}
+          variant="market"
           value={
             periodPerformanceValue == null || periodPerformancePercent == null ? (
               <span className="text-slate-500">n/a</span>
@@ -100,17 +113,40 @@ export function AssetPositionSummary({
               <span>••••</span>
             ) : (
               <>
-                <span>{formatSignedMoney(periodPerformanceValue, position.currency)}</span>
-                <span className="ml-1">({percent(periodPerformancePercent)})</span>
+                <div className="flex flex-col leading-tight">
+                  <span>{formatSignedMoney(periodPerformanceValue, position.currency)}</span>
+                  <span className="text-xs opacity-80">
+                    ({percent(periodPerformancePercent)})
+                  </span>
+                </div>
               </>
             )
           }
         />
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <AssetInfoTile icon={<ReceiptText size={18} />} iconTone="sky" label="Nb de transaction" value={masquerValeur(formatNumber(stats?.transactionCount ?? 0), prive)} />
-        <AssetInfoTile icon={<WalletCards size={18} />} iconTone="cyan" label="Total frais" value={masquerValeur(money(stats?.totalFees ?? 0, stats?.currency ?? position.currency), prive)} />
-        <AssetInfoTile icon={<Coins size={18} />} iconTone="green" label="Total dividende recus" value={masquerValeur(money(stats?.totalDividendsReceived ?? 0, stats?.currency ?? position.currency), prive)} />
+
+        <AssetInfoTile
+          icon={<ReceiptText size={18} />}
+          iconTone="sky"
+          label="Nb de transaction"
+          value={masquerValeur(formatNumber(stats?.transactionCount ?? 0), prive)}
+          variant="market"
+        />
+
+        <AssetInfoTile
+          icon={<WalletCards size={18} />}
+          iconTone="cyan"
+          label="Total frais"
+          value={masquerValeur(money(stats?.totalFees ?? 0, stats?.currency ?? position.currency), prive)}
+          variant="market"
+        />
+
+        <AssetInfoTile
+          icon={<Coins size={18} />}
+          iconTone="green"
+          label="Total dividende reçus"
+          value={masquerValeur(money(stats?.totalDividendsReceived ?? 0, stats?.currency ?? position.currency), prive)}
+          variant="market"
+        />
       </div>
     </div>
   );

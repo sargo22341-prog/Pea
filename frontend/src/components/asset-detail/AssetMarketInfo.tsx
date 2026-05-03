@@ -28,14 +28,14 @@ export function AssetMarketInfo({
   const DayTrendIcon = dayTone === "negative" ? ArrowDownRight : ArrowUpRight;
 
   return (
-    <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] xl:grid-cols-3">
       <AssetInfoTile icon={<Gauge size={18} />} iconTone="amber" label="Marché" tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} variant="market" />
       <AssetInfoTile icon={<BadgeEuro size={18} />} iconTone="green" label="Dernier prix" value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label="Variation jour" tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<Landmark size={18} />} iconTone="slate" label="Bourse" value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
       <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label="Devise" value={info.currency ?? quote.currency ?? "n/a"} variant="market" />
       <AssetInfoTile icon={<BarChart3 size={18} />} iconTone="sky" label="Volume" value={formatMaybeInteger(info.regularMarketVolume)} variant="market" />
-      <div className="sm:col-span-2 xl:col-span-2">
+      <div className="col-span-2 xl:col-span-2">
         <AssetInfoTile
           icon={<Timer size={18} />}
           iconTone="slate"

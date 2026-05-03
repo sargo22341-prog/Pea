@@ -54,7 +54,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         range={selectedRange}
         summary={summary}
       />
-
+      
       {summary ? (
         <PortfolioEvolutionSection
           defaultSortDirection={user.dashboardDefaultSortDirection}
@@ -68,6 +68,8 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
       ) : (
         <PortfolioEvolutionSkeleton range={selectedRange} setRange={setSelectedRange} />
       )}
+
+      
     </div>
   );
 }

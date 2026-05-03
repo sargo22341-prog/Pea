@@ -23,6 +23,9 @@ import { PriceHistoryChart } from "../components/charts/PriceHistoryChart";
 import { EditPositionModal } from "../components/asset-detail/EditPositionModal";
 import { NewsArticleList } from "../components/common/NewsArticleList";
 import { PeaBadge } from "../components/asset-detail/PeaBadge";
+import { AssetAnalystConsensus } from "../components/asset-detail/AssetAnalystConsensus";
+import { AssetEtfFundDetails } from "../components/asset-detail/AssetEtfFundDetails";
+import { AssetCalendarEvents } from "../components/common/AssetCalendarEvents";
 import { RangeSelector } from "../components/common/RangeSelector";
 import { StaleBadge } from "../components/common/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
@@ -61,56 +64,56 @@ export function AssetDetailPage({ user }: { user: User }) {
       return nextRange;
     });
   }
-useEffect(() => {
-  if (asset.data) {
-    setWatchlisted(Boolean(asset.data.isInWatchlist));
-  }
-}, [asset.data]);
+  useEffect(() => {
+    if (asset.data) {
+      setWatchlisted(Boolean(asset.data.isInWatchlist));
+    }
+  }, [asset.data]);
 
-useEffect(() => {
-  if (!assetChartPreparing) return;
+  useEffect(() => {
+    if (!assetChartPreparing) return;
 
-  notifyDataConstructionChanged();
+    notifyDataConstructionChanged();
 
-  let cancelled = false;
-  let timer: number | undefined;
+    let cancelled = false;
+    let timer: number | undefined;
 
-  async function poll() {
-    const status = await api.dataConstructionStatus().catch(() => null);
+    async function poll() {
+      const status = await api.dataConstructionStatus().catch(() => null);
 
-    if (cancelled) return;
+      if (cancelled) return;
 
-    if (!isDataConstructionActive(status)) {
-      await assetReload();
-      return;
+      if (!isDataConstructionActive(status)) {
+        await assetReload();
+        return;
+      }
+
+      timer = window.setTimeout(poll, 2000);
     }
 
     timer = window.setTimeout(poll, 2000);
-  }
 
-  timer = window.setTimeout(poll, 2000);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [assetChartPreparing, assetReload]);
 
-  return () => {
-    cancelled = true;
-    if (timer) window.clearTimeout(timer);
-  };
-}, [assetChartPreparing, assetReload]);
+  useEffect(() => {
+    const name = asset.data?.quote?.name;
 
-useEffect(() => {
-  const name = asset.data?.quote?.name;
+    const title = name
+      ? `${name.toUpperCase()} | PEA Portfolio`
+      : symbol
+        ? `${symbol.toUpperCase()} | PEA Portfolio`
+        : "PEA Portfolio";
 
-  const title = name
-    ? `${name.toUpperCase()} | PEA Portfolio`
-    : symbol
-      ? `${symbol.toUpperCase()} | PEA Portfolio`
-      : "PEA Portfolio";
+    document.title = title;
 
-  document.title = title;
-
-  return () => {
-    document.title = "PEA Portfolio";
-  };
-}, [asset.data?.quote?.name, symbol]);
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, [asset.data?.quote?.name, symbol]);
 
 
   if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;
@@ -281,19 +284,40 @@ useEffect(() => {
         </div>
       </section>
 
-      {!asset.data.isEtf && asset.data.financials && asset.data.financials.length > 0 ? (
-        <section className="card min-w-0 p-4">
-          <h2 className="mb-4 font-semibold">Revenue / Net Income / Marge</h2>
-          <FinancialComboChart data={asset.data.financials} />
-        </section>
+      {!asset.data.isEtf ? (
+        <AssetCalendarEvents />
       ) : null}
 
-      <DividendLineChartSection
-        averageBuyPrice={position?.averageBuyPrice}
-        currentPrice={marketInfo?.regularMarketPrice ?? quote.price}
-        dividends={dividends}
-        marketInfo={marketInfo}
-      />
+      {!asset.data.isEtf ? (
+        <AssetAnalystConsensus />
+      ) : null}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {!asset.data.isEtf && asset.data.financials && asset.data.financials.length > 0 ? (
+          <section className="card min-w-0 p-4 flex-1">
+            <h2 className="mb-4 font-semibold">Revenue / Net Income / Marge</h2>
+            <FinancialComboChart data={asset.data.financials} />
+          </section>
+        ) : null}
+
+        <div className="flex-1">
+          {!asset.data.isEtf && dividends && dividends.length > 0 ? (
+            <section className="card overflow-hidden">
+              <h2 className="mb-4 font-semibold">Dividende</h2>
+              <DividendLineChartSection
+                averageBuyPrice={position?.averageBuyPrice}
+                currentPrice={marketInfo?.regularMarketPrice ?? quote.price}
+                dividends={dividends}
+                marketInfo={marketInfo}
+              />
+            </section>
+          ) : null}
+        </div>
+      </div>
+
+      {asset.data.isEtf ? (
+        <AssetEtfFundDetails />
+      ) : null}
+
 
       {user.assetNewsEnabled && <NewsArticleList articles={news} />}
 

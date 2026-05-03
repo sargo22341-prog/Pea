@@ -17,6 +17,8 @@ import { PortfolioEvolutionHeader } from "./PortfolioEvolutionHeader";
 import { PositionList } from "./PositionList";
 import type { DashboardRangeSetter } from "./types";
 import { WatchlistSection } from "./WatchlistSection";
+import { AssetCalendarEvents } from "../common/AssetCalendarEvents";
+
 
 export function PortfolioEvolutionSection({
   summary,
@@ -88,6 +90,8 @@ export function PortfolioEvolutionSection({
           />
         )}
       </section>
+      
+      <AssetCalendarEvents />
 
       {chartReady ? (
         <PositionList
