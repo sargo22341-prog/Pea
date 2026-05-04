@@ -76,25 +76,44 @@ export function upsertCalendarEvents(symbol: string, summary: any) {
 }
 
 export function readCalendarEventsBySymbol(symbol: string) {
+  const s = symbol.toUpperCase();
   return db.prepare(`
-    SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate,
-           a.name as asset_name
-    FROM asset_calendar_events ace
-    LEFT JOIN assets a ON a.symbol = ace.symbol
-    WHERE ace.symbol = ?
-    ORDER BY ace.event_date ASC
-  `).all(symbol.toUpperCase()) as RawEventRow[];
+    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
+      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ace.symbol = ? AND ace.event_date < datetime('now')
+      ORDER BY ace.event_date DESC LIMIT 20
+    )
+    UNION ALL
+    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
+      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ace.symbol = ? AND ace.event_date >= datetime('now')
+      ORDER BY ace.event_date ASC LIMIT 30
+    )
+    ORDER BY event_date ASC
+  `).all(s, s) as RawEventRow[];
 }
 
 export function readCalendarEventsForPortfolio(userId: number) {
   return db.prepare(`
-    SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate,
-           a.name as asset_name
-    FROM asset_calendar_events ace
-    LEFT JOIN assets a ON a.symbol = ace.symbol
-    WHERE ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)
-    ORDER BY ace.event_date ASC
-  `).all(userId) as RawEventRow[];
+    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
+      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)
+        AND ace.event_date < datetime('now')
+      ORDER BY ace.event_date DESC LIMIT 10
+    )
+    UNION ALL
+    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
+      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)
+        AND ace.event_date >= datetime('now')
+      ORDER BY ace.event_date ASC LIMIT 30
+    )
+    ORDER BY event_date ASC
+  `).all(userId, userId) as RawEventRow[];
 }
 
 interface RawEventRow {
