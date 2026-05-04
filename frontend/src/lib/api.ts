@@ -217,10 +217,8 @@ export const api = {
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
   rebuildAllMarketData: () =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
-  refreshMarketSnapshots: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-snapshots", { method: "POST" }),
   cleanupUnlinkedMarketAssets: () => request<DataConstructionJobDto>("/api/admin/market-data/cleanup-unlinked-assets", { method: "POST" }),
-  refreshFinancials: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-financials", { method: "POST" }),
-  refreshDividends: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-dividends", { method: "POST" }),
+  refreshAnnexData: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-annex", { method: "POST" }),
   previewBoursorama: (content: string) =>
     request<BoursoramaImportRow[]>("/api/import/boursorama/preview", { method: "POST", body: JSON.stringify({ content }) }),
   confirmBoursorama: (rows: BoursoramaImportRow[]) =>

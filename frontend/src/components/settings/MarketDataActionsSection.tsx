@@ -6,7 +6,7 @@ import { api, type MarketDataRebuildRange } from "../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../lib/dataConstruction";
 import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
 
-type ActionKey = `rebuild:${MarketDataRebuildRange}` | "financials" | "dividends" | "snapshots" | "cleanup-unlinked-assets";
+type ActionKey = `rebuild:${MarketDataRebuildRange}` | "refresh-annex" | "cleanup-unlinked-assets";
 
 interface QuickAction {
   key: ActionKey;
@@ -62,28 +62,12 @@ const rebuildActions: QuickAction[] = [
 
 const annexActions: QuickAction[] = [
   {
-    key: "snapshots",
-    label: "Rafraichir snapshots marche",
-    info: "Rafraichit les derniers prix, variations et volumes connus des assets suivis.",
-    icon: Database,
-    confirm: "Cette action va rafraichir les derniers prix, variations et volumes connus pour tous les assets suivis. Continuer ?",
-    run: api.refreshMarketSnapshots
-  },
-  {
-    key: "financials",
-    label: "Rafraichir donnees financieres",
-    info: "Rafraichit les donnees financieres annuelles disponibles via Yahoo.",
+    key: "refresh-annex",
+    label: "Rafraichir toutes les donnees",
+    info: "Vide tous les caches non-chart et re-telecharge : snapshots, financiers, dividendes, news, profils, consensus analystes et evenements calendrier.",
     icon: RefreshCcw,
-    confirm: "Cette action va rafraichir les donnees financieres annuelles disponibles pour tous les assets suivis. Continuer ?",
-    run: api.refreshFinancials
-  },
-  {
-    key: "dividends",
-    label: "Rafraichir dividendes",
-    info: "Rafraichit les dividendes par asset sans toucher aux transactions du portefeuille.",
-    icon: RefreshCcw,
-    confirm: "Cette action va rafraichir les dividendes connus par asset sans toucher aux transactions du portefeuille. Continuer ?",
-    run: api.refreshDividends
+    confirm: "Cette action va vider tous les caches (hors charts) et re-telecharger l'ensemble des donnees annexes pour tous les assets suivis. Continuer ?",
+    run: api.refreshAnnexData
   },
   {
     key: "cleanup-unlinked-assets",
