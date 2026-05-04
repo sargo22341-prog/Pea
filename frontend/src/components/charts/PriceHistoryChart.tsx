@@ -5,7 +5,7 @@
  */
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
 import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
@@ -467,3 +467,195 @@ function chartDateValue(value: string | number) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? new Date(numeric).toISOString() : String(value);
 }
+
+// ─── Comparison chart ────────────────────────────────────────────────────────
+
+export const COMPARE_COLORS = ["#3b82f6", "#f59e0b", "#8b5cf6", "#10b981"] as const;
+
+export interface ComparisonSerie {
+  symbol: string;
+  name: string;
+  points: PriceHistoryInputPoint[];
+}
+
+interface ComparisonChartProps {
+  data: PriceHistoryInputPoint[];
+  comparisonSeries: ComparisonSerie[];
+  mainSymbol?: string;
+  range: RangeKey;
+  heightClassName?: string;
+  userTimezone?: string;
+  marketSession?: MarketSessionDto;
+}
+
+function normalizeRelative(points: PriceHistoryInputPoint[]): { date: number; value: number | null }[] {
+  const base = points.find((p) => p.value != null)?.value;
+  if (base == null || base === 0) return points.map((p) => ({ date: new Date(p.date).getTime(), value: null }));
+  return points.map((p) => ({
+    date: new Date(p.date).getTime(),
+    value: p.value != null ? ((p.value - base) / base) * 100 : null
+  }));
+}
+
+function buildComparisonData(
+  main: PriceHistoryInputPoint[],
+  comparisons: ComparisonSerie[]
+): Array<Record<string, number | null>> {
+  const normMain = normalizeRelative(main);
+  const normComps = comparisons.map((c) => ({ key: c.symbol, data: normalizeRelative(c.points) }));
+
+  const allTimestamps = new Set<number>();
+  normMain.forEach((p) => allTimestamps.add(p.date));
+  normComps.forEach((c) => c.data.forEach((p) => allTimestamps.add(p.date)));
+
+  const sorted = [...allTimestamps].sort((a, b) => a - b);
+  const mainMap = new Map(normMain.map((p) => [p.date, p.value]));
+  const compMaps = normComps.map((c) => ({ key: c.key, map: new Map(c.data.map((p) => [p.date, p.value])) }));
+
+  return sorted.map((date) => {
+    const point: Record<string, number | null> = { date, main: mainMap.get(date) ?? null };
+    for (const { key, map } of compMaps) {
+      point[key] = map.get(date) ?? null;
+    }
+    return point;
+  });
+}
+
+interface ComparisonTooltipEntry {
+  key: string;
+  label: string;
+  color: string;
+}
+
+function ComparisonTooltip({
+  active,
+  payload,
+  label,
+  series,
+  range,
+  userTimezone,
+  marketSession
+}: {
+  active?: boolean;
+  payload?: ChartTooltipPayload;
+  label?: unknown;
+  series: ComparisonTooltipEntry[];
+  range: RangeKey;
+  userTimezone?: string;
+  marketSession?: MarketSessionDto;
+}) {
+  if (!active || !payload?.length || label == null) return null;
+  const dateStr = formatHistoryTooltipLabel(Number(label), range, range === "1d" ? "time" : "dateTime", userTimezone, marketSession);
+  return (
+    <div className="space-y-1 px-1 py-2">
+      <p className="mb-2 text-xs text-slate-400">{dateStr}</p>
+      {series.map((s) => {
+        const entry = payload.find((p) => p.dataKey === s.key);
+        const val = Number(entry?.value);
+        if (!Number.isFinite(val)) return null;
+        return (
+          <div key={s.key} className="flex items-center gap-2 text-sm">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            <span className="text-slate-300">{s.label}</span>
+            <span className="ml-auto pl-4 font-semibold tabular-nums" style={{ color: val >= 0 ? "#22c55e" : "#ef4444" }}>
+              {val >= 0 ? "+" : ""}{val.toFixed(2)}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export const ComparisonChart = memo(function ComparisonChart({
+  data,
+  comparisonSeries,
+  mainSymbol,
+  range,
+  heightClassName = "h-72 w-full",
+  userTimezone,
+  marketSession
+}: ComparisonChartProps) {
+  const trend = useMemo(() => {
+    const valid = data.filter((p) => p.value != null);
+    if (valid.length < 2) return "neutral" as const;
+    const first = valid[0].value!;
+    const last = valid[valid.length - 1].value!;
+    return last > first ? ("up" as const) : last < first ? ("down" as const) : ("neutral" as const);
+  }, [data]);
+
+  const mainColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
+  const allSeries: ComparisonTooltipEntry[] = [
+    { key: "main", label: mainSymbol ?? "Principal", color: mainColor },
+    ...comparisonSeries.map((s, i) => ({ key: s.symbol, label: s.symbol, color: COMPARE_COLORS[i] }))
+  ];
+
+  const mergedData = useMemo(() => buildComparisonData(data, comparisonSeries), [data, comparisonSeries]);
+
+  const xDomain = useMemo((): [number, number] | undefined => {
+    const dates = mergedData.map((p) => p.date as number).filter(Number.isFinite);
+    if (!dates.length) return undefined;
+    return [Math.min(...dates), Math.max(...dates)];
+  }, [mergedData]);
+
+  return (
+    <div className={`chart-fade overflow-visible ${heightClassName}`}>
+      <SafeResponsiveContainer>
+        <ComposedChart data={mergedData}>
+          <XAxis
+            axisLine={false}
+            dataKey="date"
+            domain={xDomain}
+            scale="time"
+            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tickFormatter={(value) => formatHistoryTick(value, range, userTimezone)}
+            tickLine={false}
+            type="number"
+          />
+          <YAxis
+            axisLine={false}
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`}
+            tickLine={false}
+            width={52}
+          />
+          <ReferenceLine stroke="#475569" strokeDasharray="3 3" strokeWidth={1} y={0} />
+          <Tooltip
+            contentStyle={{ background: "rgba(7, 16, 20, 0.72)", border: "0", borderRadius: 8, backdropFilter: "blur(6px)" }}
+            content={(props) => (
+              <ComparisonTooltip
+                active={props.active}
+                label={props.label}
+                marketSession={marketSession}
+                payload={props.payload as ChartTooltipPayload}
+                range={range}
+                series={allSeries}
+                userTimezone={userTimezone}
+              />
+            )}
+          />
+          {allSeries.map((s) => (
+            <Line
+              key={s.key}
+              activeDot={{ r: 4 }}
+              connectNulls
+              dataKey={s.key}
+              dot={false}
+              stroke={s.color}
+              strokeWidth={2}
+              type="monotone"
+            />
+          ))}
+        </ComposedChart>
+      </SafeResponsiveContainer>
+      <div className="mt-2 flex flex-wrap items-center gap-3 px-1 text-xs text-slate-400">
+        {allSeries.map((s) => (
+          <span key={s.key} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+});

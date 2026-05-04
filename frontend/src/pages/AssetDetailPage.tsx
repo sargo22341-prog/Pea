@@ -7,6 +7,7 @@ import type { AssetChartDto, RangeKey, User } from "@pea/shared";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  GitCompare,
   Pencil,
   Plus,
   Star
@@ -19,7 +20,8 @@ import { AssetIcon } from "../components/common/AssetIcon";
 import { AssetPositionSummary } from "../components/asset-detail/AssetPositionSummary";
 import { DividendLineChartSection } from "../components/charts/DividendLineChartSection";
 import { FinancialComboChart } from "../components/charts/FinancialComboChart";
-import { PriceHistoryChart } from "../components/charts/PriceHistoryChart";
+import { ComparisonChart, type ComparisonSerie, PriceHistoryChart } from "../components/charts/PriceHistoryChart";
+import { CompareModal } from "../components/common/CompareModal";
 import { EditPositionModal } from "../components/asset-detail/EditPositionModal";
 import { NewsArticleList } from "../components/common/NewsArticleList";
 import { PeaBadge } from "../components/asset-detail/PeaBadge";
@@ -43,12 +45,31 @@ export function AssetDetailPage({ user }: { user: User }) {
   });
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
+  const [comparisonSeries, setComparisonSeries] = useState<ComparisonSerie[]>([]);
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
   const assetReload = asset.reload;
   const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
   const chartPoints = chartDtoToPoints(asset.data?.chart);
+
+  async function addCompareTarget(target: { symbol: string; name: string }) {
+    setCompareTargets((prev) => [...prev, target]);
+    try {
+      const chart = await api.history(target.symbol, range);
+      const points = chart.timestamps.map((ts, i) => ({ date: new Date(ts).toISOString(), value: chart.prices[i] ?? null }));
+      setComparisonSeries((prev) => [...prev, { symbol: target.symbol, name: target.name, points }]);
+    } catch {
+      setCompareTargets((prev) => prev.filter((t) => t.symbol !== target.symbol));
+    }
+  }
+
+  function removeCompareTarget(targetSymbol: string) {
+    setCompareTargets((prev) => prev.filter((t) => t.symbol !== targetSymbol));
+    setComparisonSeries((prev) => prev.filter((s) => s.symbol !== targetSymbol));
+  }
 
   /**
    * Met à jour la range affichée pour le chart d'actif.
@@ -58,11 +79,18 @@ export function AssetDetailPage({ user }: { user: User }) {
    * @returns Rien.
    */
   function setRange(source: string, nextRange: RangeKey) {
-    setRangeState((previousRange) => {
-      void source;
-      void previousRange;
-      return nextRange;
-    });
+    void source;
+    setRangeState(nextRange);
+    if (compareTargets.length > 0) {
+      setComparisonSeries([]);
+      void Promise.all(
+        compareTargets.map(async (target) => {
+          const chart = await api.history(target.symbol, nextRange);
+          const points = chart.timestamps.map((ts, i) => ({ date: new Date(ts).toISOString(), value: chart.prices[i] ?? null }));
+          return { symbol: target.symbol, name: target.name, points };
+        })
+      ).then((series) => setComparisonSeries(series));
+    }
   }
   useEffect(() => {
     if (asset.data) {
@@ -205,23 +233,28 @@ export function AssetDetailPage({ user }: { user: User }) {
               <Icon size={18} />
               {money(rangeChange, quote.currency)} ({percent(rangeChangePercent)})
             </p>
-            {position && (
-              <button className="btn-ghost mt-3" onClick={() => setEditing(true)} type="button">
-                <Pencil size={17} />
-                Éditer
+            <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+              {position ? (
+                <button className="btn-ghost" onClick={() => setEditing(true)} type="button">
+                  <Pencil size={17} />
+                  Éditer
+                </button>
+              ) : (
+                <>
+                  <button className="btn-primary" onClick={() => setAdding(true)} type="button">
+                    <Plus size={17} />
+                    Ajouter
+                  </button>
+                  <button className={watchlisted ? "btn bg-amber text-ink" : "btn-ghost"} onClick={() => void toggleWatchlist()} type="button">
+                    <Star fill={watchlisted ? "currentColor" : "none"} size={17} />
+                  </button>
+                </>
+              )}
+              <button className={compareTargets.length > 0 ? "btn bg-blue-600 text-white" : "btn-ghost"} onClick={() => setComparing(true)} type="button">
+                <GitCompare size={17} />
+                Comparer
               </button>
-            )}
-            {!position && (
-              <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
-                <button className="btn-primary" onClick={() => setAdding(true)} type="button">
-                  <Plus size={17} />
-                  Ajouter
-                </button>
-                <button className={watchlisted ? "btn bg-amber text-ink" : "btn-ghost"} onClick={() => void toggleWatchlist()} type="button">
-                  <Star fill={watchlisted ? "currentColor" : "none"} size={17} />
-                </button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
@@ -236,17 +269,29 @@ export function AssetDetailPage({ user }: { user: User }) {
         {asset.loading ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
         ) : chartPoints.length > 1 ? (
-          <PriceHistoryChart
-            baselineDatetime={chart?.baselineDatetime}
-            baselinePrice={chart?.baselinePrice}
-            currency={quote.currency}
-            data={chartPoints}
-            heightClassName="h-80"
-            hideXAxisTicks
-            marketSession={marketSession ?? chart?.marketSession}
-            range={range}
-            userTimezone={userTimezone}
-          />
+          comparisonSeries.length > 0 ? (
+            <ComparisonChart
+              comparisonSeries={comparisonSeries}
+              data={chartPoints}
+              heightClassName="h-80"
+              mainSymbol={symbol}
+              marketSession={marketSession ?? chart?.marketSession}
+              range={range}
+              userTimezone={userTimezone}
+            />
+          ) : (
+            <PriceHistoryChart
+              baselineDatetime={chart?.baselineDatetime}
+              baselinePrice={chart?.baselinePrice}
+              currency={quote.currency}
+              data={chartPoints}
+              heightClassName="h-80"
+              hideXAxisTicks
+              marketSession={marketSession ?? chart?.marketSession}
+              range={range}
+              userTimezone={userTimezone}
+            />
+          )
         ) : chart?.isPreparing ? (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-amber">
             Donnees en cours de preparation
@@ -339,6 +384,16 @@ export function AssetDetailPage({ user }: { user: User }) {
             await asset.reload();
           }}
           symbol={quote.symbol}
+        />
+      )}
+      {comparing && (
+        <CompareModal
+          currentSymbol={symbol}
+          localPeaSearchEnabled={user.localPeaSearchEnabled}
+          onAdd={(target) => void addCompareTarget(target)}
+          onClose={() => setComparing(false)}
+          onRemove={removeCompareTarget}
+          selected={compareTargets}
         />
       )}
     </div>
