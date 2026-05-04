@@ -7,6 +7,7 @@ export type RangeKey = "1d" | "1w" | "1m" | "1y" | "5y" | "10y" | "ytd" | "all";
 export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "5Y" | "10Y" | "ALL";
 export type MarketState = "OPEN" | "CLOSED" | "PRE" | "POST";
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
+export type WatchlistSortKey = "name" | "price" | "performancePercent";
 export type SortDirection = "asc" | "desc";
 export type NewsLanguage = "fr" | "en";
 
@@ -579,6 +580,8 @@ export interface User {
   hasProfileIcon?: boolean;
   dashboardDefaultSortKey: DashboardSortKey;
   dashboardDefaultSortDirection: SortDirection;
+  watchlistDefaultSortKey: WatchlistSortKey;
+  watchlistDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;

@@ -8,25 +8,29 @@ test("market sessions expose the real exchange timezone and hours", () => {
     timezone: "Europe/Paris",
     city: "Paris",
     open: "09:00",
-    close: "17:30"
+    close: "17:30",
+    sessions: [{ open: "09:00", close: "17:30" }]
   });
   assert.deepEqual(getMarketSessionInfo("AAPL", "NASDAQ"), {
     timezone: "America/New_York",
     city: "New York",
     open: "09:30",
-    close: "16:00"
+    close: "16:00",
+    sessions: [{ open: "09:30", close: "16:00" }]
   });
   assert.deepEqual(getMarketSessionInfo("SAP.DE", "XETRA"), {
     timezone: "Europe/Berlin",
     city: "Frankfurt",
     open: "09:00",
-    close: "17:30"
+    close: "17:30",
+    sessions: [{ open: "09:00", close: "17:30" }]
   });
   assert.deepEqual(getMarketSessionInfo("VOD.L", "London"), {
     timezone: "Europe/London",
     city: "London",
     open: "08:00",
-    close: "16:30"
+    close: "16:30",
+    sessions: [{ open: "08:00", close: "16:30" }]
   });
 });
 

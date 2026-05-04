@@ -186,6 +186,8 @@ db.exec(`
     profile_icon_size INTEGER,
     dashboard_default_sort_key TEXT NOT NULL DEFAULT 'name',
     dashboard_default_sort_direction TEXT NOT NULL DEFAULT 'asc',
+    watchlist_default_sort_key TEXT NOT NULL DEFAULT 'name',
+    watchlist_default_sort_direction TEXT NOT NULL DEFAULT 'asc',
     default_chart_range TEXT NOT NULL DEFAULT '1d',
     local_pea_search_enabled INTEGER NOT NULL DEFAULT 1,
     asset_news_enabled INTEGER NOT NULL DEFAULT 1,

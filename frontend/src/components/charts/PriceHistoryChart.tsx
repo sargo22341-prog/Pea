@@ -10,6 +10,7 @@ import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInp
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
 import { masquerValeur } from "../../lib/privacy";
+import { COMPARE_COLORS } from "./compareColors";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 interface PriceHistoryChartProps {
@@ -469,8 +470,6 @@ function chartDateValue(value: string | number) {
 }
 
 // ─── Comparison chart ────────────────────────────────────────────────────────
-
-export const COMPARE_COLORS = ["#3b82f6", "#f59e0b", "#8b5cf6", "#10b981"] as const;
 
 export interface ComparisonSerie {
   symbol: string;

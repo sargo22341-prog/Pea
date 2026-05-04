@@ -13,6 +13,7 @@ import type {
   CreatePositionInput,
   DataConstructionJobDto,
   DashboardSortKey,
+  WatchlistSortKey,
   DividendEvent,
   EditablePortfolioTransaction,
   EnrichedSearchResult,
@@ -192,6 +193,8 @@ export const api = {
     profileIconUrl?: string | null;
     dashboardDefaultSortKey?: DashboardSortKey;
     dashboardDefaultSortDirection?: SortDirection;
+    watchlistDefaultSortKey?: WatchlistSortKey;
+    watchlistDefaultSortDirection?: SortDirection;
     defaultChartRange?: RangeKey;
     localPeaSearchEnabled?: boolean;
     assetNewsEnabled?: boolean;

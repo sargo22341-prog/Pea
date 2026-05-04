@@ -1,4 +1,4 @@
-import { type ReactElement, useLayoutEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ResponsiveContainer } from "recharts";
 
 type ContainerSize = {
@@ -25,6 +25,23 @@ export function SafeResponsiveContainer({ children }: { children: ReactElement }
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || !size) return undefined;
+
+    function dismissTooltip(e: PointerEvent) {
+      if (!node!.contains(e.target as Node)) {
+        const wrapper = node!.querySelector(".recharts-wrapper");
+        if (wrapper) {
+          wrapper.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true, cancelable: true }));
+        }
+      }
+    }
+
+    document.addEventListener("pointerdown", dismissTooltip);
+    return () => document.removeEventListener("pointerdown", dismissTooltip);
+  }, [size]);
 
   return (
     <div className="h-full min-h-px w-full min-w-0" ref={containerRef}>

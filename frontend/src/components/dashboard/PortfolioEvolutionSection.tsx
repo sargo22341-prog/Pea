@@ -4,7 +4,7 @@
  * Gère aussi l'état du benchmark actif et orchestre le fetch des données d'indice.
  */
 
-import type { PortfolioChartDto, PortfolioSummary, RangeKey, User } from "@pea/shared";
+import type { PortfolioChartDto, PortfolioSummary, RangeKey, User, WatchlistSortKey, SortDirection } from "@pea/shared";
 import { useEffect, useState } from "react";
 import type { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
@@ -25,6 +25,8 @@ export function PortfolioEvolutionSection({
   range,
   defaultSortKey,
   defaultSortDirection,
+  watchlistDefaultSortKey,
+  watchlistDefaultSortDirection,
   setRange,
   portfolioChart,
   userTimezone
@@ -33,6 +35,8 @@ export function PortfolioEvolutionSection({
   range: RangeKey;
   defaultSortKey: User["dashboardDefaultSortKey"];
   defaultSortDirection: User["dashboardDefaultSortDirection"];
+  watchlistDefaultSortKey: WatchlistSortKey;
+  watchlistDefaultSortDirection: SortDirection;
   setRange: DashboardRangeSetter;
   portfolioChart: ReturnType<typeof useAsync<PortfolioChartDto>>;
   userTimezone: string;
@@ -104,7 +108,7 @@ export function PortfolioEvolutionSection({
         <PositionsSectionSkeleton count={Math.max(3, Math.min(summary.positions.length || 3, 6))} />
       )}
 
-      {chartReady && <WatchlistSection range={range} />}
+      {chartReady && <WatchlistSection defaultSortDirection={watchlistDefaultSortDirection} defaultSortKey={watchlistDefaultSortKey} range={range} />}
     </>
   );
 }

@@ -3,17 +3,15 @@
  * performances calculees sur la range active.
  */
 
-import type { RangeKey, SortDirection, WatchlistItem } from "@pea/shared";
+import type { RangeKey, SortDirection, WatchlistItem, WatchlistSortKey } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
 import { money, percent } from "../../lib/format";
 import { AssetIcon } from "../common/AssetIcon";
 import { StaleBadge } from "../common/StaleBadge";
-
-type WatchlistSortKey = "name" | "price" | "performancePercent";
 
 const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
   { label: "Nom A -> Z", key: "name", direction: "asc" },
@@ -24,10 +22,11 @@ const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direct
   { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
 ];
 
-export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
+export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaultSortDirection = "asc" }: { range?: RangeKey; defaultSortKey?: WatchlistSortKey; defaultSortDirection?: SortDirection }) {
+  const navigate = useNavigate();
   const watchlist = useAsync((signal) => api.watchlist(range, signal), [range]);
-  const [sortKey, setSortKey] = useState<WatchlistSortKey>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [sortOpen, setSortOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -139,10 +138,12 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
 
           return (
             <div
-              className="grid min-w-0 grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4"
+              className="grid min-w-0 cursor-pointer grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 transition-colors hover:bg-white/[0.03] sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4"
               key={item.symbol}
+              onClick={() => navigate(`/assets/${item.symbol}`)}
+              role="row"
             >
-              <Link className="flex min-w-0 items-center gap-3 overflow-hidden" to={`/assets/${item.symbol}`}>
+              <div className="flex min-w-0 items-center gap-3 overflow-hidden">
                 <AssetIcon symbol={item.symbol} />
 
                 <div className="min-w-0 w-full overflow-hidden leading-tight">
@@ -156,7 +157,7 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
 
                   <p className="truncate text-[11px] text-slate-400 sm:text-sm">{item.symbol}</p>
                 </div>
-              </Link>
+              </div>
 
               <div className="min-w-0 justify-self-center text-center leading-tight">
                 <p className="text-[10px] font-semibold text-slate-400 sm:text-xs">
@@ -187,7 +188,7 @@ export function WatchlistSection({ range = "1d" }: { range?: RangeKey }) {
 
               <button
                 className="justify-self-end text-amber"
-                onClick={() => void remove(item.symbol)}
+                onClick={(e) => { e.stopPropagation(); void remove(item.symbol); }}
                 title="Retirer de la liste de suivi"
                 type="button"
               >

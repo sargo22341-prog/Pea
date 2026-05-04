@@ -1,4 +1,4 @@
-import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { useEffect, useState } from "react";
 import type { SettingsToast } from "../components/settings/SettingsSection";
 import { api } from "../lib/api";
@@ -7,6 +7,7 @@ import { useAsync } from "./useAsync";
 export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
   const me = useAsync(() => api.me(), []);
   const [sortValue, setSortValue] = useState("name:asc");
+  const [watchlistSortValue, setWatchlistSortValue] = useState("name:asc");
   const [range, setRange] = useState<RangeKey>("1d");
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
@@ -18,6 +19,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     const user = me.data?.user;
     if (!user) return;
     setSortValue(`${user.dashboardDefaultSortKey}:${user.dashboardDefaultSortDirection}`);
+    setWatchlistSortValue(`${user.watchlistDefaultSortKey}:${user.watchlistDefaultSortDirection}`);
     setRange(user.defaultChartRange);
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
@@ -36,9 +38,10 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
 
   async function save() {
     const [dashboardDefaultSortKey, dashboardDefaultSortDirection] = sortValue.split(":") as [DashboardSortKey, SortDirection];
+    const [watchlistDefaultSortKey, watchlistDefaultSortDirection] = watchlistSortValue.split(":") as [WatchlistSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, privacyModeEnabled });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, privacyModeEnabled });
       setToast({ tone: "success", text: "Preferences enregistrees." });
       await me.reload();
       await onUserUpdated?.();
@@ -60,8 +63,10 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setPrivacyModeEnabled,
     setRange,
     setSortValue,
+    setWatchlistSortValue,
     sortValue,
     toggleNewsLanguage,
-    toast
+    toast,
+    watchlistSortValue
   };
 }

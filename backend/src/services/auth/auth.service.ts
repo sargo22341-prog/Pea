@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import bcrypt from "bcryptjs";
-import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -18,6 +18,8 @@ export interface AuthUser {
   hasProfileIcon?: boolean;
   dashboardDefaultSortKey: DashboardSortKey;
   dashboardDefaultSortDirection: SortDirection;
+  watchlistDefaultSortKey: WatchlistSortKey;
+  watchlistDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
@@ -37,6 +39,8 @@ interface LigneUtilisateur {
   password_hash: string;
   dashboard_default_sort_key: string;
   dashboard_default_sort_direction: string;
+  watchlist_default_sort_key: string;
+  watchlist_default_sort_direction: string;
   default_chart_range: string;
   local_pea_search_enabled: number | null;
   asset_news_enabled: number | null;
@@ -53,6 +57,10 @@ fs.mkdirSync(dossierIconesProfil, { recursive: true });
 
 function estCleTriTableauBord(valeur: unknown): valeur is DashboardSortKey {
   return valeur === "name" || valeur === "currentMarketValue" || valeur === "intervalPerformancePercent";
+}
+
+function estCleTriListeSuivi(valeur: unknown): valeur is WatchlistSortKey {
+  return valeur === "name" || valeur === "price" || valeur === "performancePercent";
 }
 
 function estDirectionTri(valeur: unknown): valeur is SortDirection {
@@ -92,6 +100,8 @@ function convertirLigneEnUtilisateur(ligne: LigneUtilisateur): AuthUser {
     hasProfileIcon: Boolean(ligne.has_profile_icon),
     dashboardDefaultSortKey: estCleTriTableauBord(ligne.dashboard_default_sort_key) ? ligne.dashboard_default_sort_key : "name",
     dashboardDefaultSortDirection: estDirectionTri(ligne.dashboard_default_sort_direction) ? ligne.dashboard_default_sort_direction : "asc",
+    watchlistDefaultSortKey: estCleTriListeSuivi(ligne.watchlist_default_sort_key) ? ligne.watchlist_default_sort_key : "name",
+    watchlistDefaultSortDirection: estDirectionTri(ligne.watchlist_default_sort_direction) ? ligne.watchlist_default_sort_direction : "asc",
     defaultChartRange: estCleIntervalle(ligne.default_chart_range) ? ligne.default_chart_range : "1d",
     localPeaSearchEnabled: ligne.local_pea_search_enabled === undefined || ligne.local_pea_search_enabled === null ? true : Boolean(ligne.local_pea_search_enabled),
     assetNewsEnabled: ligne.asset_news_enabled === undefined || ligne.asset_news_enabled === null ? true : Boolean(ligne.asset_news_enabled),
@@ -184,6 +194,8 @@ export class AuthService {
       profileIconUrl?: string | null;
       dashboardDefaultSortKey?: DashboardSortKey;
       dashboardDefaultSortDirection?: SortDirection;
+      watchlistDefaultSortKey?: WatchlistSortKey;
+      watchlistDefaultSortDirection?: SortDirection;
       defaultChartRange?: RangeKey;
       localPeaSearchEnabled?: boolean;
       assetNewsEnabled?: boolean;
@@ -199,6 +211,8 @@ export class AuthService {
     const hashMotDePasse = donnees.password ? await bcrypt.hash(donnees.password, 12) : String(actuel.password_hash);
     const cleTriTableauBord = donnees.dashboardDefaultSortKey ?? actuel.dashboard_default_sort_key ?? "name";
     const directionTriTableauBord = donnees.dashboardDefaultSortDirection ?? actuel.dashboard_default_sort_direction ?? "asc";
+    const cleTriListeSuivi = donnees.watchlistDefaultSortKey ?? actuel.watchlist_default_sort_key ?? "name";
+    const directionTriListeSuivi = donnees.watchlistDefaultSortDirection ?? actuel.watchlist_default_sort_direction ?? "asc";
     const intervalleParDefaut = donnees.defaultChartRange ?? actuel.default_chart_range ?? "1d";
     const rechercheLocaleActivee =
       donnees.localPeaSearchEnabled === undefined ? Number(actuel.local_pea_search_enabled ?? 1) : donnees.localPeaSearchEnabled ? 1 : 0;
@@ -217,6 +231,8 @@ export class AuthService {
              profile_icon_url = ?,
              dashboard_default_sort_key = ?,
              dashboard_default_sort_direction = ?,
+             watchlist_default_sort_key = ?,
+             watchlist_default_sort_direction = ?,
              default_chart_range = ?,
              local_pea_search_enabled = ?,
              asset_news_enabled = ?,
@@ -231,6 +247,8 @@ export class AuthService {
         urlIconeProfil,
         cleTriTableauBord,
         directionTriTableauBord,
+        cleTriListeSuivi,
+        directionTriListeSuivi,
         intervalleParDefaut,
         rechercheLocaleActivee,
         actualitesActivees,

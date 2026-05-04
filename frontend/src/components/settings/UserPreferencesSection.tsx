@@ -1,4 +1,4 @@
-import type { DashboardSortKey, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { Save } from "lucide-react";
 import { useUserPreferences } from "../../hooks/useUserPreferences";
 import { formatRangeLabel } from "../../lib/format";
@@ -13,6 +13,15 @@ const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: Sort
   { label: "Variation % decroissante", key: "intervalPerformancePercent", direction: "desc" }
 ];
 
+const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
+  { label: "Nom A -> Z", key: "name", direction: "asc" },
+  { label: "Nom Z -> A", key: "name", direction: "desc" },
+  { label: "Prix croissant", key: "price", direction: "asc" },
+  { label: "Prix decroissant", key: "price", direction: "desc" },
+  { label: "Performance croissante", key: "performancePercent", direction: "asc" },
+  { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
+];
+
 const chartRanges: RangeKey[] = ["1d", "1w", "1m", "ytd", "1y", "5y", "10y", "all"];
 
 export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
@@ -25,6 +34,16 @@ export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () =
           <span className="muted mb-1 block">Tri par defaut du dashboard</span>
           <select className="input" onChange={(event) => preferences.setSortValue(event.target.value)} value={preferences.sortValue}>
             {sortOptions.map((option) => (
+              <option key={`${option.key}:${option.direction}`} value={`${option.key}:${option.direction}`}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="muted mb-1 block">Tri par defaut de la liste de suivi</span>
+          <select className="input" onChange={(event) => preferences.setWatchlistSortValue(event.target.value)} value={preferences.watchlistSortValue}>
+            {watchlistSortOptions.map((option) => (
               <option key={`${option.key}:${option.direction}`} value={`${option.key}:${option.direction}`}>
                 {option.label}
               </option>

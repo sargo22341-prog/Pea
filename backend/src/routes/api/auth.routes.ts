@@ -72,6 +72,8 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
+    watchlistDefaultSortKey: z.enum(["name", "price", "performancePercent"]).optional(),
+    watchlistDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
     defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all"]).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),

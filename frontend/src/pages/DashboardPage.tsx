@@ -59,6 +59,8 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         <PortfolioEvolutionSection
           defaultSortDirection={user.dashboardDefaultSortDirection}
           defaultSortKey={user.dashboardDefaultSortKey}
+          watchlistDefaultSortDirection={user.watchlistDefaultSortDirection}
+          watchlistDefaultSortKey={user.watchlistDefaultSortKey}
           range={selectedRange}
           setRange={setSelectedRange}
           summary={summary}

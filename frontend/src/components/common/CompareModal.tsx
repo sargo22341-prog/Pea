@@ -1,7 +1,6 @@
 import { Search, X } from "lucide-react";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
-
-export const COMPARE_COLORS = ["#3b82f6", "#f59e0b", "#8b5cf6", "#10b981"] as const;
+import { COMPARE_COLORS } from "../charts/compareColors";
 
 interface SelectedAsset {
   symbol: string;
