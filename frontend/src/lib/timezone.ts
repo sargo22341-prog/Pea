@@ -46,7 +46,7 @@ export function zonedTimeToUtc(day: string, time: string, timeZone: string) {
   return new Date(utc.getTime() - (observedAsUtc - utc.getTime()));
 }
 
-/** Formate la plage horaire locale d'une session marche. */
-export function formatMarketSessionHours(open: string, close: string) {
-  return `${open}-${close}`;
+/** Formate les plages horaires d'une ou plusieurs sessions de marche. */
+export function formatMarketSessionHours(sessions: { open: string; close: string }[]) {
+  return sessions.map((s) => `${s.open}-${s.close}`).join(", ");
 }

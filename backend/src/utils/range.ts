@@ -116,6 +116,6 @@ function getMarketSession(symbol?: string, exchange?: string, fullExchangeName?:
     period1: session.period1,
     period2,
     tradingDay: session.date,
-    marketHours: { timezone: session.calendar.timezone, openTime: session.calendar.openTime, closeTime: session.calendar.closeTime }
+    marketHours: { timezone: session.calendar.timezone, openTime: session.calendar.sessions[0].openTime, closeTime: session.calendar.sessions[session.calendar.sessions.length - 1].closeTime }
   };
 }

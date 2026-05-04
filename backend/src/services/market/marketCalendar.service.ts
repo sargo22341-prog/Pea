@@ -8,7 +8,7 @@ import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
-import { getMarketCalendar, type MarketCalendar } from "./getMarketCalendar.js";
+import { getMarketCalendar, getSessionsForDate, type MarketCalendar } from "./getMarketCalendar.js";
 
 
 
@@ -51,11 +51,13 @@ function tradingDayReason(symbol: string | undefined, exchange: string | undefin
  */
 export function getMarketSessionInfo(symbol?: string, exchange?: string) {
   const calendar = getMarketCalendar(symbol, exchange);
+  const sessions = calendar.sessions;
   return {
     timezone: calendar.timezone,
     city: calendar.city,
-    open: calendar.openTime,
-    close: calendar.closeTime
+    open: sessions[0].openTime,
+    close: sessions[sessions.length - 1].closeTime,
+    sessions: sessions.map((s) => ({ open: s.openTime, close: s.closeTime }))
   };
 }
 
@@ -77,10 +79,11 @@ export function isMarketOpen(marketState?: string | null) {
 
 export function getSessionForDate(symbol: string | undefined, exchange: string | undefined, isoDate: string): OpenMarketDay {
   const calendar = getMarketCalendar(symbol, exchange);
+  const sessions = getSessionsForDate(calendar, isoDate);
   return {
     date: isoDate,
-    period1: zonedTimeToUtc(isoDate, calendar.openTime, calendar.timezone),
-    period2: zonedTimeToUtc(isoDate, calendar.closeTime, calendar.timezone),
+    period1: zonedTimeToUtc(isoDate, sessions[0].openTime, calendar.timezone),
+    period2: zonedTimeToUtc(isoDate, sessions[sessions.length - 1].closeTime, calendar.timezone),
     calendar
   };
 }
@@ -93,7 +96,8 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
     const local = getLocalDateParts(cursor, calendar.timezone);
     if (isTradingDay(symbol, exchange, cursor)) {
       const endLocal = index === 0 ? getLocalDateParts(date, calendar.timezone) : local;
-      if (endLocal.minutes >= timeToMinutes(calendar.openTime) || index > 0) return getSessionForDate(symbol, exchange, local.isoDate);
+      const sessions = getSessionsForDate(calendar, local.isoDate);
+      if (endLocal.minutes >= timeToMinutes(sessions[0].openTime) || index > 0) return getSessionForDate(symbol, exchange, local.isoDate);
     }
     cursorDate = addDaysToIsoDate(cursorDate, -1);
   }

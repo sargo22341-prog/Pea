@@ -32,7 +32,8 @@ const fallbackIntradaySession: MarketSessionDto = {
   timezone: "Europe/Paris",
   city: "Paris",
   open: "09:00",
-  close: "17:30"
+  close: "17:30",
+  sessions: [{ open: "09:00", close: "17:30" }]
 };
 
 export const PortfolioChart = memo(function PortfolioChart({
@@ -101,9 +102,9 @@ export const PortfolioChart = memo(function PortfolioChart({
         )}
       </Suspense>
 
-      {!showComparison && range === "1d" && marketSession && marketSession.timezone !== normalizeTimeZone(userTimezone) && (
+      {!showComparison && range === "1d" && marketSession && (marketSession.timezone !== normalizeTimeZone(userTimezone) || marketSession.sessions.length > 1) && (
         <p className="px-4 pt-2 text-xs text-slate-400">
-          Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.open, marketSession.close)}, heure locale du marche
+          Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.sessions)}, heure locale du marche
         </p>
       )}
     </div>

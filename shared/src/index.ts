@@ -160,6 +160,7 @@ export interface MarketSessionDto {
   city: string;
   open: string;
   close: string;
+  sessions: { open: string; close: string }[];
 }
 
 export interface PortfolioChartDto {

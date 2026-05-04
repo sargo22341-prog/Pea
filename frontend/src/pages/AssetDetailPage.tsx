@@ -261,9 +261,9 @@ export function AssetDetailPage({ user }: { user: User }) {
         {range === "1d" && (chartPoints.length === 0 || asset.data.stale) && (
           <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
         )}
-        {range === "1d" && marketSession && marketSession.timezone !== userTimezone && (
+        {range === "1d" && marketSession && (marketSession.timezone !== userTimezone || marketSession.sessions.length > 1) && (
           <p className="mt-3 text-xs text-slate-400">
-            Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.open, marketSession.close)}, heure locale du marche
+            Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.sessions)}, heure locale du marche
           </p>
         )}
       </section>

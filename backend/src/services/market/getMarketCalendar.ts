@@ -95,18 +95,23 @@ export interface MarketCalendar {
   market: MarketName;
   timezone: string;
   city: string;
-  openTime: string;
-  closeTime: string;
   sessions: MarketSession[];
   dayOverrides?: MarketDayOverride[];
+}
+
+/** Retourne les sessions actives pour un isoDate local, en tenant compte des dayOverrides. */
+export function getSessionsForDate(calendar: MarketCalendar, isoDate: string): MarketSession[] {
+  if (!calendar.dayOverrides?.length) return calendar.sessions;
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun, 1=Mon … 5=Fri, 6=Sat
+  const override = calendar.dayOverrides.find((o) => o.days.includes(weekday));
+  return override ? override.sessions : calendar.sessions;
 }
 
 const defaultHours: MarketCalendar = {
   market: "fallback",
   timezone: "Europe/Paris",
   city: "Paris",
-  openTime: "09:00",
-  closeTime: "17:30",
   sessions: [{ openTime: "09:00", closeTime: "17:30" }]
 };
 
@@ -121,8 +126,6 @@ function market(
     market,
     timezone,
     city,
-    openTime: sessions[0].openTime,
-    closeTime: sessions[sessions.length - 1].closeTime,
     sessions,
     ...(dayOverrides ? { dayOverrides } : {})
   };

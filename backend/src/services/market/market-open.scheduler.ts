@@ -9,7 +9,7 @@
  *  - Si Yahoo retourne CLOSE pendant 2h apres openTime → jour ferie probable, stop
  */
 
-import { getMarketCalendar, type MarketCalendar } from "./getMarketCalendar.js";
+import { getMarketCalendar, getSessionsForDate, type MarketCalendar } from "./getMarketCalendar.js";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 import { isMarketOpen } from "./marketCalendar.service.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
@@ -72,8 +72,9 @@ export class MarketOpenScheduler {
       return;
     }
 
-    const openMinutes = timeToMinutes(calendar.openTime);
-    const closeMinutes = timeToMinutes(calendar.closeTime);
+    const sessions = getSessionsForDate(calendar, local.isoDate);
+    const openMinutes = timeToMinutes(sessions[0].openTime);
+    const closeMinutes = timeToMinutes(sessions[sessions.length - 1].closeTime);
     const nowMinutes = local.hour * 60 + local.minute;
 
     if (nowMinutes < openMinutes) {
@@ -86,7 +87,7 @@ export class MarketOpenScheduler {
       return;
     }
 
-    const openUtc = zonedTimeToUtc(local.isoDate, calendar.openTime, calendar.timezone);
+    const openUtc = zonedTimeToUtc(local.isoDate, sessions[0].openTime, calendar.timezone);
     const gracePeriodEnd = openUtc.getTime() + HOLIDAY_GRACE_MS;
     const afterGracePeriod = now.getTime() > gracePeriodEnd;
     const afterCloseWithBuffer = nowMinutes > closeMinutes + 120;
@@ -100,7 +101,7 @@ export class MarketOpenScheduler {
       logger.info("market-data", "holiday suspected, stopping refresh for today", {
         market: marketKey,
         date: local.isoDate,
-        openTime: calendar.openTime,
+        openTime: sessions[0].openTime,
         timezone: calendar.timezone
       });
       return;
