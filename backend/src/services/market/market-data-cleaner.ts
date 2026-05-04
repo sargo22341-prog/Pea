@@ -75,7 +75,7 @@ export class MarketDataCleaner {
       const idPlaceholders = ids.map(() => "?").join(",");
       const symbolPlaceholders = symbols.map(() => "?").join(",");
 
-      for (const table of ["chart_candles", "market_data_finalizations", "asset_market_snapshots", "asset_profiles", "asset_financials", "asset_dividends"]) {
+      for (const table of ["chart_candles_1d", "chart_candles_1w", "chart_candles_1m", "chart_candles_all", "market_data_finalizations", "asset_market_snapshots", "asset_profiles", "asset_financials", "asset_dividends"]) {
         deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN (${idPlaceholders})`, ...ids) });
       }
 
@@ -114,8 +114,8 @@ export class MarketDataCleaner {
 
     for (const range of ranges) {
       deleted.push({
-        table: `chart_candles:${range}`,
-        rows: runDelete("DELETE FROM chart_candles WHERE range = ?", range)
+        table: `chart_candles_${range}`,
+        rows: runDelete(`DELETE FROM chart_candles_${range}`)
       });
       deleted.push({
         table: `market_data_finalizations:${range}`,

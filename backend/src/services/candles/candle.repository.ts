@@ -1,6 +1,7 @@
 /**
  * Role du fichier : acces SQL dedie aux candles de marche. Les upserts
- * garantissent l'absence de doublons via UNIQUE(asset_id, range, interval, datetime_start).
+ * garantissent l'absence de doublons via UNIQUE(asset_id, interval, datetime_start).
+ * Chaque range possede sa propre table (chart_candles_1d/1w/1m/all).
  */
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
@@ -8,13 +9,27 @@ import { db } from "../../db.js";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
 import type { BuiltCandle } from "./candle.builder.js";
 
+const CANDLE_TABLE: Record<StoredChartRange, string> = {
+  "1d": "chart_candles_1d",
+  "1w": "chart_candles_1w",
+  "1m": "chart_candles_1m",
+  all: "chart_candles_all"
+};
+
+function candleTable(range: StoredChartRange): string {
+  const table = CANDLE_TABLE[range];
+  if (!table) throw new Error(`Range candle inconnu: ${range}`);
+  return table;
+}
+
 export class CandleRepository {
   upsertCandles(candles: BuiltCandle[]) {
     for (const candle of candles) {
+      const table = candleTable(candle.range);
       db.prepare(
-        `INSERT INTO chart_candles (asset_id, range, interval, datetime_start, datetime_end, open, high, low, close, volume, source)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(asset_id, range, interval, datetime_start) DO UPDATE SET
+        `INSERT INTO ${table} (asset_id, interval, datetime_start, datetime_end, open, high, low, close, volume, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(asset_id, interval, datetime_start) DO UPDATE SET
            datetime_end = excluded.datetime_end,
            open = excluded.open,
            high = excluded.high,
@@ -23,20 +38,22 @@ export class CandleRepository {
            volume = excluded.volume,
            source = excluded.source,
            updated_at = CURRENT_TIMESTAMP`
-      ).run(candle.assetId, candle.range, candle.interval, candle.datetimeStart, candle.datetimeEnd, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.source);
+      ).run(candle.assetId, candle.interval, candle.datetimeStart, candle.datetimeEnd, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.source);
     }
     return candles.length;
   }
 
   readCandles(assetId: number, range: RangeKey | string, interval: ChartInterval): HistoryPoint[] {
+    const storedRange = normalizeStoredRange(range);
+    const table = candleTable(storedRange);
     const rows = db
       .prepare(
         `SELECT datetime_start, open, high, low, close, volume
-         FROM chart_candles
-         WHERE asset_id = ? AND range = ? AND interval = ?
+         FROM ${table}
+         WHERE asset_id = ? AND interval = ?
          ORDER BY datetime_start ASC`
       )
-      .all(assetId, normalizeStoredRange(range), interval) as Array<{
+      .all(assetId, interval) as Array<{
       datetime_start: string;
       open: number | null;
       high: number | null;
@@ -56,9 +73,11 @@ export class CandleRepository {
   }
 
   countCandles(assetId: number, range: RangeKey | string, interval: ChartInterval) {
+    const storedRange = normalizeStoredRange(range);
+    const table = candleTable(storedRange);
     const row = db
-      .prepare("SELECT COUNT(*) AS count FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ?")
-      .get(assetId, normalizeStoredRange(range), interval) as { count?: number } | undefined;
+      .prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE asset_id = ? AND interval = ?`)
+      .get(assetId, interval) as { count?: number } | undefined;
     return Number(row?.count ?? 0);
   }
 
@@ -77,12 +96,14 @@ export class CandleRepository {
   }
 
   pruneBefore(assetId: number, range: StoredChartRange, interval: ChartInterval, cutoffIso: string) {
-    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ? AND datetime_start < ?")
-      .run(assetId, range, interval, cutoffIso);
+    const table = candleTable(range);
+    db.prepare(`DELETE FROM ${table} WHERE asset_id = ? AND interval = ? AND datetime_start < ?`)
+      .run(assetId, interval, cutoffIso);
   }
 
   deleteRange(assetId: number, range: StoredChartRange, interval: ChartInterval) {
-    db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = ? AND interval = ?").run(assetId, range, interval);
+    const table = candleTable(range);
+    db.prepare(`DELETE FROM ${table} WHERE asset_id = ? AND interval = ?`).run(assetId, interval);
   }
 
   isFinalized(assetId: number, tradingDate: string, range: StoredChartRange) {

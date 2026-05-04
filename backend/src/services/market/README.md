@@ -4,7 +4,7 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
 - `data/config.json` pilote les intervals configurables des ranges stockees `1d`, `1w`, `1m`. En prod Docker, ce fichier vit dans le volume `/app/data` pour rester modifiable.
 - `assets` et `asset_profiles` stockent les metadonnees stables issues de `quote()` et `quoteSummary()`. Les champs absents chez Yahoo restent `NULL`.
-- `chart_candles` stocke les candles OHLCV pre-calculées par range/interval avec `UNIQUE(asset_id, range, interval, datetime_start)`.
+- `chart_candles_1d`, `chart_candles_1w`, `chart_candles_1m`, `chart_candles_all` stockent les candles OHLCV pre-calculées, une table par range, avec `UNIQUE(asset_id, interval, datetime_start)` sur chacune.
 - `asset_market_snapshots` contient une seule ligne par asset: le dernier etat connu du marche Yahoo.
 - `asset_financials` est alimente par `fundamentalsTimeSeries` quand disponible. `net_margin` est calcule uniquement si `total_revenue` et `net_income` existent.
 - `asset_dividends` est alimente par `chart(..., events: 'div|split')`. Yahoo ne fournit pas `payment_date` ou `record_date`, donc ces champs ne sont pas crees.
@@ -15,11 +15,11 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
 ## Ranges stockees
 
-`1w`, `1m` et `all` sont stockes dans `chart_candles`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis `all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche; aucun calendrier de jours feries manuel n'est maintenu.
+`1d`, `1w`, `1m` et `all` sont stockes chacun dans leur table dedie. `ytd`, `1y`, `5y` et `10y` sont calcules depuis `chart_candles_all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche; aucun calendrier de jours feries manuel n'est maintenu.
 
 ## Portfolio et Dashboard
 
-Les charts portefeuille ne sont pas stockes. `PortfolioService` reconstruit dynamiquement la valeur a chaque date depuis `chart_candles` et les transactions utilisateur. Les achats et ventes n'impactent la valeur qu'a partir de leur date reelle. Les blocs de performance du Dashboard consomment le meme DTO `/portfolio/chart`.
+Les charts portefeuille ne sont pas stockes. `PortfolioService` reconstruit dynamiquement la valeur a chaque date depuis les tables `chart_candles_*` et les transactions utilisateur. Les achats et ventes n'impactent la valeur qu'a partir de leur date reelle. Les blocs de performance du Dashboard consomment le meme DTO `/portfolio/chart`.
 
 ## Actions rapides
 

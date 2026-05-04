@@ -201,9 +201,11 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles (range+interval) absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range"), "index chart_candles (range) absent");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5], "les 5 migrations doivent être enregistrées");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1d_asset_interval"), "index chart_candles_1d absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1w_asset_interval"), "index chart_candles_1w absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1m_asset_interval"), "index chart_candles_1m absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_all_asset_interval"), "index chart_candles_all absent");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6], "les 6 migrations doivent être enregistrées");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

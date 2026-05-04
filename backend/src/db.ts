@@ -245,10 +245,9 @@ db.exec(`
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
-  CREATE TABLE IF NOT EXISTS chart_candles (
+  CREATE TABLE IF NOT EXISTS chart_candles_1d (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_id INTEGER NOT NULL,
-    range TEXT NOT NULL,
     interval TEXT NOT NULL,
     datetime_start TEXT NOT NULL,
     datetime_end TEXT NOT NULL,
@@ -260,7 +259,61 @@ db.exec(`
     source TEXT NOT NULL DEFAULT 'yahoo-finance2',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, range, interval, datetime_start),
+    UNIQUE(asset_id, interval, datetime_start),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS chart_candles_1w (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    interval TEXT NOT NULL,
+    datetime_start TEXT NOT NULL,
+    datetime_end TEXT NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
+    close REAL NOT NULL,
+    volume REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, interval, datetime_start),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS chart_candles_1m (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    interval TEXT NOT NULL,
+    datetime_start TEXT NOT NULL,
+    datetime_end TEXT NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
+    close REAL NOT NULL,
+    volume REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, interval, datetime_start),
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS chart_candles_all (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id INTEGER NOT NULL,
+    interval TEXT NOT NULL,
+    datetime_start TEXT NOT NULL,
+    datetime_end TEXT NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
+    close REAL NOT NULL,
+    volume REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(asset_id, interval, datetime_start),
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
@@ -406,6 +459,10 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
 
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1d_asset_interval ON chart_candles_1d(asset_id, interval);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval ON chart_candles_1w(asset_id, interval);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval ON chart_candles_1m(asset_id, interval);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_all_asset_interval ON chart_candles_all(asset_id, interval);
   CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);

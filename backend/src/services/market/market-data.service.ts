@@ -645,7 +645,7 @@ export class MarketDataService {
 
         const closeDate = new Date(resolvedClose.closeIso);
         const session = getLastTradingDay(asset.symbol, asset.exchange, closeDate);
-        db.prepare("DELETE FROM chart_candles WHERE asset_id = ? AND range = 'all' AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
+        db.prepare("DELETE FROM chart_candles_all WHERE asset_id = ? AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
           .run(asset.id, session.period1.toISOString(), session.period2.toISOString());
 
         const finalClosePrice = Number(resolvedClose.closePrice);
