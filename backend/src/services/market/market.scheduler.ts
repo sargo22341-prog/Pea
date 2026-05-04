@@ -17,7 +17,7 @@ import { marketSnapshotService } from "./market-snapshot.service.js";
 import { db } from "../../db.js";
 
 const postCloseDelayMs = 20 * 60 * 1000;
-const postCloseTargetMinutes = 17 * 60 + 50;
+const postCloseTargetMinutes = 19 * 60;
 const postCloseFinalizationTaskKey = "post-close-finalization";
 
 /** Lit l'heure de pilotage applicative sans changer les instants UTC stockes. */

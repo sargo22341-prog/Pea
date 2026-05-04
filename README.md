@@ -163,7 +163,7 @@ Copiez `.env.example` vers `.env` et ajustez selon vos besoins.
 |---|---|---|
 | `PORT` | `4000` | Port du serveur Express |
 | `SQLITE_PATH` | `./data/pea.sqlite` | Chemin vers le fichier de base de données SQLite |
-| `APP_TIMEZONE` | `Europe/Paris` | Fuseau horaire utilisé pour les calculs de séance de marché |
+| `TZ` | `Europe/Paris` | Fuseau horaire utilisé pour les calculs de séance de marché |
 | `FRONTEND_DIST` | `../frontend/dist` | Chemin vers le build frontend (production) |
 | `VITE_API_BASE_URL` | `http://localhost:4000` | URL de base de l'API utilisée par le proxy Vite |
 | `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script de vérification de santé en développement |

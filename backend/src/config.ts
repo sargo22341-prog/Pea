@@ -13,7 +13,7 @@ if (initialNodeEnv !== "production") {
 }
 
 const fallbackTimezone = "Europe/Paris";
-const configuredTimezone = process.env.APP_TIMEZONE?.trim() || fallbackTimezone;
+const configuredTimezone = process.env.TZ?.trim() || fallbackTimezone;
 const appTimezone = isValidTimeZone(configuredTimezone) ? configuredTimezone : fallbackTimezone;
 
 function parseDebugDate(value: string | undefined, timeZone: string) {

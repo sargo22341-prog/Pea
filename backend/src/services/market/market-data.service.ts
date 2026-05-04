@@ -20,6 +20,7 @@ import { dataConstructionQueue } from "./data-construction-queue.service.js";
 
 const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
 const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
+  "1d": 1,
   "1w": 7,
   "1m": 30
 };
