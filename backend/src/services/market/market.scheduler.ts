@@ -5,6 +5,7 @@
  */
 
 import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
+import { marketOpenScheduler } from "./market-open.scheduler.js";
 import { config } from "../../config.js";
 import { logger } from "../shared/logger.service.js";
 import { assetRepository } from "./asset.repository.js";
@@ -20,12 +21,16 @@ const postCloseDelayMs = 20 * 60 * 1000;
 const postCloseTargetMinutes = 19 * 60;
 const postCloseFinalizationTaskKey = "post-close-finalization";
 
+const calendarEventsTaskKey = "weekly-calendar-events";
+const calendarEventsTargetMinutes = 8 * 60; // 08:00 dans le timezone applicatif
+
 /** Lit l'heure de pilotage applicative sans changer les instants UTC stockes. */
 function appClock(date: Date) {
   const parts = getZonedDateParts(date, config.appTimezone);
   return {
     date: parts.isoDate,
-    minutes: parts.hour * 60 + parts.minute
+    minutes: parts.hour * 60 + parts.minute,
+    weekday: parts.weekday
   };
 }
 
@@ -47,11 +52,13 @@ export class MarketScheduler {
   private timer?: NodeJS.Timeout;
   private lastOpenSymbols = new Set<string>();
   private lastCronDate?: string;
+  private lastCalendarEventsDate?: string;
 
   start() {
     if (this.timer) return;
     this.timer = setInterval(() => void this.tick(), 60 * 1000);
     void this.tick();
+    marketOpenScheduler.start();
     logger.info("market-data", "post-close scheduler started", {
       timezone: config.appTimezone,
       target: "17:30"
@@ -61,10 +68,25 @@ export class MarketScheduler {
   stop() {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    marketOpenScheduler.stop();
   }
 
   async tick(now = new Date()) {
     const appTime = appClock(now);
+
+    // Tous les lundis a 08:00 : refresh des evenements calendrier pour tous les assets.
+    if (appTime.weekday === "Mon" && appTime.minutes >= calendarEventsTargetMinutes && this.lastCalendarEventsDate !== appTime.date) {
+      this.lastCalendarEventsDate = appTime.date;
+      if (wasSchedulerTaskRunToday(calendarEventsTaskKey, appTime.date)) {
+        logger.info("market-data", "calendar-events refresh skipped", { cause: "already-run-today", runDate: appTime.date });
+      } else {
+        const symbols = assetRepository.listTrackedSymbols();
+        const job = dataConstructionQueue.enqueueForSymbols("calendar-events", symbols);
+        dataConstructionQueue.enqueueForSymbols("dividends", symbols);
+        markSchedulerTaskRun(calendarEventsTaskKey, appTime.date, "cron-monday-08:00", job.id);
+        logger.info("market-data", "weekly refresh scheduled", { assets: symbols.length, jobId: job.id });
+      }
+    }
 
     // Une seule tentative par jour apres 17:30 dans le timezone applicatif.
     if (appTime.minutes >= postCloseTargetMinutes && this.lastCronDate !== appTime.date) {

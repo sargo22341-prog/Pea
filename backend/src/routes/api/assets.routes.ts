@@ -130,9 +130,9 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     marketSession,
     financials,
     isEtf,
-    calendarEventsData: extraDataResult.data.calendarEventsData,
-    analystConsensus: extraDataResult.data.analystConsensus,
-    fundDetails: extraDataResult.data.fundDetails
+    calendarEventsData: (extraDataResult.data as any).calendarEventsData,
+    analystConsensus: (extraDataResult.data as any).analystConsensus,
+    fundDetails: (extraDataResult.data as any).fundDetails
   };
 
   res.json(details);

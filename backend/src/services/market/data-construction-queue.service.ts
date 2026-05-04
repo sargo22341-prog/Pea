@@ -7,7 +7,7 @@ import type { DataConstructionJobDto } from "@pea/shared";
 import type { StoredChartRange } from "./chart-config.service.js";
 import { logger } from "../shared/logger.service.js";
 
-type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends";
+type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
 interface ConstructionTask {
   key: string;
@@ -240,12 +240,13 @@ export class DataConstructionQueueService {
   }
 
   private async execute(task: ConstructionTask) {
-    const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }] = await Promise.all([
+    const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }, { yahooService }] = await Promise.all([
       import("./market-data.service.js"),
       import("./market-snapshot.service.js"),
       import("./financials.service.js"),
       import("./dividends.service.js"),
-      import("./asset.repository.js")
+      import("./asset.repository.js"),
+      import("../yahoo/index.js")
     ]);
 
     if (!task.symbol) return;
@@ -258,6 +259,12 @@ export class DataConstructionQueueService {
     if (task.type === "snapshot") await marketSnapshotService.refreshMarketSnapshot(asset);
     if (task.type === "financials") await financialsService.refreshFinancials(asset);
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);
+    if (task.type === "calendar-events") {
+      const { db } = await import("../../db.js");
+      db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(asset.symbol.toUpperCase());
+      await yahooService.extraData(asset.symbol);        // quoteSummary (9 modules) → upsert calendar events
+      await financialsService.refreshFinancials(asset);  // fundamentalsTimeSeries → upsert asset_financials
+    }
   }
 
   private toDto(job: ConstructionJobState): DataConstructionJobDto {

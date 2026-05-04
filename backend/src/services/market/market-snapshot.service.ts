@@ -68,7 +68,11 @@ export class MarketSnapshotService {
     };
   }
 
-  private upsertSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
+  invalidateCache(symbol: string): void {
+    this.snapshotQuoteCache.delete(symbol.toUpperCase());
+  }
+
+  upsertSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
     db.prepare(
       `INSERT INTO asset_market_snapshots (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,

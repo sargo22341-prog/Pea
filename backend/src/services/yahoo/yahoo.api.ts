@@ -37,6 +37,15 @@ export class YahooApi {
     return (rows as any[]).map((row) => mapQuote(row, String(row?.symbol ?? ""))).filter((quote) => quote.symbol);
   }
 
+  async quoteBatchRaw(symbols: string[]): Promise<{ quote: Quote; snapshot: YahooSnapshotPayload }[]> {
+    const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()).filter(Boolean))];
+    if (!keys.length) return [];
+    const rows = await limited(`market-quote-batch-raw:${keys.sort().join(",")}`, () => yahooClient.quote(keys, { return: "array" } as any));
+    return (rows as any[])
+      .map((row) => ({ quote: mapQuote(row, String(row?.symbol ?? "")), snapshot: mapSnapshotQuote(row, String(row?.symbol ?? "")) }))
+      .filter((r) => r.quote.symbol);
+  }
+
   async quoteSummary(symbol: string): Promise<{ profile: YahooAssetProfilePayload; raw: any }> {
     const key = symbol.toUpperCase();
     const raw = await limited(`quote-summary:${key}`, () =>

@@ -54,6 +54,7 @@ adminRouter.post("/admin/market-data/refresh-annex", asyncRoute(async (_req, res
   const job = dataConstructionQueue.enqueueForSymbols("snapshot", symbols);
   dataConstructionQueue.enqueueForSymbols("financials", symbols);
   dataConstructionQueue.enqueueForSymbols("dividends", symbols);
+  dataConstructionQueue.enqueueForSymbols("calendar-events", symbols);
 
   res.json(job);
 }));
