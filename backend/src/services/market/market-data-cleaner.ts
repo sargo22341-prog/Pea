@@ -79,7 +79,7 @@ export class MarketDataCleaner {
         deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN (${idPlaceholders})`, ...ids) });
       }
 
-      for (const table of ["cached_history", "cached_intraday_history", "asset_static_cache", "asset_market_cache", "asset_chart_cache", "asset_dividend_cache", "asset_article_cache", "asset_icons"]) {
+      for (const table of ["cached_history", "cached_intraday_history", "asset_article_cache", "asset_icons"]) {
         deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
       }
 
@@ -137,10 +137,6 @@ export class MarketDataCleaner {
 
     if (displayRanges.length) {
       const placeholders = displayRanges.map(() => "?").join(",");
-      deleted.push({
-        table: "asset_chart_cache",
-        rows: runDelete(`DELETE FROM asset_chart_cache WHERE range IN (${placeholders})`, ...displayRanges)
-      });
       deleted.push({
         table: "portfolio_chart_cache",
         rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN (${placeholders})`, ...displayRanges)

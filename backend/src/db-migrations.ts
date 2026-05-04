@@ -133,6 +133,29 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 9,
+    description: "Suppression des tables DTO caches inutilisées (asset_static_cache, asset_market_cache, asset_dividend_cache)",
+    appliquer: (db) => {
+      db.exec("DROP TABLE IF EXISTS asset_static_cache");
+      db.exec("DROP TABLE IF EXISTS asset_market_cache");
+      db.exec("DROP TABLE IF EXISTS asset_dividend_cache");
+    }
+  },
+  {
+    version: 10,
+    description: "Suppression asset_dividend_cache si toujours présente après migration 9",
+    appliquer: (db) => {
+      db.exec("DROP TABLE IF EXISTS asset_dividend_cache");
+    }
+  },
+  {
+    version: 11,
+    description: "Suppression asset_chart_cache — table fantôme jamais lue ni écrite",
+    appliquer: (db) => {
+      db.exec("DROP TABLE IF EXISTS asset_chart_cache");
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {

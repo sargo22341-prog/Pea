@@ -409,39 +409,6 @@ db.exec(`
     PRIMARY KEY(user_id, symbol)
   );
 
-  CREATE TABLE IF NOT EXISTS asset_static_cache (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    cached_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS asset_market_cache (
-    symbol TEXT PRIMARY KEY,
-    market_state TEXT,
-    payload TEXT NOT NULL,
-    cached_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS asset_chart_cache (
-    cache_key TEXT PRIMARY KEY,
-    symbol TEXT NOT NULL,
-    range TEXT NOT NULL,
-    interval TEXT NOT NULL,
-    market_state TEXT,
-    payload TEXT NOT NULL,
-    cached_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS asset_dividend_cache (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    cached_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS asset_article_cache (
     symbol TEXT PRIMARY KEY,
     payload TEXT NOT NULL,
@@ -467,10 +434,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);
   CREATE INDEX IF NOT EXISTS idx_watchlist_user_symbol ON watchlist(user_id, symbol);
-  CREATE INDEX IF NOT EXISTS idx_asset_static_cache_expires_at ON asset_static_cache(expires_at);
-  CREATE INDEX IF NOT EXISTS idx_asset_market_cache_expires_at ON asset_market_cache(expires_at);
-  CREATE INDEX IF NOT EXISTS idx_asset_chart_cache_expires_at ON asset_chart_cache(expires_at);
-  CREATE INDEX IF NOT EXISTS idx_asset_dividend_cache_expires_at ON asset_dividend_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
 

@@ -43,11 +43,6 @@ adminRouter.post("/admin/market-data/refresh-annex", asyncRoute(async (_req, res
   db.exec("DELETE FROM cached_dividends");
   // News
   db.exec("DELETE FROM cached_news");
-  // DTO caches dérivés (générés à partir des tables source, doivent être invalidés
-  // pour que les données fraîches des tâches snapshot/financials/dividends soient visibles)
-  db.exec("DELETE FROM asset_static_cache");
-  db.exec("DELETE FROM asset_market_cache");
-  db.exec("DELETE FROM asset_dividend_cache");
   db.exec("DELETE FROM asset_article_cache");
 
   const symbols = assetRepository.listTrackedSymbols();
