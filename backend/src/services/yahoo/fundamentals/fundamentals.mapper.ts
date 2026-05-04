@@ -3,7 +3,7 @@
  * quoteSummary Yahoo brut.
  */
 
-import type { AssetMarketInfo, FinancialYearItem } from "@pea/shared";
+import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, FinancialYearItem } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
 
 function rawNumber(value: unknown): number | undefined {
@@ -72,6 +72,59 @@ export function financialRowsFromTimeSeries(raw: any): FinancialYearItem[] {
     }))
     .sort((a, b) => a.year - b.year)
     .slice(-5);
+}
+
+export function calendarEventsDataFromSummary(summary: any): AssetCalendarEventsData | undefined {
+  const cal = summary?.calendarEvents;
+  if (!cal) return undefined;
+  const earnings = cal.earnings ?? {};
+  const earningsDateRaw = Array.isArray(earnings.earningsDate) ? earnings.earningsDate[0] : earnings.earningsDate;
+  const earningsCallDateRaw = Array.isArray(earnings.earningsCallDate) ? earnings.earningsCallDate[0] : earnings.earningsCallDate;
+  return {
+    earningsDate: rawDate(earningsDateRaw),
+    earningsCallDate: rawDate(earningsCallDateRaw),
+    isEarningsDateEstimate: Boolean(earnings.isEarningsDateEstimate),
+    exDividendDate: rawDate(cal.exDividendDate),
+    dividendDate: rawDate(cal.dividendDate)
+  };
+}
+
+export function analystConsensusFromSummary(summary: any): AssetAnalystConsensus | undefined {
+  const fin = summary?.financialData;
+  if (!fin) return undefined;
+  const numberOfAnalystOpinions = rawNumber(fin.numberOfAnalystOpinions);
+  if (!numberOfAnalystOpinions) return undefined;
+  return {
+    currentPrice: rawNumber(fin.currentPrice),
+    targetHighPrice: rawNumber(fin.targetHighPrice),
+    targetLowPrice: rawNumber(fin.targetLowPrice),
+    targetMeanPrice: rawNumber(fin.targetMeanPrice),
+    targetMedianPrice: rawNumber(fin.targetMedianPrice),
+    recommendationMean: rawNumber(fin.recommendationMean),
+    recommendationKey: rawString(fin.recommendationKey),
+    numberOfAnalystOpinions
+  };
+}
+
+export function fundDetailsFromSummary(summary: any): AssetFundDetails | undefined {
+  const fp = summary?.fundProfile;
+  if (!fp) return undefined;
+  const fees = fp.feesExpensesInvestment ?? {};
+  const rawSectors = summary?.topHoldings?.sectorWeightings;
+  const sectorWeightings: AssetFundDetails["sectorWeightings"] = Array.isArray(rawSectors)
+    ? rawSectors.flatMap((obj: any) =>
+        Object.entries(obj)
+          .map(([key, v]) => ({ key, value: rawNumber(v) ?? 0 }))
+          .filter(({ value }) => value > 0)
+      )
+    : undefined;
+  return {
+    family: rawString(fp.family),
+    annualReportExpenseRatio: rawNumber(fees.annualReportExpenseRatio),
+    annualHoldingsTurnover: rawNumber(fees.annualHoldingsTurnover),
+    totalNetAssets: rawNumber(fees.totalNetAssets),
+    sectorWeightings: sectorWeightings && sectorWeightings.length > 0 ? sectorWeightings : undefined
+  };
 }
 
 /** Convertit quoteSummary en AssetMarketInfo consomme par l'API. */

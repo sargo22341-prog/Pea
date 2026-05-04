@@ -493,6 +493,44 @@ export interface UpdatePositionInput {
   notes?: string;
 }
 
+export type CalendarEventType = "earnings" | "earnings_call" | "ex_dividend" | "dividend";
+
+export interface CalendarEvent {
+  id: number;
+  symbol: string;
+  eventType: CalendarEventType;
+  eventDate: string;
+  isEstimate: boolean;
+  assetName: string;
+}
+
+export interface AssetCalendarEventsData {
+  earningsDate?: string;
+  earningsCallDate?: string;
+  isEarningsDateEstimate?: boolean;
+  exDividendDate?: string;
+  dividendDate?: string;
+}
+
+export interface AssetAnalystConsensus {
+  currentPrice?: number;
+  targetHighPrice?: number;
+  targetLowPrice?: number;
+  targetMeanPrice?: number;
+  targetMedianPrice?: number;
+  recommendationMean?: number;
+  recommendationKey?: string;
+  numberOfAnalystOpinions?: number;
+}
+
+export interface AssetFundDetails {
+  family?: string;
+  annualReportExpenseRatio?: number;
+  annualHoldingsTurnover?: number;
+  totalNetAssets?: number;
+  sectorWeightings?: Array<{ key: string; value: number }>;
+}
+
 export interface AssetDetails {
   quote: Quote;
   history: HistoryPoint[];
@@ -515,6 +553,9 @@ export interface AssetDetails {
   peaEligibility: PeaEligibilityResult;
   peaRank: PeaRankingResult;
   stale?: boolean;
+  calendarEventsData?: AssetCalendarEventsData;
+  analystConsensus?: AssetAnalystConsensus;
+  fundDetails?: AssetFundDetails;
 }
 
 export interface AssetIcon {

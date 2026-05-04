@@ -1,23 +1,45 @@
 import { Building2, Coins, Percent, Repeat2 } from "lucide-react";
-import type { AllocationChartItem } from "@pea/shared";
+import type { AllocationChartItem, AssetFundDetails } from "@pea/shared";
 import { AssetInfoTile } from "./AssetInfoTile";
 import { SectorAllocationChart } from "../charts/SectorAllocationChart";
 
-const fakeSectorData: AllocationChartItem[] = [
-  { name: "Immobilier", value: 0.0188, percentage: 1.88, symbols: [] },
-  { name: "Consommation cyclique", value: 0.0928, percentage: 9.28, symbols: [] },
-  { name: "Matériaux de base", value: 0.0345, percentage: 3.45, symbols: [] },
-  { name: "Consommation défensive", value: 0.0559, percentage: 5.59, symbols: [] },
-  { name: "Technologie", value: 0.2644, percentage: 26.44, symbols: [] },
-  { name: "Communication", value: 0.087, percentage: 8.7, symbols: [] },
-  { name: "Services financiers", value: 0.1603, percentage: 16.03, symbols: [] },
-  { name: "Services publics", value: 0.0286, percentage: 2.86, symbols: [] },
-  { name: "Industrie", value: 0.1141, percentage: 11.41, symbols: [] },
-  { name: "Énergie", value: 0.0471, percentage: 4.71, symbols: [] },
-  { name: "Santé", value: 0.096599996, percentage: 9.66, symbols: [] }
-];
+const SECTOR_LABELS: Record<string, string> = {
+  realestate: "Immobilier",
+  consumer_cyclical: "Consommation cyclique",
+  basic_materials: "Matériaux de base",
+  consumer_defensive: "Consommation défensive",
+  technology: "Technologie",
+  communication_services: "Communication",
+  financial_services: "Services financiers",
+  utilities: "Services publics",
+  industrials: "Industrie",
+  energy: "Énergie",
+  healthcare: "Santé"
+};
 
-export function AssetEtfFundDetails() {
+function formatNetAssets(totalNetAssets?: number): string {
+  if (!totalNetAssets) return "—";
+  if (totalNetAssets >= 1_000_000) return `${(totalNetAssets / 1_000_000).toFixed(1).replace(".", ",")} Bn€`;
+  if (totalNetAssets >= 1_000) return `${(totalNetAssets / 1_000).toFixed(1).replace(".", ",")} Md€`;
+  return `${totalNetAssets.toFixed(0)} M€`;
+}
+
+function formatPercent(value?: number): string {
+  if (value === undefined || value === null) return "—";
+  return `${(value * 100).toFixed(2).replace(".", ",")} %`;
+}
+
+export function AssetEtfFundDetails({ data }: { data: AssetFundDetails }) {
+  const sectorData: AllocationChartItem[] = (data.sectorWeightings ?? [])
+    .map(({ key, value }) => ({
+      name: SECTOR_LABELS[key] ?? key,
+      value,
+      percentage: value * 100,
+      symbols: []
+    }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+
   return (
     <section className="w-full">
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
@@ -30,7 +52,7 @@ export function AssetEtfFundDetails() {
             icon={<Building2 size={18} />}
             iconTone="slate"
             label="Émetteur"
-            value="BlackRock"
+            value={data.family ?? "—"}
             variant="market"
           />
 
@@ -38,7 +60,7 @@ export function AssetEtfFundDetails() {
             icon={<Coins size={18} />}
             iconTone="green"
             label="Actifs nets"
-            value="199,6 Md€"
+            value={formatNetAssets(data.totalNetAssets)}
             variant="market"
           />
 
@@ -46,7 +68,7 @@ export function AssetEtfFundDetails() {
             icon={<Percent size={18} />}
             iconTone="cyan"
             label="Frais annuels"
-            value="0,20 %"
+            value={formatPercent(data.annualReportExpenseRatio)}
             variant="market"
           />
 
@@ -54,18 +76,20 @@ export function AssetEtfFundDetails() {
             icon={<Repeat2 size={18} />}
             iconTone="amber"
             label="Rotation portefeuille"
-            value="0 %"
+            value={formatPercent(data.annualHoldingsTurnover)}
             variant="market"
           />
         </div>
 
-        <div className="rounded-[16px] border border-white/[0.05] bg-slate-950/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Répartition sectorielle
-          </h3>
+        {sectorData.length > 0 && (
+          <div className="rounded-[16px] border border-white/[0.05] bg-slate-950/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Répartition sectorielle
+            </h3>
 
-          <SectorAllocationChart data={fakeSectorData} />
-        </div>
+            <SectorAllocationChart data={sectorData} />
+          </div>
+        )}
       </div>
     </section>
   );

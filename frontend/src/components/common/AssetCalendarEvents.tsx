@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Clock3 } from "lucide-react";
+import type { CalendarEvent } from "@pea/shared";
+import { useAsync } from "../../hooks/useAsync";
+import { api } from "../../lib/api";
 
-type CalendarEvent = {
+type VisualTone = "green" | "blue" | "purple";
+
+interface VisualEvent {
   id: string;
   date: Date;
   title: string;
@@ -9,147 +14,121 @@ type CalendarEvent = {
   badge?: string;
   session?: string;
   time?: string;
-  tone: "green" | "blue" | "purple";
+  tone: VisualTone;
   symbol: string;
+}
+
+const EVENT_META: Record<string, { title: string; tone: VisualTone; session?: string }> = {
+  earnings:      { title: "Résultats trimestriels", tone: "green", session: "Après-marché" },
+  earnings_call: { title: "Conférence résultats",   tone: "green", session: "Après-marché" },
+  ex_dividend:   { title: "Détachement du dividende", tone: "blue", session: "Journée" },
+  dividend:      { title: "Paiement du dividende",   tone: "purple", session: "Journée" }
 };
 
-const fakeEvents: CalendarEvent[] = [
-  // passés
-  {
-    id: "tte-dividend",
-    date: new Date("2026-02-12T00:00:00.000Z"),
-    title: "Paiement du dividende",
-    subtitle: "TOTALENERGIES",
-    session: "Journée",
-    tone: "purple",
-    symbol: "TTE.PA"
-  },
-  {
-    id: "bn-earnings",
-    date: new Date("2026-04-24T20:00:00.000Z"),
-    title: "Résultats trimestriels",
-    subtitle: "DANONE",
-    badge: "Publié",
-    session: "Après-marché",
-    time: "22:00",
-    tone: "green",
-    symbol: "BN.PA"
-  },
-  {
-    id: "ai-ex-dividend",
-    date: new Date("2026-05-11T00:00:00.000Z"),
-    title: "Détachement du dividende",
-    subtitle: "AIR LIQUIDE",
-    session: "Journée",
-    tone: "blue",
-    symbol: "AI.PA"
-  },
+function toVisual(ev: CalendarEvent, now: Date): VisualEvent {
+  const meta = EVENT_META[ev.eventType] ?? { title: ev.eventType, tone: "blue" as VisualTone };
+  const date = new Date(ev.eventDate);
+  const isPast = date < now;
 
-  // futurs
-  {
-    id: "asml-earnings",
-    date: new Date("2026-07-30T20:00:00.000Z"),
-    title: "Résultats Q2 2026",
-    subtitle: "ASML HOLDING",
-    badge: "Estimation",
-    session: "Après-marché",
-    time: "22:00",
-    tone: "green",
-    symbol: "ASML.AS"
-  },
-  {
-    id: "lr-earnings",
-    date: new Date("2026-09-18T20:00:00.000Z"),
-    title: "Résultats semestriels",
-    subtitle: "LEGRAND",
-    badge: "Prévu",
-    session: "Après-marché",
-    time: "22:00",
-    tone: "green",
-    symbol: "LR.PA"
-  },
-  {
-    id: "engi-dividend",
-    date: new Date("2026-10-08T00:00:00.000Z"),
-    title: "Paiement du dividende",
-    subtitle: "ENGIE",
-    session: "Journée",
-    tone: "purple",
-    symbol: "ENGI.PA"
-  },
-  {
-    id: "vie-ex-dividend",
-    date: new Date("2026-11-15T00:00:00.000Z"),
-    title: "Détachement du dividende",
-    subtitle: "VEOLIA ENVIRON.",
-    session: "Journée",
-    tone: "blue",
-    symbol: "VIE.PA"
+  let badge: string | undefined;
+  if (ev.eventType === "earnings" || ev.eventType === "earnings_call") {
+    badge = isPast ? "Publié" : ev.isEstimate ? "Estimation" : "Prévu";
   }
-];
 
-export function AssetCalendarEvents() {
+  const hasTime = date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0;
+  const time = hasTime
+    ? date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })
+    : undefined;
+
+  return {
+    id: `${ev.symbol}-${ev.eventType}-${ev.eventDate}`,
+    date,
+    title: meta.title,
+    subtitle: ev.assetName,
+    badge,
+    session: meta.session,
+    time,
+    tone: meta.tone,
+    symbol: ev.symbol
+  };
+}
+
+function CalendarEventsList({ events }: { events: VisualEvent[] }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nextEventRef = useRef<HTMLDivElement | null>(null);
 
-const now = new Date();
-const events = [...fakeEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const now = new Date();
+  const sorted = [...events].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const pastCount = sorted.filter((e) => e.date < now).length;
+  const nextIndex = sorted.findIndex((e) => e.date >= now);
+  const activeIndex = nextIndex === -1 ? sorted.length - 1 : nextIndex;
+  const shouldCenter = pastCount > 0 && nextIndex !== -1;
 
-const pastEventsCount = events.filter((event) => event.date.getTime() < now.getTime()).length;
-const nextEventIndex = events.findIndex((event) => event.date.getTime() >= now.getTime());
-const activeIndex = nextEventIndex === -1 ? events.length - 1 : nextEventIndex;
-const shouldCenterNextEvent = pastEventsCount > 0 && nextEventIndex !== -1;
+  useEffect(() => {
+    if (!shouldCenter) {
+      scrollRef.current?.scrollTo({ left: 0, behavior: "auto" });
+      return;
+    }
+    nextEventRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [shouldCenter]);
 
-useEffect(() => {
-  if (!shouldCenterNextEvent) {
-    scrollRef.current?.scrollTo({
-      left: 0,
-      behavior: "auto"
-    });
-    return;
-  }
+  return (
+    <div
+      ref={scrollRef}
+      className="flex gap-0 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {sorted.map((event, index) => {
+        const isPast = event.date < now;
+        const isNext = index === activeIndex;
+        return (
+          <div ref={isNext ? nextEventRef : undefined} className="flex shrink-0 items-center" key={event.id}>
+            <CalendarEventCard event={event} isNext={isNext} isPast={isPast} />
+            {index < sorted.length - 1 && (
+              <div className="mx-3 h-px w-10 shrink-0" style={{ backgroundColor: getColor(index, sorted.length) }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  nextEventRef.current?.scrollIntoView({
-    behavior: "smooth",
-    inline: "center",
-    block: "nearest"
-  });
-}, [shouldCenterNextEvent]);
+/** Version home : charge les events de tous les actifs du portfolio */
+export function PortfolioCalendarEvents() {
+  const result = useAsync(() => api.calendarEvents(), []);
+
+  if (result.loading && !result.data) return null;
+  if (!result.data || result.data.length === 0) return null;
+
+  const now = new Date();
+  const events = result.data.map((ev) => toVisual(ev, now));
 
   return (
     <section className="w-full">
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
         Événements calendrier
       </h2>
+      <CalendarEventsList events={events} />
+    </section>
+  );
+}
 
-      <div
-        ref={scrollRef}
-        className="flex gap-0 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {events.map((event, index) => {
-          const isPast = event.date.getTime() < now.getTime();
-          const isNext = index === activeIndex;
+/** Version page actif : charge uniquement les events de ce symbol */
+export function AssetCalendarEvents({ symbol }: { symbol: string }) {
+  const result = useAsync(() => api.calendarEventsForSymbol(symbol), [symbol]);
 
-          return (
-            <div
-              ref={isNext ? nextEventRef : undefined}
-              className="flex shrink-0 items-center"
-              key={event.id}
-            >
-              <CalendarEventCard event={event} isPast={isPast} isNext={isNext} />
+  if (result.loading && !result.data) return null;
+  if (!result.data || result.data.length === 0) return null;
 
-              {index < events.length - 1 && (
-                <div
-                  className="mx-3 h-px w-10 shrink-0"
-                  style={{
-                    backgroundColor: getColor(index, events.length)
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+  const now = new Date();
+  const events = result.data.map((ev) => toVisual(ev, now));
+
+  return (
+    <section className="w-full">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
+        Événements calendrier
+      </h2>
+      <CalendarEventsList events={events} />
     </section>
   );
 }
@@ -160,7 +139,7 @@ function CalendarEventCard({
   isPast,
   isNext
 }: {
-  event: CalendarEvent;
+  event: VisualEvent;
   isPast: boolean;
   isNext: boolean;
 }) {
@@ -210,37 +189,26 @@ function CalendarEventCard({
             {event.session}
           </p>
         )}
-
         <p className="mt-2 flex items-center justify-end gap-1 text-xs text-slate-300">
-          {event.time ? (
-            <>
-              <Clock3 size={13} />
-              {event.time}
-            </>
-          ) : (
-            "-"
-          )}
+          {event.time ? (<><Clock3 size={13} />{event.time}</>) : "-"}
         </p>
       </div>
     </article>
   );
 }
 
-const textToneClasses = {
-    green: "text-mint",
-    blue: "text-sky",
-    purple: "text-purple-300"
+const textToneClasses: Record<VisualTone, string> = {
+  green: "text-mint",
+  blue: "text-sky",
+  purple: "text-purple-300"
 };
 
 function getColor(index: number, total: number) {
-    const start = [74, 222, 128];   // vert (mint)
-    const end = [148, 163, 184];    // gris
-
-    const t = index / Math.max(1, total - 1); // progression 0 → 1
-
-    const r = Math.round(start[0] + (end[0] - start[0]) * t);
-    const g = Math.round(start[1] + (end[1] - start[1]) * t);
-    const b = Math.round(start[2] + (end[2] - start[2]) * t);
-
-    return `rgb(${r}, ${g}, ${b})`;
+  const start = [74, 222, 128];
+  const end = [148, 163, 184];
+  const t = index / Math.max(1, total - 1);
+  const r = Math.round(start[0] + (end[0] - start[0]) * t);
+  const g = Math.round(start[1] + (end[1] - start[1]) * t);
+  const b = Math.round(start[2] + (end[2] - start[2]) * t);
+  return `rgb(${r}, ${g}, ${b})`;
 }

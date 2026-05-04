@@ -285,11 +285,11 @@ export function AssetDetailPage({ user }: { user: User }) {
       </section>
 
       {!asset.data.isEtf ? (
-        <AssetCalendarEvents />
+        <AssetCalendarEvents symbol={symbol} />
       ) : null}
 
-      {!asset.data.isEtf ? (
-        <AssetAnalystConsensus />
+      {!asset.data.isEtf && asset.data.analystConsensus ? (
+        <AssetAnalystConsensus currency={quote.currency ?? "EUR"} data={asset.data.analystConsensus} />
       ) : null}
       <div className="flex flex-col lg:flex-row gap-4">
         {!asset.data.isEtf && asset.data.financials && asset.data.financials.length > 0 ? (
@@ -314,8 +314,8 @@ export function AssetDetailPage({ user }: { user: User }) {
         </div>
       </div>
 
-      {asset.data.isEtf ? (
-        <AssetEtfFundDetails />
+      {asset.data.isEtf && asset.data.fundDetails ? (
+        <AssetEtfFundDetails data={asset.data.fundDetails} />
       ) : null}
 
 

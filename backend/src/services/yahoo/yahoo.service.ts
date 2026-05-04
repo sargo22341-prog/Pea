@@ -3,10 +3,10 @@
  * deleguant chaque type de travail a un job specialise.
  */
 
-import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
+import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
 import type { MarketDataProvider, MarketDataResult } from "../market/market-data-provider.js";
 import { fetchDividends } from "./dividends/dividends.job.js";
-import { fetchFundamentals, fetchMarketInfo } from "./fundamentals/fundamentals.job.js";
+import { fetchExtraData, fetchFundamentals, fetchMarketInfo } from "./fundamentals/fundamentals.job.js";
 import { fetchHistory } from "./history/history.job.js";
 import { fetchCompanyNews, fetchGlobalNews, fetchNews } from "./news/news.job.js";
 import { fetchQuote, fetchQuoteBatch, fetchQuoteCombine, searchYahoo } from "./quotes/quote.job.js";
@@ -30,6 +30,14 @@ export class YahooService implements MarketDataProvider {
 
   marketInfo(symbol: string): Promise<MarketDataResult<AssetMarketInfo>> {
     return fetchMarketInfo(symbol);
+  }
+
+  extraData(symbol: string): Promise<MarketDataResult<{
+    calendarEventsData?: AssetCalendarEventsData;
+    analystConsensus?: AssetAnalystConsensus;
+    fundDetails?: AssetFundDetails;
+  }>> {
+    return fetchExtraData(symbol);
   }
 
   quoteCombine(symbols: string[]): Promise<MarketDataResult<Quote[]>> {

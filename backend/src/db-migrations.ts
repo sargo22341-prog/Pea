@@ -104,6 +104,35 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 7,
+    description: "Table asset_calendar_events + purge cache fundamentals sans calendarEvents pour forcer un refetch",
+    appliquer: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS asset_calendar_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          symbol TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          event_date TEXT NOT NULL,
+          is_estimate INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(symbol, event_type, event_date)
+        )
+      `);
+      db.exec("CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_symbol ON asset_calendar_events(symbol)");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_date ON asset_calendar_events(event_date)");
+      // Purge les entrées de cache qui ont été mises en cache AVANT l'ajout du module calendarEvents.
+      // json_type retourne NULL uniquement si la clé n'existe pas dans le JSON (cas des anciens caches).
+      db.exec("DELETE FROM cached_fundamentals WHERE symbol NOT LIKE '%:annual-financials' AND json_type(payload, '$.calendarEvents') IS NULL");
+    }
+  },
+  {
+    version: 8,
+    description: "Purge cache fundamentals sans module calendarEvents pour forcer un refetch avec les nouvelles données",
+    appliquer: (db) => {
+      db.exec("DELETE FROM cached_fundamentals WHERE symbol NOT LIKE '%:annual-financials' AND json_type(payload, '$.calendarEvents') IS NULL");
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {

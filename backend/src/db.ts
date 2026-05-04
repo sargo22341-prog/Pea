@@ -473,6 +473,19 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_asset_dividend_cache_expires_at ON asset_dividend_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
+
+  CREATE TABLE IF NOT EXISTS asset_calendar_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    event_date TEXT NOT NULL,
+    is_estimate INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(symbol, event_type, event_date)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_symbol ON asset_calendar_events(symbol);
+  CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_date ON asset_calendar_events(event_date);
 `);
 
 // Applique les migrations incrémentales après la création du schéma initial

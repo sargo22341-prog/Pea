@@ -28,6 +28,7 @@ import type {
   PositionRangePerformance,
   PortfolioSummary,
   ParsedAvisOperation,
+  CalendarEvent,
   Quote,
   RangeKey,
   SearchResult,
@@ -168,6 +169,8 @@ export const api = {
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
   asset: (symbol: string, range: RangeKey) => request<AssetDetails>(`/api/assets/${encodeURIComponent(symbol)}?range=${range}`),
+  calendarEvents: (signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>("/api/calendar-events", signal),
+  calendarEventsForSymbol: (symbol: string, signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>(`/api/calendar-events/${encodeURIComponent(symbol)}`, signal),
   topAndLosers: (signal?: AbortSignal) => dedupedRequest<TopAndLosersResponse>("/api/top-and-losers", signal),
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => {
     const path = `/api/watchlist?range=${range}`;

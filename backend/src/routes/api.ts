@@ -18,6 +18,7 @@ import { portfolioRouter } from "./api/portfolio.routes.js";
 import { searchRouter } from "./api/search.routes.js";
 import { topAndLosersRouter } from "./api/top-and-losers.routes.js";
 import { watchlistRouter } from "./api/watchlist.routes.js";
+import { calendarEventsRouter } from "./api/calendar-events.routes.js";
 
 export const apiRouter = express.Router();
 
@@ -38,6 +39,7 @@ apiRouter.use(topAndLosersRouter);
 apiRouter.use(portfolioRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
+apiRouter.use(calendarEventsRouter);
 apiRouter.use(requireAdmin, adminRouter);
 
 apiRouter.use((req) => {

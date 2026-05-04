@@ -56,7 +56,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   });
   const quote: Quote = quoteResult.data;
 
-  const [assetStatic, assetChart, assetDividends, assetArticles, assetMarket, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult] = await Promise.all([
+  const [assetStatic, assetChart, assetDividends, assetArticles, assetMarket, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult, extraDataResult] = await Promise.all([
     assetDataService.static(symbol),
     assetDataService.chart(symbol, range, intradayDebugClock(range)),
     assetDataService.dividends(symbol),
@@ -78,7 +78,11 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       marketUnavailable = true;
       return { data: {} as AssetMarketInfo };
     }),
-    Promise.resolve({ financials: financialsService.readFinancialRows(symbol) as AssetDetails["financials"], isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF") })
+    Promise.resolve({ financials: financialsService.readFinancialRows(symbol) as AssetDetails["financials"], isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF") }),
+    yahooService.extraData(symbol).catch((error) => {
+      logger.warn("market-data", "extraData fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
+      return { data: {} };
+    })
   ]);
 
   const history: AssetDetails["history"] = [];
@@ -125,7 +129,10 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     appTimezone: config.appTimezone,
     marketSession,
     financials,
-    isEtf
+    isEtf,
+    calendarEventsData: extraDataResult.data.calendarEventsData,
+    analystConsensus: extraDataResult.data.analystConsensus,
+    fundDetails: extraDataResult.data.fundDetails
   };
 
   res.json(details);
