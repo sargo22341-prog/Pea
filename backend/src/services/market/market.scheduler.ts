@@ -61,7 +61,7 @@ export class MarketScheduler {
     marketOpenScheduler.start();
     logger.info("market-data", "post-close scheduler started", {
       timezone: config.appTimezone,
-      target: "17:30"
+      target: "19:00"
     });
   }
 
@@ -88,17 +88,17 @@ export class MarketScheduler {
       }
     }
 
-    // Une seule tentative par jour apres 17:30 dans le timezone applicatif.
+    // Une seule tentative par jour apres 19:00 dans le timezone applicatif.
     if (appTime.minutes >= postCloseTargetMinutes && this.lastCronDate !== appTime.date) {
       this.lastCronDate = appTime.date;
       if (wasSchedulerTaskRunToday(postCloseFinalizationTaskKey, appTime.date)) {
         logger.info("market-data", "post-close finalization skipped", {
-          reason: `cron-17:30-${config.appTimezone}`,
+          reason: `cron-19:00-${config.appTimezone}`,
           cause: "already-run-today",
           runDate: appTime.date
         });
       } else {
-        void this.enqueuePostCloseFinalization(`cron-17:30-${config.appTimezone}`, appTime.date, now);
+        void this.enqueuePostCloseFinalization(`cron-19:00-${config.appTimezone}`, appTime.date, now);
       }
     }
 
@@ -113,7 +113,7 @@ export class MarketScheduler {
         this.lastOpenSymbols.delete(asset.symbol);
 
         // On garde seulement la detection de fermeture pour log/debug.
-        // La finalisation globale reste pilotee uniquement par le cron 17:30.
+        // La finalisation globale reste pilotee uniquement par le cron 19:00.
         const session = getLastTradingDay(asset.symbol, asset.exchange, now);
         const plannedAt = new Date(session.period2.getTime() + postCloseDelayMs);
         logger.debug("market-data", "market closed detected, waiting for daily post-close scheduler", {
