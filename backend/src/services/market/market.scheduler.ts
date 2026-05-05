@@ -14,6 +14,11 @@ import { dividendsService } from "./dividends.service.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getZonedDateParts } from "../timezone/date-time.service.js";
+
+/** Vrai si les 4 ranges sont deja finalisees pour ce jour de trading. */
+function allRangesFinalized(assetId: number, tradingDate: string) {
+  return (["1d", "1w", "1m", "all"] as const).every((range) => candleRepository.isFinalized(assetId, tradingDate, range));
+}
 import { marketSnapshotService } from "./market-snapshot.service.js";
 import { db } from "../../db.js";
 
@@ -130,7 +135,7 @@ export class MarketScheduler {
     const symbols: string[] = [];
     for (const asset of assets) {
       const session = getLastTradingDay(asset.symbol, asset.exchange);
-      if (!candleRepository.isFinalized(asset.id, session.date, "1d")) symbols.push(asset.symbol);
+      if (!allRangesFinalized(asset.id, session.date)) symbols.push(asset.symbol);
     }
     return dataConstructionQueue.enqueuePostCloseFinalization(symbols);
   }
@@ -140,7 +145,7 @@ export class MarketScheduler {
     for (const asset of assetRepository.listTrackedAssets()) {
       const quote = await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
       const session = getLastTradingDay(asset.symbol, asset.exchange, now);
-      if (!isMarketOpen(quote?.marketState) && now.getTime() >= session.period2.getTime() && !candleRepository.isFinalized(asset.id, session.date, "1d")) candidates.push(asset);
+      if (!isMarketOpen(quote?.marketState) && now.getTime() >= session.period2.getTime() && !allRangesFinalized(asset.id, session.date)) candidates.push(asset);
     }
     if (!candidates.length) {
       logger.info("market-data", "post-close finalization skipped", { reason, cause: "no-candidates" });

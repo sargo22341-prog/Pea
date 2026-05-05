@@ -358,17 +358,32 @@ export class MarketDataService {
         source: close.source
       }
     ]);
-    logger.info("market-data", existingClosePoint ? "close point replaced" : "close point appended", {
+
+    // Garde-fou : verifie que le point est bien present en DB avant d'ecrire le flag.
+    const verifiedPoints = candleRepository.readCandles(asset.id, "1d", interval);
+    const pointWritten = verifiedPoints.some((p) => p.date === closeIso && Number.isFinite(p.close) && p.close > 0);
+    if (!pointWritten) {
+      logger.error("market-data", "finalization skipped because chart missing", {
+        symbol: asset.symbol,
+        tradingDate: session.date,
+        marketCloseTime: closeIso,
+        context: rebuildContext
+      });
+      return { skipped: true, reason: "chart-candle-missing" };
+    }
+
+    logger.info("market-data", "chart candles updated", {
       symbol: asset.symbol,
       tradingDate: session.date,
       marketCloseTime: closeIso,
       closePrice: close.price,
       source: close.source,
+      action: existingClosePoint ? "replaced" : "appended",
       context: rebuildContext
     });
 
     candleRepository.markFinalized(asset.id, session.date, "1d");
-    logger.info("market-data", "finalized flag written", { symbol: asset.symbol, tradingDate: session.date, range: "1d", context: rebuildContext });
+    logger.info("market-data", "finalization written after chart update", { symbol: asset.symbol, tradingDate: session.date, range: "1d", context: rebuildContext });
     return { skipped: false, finalized: true, closeIso, closePrice: close.price };
   }
 
@@ -565,6 +580,7 @@ export class MarketDataService {
     const session = yahooTradingDay ?? getLastTradingDay(asset.symbol, asset.exchange, now);
     if (now.getTime() < session.period2.getTime()) return { skipped: true, reason: "before-close" };
     if (candleRepository.isFinalized(asset.id, session.date, "1d")) return { skipped: true, reason: "already-finalized" };
+    logger.info("market-data", "post-close rebuild started", { symbol: asset.symbol, tradingDate: session.date });
 
     const interval = chartConfigService.getIntervalForRange("1d");
     const chart = await yahooApi.chart(asset.symbol, {
@@ -627,6 +643,18 @@ export class MarketDataService {
     let updated = 0;
     const uniqueRanges = [...new Set(ranges)];
     const sourcePoints = candleRepository.readCandles(asset.id, "1d", chartConfigService.getIntervalForRange("1d"));
+
+    // Garde-fou : si aucun point 1d finalise n'est present, les ranges longs ne peuvent pas etre reconstruits.
+    const latestFinalized1d = candleRepository.latestFinalizedTradingDate(asset.id, "1d");
+    if (!latestFinalized1d) {
+      logger.error("market-data", "finalization skipped because chart missing", {
+        symbol: asset.symbol,
+        reason: "no-finalized-1d-source",
+        requestedRanges: uniqueRanges
+      });
+      return { updated: 0 };
+    }
+
     const resolvedClose =
       options.closeIso && Number.isFinite(options.closePrice)
         ? { tradingDate: options.tradingDate, closeIso: options.closeIso, closePrice: Number(options.closePrice) }
@@ -664,13 +692,15 @@ export class MarketDataService {
             source: "snapshot_close"
           }
         ]);
-        if (resolvedClose.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, "all");
-        logger.info("market-data", "stored all close rebuilt", {
+        logger.info("market-data", "chart candles updated", {
           symbol: asset.symbol,
+          range: "all",
           tradingDate: resolvedClose.tradingDate,
           closeIso: resolvedClose.closeIso,
           closePrice: finalClosePrice
         });
+        if (resolvedClose.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, "all");
+        logger.info("market-data", "finalization written after chart update", { symbol: asset.symbol, tradingDate: resolvedClose.tradingDate, range: "all" });
         continue;
       }
 
@@ -685,8 +715,7 @@ export class MarketDataService {
       updated += candleRepository.upsertCandles(candles.map((candle) => ({ ...candle, source: "stored_final" as const })));
       const window = openMarketWindow(asset, range, endDate);
       if (window) candleRepository.pruneBefore(asset.id, range, interval, window.cutoffIso);
-      if (resolvedClose?.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, range);
-      logger.info("market-data", "stored range rebuilt from finalized 1d", {
+      logger.info("market-data", "chart candles updated", {
         symbol: asset.symbol,
         range,
         interval,
@@ -696,6 +725,8 @@ export class MarketDataService {
         tradingDate: resolvedClose?.tradingDate,
         cutoffIso: window?.cutoffIso
       });
+      if (resolvedClose?.tradingDate) candleRepository.markFinalized(asset.id, resolvedClose.tradingDate, range);
+      logger.info("market-data", "finalization written after chart update", { symbol: asset.symbol, tradingDate: resolvedClose?.tradingDate, range });
     }
 
     return { updated };
@@ -753,6 +784,24 @@ export class MarketDataService {
     const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
     const points = filterRangePoints(rawPoints, range, asset);
     const latestFinalizedTradingDate = storedRange === "1d" ? candleRepository.latestFinalizedTradingDate(asset.id, "1d") : undefined;
+
+    // Repair rebuild : si le flag finalized existe pour ce range mais que chart_candles est vide ou ne couvre pas
+    // la date finalisee, on force un rebuild de reparation plutot que de servir des donnees perimees.
+    if (storedRange !== "1d" && !isMarketOpen(quote?.marketState)) {
+      const latestFinalizedForRange = candleRepository.latestFinalizedTradingDate(asset.id, storedRange);
+      const latestChartPoint = rawPoints.length ? rawPoints[rawPoints.length - 1] : undefined;
+      const latestChartDate = latestChartPoint ? getMarketDateKey(asset.symbol, asset.exchange, new Date(latestChartPoint.date)) : undefined;
+      if (latestFinalizedForRange && latestChartDate !== latestFinalizedForRange) {
+        logger.warn("market-data", "repair rebuild because finalized flag exists but chart missing", {
+          symbol: asset.symbol,
+          range: storedRange,
+          flagDate: latestFinalizedForRange,
+          lastChartDate: latestChartDate ?? "none"
+        });
+        void this.rebuildStoredRangesFromFinalData(asset, [storedRange]);
+      }
+    }
+
     if (storedRange === "1d" && latestFinalizedTradingDate && !isMarketOpen(quote?.marketState) && points.length > 1) {
       logger.info("market-data", "dashboard skipped rebuild because finalized", {
         symbol: asset.symbol,
