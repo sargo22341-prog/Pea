@@ -644,12 +644,11 @@ export class MarketDataService {
     const uniqueRanges = [...new Set(ranges)];
     const sourcePoints = candleRepository.readCandles(asset.id, "1d", chartConfigService.getIntervalForRange("1d"));
 
-    // Garde-fou : si aucun point 1d finalise n'est present, les ranges longs ne peuvent pas etre reconstruits.
-    const latestFinalized1d = candleRepository.latestFinalizedTradingDate(asset.id, "1d");
-    if (!latestFinalized1d) {
-      logger.error("market-data", "finalization skipped because chart missing", {
+    // Si sourcePoints est vide, rien a reconstruire.
+    if (!sourcePoints.length) {
+      logger.warn("market-data", "finalization skipped because chart missing", {
         symbol: asset.symbol,
-        reason: "no-finalized-1d-source",
+        reason: "no-1d-candles",
         requestedRanges: uniqueRanges
       });
       return { updated: 0 };
