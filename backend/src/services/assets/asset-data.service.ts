@@ -63,6 +63,7 @@ export class AssetDataService {
     return marketSnapshotService.readMarketDto(key) ?? {
       symbol: key,
       marketState: "CLOSED",
+      regularMarketPrice: undefined,
       dayChange: 0,
       dayChangePercent: 0,
       volume: 0,

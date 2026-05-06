@@ -10,7 +10,7 @@ import { yahooApi } from "../yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
 import { candleRepository } from "../candles/candle.repository.js";
-import { isMarketOpen } from "./marketCalendar.service.js";
+import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
 
 export class MarketSnapshotService {
   private snapshotQuoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
@@ -40,6 +40,13 @@ export class MarketSnapshotService {
       this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
       return snapshot;
     }
+    if (snapshot && !isMarketOpen(snapshot.marketState)) {
+      const session = getLastTradingDay(knownAsset.symbol, knownAsset.exchange);
+      if (Date.now() >= session.period2.getTime()) {
+        this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+        return snapshot;
+      }
+    }
     return this.refreshMarketSnapshot(knownAsset);
   }
 
@@ -57,10 +64,21 @@ export class MarketSnapshotService {
     return {
       symbol: asset.symbol,
       marketState: normalizeMarketState(row.market_state),
+      regularMarketPrice: row.last_price == null ? undefined : Number(row.last_price),
+      regularMarketTime: row.regular_market_time ?? undefined,
+      previousClose: row.previous_close == null ? undefined : Number(row.previous_close),
+      openPrice: row.open_price == null ? undefined : Number(row.open_price),
+      dayHigh: row.day_high == null ? undefined : Number(row.day_high),
+      dayLow: row.day_low == null ? undefined : Number(row.day_low),
       dayChange: Number(row.day_change ?? 0),
       dayChangePercent: Number(row.day_change_percent ?? 0),
       volume: Number(row.volume ?? 0),
       avgVolume3M: row.average_volume_3m == null ? undefined : Number(row.average_volume_3m),
+      bid: row.bid_price == null ? undefined : Number(row.bid_price),
+      ask: row.ask_price == null ? undefined : Number(row.ask_price),
+      currency: row.currency ?? undefined,
+      exchangeName: row.full_exchange_name ?? row.exchange ?? undefined,
+      quoteType: row.quote_type ?? undefined,
       dividendYield: row.dividend_yield == null ? undefined : Number(row.dividend_yield),
       annualDividend: row.dividend_rate == null ? undefined : Number(row.dividend_rate),
       cachedAt: new Date(row.updated_at).getTime(),
@@ -76,31 +94,35 @@ export class MarketSnapshotService {
     db.prepare(
       `INSERT INTO asset_market_snapshots (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
-        day_high, day_low, volume, average_volume_3m, dividend_rate, dividend_yield,
+        day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, average_volume_3m, dividend_rate, dividend_yield,
         trailing_annual_dividend_rate, trailing_annual_dividend_yield, currency, exchange,
         full_exchange_name, quote_type, regular_market_time, source, updated_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
        ON CONFLICT(asset_id) DO UPDATE SET
-        market_state = excluded.market_state,
-        last_price = excluded.last_price,
-        day_change = excluded.day_change,
-        day_change_percent = excluded.day_change_percent,
-        previous_close = excluded.previous_close,
-        open_price = excluded.open_price,
-        day_high = excluded.day_high,
-        day_low = excluded.day_low,
-        volume = excluded.volume,
-        average_volume_3m = excluded.average_volume_3m,
-        dividend_rate = excluded.dividend_rate,
-        dividend_yield = excluded.dividend_yield,
-        trailing_annual_dividend_rate = excluded.trailing_annual_dividend_rate,
-        trailing_annual_dividend_yield = excluded.trailing_annual_dividend_yield,
-        currency = excluded.currency,
-        exchange = excluded.exchange,
-        full_exchange_name = excluded.full_exchange_name,
-        quote_type = excluded.quote_type,
-        regular_market_time = excluded.regular_market_time,
+        market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
+        last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
+        day_change = COALESCE(excluded.day_change, asset_market_snapshots.day_change),
+        day_change_percent = COALESCE(excluded.day_change_percent, asset_market_snapshots.day_change_percent),
+        previous_close = COALESCE(excluded.previous_close, asset_market_snapshots.previous_close),
+        open_price = COALESCE(excluded.open_price, asset_market_snapshots.open_price),
+        day_high = COALESCE(excluded.day_high, asset_market_snapshots.day_high),
+        day_low = COALESCE(excluded.day_low, asset_market_snapshots.day_low),
+        volume = COALESCE(excluded.volume, asset_market_snapshots.volume),
+        bid_price = COALESCE(excluded.bid_price, asset_market_snapshots.bid_price),
+        ask_price = COALESCE(excluded.ask_price, asset_market_snapshots.ask_price),
+        bid_size = COALESCE(excluded.bid_size, asset_market_snapshots.bid_size),
+        ask_size = COALESCE(excluded.ask_size, asset_market_snapshots.ask_size),
+        average_volume_3m = COALESCE(excluded.average_volume_3m, asset_market_snapshots.average_volume_3m),
+        dividend_rate = COALESCE(excluded.dividend_rate, asset_market_snapshots.dividend_rate),
+        dividend_yield = COALESCE(excluded.dividend_yield, asset_market_snapshots.dividend_yield),
+        trailing_annual_dividend_rate = COALESCE(excluded.trailing_annual_dividend_rate, asset_market_snapshots.trailing_annual_dividend_rate),
+        trailing_annual_dividend_yield = COALESCE(excluded.trailing_annual_dividend_yield, asset_market_snapshots.trailing_annual_dividend_yield),
+        currency = COALESCE(excluded.currency, asset_market_snapshots.currency),
+        exchange = COALESCE(excluded.exchange, asset_market_snapshots.exchange),
+        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_market_snapshots.full_exchange_name),
+        quote_type = COALESCE(excluded.quote_type, asset_market_snapshots.quote_type),
+        regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
         source = excluded.source,
         updated_at = excluded.updated_at`
     ).run(
@@ -114,6 +136,10 @@ export class MarketSnapshotService {
       snapshot.regularMarketDayHigh,
       snapshot.regularMarketDayLow,
       snapshot.regularMarketVolume,
+      snapshot.bid,
+      snapshot.ask,
+      snapshot.bidSize,
+      snapshot.askSize,
       snapshot.averageDailyVolume3Month,
       snapshot.dividendRate,
       snapshot.dividendYield,
@@ -124,6 +150,25 @@ export class MarketSnapshotService {
       snapshot.fullExchangeName,
       snapshot.quoteType,
       snapshot.regularMarketTime
+    );
+
+    db.prepare(
+      `UPDATE assets SET
+        name = COALESCE(?, ?, name),
+        exchange = COALESCE(?, exchange),
+        currency = COALESCE(?, currency),
+        quote_type = COALESCE(?, quote_type),
+        type_disp = COALESCE(?, type_disp),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(
+      snapshot.longName,
+      snapshot.shortName,
+      snapshot.exchange ?? snapshot.fullExchangeName,
+      snapshot.currency,
+      snapshot.quoteType,
+      snapshot.typeDisp,
+      assetId
     );
   }
 

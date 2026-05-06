@@ -103,9 +103,16 @@ export interface AssetMarketInfo {
   regularMarketPrice?: number;
   regularMarketChange?: number;
   regularMarketChangePercent?: number;
+  regularMarketTime?: string;
+  regularMarketPreviousClose?: number;
+  regularMarketOpen?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
   exchangeName?: string;
   currency?: CurrencyCode;
   regularMarketVolume?: number;
+  bid?: number;
+  ask?: number;
   fiftyTwoWeekLow?: number;
   fiftyTwoWeekHigh?: number;
   averageDailyVolume3Month?: number;
@@ -282,10 +289,21 @@ export interface TrackedMarketsSettingsDto {
 export interface AssetMarketDto {
   symbol: string;
   marketState: MarketState;
+  regularMarketPrice?: number;
+  regularMarketTime?: string;
+  previousClose?: number;
+  openPrice?: number;
+  dayHigh?: number;
+  dayLow?: number;
   dayChange: number;
   dayChangePercent: number;
   volume: number;
   avgVolume3M?: number;
+  bid?: number;
+  ask?: number;
+  currency?: CurrencyCode;
+  exchangeName?: string;
+  quoteType?: string;
   week52Low?: number;
   week52High?: number;
   dividendYield?: number;

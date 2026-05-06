@@ -35,6 +35,35 @@ function quoteRow(symbol, state = "REGULAR") {
     snapshot: { symbol, marketState: state, regularMarketPrice: 10, currency: "EUR", exchange: symbol.endsWith(".T") ? "JPX" : "Paris" }
   };
 }
+function pricedQuoteRow(symbol, state, price) {
+  return {
+    quote: { symbol, name: symbol, price, previousClose: 1000, change: 118, changePercent: 9.94, currency: "EUR", marketState: state },
+    snapshot: {
+      symbol,
+      shortName: symbol + " short",
+      longName: symbol + " long",
+      quoteType: "EQUITY",
+      marketState: state,
+      regularMarketPrice: price,
+      regularMarketChange: 118,
+      regularMarketChangePercent: 9.94,
+      regularMarketTime: "2026-05-06T15:45:00.000Z",
+      regularMarketPreviousClose: 1000,
+      regularMarketOpen: 1190,
+      regularMarketDayHigh: 1310,
+      regularMarketDayLow: 1175,
+      regularMarketVolume: 1234567,
+      bid: 1304.5,
+      ask: 1305.5,
+      bidSize: 10,
+      askSize: 11,
+      averageDailyVolume3Month: 7654321,
+      currency: "EUR",
+      exchange: "PAR",
+      fullExchangeName: "Paris"
+    }
+  };
+}
 `;
 
 test("scheduler groups assets by market and does at most one Yahoo batch call per market", () => {
@@ -191,6 +220,195 @@ test("close confirmation refreshes snapshots before one unique post-close finali
   assert.ok(result.run.close_job_id);
   assert.equal(result.snapshots.count, 2);
   assert.equal(result.logs.count, 1);
+});
+
+test("post-close snapshot state is reused and not overwritten by a later quote read", () => {
+  const result = runBackendScript(`
+    import { db } from "./db.ts";
+    import { yahooApi } from "./services/yahoo/yahoo.api.ts";
+    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
+    import { marketCloseTask } from "./services/tache_auto/market-close.task.ts";
+    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    let batchCalls = 0;
+    let singleQuoteCalls = 0;
+    yahooApi.quoteBatchRaw = async (symbols) => {
+      batchCalls += 1;
+      return symbols.map((symbol) => quoteRow(symbol, "CLOSED"));
+    };
+    yahooApi.quote = async (symbol) => {
+      singleQuoteCalls += 1;
+      return quoteRow(symbol, "PREPRE");
+    };
+    yahooApi.chart = async () => ({ quotes: [], dividends: [], splits: [] });
+    const group = trackedMarketRepository.syncFromTrackedAssets().get("euronextParis");
+    await marketCloseTask.run(group, new Date("2026-05-06T15:50:00.000Z"));
+    const afterClose = db.prepare("SELECT s.market_state FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE a.symbol = 'AAA.PA'").get();
+    const quote = await marketSnapshotService.getQuote("AAA.PA");
+    const afterRead = db.prepare("SELECT s.market_state FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE a.symbol = 'AAA.PA'").get();
+    console.log("__RESULT__" + JSON.stringify({ batchCalls, singleQuoteCalls, quote, afterClose, afterRead }));
+  `);
+
+  assert.equal(result.batchCalls, 1);
+  assert.equal(result.singleQuoteCalls, 0);
+  assert.equal(result.afterClose.market_state, "CLOSED");
+  assert.equal(result.afterRead.market_state, "CLOSED");
+  assert.equal(result.quote.marketState, "CLOSED");
+});
+
+test("post-close snapshot price wins over stale fundamentals and later quote reads", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+    import { db } from "./db.ts";
+    import { yahooApi } from "./services/yahoo/yahoo.api.ts";
+    import { yahooService } from "./services/yahoo/index.ts";
+    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
+    import { marketCloseTask } from "./services/tache_auto/market-close.task.ts";
+    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    ${helpers}
+
+    yahooService.marketInfo = async () => ({ data: { marketState: "POSTPOST", regularMarketPrice: 1187, currency: "EUR" } });
+    yahooService.extraData = async () => ({ data: {} });
+    yahooService.news = async () => ({ data: [] });
+    yahooApi.chart = async () => ({ quotes: [], dividends: [], splits: [] });
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+
+        addTracked("AAA.PA", "AAA", "Paris");
+        const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+        db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, last_price, currency, exchange, source, updated_at) VALUES (?, 'POSTPOST', 1187, 'EUR', 'Paris', 'seed', CURRENT_TIMESTAMP)").run(asset.id);
+
+        let batchCalls = 0;
+        let singleQuoteCalls = 0;
+        yahooApi.quoteBatchRaw = async (symbols) => {
+          batchCalls += 1;
+          return symbols.map((symbol) => pricedQuoteRow(symbol, "POSTPOST", 1305));
+        };
+        yahooApi.quote = async (symbol) => {
+          singleQuoteCalls += 1;
+          return pricedQuoteRow(symbol, "POSTPOST", 1187);
+        };
+
+        const group = trackedMarketRepository.syncFromTrackedAssets().get("euronextParis");
+        await marketCloseTask.run(group, new Date("2026-05-06T15:50:00.000Z"));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const dbSnapshot = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+        const quote = await marketSnapshotService.getQuote("AAA.PA");
+        const response = await fetch(\`\${baseUrl}/api/assets/AAA.PA?range=1d\`, { headers: { Cookie: cookie } });
+        const body = await response.json();
+        const afterRoute = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+
+        console.log("__RESULT__" + JSON.stringify({
+          batchCalls,
+          singleQuoteCalls,
+          status: response.status,
+          dbSnapshot,
+          quote,
+          routeQuotePrice: body.quote?.price,
+          routeMarketInfoPrice: body.marketInfo?.regularMarketPrice,
+          routeMarketState: body.marketInfo?.marketState,
+          routeMarketInfo: body.marketInfo,
+          afterRoute
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.batchCalls, 1);
+  assert.equal(result.singleQuoteCalls, 0);
+  assert.equal(result.dbSnapshot.market_state, "POSTPOST");
+  assert.equal(result.dbSnapshot.last_price, 1305);
+  assert.equal(result.dbSnapshot.day_change, 118);
+  assert.equal(result.dbSnapshot.day_change_percent, 9.94);
+  assert.equal(result.dbSnapshot.previous_close, 1000);
+  assert.equal(result.dbSnapshot.open_price, 1190);
+  assert.equal(result.dbSnapshot.day_high, 1310);
+  assert.equal(result.dbSnapshot.day_low, 1175);
+  assert.equal(result.dbSnapshot.volume, 1234567);
+  assert.equal(result.dbSnapshot.bid_price, 1304.5);
+  assert.equal(result.dbSnapshot.ask_price, 1305.5);
+  assert.equal(result.dbSnapshot.regular_market_time, "2026-05-06T15:45:00.000Z");
+  assert.equal(result.dbSnapshot.average_volume_3m, 7654321);
+  assert.equal(result.quote.price, 1305);
+  assert.equal(result.routeQuotePrice, 1305);
+  assert.equal(result.routeMarketInfoPrice, 1305);
+  assert.equal(result.routeMarketState, "POST");
+  assert.equal(result.routeMarketInfo.regularMarketChange, 118);
+  assert.equal(result.routeMarketInfo.regularMarketChangePercent, 9.94);
+  assert.equal(result.routeMarketInfo.regularMarketPreviousClose, 1000);
+  assert.equal(result.routeMarketInfo.regularMarketOpen, 1190);
+  assert.equal(result.routeMarketInfo.regularMarketDayHigh, 1310);
+  assert.equal(result.routeMarketInfo.regularMarketDayLow, 1175);
+  assert.equal(result.routeMarketInfo.regularMarketVolume, 1234567);
+  assert.equal(result.routeMarketInfo.bid, 1304.5);
+  assert.equal(result.routeMarketInfo.ask, 1305.5);
+  assert.equal(result.routeMarketInfo.regularMarketTime, "2026-05-06T15:45:00.000Z");
+  assert.equal(result.afterRoute.last_price, 1305);
+});
+
+test("snapshot upsert keeps useful existing values when Yahoo returns null fields", () => {
+  const result = runBackendScript(`
+    import { db } from "./db.ts";
+    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    marketSnapshotService.upsertSnapshot(asset.id, pricedQuoteRow("AAA.PA", "POSTPOST", 1305).snapshot);
+    marketSnapshotService.upsertSnapshot(asset.id, {
+      symbol: "AAA.PA",
+      marketState: "POSTPOST",
+      regularMarketPrice: null,
+      regularMarketChange: null,
+      regularMarketChangePercent: null,
+      regularMarketPreviousClose: null,
+      regularMarketOpen: null,
+      regularMarketDayHigh: null,
+      regularMarketDayLow: null,
+      regularMarketVolume: null,
+      bid: null,
+      ask: null,
+      bidSize: null,
+      askSize: null,
+      averageDailyVolume3Month: null,
+      currency: null,
+      exchange: null,
+      fullExchangeName: null,
+      quoteType: null,
+      regularMarketTime: null
+    });
+    const row = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+    console.log("__RESULT__" + JSON.stringify(row));
+  `);
+
+  assert.equal(result.market_state, "POSTPOST");
+  assert.equal(result.last_price, 1305);
+  assert.equal(result.day_change, 118);
+  assert.equal(result.day_change_percent, 9.94);
+  assert.equal(result.previous_close, 1000);
+  assert.equal(result.open_price, 1190);
+  assert.equal(result.day_high, 1310);
+  assert.equal(result.day_low, 1175);
+  assert.equal(result.volume, 1234567);
+  assert.equal(result.bid_price, 1304.5);
+  assert.equal(result.ask_price, 1305.5);
+  assert.equal(result.regular_market_time, "2026-05-06T15:45:00.000Z");
+  assert.equal(result.average_volume_3m, 7654321);
 });
 
 test("scheduler cleanup, health update and anti-overlap guard", () => {

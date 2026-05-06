@@ -40,6 +40,10 @@ export interface YahooSnapshotPayload {
   regularMarketDayHigh: number | null;
   regularMarketDayLow: number | null;
   regularMarketVolume: number | null;
+  bid: number | null;
+  ask: number | null;
+  bidSize: number | null;
+  askSize: number | null;
   averageDailyVolume3Month: number | null;
   dividendRate: number | null;
   dividendYield: number | null;
@@ -87,6 +91,10 @@ export function mapSnapshotQuote(row: any, fallbackSymbol: string): YahooSnapsho
     regularMarketDayHigh: nullableNumber(row?.regularMarketDayHigh),
     regularMarketDayLow: nullableNumber(row?.regularMarketDayLow),
     regularMarketVolume: nullableNumber(row?.regularMarketVolume),
+    bid: nullableNumber(row?.bid),
+    ask: nullableNumber(row?.ask),
+    bidSize: nullableNumber(row?.bidSize),
+    askSize: nullableNumber(row?.askSize),
     averageDailyVolume3Month: nullableNumber(row?.averageDailyVolume3Month),
     dividendRate: nullableNumber(row?.dividendRate),
     dividendYield: nullableNumber(row?.dividendYield),
