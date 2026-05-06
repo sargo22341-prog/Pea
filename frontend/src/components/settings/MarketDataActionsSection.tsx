@@ -1,6 +1,6 @@
 import type { DataConstructionJobDto } from "@pea/shared";
 import { AlertTriangle, Database, Info, RefreshCcw, X, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, type MarketDataRebuildRange } from "../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../lib/dataConstruction";
@@ -173,9 +173,57 @@ function ActionButton({
         <Icon size={18} />
         <span className="truncate">{loading ? "En cours..." : label}</span>
       </button>
-      <button aria-label={`Information - ${label}`} className="btn-ghost shrink-0 px-2" title={info} type="button">
+      <InfoTooltip info={info} label={label} />
+    </div>
+  );
+}
+
+function InfoTooltip({ info, label }: { info: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const tooltipId = useId();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOnOutsideClick(event: PointerEvent) {
+      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    window.addEventListener("pointerdown", closeOnOutsideClick);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsideClick);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="group relative shrink-0" ref={wrapperRef}>
+      <button
+        aria-describedby={tooltipId}
+        aria-expanded={open}
+        aria-label={`Information - ${label}`}
+        className="btn-ghost px-2"
+        onClick={() => setOpen((current) => !current)}
+        onFocus={() => setOpen(true)}
+        type="button"
+      >
         <Info size={16} />
       </button>
+      <div
+        className={`pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-line bg-ink px-3 py-2 text-left text-xs font-medium leading-5 text-slate-200 shadow-glow transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 ${
+          open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+        }`}
+        id={tooltipId}
+        role="tooltip"
+      >
+        {info}
+      </div>
     </div>
   );
 }
