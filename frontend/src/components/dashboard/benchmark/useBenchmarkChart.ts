@@ -1,7 +1,7 @@
 /**
- * Rôle du fichier : hook React qui gère le fetch et le cache des données benchmark.
+ * Role du fichier : hook React qui gere le fetch et le cache des donnees benchmark.
  * Expose les timestamps et prix bruts ; la normalisation en base 100 se fait
- * dans PortfolioComparisonChart qui a accès aux deux séries simultanément.
+ * dans PortfolioComparisonChart qui a acces aux deux series simultanement.
  */
 
 import type { RangeKey } from "@pea/shared";
@@ -24,9 +24,9 @@ export interface BenchmarkResult {
 }
 
 /**
- * Récupère l'historique d'un benchmark pour une range donnée.
- * Consulte le cache mémoire avant d'appeler l'API /history/:symbol.
- * Annule la requête en vol si le composant se démonte ou si la dépendance change.
+ * Recupere l'historique d'un benchmark pour une range donnee.
+ * Consulte le cache memoire avant d'appeler l'API /history/:symbol.
+ * Annule la requete en vol si le composant se demonte ou si la dependance change.
  */
 export function useBenchmarkChart(benchmarkKey: BenchmarkKey | null, range: RangeKey): BenchmarkResult {
   const [data, setData] = useState<BenchmarkData | null>(null);
@@ -43,12 +43,18 @@ export function useBenchmarkChart(benchmarkKey: BenchmarkKey | null, range: Rang
 
     const config = getBenchmarkConfig(benchmarkKey);
     let cancelled = false;
+    let retryTimer: number | undefined;
+
+    function retryLater() {
+      if (cancelled) return;
+      retryTimer = window.setTimeout(fetchBenchmark, 2000);
+    }
 
     async function fetchBenchmark() {
+      let retryScheduled = false;
       setLoading(true);
       setError(null);
 
-      // Vérification du cache avant tout appel réseau
       const cached = getCachedBenchmark(config.ticker, range);
       if (cached) {
         if (!cancelled) {
@@ -58,11 +64,16 @@ export function useBenchmarkChart(benchmarkKey: BenchmarkKey | null, range: Rang
         return;
       }
 
+      setData(null);
+
       try {
         const result = await api.history(config.ticker, range);
         if (result.timestamps.length === 0) {
-          // Le backend est en cours de rebuild — on ne met pas en cache pour réessayer au prochain appel.
-          if (!cancelled) setError("Données benchmark indisponibles (reconstruction en cours)");
+          if (!cancelled) {
+            setData(null);
+            retryScheduled = true;
+            retryLater();
+          }
           return;
         }
         setCachedBenchmark(config.ticker, range, result);
@@ -71,16 +82,19 @@ export function useBenchmarkChart(benchmarkKey: BenchmarkKey | null, range: Rang
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erreur lors du chargement du benchmark");
+          setData(null);
+          retryScheduled = true;
+          retryLater();
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !retryScheduled) setLoading(false);
       }
     }
 
     void fetchBenchmark();
     return () => {
       cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [benchmarkKey, range]);
 

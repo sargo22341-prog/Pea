@@ -10,6 +10,7 @@ import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInp
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick, formatNumber, money } from "../../lib/format";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
 import { masquerValeur } from "../../lib/privacy";
+import { normalizeSeriesByPoints } from "../../lib/seriesNormalization";
 import { COMPARE_COLORS } from "./compareColors";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
@@ -498,8 +499,32 @@ function normalizeRelative(points: PriceHistoryInputPoint[]): { date: number; va
 
 function buildComparisonData(
   main: PriceHistoryInputPoint[],
-  comparisons: ComparisonSerie[]
+  comparisons: ComparisonSerie[],
+  range: RangeKey
 ): Array<Record<string, number | null>> {
+  if (shouldNormalizeComparisonByPoints(range)) {
+    const normalized = normalizeSeriesByPoints([main, ...comparisons.map((c) => c.points)]);
+    const normalizedMain = normalized[0] ?? [];
+    const normalizedComparisons = comparisons.map((comparison, index) => ({
+      key: comparison.symbol,
+      data: normalized[index + 1] ?? []
+    }));
+
+    return normalizedMain.map((point, index) => {
+      const merged: Record<string, number | null> = {
+        date: new Date(point.date ?? index).getTime(),
+        x: index,
+        main: point.value
+      };
+
+      for (const comparison of normalizedComparisons) {
+        merged[comparison.key] = comparison.data[index]?.value ?? null;
+      }
+
+      return merged;
+    });
+  }
+
   const normMain = normalizeRelative(main);
   const normComps = comparisons.map((c) => ({ key: c.symbol, data: normalizeRelative(c.points) }));
 
@@ -518,6 +543,10 @@ function buildComparisonData(
     }
     return point;
   });
+}
+
+function shouldNormalizeComparisonByPoints(range: RangeKey) {
+  return range === "1d" || range === "1w" || range === "1m";
 }
 
 interface ComparisonTooltipEntry {
@@ -589,13 +618,22 @@ export const ComparisonChart = memo(function ComparisonChart({
     ...comparisonSeries.map((s, i) => ({ key: s.symbol, label: s.symbol, color: COMPARE_COLORS[i] }))
   ];
 
-  const mergedData = useMemo(() => buildComparisonData(data, comparisonSeries), [data, comparisonSeries]);
+  const mergedData = useMemo(() => buildComparisonData(data, comparisonSeries, range), [data, comparisonSeries, range]);
+  const usePointAxis = shouldNormalizeComparisonByPoints(range);
+  const xDataKey = usePointAxis ? "x" : "date";
 
   const xDomain = useMemo((): [number, number] | undefined => {
+    if (usePointAxis) return [0, Math.max(mergedData.length - 1, 0)];
     const dates = mergedData.map((p) => p.date as number).filter(Number.isFinite);
     if (!dates.length) return undefined;
     return [Math.min(...dates), Math.max(...dates)];
-  }, [mergedData]);
+  }, [mergedData, usePointAxis]);
+
+  const resolveXDate = (value: string | number) => {
+    if (!usePointAxis) return value;
+    const index = Math.round(Number(value));
+    return (mergedData[index]?.date as number | undefined) ?? value;
+  };
 
   return (
     <div className={`chart-fade overflow-visible ${heightClassName}`}>
@@ -603,11 +641,11 @@ export const ComparisonChart = memo(function ComparisonChart({
         <ComposedChart data={mergedData}>
           <XAxis
             axisLine={false}
-            dataKey="date"
+            dataKey={xDataKey}
             domain={xDomain}
-            scale="time"
+            scale={usePointAxis ? "linear" : "time"}
             tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => formatHistoryTick(value, range, userTimezone)}
+            tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
             type="number"
           />
@@ -624,7 +662,7 @@ export const ComparisonChart = memo(function ComparisonChart({
             content={(props) => (
               <ComparisonTooltip
                 active={props.active}
-                label={props.label}
+                label={usePointAxis && (typeof props.label === "number" || typeof props.label === "string") ? resolveXDate(props.label) : props.label}
                 marketSession={marketSession}
                 payload={props.payload as ChartTooltipPayload}
                 range={range}

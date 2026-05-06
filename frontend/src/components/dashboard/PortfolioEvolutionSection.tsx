@@ -1,24 +1,22 @@
 /**
  * Role du fichier : afficher le bloc d'evolution du portefeuille, puis liberer
  * les sections dependantes lorsque le chart est pret.
- * Gère aussi l'état du benchmark actif et orchestre le fetch des données d'indice.
  */
 
-import type { PortfolioChartDto, PortfolioSummary, RangeKey, User, WatchlistSortKey, SortDirection } from "@pea/shared";
+import type { PortfolioChartDto, PortfolioSummary, SortDirection, User, WatchlistSortKey, RangeKey } from "@pea/shared";
 import { useEffect, useState } from "react";
+import { useAssetComparisonSeries, type ComparableAsset } from "../../hooks/useAssetComparisonSeries";
 import type { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../../lib/dataConstruction";
+import { PortfolioCalendarEvents } from "../common/AssetCalendarEvents";
+import { CompareModal } from "../common/CompareModal";
 import { ChartSkeleton, PositionsSectionSkeleton } from "./DashboardSkeletons";
-import { useBenchmarkChart } from "./benchmark/useBenchmarkChart";
-import type { BenchmarkKey } from "./benchmark/benchmarks.config";
 import { PortfolioChart } from "./PortfolioChart";
 import { PortfolioEvolutionHeader } from "./PortfolioEvolutionHeader";
 import { PositionList } from "./PositionList";
 import type { DashboardRangeSetter } from "./types";
 import { WatchlistSection } from "./WatchlistSection";
-import { PortfolioCalendarEvents } from "../common/AssetCalendarEvents";
-
 
 export function PortfolioEvolutionSection({
   summary,
@@ -29,7 +27,8 @@ export function PortfolioEvolutionSection({
   watchlistDefaultSortDirection,
   setRange,
   portfolioChart,
-  userTimezone
+  userTimezone,
+  localPeaSearchEnabled
 }: {
   summary: PortfolioSummary;
   range: RangeKey;
@@ -40,16 +39,22 @@ export function PortfolioEvolutionSection({
   setRange: DashboardRangeSetter;
   portfolioChart: ReturnType<typeof useAsync<PortfolioChartDto>>;
   userTimezone: string;
+  localPeaSearchEnabled: boolean;
 }) {
   const chartReady = Boolean(portfolioChart.data) && !portfolioChart.loading;
   const portfolioChartReload = portfolioChart.reload;
   const portfolioChartPreparing = Boolean(portfolioChart.data?.isPreparing);
+  const [comparing, setComparing] = useState(false);
+  const [compareTargets, setCompareTargets] = useState<ComparableAsset[]>([]);
+  const { series: comparisonSeries, loading: comparisonLoading } = useAssetComparisonSeries(compareTargets, range);
 
-  // Benchmark sélectionné — conservé lors des changements de range
-  const [activeBenchmark, setActiveBenchmark] = useState<BenchmarkKey | null>(null);
+  function addCompareTarget(target: ComparableAsset) {
+    setCompareTargets((prev) => (prev.some((item) => item.symbol === target.symbol) ? prev : [...prev, target]));
+  }
 
-  // Données de l'indice de référence (fetch + cache automatique)
-  const benchmarkResult = useBenchmarkChart(activeBenchmark, range);
+  function removeCompareTarget(targetSymbol: string) {
+    setCompareTargets((prev) => prev.filter((target) => target.symbol !== targetSymbol));
+  }
 
   useEffect(() => {
     if (!portfolioChartPreparing) return;
@@ -78,8 +83,8 @@ export function PortfolioEvolutionSection({
     <>
       <section className="card p-0 sm:p-4">
         <PortfolioEvolutionHeader
-          activeBenchmark={activeBenchmark}
-          onBenchmarkChange={setActiveBenchmark}
+          comparisonCount={compareTargets.length}
+          onCompareClick={() => setComparing(true)}
           range={range}
           setRange={setRange}
         />
@@ -87,14 +92,15 @@ export function PortfolioEvolutionSection({
           <ChartSkeleton />
         ) : (
           <PortfolioChart
-            benchmark={benchmarkResult}
             chart={portfolioChart.data}
+            comparisonLoading={compareTargets.length > 0 && (comparisonLoading || portfolioChart.data.isPreparing)}
+            comparisonSeries={comparisonSeries}
             range={range}
             userTimezone={userTimezone}
           />
         )}
       </section>
-      
+
       <PortfolioCalendarEvents />
 
       {chartReady ? (
@@ -109,6 +115,17 @@ export function PortfolioEvolutionSection({
       )}
 
       {chartReady && <WatchlistSection defaultSortDirection={watchlistDefaultSortDirection} defaultSortKey={watchlistDefaultSortKey} range={range} />}
+
+      {comparing && (
+        <CompareModal
+          currentSymbol="__PORTFOLIO__"
+          localPeaSearchEnabled={localPeaSearchEnabled}
+          onAdd={addCompareTarget}
+          onClose={() => setComparing(false)}
+          onRemove={removeCompareTarget}
+          selected={compareTargets}
+        />
+      )}
     </>
   );
 }

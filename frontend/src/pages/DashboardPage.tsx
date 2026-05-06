@@ -65,6 +65,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
           setRange={setSelectedRange}
           summary={summary}
           portfolioChart={{ loading: portfolioFull.loading, data: chart, error: portfolioFull.error, reload: portfolioFull.reload }}
+          localPeaSearchEnabled={user.localPeaSearchEnabled}
           userTimezone={appTimezone}
         />
       ) : (

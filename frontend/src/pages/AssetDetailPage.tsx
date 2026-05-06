@@ -20,7 +20,7 @@ import { AssetIcon } from "../components/common/AssetIcon";
 import { AssetPositionSummary } from "../components/asset-detail/AssetPositionSummary";
 import { DividendLineChartSection } from "../components/charts/DividendLineChartSection";
 import { FinancialComboChart } from "../components/charts/FinancialComboChart";
-import { ComparisonChart, type ComparisonSerie, PriceHistoryChart } from "../components/charts/PriceHistoryChart";
+import { ComparisonChart, PriceHistoryChart } from "../components/charts/PriceHistoryChart";
 import { CompareModal } from "../components/common/CompareModal";
 import { EditPositionModal } from "../components/asset-detail/EditPositionModal";
 import { NewsArticleList } from "../components/common/NewsArticleList";
@@ -31,6 +31,7 @@ import { AssetCalendarEvents } from "../components/common/AssetCalendarEvents";
 import { RangeSelector } from "../components/common/RangeSelector";
 import { StaleBadge } from "../components/common/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
+import { useAssetComparisonSeries } from "../hooks/useAssetComparisonSeries";
 import { api } from "../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
 import { money, percent } from "../lib/format";
@@ -47,7 +48,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [adding, setAdding] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
-  const [comparisonSeries, setComparisonSeries] = useState<ComparisonSerie[]>([]);
+  const { series: comparisonSeries, loading: comparisonLoading } = useAssetComparisonSeries(compareTargets, range);
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
@@ -55,20 +56,12 @@ export function AssetDetailPage({ user }: { user: User }) {
   const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
   const chartPoints = chartDtoToPoints(asset.data?.chart);
 
-  async function addCompareTarget(target: { symbol: string; name: string }) {
-    setCompareTargets((prev) => [...prev, target]);
-    try {
-      const chart = await api.history(target.symbol, range);
-      const points = chart.timestamps.map((ts, i) => ({ date: new Date(ts).toISOString(), value: chart.prices[i] ?? null }));
-      setComparisonSeries((prev) => [...prev, { symbol: target.symbol, name: target.name, points }]);
-    } catch {
-      setCompareTargets((prev) => prev.filter((t) => t.symbol !== target.symbol));
-    }
+  function addCompareTarget(target: { symbol: string; name: string }) {
+    setCompareTargets((prev) => (prev.some((item) => item.symbol === target.symbol) ? prev : [...prev, target]));
   }
 
   function removeCompareTarget(targetSymbol: string) {
     setCompareTargets((prev) => prev.filter((t) => t.symbol !== targetSymbol));
-    setComparisonSeries((prev) => prev.filter((s) => s.symbol !== targetSymbol));
   }
 
   /**
@@ -81,17 +74,8 @@ export function AssetDetailPage({ user }: { user: User }) {
   function setRange(source: string, nextRange: RangeKey) {
     void source;
     setRangeState(nextRange);
-    if (compareTargets.length > 0) {
-      setComparisonSeries([]);
-      void Promise.all(
-        compareTargets.map(async (target) => {
-          const chart = await api.history(target.symbol, nextRange);
-          const points = chart.timestamps.map((ts, i) => ({ date: new Date(ts).toISOString(), value: chart.prices[i] ?? null }));
-          return { symbol: target.symbol, name: target.name, points };
-        })
-      ).then((series) => setComparisonSeries(series));
-    }
   }
+
   useEffect(() => {
     if (asset.data) {
       setWatchlisted(Boolean(asset.data.isInWatchlist));
@@ -266,7 +250,7 @@ export function AssetDetailPage({ user }: { user: User }) {
           <h2 className="font-semibold">Historique</h2>
           <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
         </div>
-        {asset.loading ? (
+        {asset.loading || (compareTargets.length > 0 && (comparisonLoading || chart?.isPreparing)) ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
         ) : chartPoints.length > 1 ? (
           comparisonSeries.length > 0 ? (
@@ -413,4 +397,5 @@ function chartDtoToPoints(chart?: AssetChartDto) {
     value: chart.prices[index] ?? null
   }));
 }
+
 
