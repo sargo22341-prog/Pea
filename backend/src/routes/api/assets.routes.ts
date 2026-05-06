@@ -23,6 +23,28 @@ import { userNewsLanguages } from "../shared/news.helpers.js";
 
 export const assetsRouter = express.Router();
 
+function finiteNumber(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
+function firstMarketNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    const numberValue = finiteNumber(value);
+    if (numberValue !== undefined) return numberValue;
+  }
+  return undefined;
+}
+
+function firstPrice(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    const numberValue = finiteNumber(value);
+    if (numberValue !== undefined && numberValue > 0) return numberValue;
+  }
+  return undefined;
+}
+
 function intradayDebugClock(range: string) {
   if (range !== "1d" || !config.debugDate) return undefined;
   return {
@@ -89,7 +111,8 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const dividends = dividendsResult.data;
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
-  const freshMarketPrice = assetMarket.regularMarketPrice ?? quote.price ?? marketInfo.regularMarketPrice;
+  const freshMarketPrice = firstPrice(assetMarket.regularMarketPrice, quote.unavailable ? undefined : quote.price, marketInfo.regularMarketPrice);
+  const analystConsensus = (extraDataResult.data as any).analystConsensus;
   logDividendDesync(symbol, dividends, marketInfo);
   const marketSession = getMarketSessionInfo(symbol, quote.exchange ?? marketInfo.exchangeName ?? assetStatic.exchange);
   const financials = assetFinancialsResult.financials;
@@ -129,16 +152,16 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       ...marketInfo,
       marketState: assetMarket.marketState,
       regularMarketPrice: freshMarketPrice,
-      regularMarketChange: assetMarket.dayChange ?? marketInfo.regularMarketChange,
-      regularMarketChangePercent: assetMarket.dayChangePercent ?? marketInfo.regularMarketChangePercent,
+      regularMarketChange: firstMarketNumber(assetMarket.dayChange, marketInfo.regularMarketChange),
+      regularMarketChangePercent: firstMarketNumber(assetMarket.dayChangePercent, marketInfo.regularMarketChangePercent),
       regularMarketTime: assetMarket.regularMarketTime ?? marketInfo.regularMarketTime,
-      regularMarketPreviousClose: assetMarket.previousClose ?? quote.previousClose ?? marketInfo.regularMarketPreviousClose,
-      regularMarketOpen: assetMarket.openPrice ?? marketInfo.regularMarketOpen,
-      regularMarketDayHigh: assetMarket.dayHigh ?? marketInfo.regularMarketDayHigh,
-      regularMarketDayLow: assetMarket.dayLow ?? marketInfo.regularMarketDayLow,
-      regularMarketVolume: assetMarket.volume || marketInfo.regularMarketVolume,
-      bid: assetMarket.bid ?? marketInfo.bid,
-      ask: assetMarket.ask ?? marketInfo.ask,
+      regularMarketPreviousClose: firstPrice(assetMarket.previousClose, quote.previousClose, marketInfo.regularMarketPreviousClose),
+      regularMarketOpen: firstPrice(assetMarket.openPrice, marketInfo.regularMarketOpen),
+      regularMarketDayHigh: firstPrice(assetMarket.dayHigh, marketInfo.regularMarketDayHigh),
+      regularMarketDayLow: firstPrice(assetMarket.dayLow, marketInfo.regularMarketDayLow),
+      regularMarketVolume: firstMarketNumber(assetMarket.volume, marketInfo.regularMarketVolume),
+      bid: firstPrice(assetMarket.bid, marketInfo.bid),
+      ask: firstPrice(assetMarket.ask, marketInfo.ask),
       currency: assetMarket.currency ?? marketInfo.currency,
       exchangeName: assetMarket.exchangeName ?? marketInfo.exchangeName
     },
@@ -148,8 +171,8 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     financials,
     isEtf,
     calendarEventsData: (extraDataResult.data as any).calendarEventsData,
-    analystConsensus: (extraDataResult.data as any).analystConsensus
-      ? { ...(extraDataResult.data as any).analystConsensus, currentPrice: freshMarketPrice }
+    analystConsensus: analystConsensus
+      ? { ...analystConsensus, ...(freshMarketPrice === undefined ? {} : { currentPrice: freshMarketPrice }) }
       : undefined,
     fundDetails: (extraDataResult.data as any).fundDetails
   };

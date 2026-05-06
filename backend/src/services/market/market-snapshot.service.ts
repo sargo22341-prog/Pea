@@ -12,6 +12,12 @@ import { assetRepository, type AssetRow } from "./asset.repository.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
 
+function optionalNumber(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
 export class MarketSnapshotService {
   private snapshotQuoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
 
@@ -64,23 +70,23 @@ export class MarketSnapshotService {
     return {
       symbol: asset.symbol,
       marketState: normalizeMarketState(row.market_state),
-      regularMarketPrice: row.last_price == null ? undefined : Number(row.last_price),
+      regularMarketPrice: optionalNumber(row.last_price),
       regularMarketTime: row.regular_market_time ?? undefined,
-      previousClose: row.previous_close == null ? undefined : Number(row.previous_close),
-      openPrice: row.open_price == null ? undefined : Number(row.open_price),
-      dayHigh: row.day_high == null ? undefined : Number(row.day_high),
-      dayLow: row.day_low == null ? undefined : Number(row.day_low),
-      dayChange: Number(row.day_change ?? 0),
-      dayChangePercent: Number(row.day_change_percent ?? 0),
-      volume: Number(row.volume ?? 0),
-      avgVolume3M: row.average_volume_3m == null ? undefined : Number(row.average_volume_3m),
-      bid: row.bid_price == null ? undefined : Number(row.bid_price),
-      ask: row.ask_price == null ? undefined : Number(row.ask_price),
+      previousClose: optionalNumber(row.previous_close),
+      openPrice: optionalNumber(row.open_price),
+      dayHigh: optionalNumber(row.day_high),
+      dayLow: optionalNumber(row.day_low),
+      dayChange: optionalNumber(row.day_change),
+      dayChangePercent: optionalNumber(row.day_change_percent),
+      volume: optionalNumber(row.volume),
+      avgVolume3M: optionalNumber(row.average_volume_3m),
+      bid: optionalNumber(row.bid_price),
+      ask: optionalNumber(row.ask_price),
       currency: row.currency ?? undefined,
       exchangeName: row.full_exchange_name ?? row.exchange ?? undefined,
       quoteType: row.quote_type ?? undefined,
-      dividendYield: row.dividend_yield == null ? undefined : Number(row.dividend_yield),
-      annualDividend: row.dividend_rate == null ? undefined : Number(row.dividend_rate),
+      dividendYield: optionalNumber(row.dividend_yield),
+      annualDividend: optionalNumber(row.dividend_rate),
       cachedAt: new Date(row.updated_at).getTime(),
       expiresAt: new Date(row.updated_at).getTime()
     };
@@ -124,7 +130,33 @@ export class MarketSnapshotService {
         quote_type = COALESCE(excluded.quote_type, asset_market_snapshots.quote_type),
         regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
         source = excluded.source,
-        updated_at = excluded.updated_at`
+        updated_at = CASE
+          WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
+            OR excluded.last_price IS NOT NULL
+            OR excluded.day_change IS NOT NULL
+            OR excluded.day_change_percent IS NOT NULL
+            OR excluded.previous_close IS NOT NULL
+            OR excluded.open_price IS NOT NULL
+            OR excluded.day_high IS NOT NULL
+            OR excluded.day_low IS NOT NULL
+            OR excluded.volume IS NOT NULL
+            OR excluded.bid_price IS NOT NULL
+            OR excluded.ask_price IS NOT NULL
+            OR excluded.bid_size IS NOT NULL
+            OR excluded.ask_size IS NOT NULL
+            OR excluded.average_volume_3m IS NOT NULL
+            OR excluded.dividend_rate IS NOT NULL
+            OR excluded.dividend_yield IS NOT NULL
+            OR excluded.trailing_annual_dividend_rate IS NOT NULL
+            OR excluded.trailing_annual_dividend_yield IS NOT NULL
+            OR excluded.currency IS NOT NULL
+            OR excluded.exchange IS NOT NULL
+            OR excluded.full_exchange_name IS NOT NULL
+            OR excluded.quote_type IS NOT NULL
+            OR excluded.regular_market_time IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.updated_at
+        END`
     ).run(
       assetId,
       snapshot.marketState,

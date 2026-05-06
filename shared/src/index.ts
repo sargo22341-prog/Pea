@@ -295,9 +295,9 @@ export interface AssetMarketDto {
   openPrice?: number;
   dayHigh?: number;
   dayLow?: number;
-  dayChange: number;
-  dayChangePercent: number;
-  volume: number;
+  dayChange?: number;
+  dayChangePercent?: number;
+  volume?: number;
   avgVolume3M?: number;
   bid?: number;
   ask?: number;

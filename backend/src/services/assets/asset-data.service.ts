@@ -64,9 +64,6 @@ export class AssetDataService {
       symbol: key,
       marketState: "CLOSED",
       regularMarketPrice: undefined,
-      dayChange: 0,
-      dayChangePercent: 0,
-      volume: 0,
       cachedAt: nowMs(),
       expiresAt: nowMs()
     };
