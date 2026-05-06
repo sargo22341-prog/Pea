@@ -89,6 +89,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const dividends = dividendsResult.data;
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
+  const freshMarketPrice = assetMarket.regularMarketPrice ?? quote.price ?? marketInfo.regularMarketPrice;
   logDividendDesync(symbol, dividends, marketInfo);
   const marketSession = getMarketSessionInfo(symbol, quote.exchange ?? marketInfo.exchangeName ?? assetStatic.exchange);
   const financials = assetFinancialsResult.financials;
@@ -127,7 +128,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     marketInfo: {
       ...marketInfo,
       marketState: assetMarket.marketState,
-      regularMarketPrice: assetMarket.regularMarketPrice ?? quote.price ?? marketInfo.regularMarketPrice,
+      regularMarketPrice: freshMarketPrice,
       regularMarketChange: assetMarket.dayChange ?? marketInfo.regularMarketChange,
       regularMarketChangePercent: assetMarket.dayChangePercent ?? marketInfo.regularMarketChangePercent,
       regularMarketTime: assetMarket.regularMarketTime ?? marketInfo.regularMarketTime,
@@ -147,7 +148,9 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     financials,
     isEtf,
     calendarEventsData: (extraDataResult.data as any).calendarEventsData,
-    analystConsensus: (extraDataResult.data as any).analystConsensus,
+    analystConsensus: (extraDataResult.data as any).analystConsensus
+      ? { ...(extraDataResult.data as any).analystConsensus, currentPrice: freshMarketPrice }
+      : undefined,
     fundDetails: (extraDataResult.data as any).fundDetails
   };
 

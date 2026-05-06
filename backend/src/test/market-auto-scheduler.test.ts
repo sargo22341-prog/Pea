@@ -270,7 +270,20 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
     ${helpers}
 
     yahooService.marketInfo = async () => ({ data: { marketState: "POSTPOST", regularMarketPrice: 1187, currency: "EUR" } });
-    yahooService.extraData = async () => ({ data: {} });
+    yahooService.extraData = async () => ({
+      data: {
+        analystConsensus: {
+          currentPrice: 1187,
+          targetHighPrice: 1400,
+          targetLowPrice: 900,
+          targetMeanPrice: 1200,
+          targetMedianPrice: 1210,
+          recommendationMean: 2,
+          recommendationKey: "buy",
+          numberOfAnalystOpinions: 12
+        }
+      }
+    });
     yahooService.news = async () => ({ data: [] });
     yahooApi.chart = async () => ({ quotes: [], dividends: [], splits: [] });
 
@@ -320,6 +333,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
           routeMarketInfoPrice: body.marketInfo?.regularMarketPrice,
           routeMarketState: body.marketInfo?.marketState,
           routeMarketInfo: body.marketInfo,
+          analystCurrentPrice: body.analystConsensus?.currentPrice,
           afterRoute
         }));
       } finally {
@@ -358,6 +372,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
   assert.equal(result.routeMarketInfo.bid, 1304.5);
   assert.equal(result.routeMarketInfo.ask, 1305.5);
   assert.equal(result.routeMarketInfo.regularMarketTime, "2026-05-06T15:45:00.000Z");
+  assert.equal(result.analystCurrentPrice, 1305);
   assert.equal(result.afterRoute.last_price, 1305);
 });
 
