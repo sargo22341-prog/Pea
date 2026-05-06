@@ -6,6 +6,7 @@ import { DataConstructionSection } from "../components/settings/DataConstruction
 import { ImportAvisOperesPdf } from "../components/settings/ImportAvisOperesPdf";
 import { MarketDataActionsSection } from "../components/settings/MarketDataActionsSection";
 import { Collapsible } from "../components/settings/SettingsSection";
+import { TrackedMarketsSection } from "../components/settings/TrackedMarketsSection";
 import { UserPreferencesSection } from "../components/settings/UserPreferencesSection";
 import { api } from "../lib/api";
 
@@ -27,6 +28,7 @@ export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<
       <DataConstructionSection />
       <AccountSettingsSection />
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
+      <TrackedMarketsSection />
       <MarketDataActionsSection />
       <AssetIconsSettingsSection />
       <Collapsible title="Import Boursorama">

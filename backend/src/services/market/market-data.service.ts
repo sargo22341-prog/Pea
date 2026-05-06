@@ -574,7 +574,10 @@ export class MarketDataService {
   }
 
   async finalizePostCloseForAsset(asset: AssetRow, now = new Date()) {
-    const quote = await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
+    const persistedQuote = marketSnapshotService.readSnapshot(asset.id);
+    const quote = persistedQuote && !isMarketOpen(persistedQuote.marketState)
+      ? persistedQuote
+      : await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined);
     if (isMarketOpen(quote?.marketState)) return { skipped: true, reason: "market-open" };
     const yahooTradingDay = await getLastAvailableTradingDayFromYahoo(asset.symbol, now, asset.exchange).catch(() => undefined);
     const session = yahooTradingDay ?? getLastTradingDay(asset.symbol, asset.exchange, now);

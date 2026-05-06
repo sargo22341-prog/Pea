@@ -8,6 +8,7 @@ import { db } from "../../db.js";
 import { assetRepository } from "../../services/market/asset.repository.js";
 import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
 import { marketDataCleaner } from "../../services/market/market-data-cleaner.js";
+import { marketScheduler } from "../../services/tache_auto/market-scheduler.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 
 export const adminRouter = express.Router();
@@ -18,6 +19,10 @@ const rebuildMarketDataSchema = z.object({
 
 adminRouter.get("/admin/market-data/construction", asyncRoute(async (_req, res) => {
   res.json(dataConstructionQueue.latest());
+}));
+
+adminRouter.get("/admin/market-data/tracked-markets", asyncRoute(async (_req, res) => {
+  res.json(marketScheduler.getSettings());
 }));
 
 adminRouter.post("/admin/market-data/rebuild", asyncRoute(async (req, res) => {

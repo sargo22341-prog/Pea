@@ -215,6 +215,70 @@ export interface DataConstructionJobDto {
   updatedAt: string;
 }
 
+export type MarketOpenRunStatus =
+  | "pending"
+  | "checking"
+  | "confirmed_open"
+  | "confirmed_open_partial"
+  | "holiday_suspected"
+  | "missed_open_window"
+  | "failed"
+  | "skipped_weekend"
+  | "skipped_no_assets";
+
+export type MarketCloseRunStatus =
+  | "pending"
+  | "checking"
+  | "confirmed_closed"
+  | "confirmed_closed_partial"
+  | "close_not_confirmed"
+  | "failed"
+  | "skipped_weekend"
+  | "skipped_no_assets";
+
+export interface TrackedMarketDto {
+  marketKey: string;
+  displayName: string;
+  timezone: string;
+  tradingDate: string;
+  assetsCount: number;
+  enabled: boolean;
+  openExpectedAt?: string | null;
+  openConfirmedAt?: string | null;
+  openLastCheckedAt?: string | null;
+  nextOpenCheckAt?: string | null;
+  openStatus: MarketOpenRunStatus;
+  openMessage?: string | null;
+  openAttempts: number;
+  closeExpectedAt?: string | null;
+  closeConfirmedAt?: string | null;
+  closeLastCheckedAt?: string | null;
+  nextCloseCheckAt?: string | null;
+  closeStatus: MarketCloseRunStatus;
+  closeMessage?: string | null;
+  closeAttempts: number;
+}
+
+export interface SchedulerHealthDto {
+  scheduler_name: string;
+  last_tick_at?: string | null;
+  last_successful_tick_at?: string | null;
+  last_error?: string | null;
+  updated_at: string;
+}
+
+export interface TrackedMarketsSettingsDto {
+  nextTask: {
+    type: "open" | "close";
+    marketKey: string;
+    marketName: string;
+    marketTimezone: string;
+    runAt: string;
+  } | null;
+  markets: TrackedMarketDto[];
+  health: SchedulerHealthDto;
+}
+
 export interface AssetMarketDto {
   symbol: string;
   marketState: MarketState;

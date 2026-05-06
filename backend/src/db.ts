@@ -451,6 +451,76 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_symbol ON asset_calendar_events(symbol);
   CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_date ON asset_calendar_events(event_date);
+
+  CREATE TABLE IF NOT EXISTS tracked_markets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market_key TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    timezone TEXT NOT NULL,
+    sessions_json TEXT NOT NULL,
+    overrides_json TEXT,
+    assets_count INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS market_daily_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market_key TEXT NOT NULL,
+    trading_date TEXT NOT NULL,
+    timezone TEXT NOT NULL,
+    open_expected_at TEXT,
+    open_status TEXT NOT NULL DEFAULT 'pending',
+    open_confirmed_at TEXT,
+    open_attempts INTEGER NOT NULL DEFAULT 0,
+    open_last_error TEXT,
+    open_last_checked_at TEXT,
+    next_open_check_at TEXT,
+    open_status_message TEXT,
+    open_job_id TEXT,
+    close_expected_at TEXT,
+    close_status TEXT NOT NULL DEFAULT 'pending',
+    close_confirmed_at TEXT,
+    close_attempts INTEGER NOT NULL DEFAULT 0,
+    close_last_error TEXT,
+    close_last_checked_at TEXT,
+    next_close_check_at TEXT,
+    close_status_message TEXT,
+    close_job_id TEXT,
+    assets_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(market_key, trading_date)
+  );
+
+  CREATE TABLE IF NOT EXISTS market_check_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market_key TEXT NOT NULL,
+    trading_date TEXT NOT NULL,
+    phase TEXT NOT NULL,
+    checked_at TEXT NOT NULL,
+    expected_at TEXT,
+    yahoo_market_state TEXT,
+    success INTEGER NOT NULL DEFAULT 0,
+    partial_success INTEGER NOT NULL DEFAULT 0,
+    message TEXT,
+    symbols_count INTEGER NOT NULL DEFAULT 0,
+    valid_symbols_count INTEGER NOT NULL DEFAULT 0,
+    failed_symbols_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS scheduler_health (
+    scheduler_name TEXT PRIMARY KEY,
+    last_tick_at TEXT,
+    last_successful_tick_at TEXT,
+    last_error TEXT,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_market_daily_runs_market_date ON market_daily_runs(market_key, trading_date);
+  CREATE INDEX IF NOT EXISTS idx_market_check_logs_created_at ON market_check_logs(created_at);
 `);
 
 // Applique les migrations incrémentales après la création du schéma initial

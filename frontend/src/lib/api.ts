@@ -36,6 +36,7 @@ import type {
   UpdatePositionInput,
   SortDirection,
   TopAndLosersResponse,
+  TrackedMarketsSettingsDto,
   User,
   WatchlistItem
 } from "@pea/shared";
@@ -216,6 +217,7 @@ export const api = {
   resetAssetIcon: (symbol: string) => request<void>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
   assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons"),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
+  trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
   rebuildAllMarketData: () =>
