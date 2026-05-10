@@ -426,7 +426,7 @@ export function AssetDetailPage({ user }: { user: User }) {
           </section>
         ) : null}
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           {!asset.data.isEtf && dividends && dividends.length > 0 ? (
             <section className="card overflow-hidden">
               <h2 className="mb-4 font-semibold">Dividende</h2>

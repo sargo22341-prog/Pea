@@ -1,4 +1,5 @@
 import type { AssetMarketInfo, DividendEvent } from "@pea/shared";
+import { useEffect, useRef } from "react";
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { formatMaybeDate, formatMonthYear, formatPlainPercent, money } from "../../lib/format";
@@ -22,6 +23,7 @@ export function DividendLineChartSection({
   currentPrice?: number;
   averageBuyPrice?: number;
 }) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const currentYear = new Date().getUTCFullYear();
   const fiveYearsAgo = new Date();
   fiveYearsAgo.setFullYear(currentYear - 5);
@@ -39,6 +41,14 @@ export function DividendLineChartSection({
       currency: event.currency,
       status: event.status
     }));
+
+  const isScrollable = chartData.length > 15;
+  const chartWidth = isScrollable ? Math.max(chartData.length * 72, 1080) : "100%";
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node || !isScrollable) return;
+    node.scrollTo({ left: node.scrollWidth, behavior: "auto" });
+  }, [isScrollable, chartData.length]);
 
   if (chartData.length === 0) return null;
 
@@ -58,59 +68,65 @@ export function DividendLineChartSection({
   const personalYield = averageBuyPrice && averageBuyPrice > 0 ? (annualDividendPerShare / averageBuyPrice) * 100 : undefined;
 
   return (
-    <section className="card overflow-hidden">
+    <section className="card min-w-0 max-w-full overflow-hidden">
       <div className="flex flex-col gap-1 border-b border-white/[0.06] p-4">
         <h2 className="text-2xl font-bold text-white">
           {formatPlainPercent(marketYield)}
           <span className="ml-2 text-base font-semibold text-amber">({formatPlainPercent(personalYield)} sur PRU)</span>
         </h2>
       </div>
-      <div className="h-[320px] min-w-0 px-1 py-4 sm:h-[360px] sm:px-3">
-        <SafeResponsiveContainer>
-          <LineChart data={chartData} margin={{ bottom: 8, left: 0, right: 20, top: 36 }}>
-            <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 3" vertical={false} />
+      <div
+        className="h-[320px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden px-1 py-4 [-ms-overflow-style:none] [scrollbar-width:thin] sm:h-[360px] sm:px-3"
+        ref={scrollRef}
+      >
+        <div className="h-full min-w-full" style={{ width: chartWidth }}>
+          <SafeResponsiveContainer>
+            <LineChart data={chartData} margin={{ bottom: 8, left: 0, right: 20, top: 36 }}>
+              <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 3" vertical={false} />
 
-            <XAxis
-              axisLine={false}
-              dataKey="date"
-              padding={{ left: 20, right: 20 }}
-              tick={{ fill: "#94a3b8", fontSize: 12 }}
-              tickFormatter={(value) => formatMonthYear(String(value))}
-              tickLine={false}
-            />
+              <XAxis
+                axisLine={false}
+                dataKey="date"
+                interval={0}
+                padding={{ left: 20, right: 20 }}
+                tick={{ fill: "#94a3b8", fontSize: 12 }}
+                tickFormatter={(value) => formatMonthYear(String(value))}
+                tickLine={false}
+              />
 
-            <YAxis hide domain={["auto", "auto"]} />
+              <YAxis hide domain={["auto", "auto"]} />
 
-            <Tooltip
-              contentStyle={{
-                background: "rgba(7, 16, 20, 0.9)",
-                border: "1px solid rgba(212, 175, 55, 0.22)",
-                borderRadius: 8,
-                boxShadow: "0 18px 40px rgba(0,0,0,0.35)"
-              }}
-              formatter={(value, _name, item) => money(Number(value), (item.payload as DividendChartPoint).currency)}
-              labelFormatter={(value, payload) => {
-                const point = payload?.[0]?.payload as DividendChartPoint | undefined;
-                const suffix = point?.status === "estimated" ? " (infos marche)" : "";
-                return `${formatMaybeDate(String(value))}${suffix}`;
-              }}
-              labelStyle={{ color: "#f8fafc" }}
-            />
+              <Tooltip
+                contentStyle={{
+                  background: "rgba(7, 16, 20, 0.9)",
+                  border: "1px solid rgba(212, 175, 55, 0.22)",
+                  borderRadius: 8,
+                  boxShadow: "0 18px 40px rgba(0,0,0,0.35)"
+                }}
+                formatter={(value, _name, item) => money(Number(value), (item.payload as DividendChartPoint).currency)}
+                labelFormatter={(value, payload) => {
+                  const point = payload?.[0]?.payload as DividendChartPoint | undefined;
+                  const suffix = point?.status === "estimated" ? " (infos marche)" : "";
+                  return `${formatMaybeDate(String(value))}${suffix}`;
+                }}
+                labelStyle={{ color: "#f8fafc" }}
+              />
 
-            <Line
-              activeDot={false}
-              dataKey="amount"
-              dot={false}
-              label={<DividendPointLabel />}
-              name="Dividende / action"
-              stroke="#d4af37"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={3}
-              type="monotone"
-            />
-          </LineChart>
-        </SafeResponsiveContainer>
+              <Line
+                activeDot={false}
+                dataKey="amount"
+                dot={false}
+                label={<DividendPointLabel />}
+                name="Dividende / action"
+                stroke="#d4af37"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                type="monotone"
+              />
+            </LineChart>
+          </SafeResponsiveContainer>
+        </div>
       </div>
     </section>
   );
