@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:25-bookworm-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -12,7 +12,7 @@ COPY backend backend
 COPY frontend frontend
 RUN npm run build
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
