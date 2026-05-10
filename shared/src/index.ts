@@ -423,6 +423,16 @@ export interface PositionTransactionStats {
   currency: CurrencyCode;
 }
 
+export interface PositionMiniChart {
+  range: RangeKey;
+  points: Array<{
+    t: number;
+    v: number;
+  }>;
+  stale?: boolean;
+  updatedAt?: string;
+}
+
 export interface PositionRangePerformance extends Position {
   currentPrice: number;
   currentMarketValue: number;
@@ -435,6 +445,7 @@ export interface PositionRangePerformance extends Position {
   currency: CurrencyCode;
   stale?: boolean;
   incompleteData?: boolean;
+  miniChart: PositionMiniChart;
 }
 
 export interface WatchlistItem {

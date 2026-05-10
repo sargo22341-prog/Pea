@@ -76,6 +76,12 @@ export function PositionList({
 
   useEffect(() => {
     let debounceTimer: number | undefined;
+    let refreshGuardTimer: number | undefined;
+
+    function stopRefreshingSoon() {
+      if (refreshGuardTimer) window.clearTimeout(refreshGuardTimer);
+      refreshGuardTimer = window.setTimeout(() => setPerformanceRefreshing(false), 45_000);
+    }
 
     function reloadPerformance() {
       const now = Date.now();
@@ -100,13 +106,17 @@ export function PositionList({
     function onMarketEvent(event: Event) {
       const payload = (event as CustomEvent<{ type?: string; range?: string }>).detail;
       if (payload.range && payload.range !== range) return;
-      if (payload.type === "portfolio-performance-refresh-started") setPerformanceRefreshing(true);
-      if (payload.type === "portfolio-performance-updated") scheduleReload();
+      if (payload.type === "portfolio-performance-refresh-started" || payload.type === "portfolio-chart-refresh-started") {
+        setPerformanceRefreshing(true);
+        stopRefreshingSoon();
+      }
+      if (payload.type === "portfolio-performance-updated" || payload.type === "portfolio-chart-updated" || payload.type === "portfolio-assets-updated") scheduleReload();
     }
 
     window.addEventListener("pea:market-event", onMarketEvent);
     return () => {
       if (debounceTimer) window.clearTimeout(debounceTimer);
+      if (refreshGuardTimer) window.clearTimeout(refreshGuardTimer);
       window.removeEventListener("pea:market-event", onMarketEvent);
     };
   }, [range]);
@@ -284,20 +294,17 @@ function MobilePositionRow({ position, positive, prive }: { position: PositionRa
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_minmax(52px,64px)_minmax(82px,106px)] items-center gap-2 lg:hidden">
+    <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_84px_minmax(82px,106px)] items-center gap-2 lg:hidden">
       <AssetIcon symbol={position.symbol} />
       <div className="min-w-0 leading-tight">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="truncate text-sm font-semibold">{position.name}</p>
         </div>
         <p className="truncate text-[11px] text-slate-400">
-          {masquerValeur(`${formatQuantity(position.quantity)}`, prive)} | {masquerValeur(money(position.averageBuyPrice, position.currency), prive)}
+          {masquerValeur(`${formatQuantity(position.quantity)} x ${money(position.averageBuyPrice, position.currency)}`, prive)}
         </p>
       </div>
-      {/* Le cours actuel est une donnée de marché : toujours visible */}
-      <p className="truncate whitespace-nowrap text-right text-xs font-semibold tabular-nums">
-        {position.stale && !position.currentPrice ? "n/a" : money(position.currentPrice, position.currency)}
-      </p>
+      <MiniSparkline miniChart={position.miniChart} tone={sparklineTone(position)} />
       <div className="min-w-0 text-right leading-tight">
         <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums">{masquerValeur(money(position.currentMarketValue, position.currency), prive)}</p>
         <p className={`mt-0.5 flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums ${positive ? "text-mint" : "text-coral"}`}>
@@ -315,7 +322,7 @@ function DesktopPositionRow({ position, positive, prive, rangeLabel }: { positio
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <div className="hidden min-w-0 gap-3 lg:grid lg:grid-cols-[1.5fr_.65fr_.85fr_.85fr_1fr] lg:items-center">
+    <div className="hidden min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(0,1.6fr)_112px_minmax(150px,1fr)] lg:items-center">
       <div className="flex min-w-0 items-center gap-3">
         <AssetIcon symbol={position.symbol} />
         <div className="min-w-0">
@@ -323,14 +330,11 @@ function DesktopPositionRow({ position, positive, prive, rangeLabel }: { positio
             <p className="truncate font-semibold">{position.name}</p>
             {position.incompleteData && <span className="rounded bg-amber/15 px-2 py-1 text-[11px] font-semibold text-amber">partiel</span>}
           </div>
-          <p className="muted">{position.symbol}</p>
+          <p className="muted truncate">{masquerValeur(`${formatQuantity(position.quantity)} x ${money(position.averageBuyPrice, position.currency)}`, prive)}</p>
         </div>
       </div>
 
-      <Info label="Quantite" value={masquerValeur(`${formatQuantity(position.quantity)} actions`, prive)} />
-      {/* Prix actuel = donnée de marché, toujours visible */}
-      <Info label="Prix actuel" value={position.stale && !position.currentPrice ? "Prix indisponible" : money(position.currentPrice, position.currency)} />
-      <Info label="Prix moyen" value={masquerValeur(money(position.averageBuyPrice, position.currency), prive)} />
+      <MiniSparkline miniChart={position.miniChart} tone={sparklineTone(position)} />
 
       <div className="text-right">
         <p className="text-sm text-slate-400">Valeur | Perf {rangeLabel}</p>
@@ -351,14 +355,52 @@ function formatQuantity(value: number) {
   return new Intl.NumberFormat("fr-FR").format(value);
 }
 
-/**
- * Affiche une paire libelle/valeur dans la ligne desktop.
- */
-function Info({ label, value }: { label: string; value: string }) {
+function sparklineTone(position: PositionRangePerformance): "positive" | "negative" | "neutral" {
+  if (position.intervalPerformanceValue > 0) return "positive";
+  if (position.intervalPerformanceValue < 0) return "negative";
+  return "neutral";
+}
+
+function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerformance["miniChart"]; tone: "positive" | "negative" | "neutral" }) {
+  const points = miniChart?.points ?? [];
+  const colorClass = tone === "positive" ? "text-mint" : tone === "negative" ? "text-coral" : "text-slate-400";
+
+  if (points.length < 2) {
+    return (
+      <div className="h-9 w-[84px] sm:w-28" aria-label="Mini-graph indisponible">
+        <div className="mt-[17px] h-px w-full rounded bg-line/80" />
+      </div>
+    );
+  }
+
+  const width = 112;
+  const height = 36;
+  const padding = 3;
+  const minT = points[0].t;
+  const maxT = points[points.length - 1].t;
+  const values = points.map((point) => point.v);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const spanT = maxT - minT || 1;
+  const spanV = maxV - minV || 1;
+  const path = points
+    .map((point, index) => {
+      const x = padding + ((point.t - minT) / spanT) * (width - padding * 2);
+      const y = height - padding - ((point.v - minV) / spanV) * (height - padding * 2);
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+
   return (
-    <div className="text-right">
-      <p className="text-sm text-slate-400">{label}</p>
-      <p className="font-semibold">{value}</p>
-    </div>
+    <svg
+      aria-label={`Mini-graph ${miniChart?.range ?? ""}`}
+      className={`h-9 w-[84px] overflow-visible sm:w-28 ${colorClass}`}
+      focusable="false"
+      preserveAspectRatio="none"
+      role="img"
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      <path d={path} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }

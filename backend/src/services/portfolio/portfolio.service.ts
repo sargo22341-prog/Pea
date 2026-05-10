@@ -3,7 +3,7 @@
  * Le service calcule les DTO prêts à afficher et invalide les caches utilisateur.
  */
 
-import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioPerformancePoint, PortfolioSummary, PortfolioTransactionMarker, Position, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
+import type { CreatePositionInput, EditablePortfolioTransaction, HistoryPoint, MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioPerformancePoint, PortfolioSummary, PortfolioTransactionMarker, Position, PositionMiniChart, PositionRangePerformance, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UpdatePositionInput, UserAssetPositionDto } from "@pea/shared";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -72,6 +72,28 @@ function finiteMarketNumber(value: unknown): number | undefined {
   if (value == null) return undefined;
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
+function downsampleMiniChartPoints(points: PositionMiniChart["points"], maxPoints = 40): PositionMiniChart["points"] {
+  if (points.length <= maxPoints) return points;
+  const result: PositionMiniChart["points"] = [];
+  const last = points.length - 1;
+  for (let index = 0; index < maxPoints; index += 1) {
+    const point = points[Math.round((index * last) / (maxPoints - 1))];
+    if (point) result.push(point);
+  }
+  return result;
+}
+
+function downsampleHistoryForMiniChart(points: HistoryPoint[], maxPoints = 40): HistoryPoint[] {
+  if (points.length <= maxPoints) return points;
+  const result: HistoryPoint[] = [];
+  const last = points.length - 1;
+  for (let index = 0; index < maxPoints; index += 1) {
+    const point = points[Math.round((index * last) / (maxPoints - 1))];
+    if (point) result.push(point);
+  }
+  return result;
 }
 
 export class PortfolioService {
@@ -990,6 +1012,13 @@ export class PortfolioService {
     const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
     const hasSnapshotPerformance = snapshotPrice !== undefined && (snapshotChange !== undefined || quote?.previousClose !== undefined);
     const incompleteData = !hasSnapshotPerformance && (!firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale));
+    const miniChart = this.positionMiniChart({
+      position: effectivePosition,
+      range,
+      history: validHistory,
+      txEntry: entry,
+      stale: incompleteData
+    });
 
     return {
       ...effectivePosition,
@@ -1002,7 +1031,36 @@ export class PortfolioService {
       totalPerformanceValue,
       totalPerformancePercent,
       stale: incompleteData,
-      incompleteData
+      incompleteData,
+      miniChart
+    };
+  }
+
+  private positionMiniChart(input: {
+    position: Position;
+    range: RangeKey;
+    history: HistoryPoint[];
+    txEntry?: PositionTransactionCache;
+    stale: boolean;
+  }): PositionMiniChart {
+    const sampledHistory = downsampleHistoryForMiniChart(input.history, 40);
+    const rawPoints = sampledHistory
+      .map((point) => {
+        const timestamp = new Date(point.date).getTime();
+        const close = Number(point.close);
+        if (!Number.isFinite(timestamp) || !Number.isFinite(close)) return undefined;
+        const quantity = input.txEntry?.hasDated
+          ? getQuantityAtTime(input.txEntry.transactions, timestamp)
+          : input.position.quantity;
+        return { t: timestamp, v: close * quantity };
+      })
+      .filter((point): point is { t: number; v: number } => point !== undefined && Number.isFinite(point.v));
+
+    return {
+      range: input.range,
+      points: downsampleMiniChartPoints(rawPoints, 40),
+      stale: input.stale || input.history.some((point) => point.stale),
+      updatedAt: new Date().toISOString()
     };
   }
 

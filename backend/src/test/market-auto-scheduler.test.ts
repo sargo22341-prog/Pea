@@ -1065,6 +1065,9 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
 
   assert.equal(result.first.length, 1);
   assert.equal(result.second.length, 1);
+  assert.equal(result.first[0].miniChart.range, "1d");
+  assert.deepEqual(result.first[0].miniChart.points, [{ t: 1000, v: 100 }, { t: 2000, v: 110 }]);
+  assert.deepEqual(result.second[0].miniChart.points, result.first[0].miniChart.points);
   assert.deepEqual(result.afterFirst, { chartCalls: 1, quoteCalls: 1 });
   assert.deepEqual(result.afterSecond, result.afterFirst);
   assert.deepEqual(result.afterConcurrent, result.afterFirst);
@@ -1098,6 +1101,43 @@ test("portfolio position range percent uses interval market value as base", () =
 
   assert.equal(result.intervalPerformanceValue, 10);
   assert.equal(result.intervalPerformancePercent, 10);
+  assert.equal(result.miniChart.points.length, 2);
+  assert.equal(result.miniChart.points[1].v, 110);
+});
+
+test("portfolio position miniChart is capped to 40 points and follows selected range", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    let chartCalls = 0;
+    marketDataService.getChartData = async (symbol, range) => {
+      chartCalls += 1;
+      return {
+        symbol,
+        range,
+        interval: "1d",
+        timestamps: Array.from({ length: 100 }, (_, index) => 1000 + index * 1000),
+        prices: Array.from({ length: 100 }, (_, index) => 100 + index),
+        cachedAt: Date.now(),
+        expiresAt: Date.now() + 60000
+      };
+    };
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 199, currency: "EUR" });
+    const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1m", { forceIntradayOpen: true }));
+    console.log("__RESULT__" + JSON.stringify({ item: output[0], chartCalls }));
+  `);
+
+  assert.equal(result.chartCalls, 1);
+  assert.equal(result.item.miniChart.range, "1m");
+  assert.equal(result.item.miniChart.points.length, 40);
+  assert.equal(result.item.miniChart.points[0].v, 100);
+  assert.equal(result.item.miniChart.points.at(-1).v, 199);
 });
 
 test("portfolio 1d position performance includes previous close gap", () => {

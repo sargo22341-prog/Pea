@@ -38,14 +38,15 @@ export class PortfolioPerformanceCacheService {
     const versions = this.versions(userId, input.range);
     const key = cacheKey(userId, input.range);
     const cached = this.read(key);
+    const hasMiniCharts = cached?.payload.every((item) => item.miniChart && Array.isArray(item.miniChart.points)) ?? false;
     const portfolioMatches = cached?.portfolioVersion === versions.portfolioVersion;
     const marketMatches = cached?.marketDataVersion === versions.marketDataVersion;
 
-    if (cached && portfolioMatches && marketMatches && cached.expiresAt > nowMs()) {
+    if (cached && hasMiniCharts && portfolioMatches && marketMatches && cached.expiresAt > nowMs()) {
       return cached.payload;
     }
 
-    if (cached && portfolioMatches && input.allowStale !== false) {
+    if (cached && hasMiniCharts && portfolioMatches && input.allowStale !== false) {
       this.refreshInBackground({ ...input, userId, versions });
       return cached.payload;
     }
@@ -173,7 +174,7 @@ export class PortfolioPerformanceCacheService {
         candleInterval: interval,
         candleUpdatedAt: String(candleStats.updated_at ?? ""),
         candleCount: Number(candleStats.count ?? 0),
-        positionRangeFormula: "snapshot-day-change-v4"
+        positionRangeFormula: "snapshot-day-change-v5-mini-chart"
       })
     };
   }
