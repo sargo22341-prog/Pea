@@ -1072,6 +1072,100 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
   assert.equal(result.afterInvalidation.quoteCalls, 3);
 });
 
+test("portfolio position range percent uses interval market value as base", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    marketDataService.getChartData = async (symbol, range) => ({
+      symbol,
+      range,
+      interval: "5m",
+      timestamps: [1000, 2000],
+      prices: [100, 110],
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + 60000
+    });
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 110, currency: "EUR" });
+    const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
+    console.log("__RESULT__" + JSON.stringify(output[0]));
+  `);
+
+  assert.equal(result.intervalPerformanceValue, 10);
+  assert.equal(result.intervalPerformancePercent, 10);
+});
+
+test("portfolio 1d position performance includes previous close gap", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    marketDataService.getChartData = async (symbol, range) => ({
+      symbol,
+      range,
+      interval: "5m",
+      timestamps: [1000, 2000],
+      prices: [95, 96.49],
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + 60000
+    });
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 96.49, previousClose: 100, currency: "EUR" });
+    const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
+    console.log("__RESULT__" + JSON.stringify(output[0]));
+  `);
+
+  assert.equal(result.intervalStartPrice, 100);
+  assert.equal(Number(result.intervalPerformanceValue.toFixed(2)), -3.51);
+  assert.equal(Number(result.intervalPerformancePercent.toFixed(2)), -3.51);
+});
+
+test("portfolio 1d position performance uses local market snapshot before chart tail", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    marketDataService.getChartData = async (symbol, range) => ({
+      symbol,
+      range,
+      interval: "5m",
+      timestamps: [1000, 2000],
+      prices: [100, 101],
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + 60000
+    });
+    marketSnapshotService.getQuote = async (symbol) => ({
+      symbol,
+      name: symbol,
+      price: 103,
+      previousClose: 100,
+      change: 3,
+      changePercent: 3,
+      currency: "EUR"
+    });
+    const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
+    console.log("__RESULT__" + JSON.stringify(output[0]));
+  `);
+
+  assert.equal(result.currentPrice, 103);
+  assert.equal(result.intervalPerformanceValue, 3);
+  assert.equal(result.intervalPerformancePercent, 3);
+});
+
 test("portfolio positions performance cache is isolated by user and emits SSE after stale background refresh", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
@@ -1100,7 +1194,12 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
         expiresAt: Date.now() + 60000
       };
     };
-    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 111, currency: "EUR" });
+    let quoteCalls = 0;
+    marketSnapshotService.getQuote = async (symbol) => {
+      quoteCalls += 1;
+      const price = 110 + quoteCalls;
+      return { symbol, name: symbol, price, previousClose: 100, change: price - 100, changePercent: price - 100, currency: "EUR" };
+    };
     const events = [];
     marketEventsService.emitToUser = (userId, event, payload = {}) => {
       events.push({ userId: String(userId), event, payload });

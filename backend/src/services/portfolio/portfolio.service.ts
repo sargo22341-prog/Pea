@@ -68,6 +68,12 @@ function normalizedUserId(userId?: string | number) {
   return String(normalizeUserId(userId));
 }
 
+function finiteMarketNumber(value: unknown): number | undefined {
+  if (value == null) return undefined;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+}
+
 export class PortfolioService {
   listPositions(): Position[] {
     const rows = portfolioRepository.listPositions();
@@ -953,10 +959,13 @@ export class PortfolioService {
     const firstPoint = validHistory[0];
     const lastPoint = validHistory[validHistory.length - 1];
     const fallbackCurrentPrice = quote?.price || effectivePosition.averageBuyPrice;
-    const currentPrice = lastPoint?.close || fallbackCurrentPrice;
+    const snapshotPrice = range === "1d" ? finiteMarketNumber(quote?.price) : undefined;
+    const snapshotChange = range === "1d" ? finiteMarketNumber(quote?.change) : undefined;
+    const snapshotChangePercent = range === "1d" ? finiteMarketNumber(quote?.changePercent) : undefined;
+    const currentPrice = snapshotPrice || lastPoint?.close || fallbackCurrentPrice;
     const intervalStartPrice =
-      firstPoint?.close ||
       (range === "1d" && quote?.previousClose ? quote.previousClose : undefined) ||
+      firstPoint?.close ||
       currentPrice ||
       effectivePosition.averageBuyPrice;
 
@@ -972,12 +981,15 @@ export class PortfolioService {
       : effectivePosition.averageBuyPrice * intervalQuantity;
     const intervalStartGain = intervalStartMarketValue - intervalStartCost;
     const currentGain = currentMarketValue - totalCost;
-    const intervalPerformanceValue = currentGain - intervalStartGain;
-    const intervalPerformanceBase = intervalStartCost || totalCost;
-    const intervalPerformancePercent = intervalPerformanceBase ? (intervalPerformanceValue / intervalPerformanceBase) * 100 : 0;
+    const intervalPerformanceValue = snapshotChange !== undefined
+      ? snapshotChange * effectivePosition.quantity
+      : currentGain - intervalStartGain;
+    const intervalPerformanceBase = intervalStartMarketValue || intervalStartCost || totalCost;
+    const intervalPerformancePercent = snapshotChangePercent ?? (intervalPerformanceBase ? (intervalPerformanceValue / intervalPerformanceBase) * 100 : 0);
     const totalPerformanceValue = currentMarketValue - totalCost;
     const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
-    const incompleteData = !firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale);
+    const hasSnapshotPerformance = snapshotPrice !== undefined && (snapshotChange !== undefined || quote?.previousClose !== undefined);
+    const incompleteData = !hasSnapshotPerformance && (!firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale));
 
     return {
       ...effectivePosition,

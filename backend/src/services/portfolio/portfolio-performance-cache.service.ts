@@ -172,7 +172,8 @@ export class PortfolioPerformanceCacheService {
         candleRange: storedRange,
         candleInterval: interval,
         candleUpdatedAt: String(candleStats.updated_at ?? ""),
-        candleCount: Number(candleStats.count ?? 0)
+        candleCount: Number(candleStats.count ?? 0),
+        positionRangeFormula: "snapshot-day-change-v4"
       })
     };
   }

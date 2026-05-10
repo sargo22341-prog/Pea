@@ -274,10 +274,15 @@ export function AssetDetailPage({ user }: { user: User }) {
     }
   }
 
-  const firstClose = chart?.prices[0];
-  const rangeChange = chart?.performanceEuro ?? 0;
-  const rangeChangePercent = chart?.performancePercent ?? 0;
+  const dayChange = range === "1d" ? marketInfo?.regularMarketChange ?? quote.change : undefined;
+  const dayChangePercent = range === "1d" ? marketInfo?.regularMarketChangePercent ?? quote.changePercent : undefined;
+  const firstClose = range === "1d"
+    ? marketInfo?.regularMarketPreviousClose ?? quote.previousClose ?? chart?.baselinePrice ?? chart?.prices[0]
+    : chart?.prices[0];
+  const rangeChange = dayChange ?? chart?.performanceEuro ?? 0;
+  const rangeChangePercent = dayChangePercent ?? chart?.performancePercent ?? 0;
   const positive = rangeChange >= 0;
+  const displayPrice = marketInfo?.regularMarketPrice ?? quote.price;
 
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
@@ -303,7 +308,7 @@ export function AssetDetailPage({ user }: { user: User }) {
             </div>
           </div>
           <div className="text-left sm:text-right">
-            <p className="text-3xl font-bold">{money(quote.price, quote.currency)}</p>
+            <p className="text-3xl font-bold">{money(displayPrice, quote.currency)}</p>
             <p className={`mt-1 flex items-center gap-1 font-semibold sm:justify-end ${positive ? "text-mint" : "text-coral"}`}>
               <Icon size={18} />
               {money(rangeChange, quote.currency)} ({percent(rangeChangePercent)})
