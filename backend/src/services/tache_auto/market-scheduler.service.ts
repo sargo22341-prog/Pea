@@ -1,5 +1,7 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { logger } from "../shared/logger.service.js";
+import { config } from "../../config.js";
+import { liveMarketRefreshTask } from "./live-market-refresh.task.js";
 import { marketOpenTask } from "./market-open.task.js";
 import { marketCloseTask } from "./market-close.task.js";
 import { marketLogRepository } from "./market-log.repository.js";
@@ -21,7 +23,12 @@ export class MarketSchedulerService {
     trackedMarketRepository.syncFromTrackedAssets();
     this.timer = setInterval(() => void this.tick(), tickIntervalMs);
     void this.tick();
-    logger.info("market-data", "market scheduler started", { intervalMs: tickIntervalMs });
+    logger.info("market-data", "market scheduler started", {
+      intervalMs: tickIntervalMs,
+      liveRefreshEnabled: config.enableMarketLiveRefresh,
+      liveRefreshIntervalMs: config.marketLiveRefreshIntervalMs,
+      marketSseEnabled: config.enableMarketSse
+    });
   }
 
   stop() {
@@ -39,6 +46,7 @@ export class MarketSchedulerService {
         await marketOpenTask.run(group, now);
         await marketCloseTask.run(group, now);
       }
+      await liveMarketRefreshTask.run(groups.values(), now);
       await weeklyRefreshTask.run(now);
       marketLogRepository.cleanupOlderThan(90, now);
       schedulerHealthRepository.markSuccess(schedulerName, now);

@@ -5,9 +5,11 @@
 
 import type { AssetMarketDto, Quote } from "@pea/shared";
 import { db } from "../../db.js";
+import { config } from "../../config.js";
 import { normalizeMarketState } from "../shared/cache.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
+import { writeCache } from "../yahoo/cache/yahoo.cache.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
@@ -41,6 +43,10 @@ export class MarketSnapshotService {
     if (memoized && memoized.expiresAt > Date.now()) return memoized.quote;
 
     const snapshot = this.readSnapshot(knownAsset.id);
+    if (snapshot && config.enableMarketLiveRefresh && this.snapshotWasCheckedRecently(knownAsset.id)) {
+      this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+      return snapshot;
+    }
     const latestFinalizedTradingDate = candleRepository.latestFinalizedTradingDate(knownAsset.id, "1d");
     if (snapshot && latestFinalizedTradingDate && !isMarketOpen(snapshot.marketState)) {
       this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
@@ -96,15 +102,26 @@ export class MarketSnapshotService {
     this.snapshotQuoteCache.delete(symbol.toUpperCase());
   }
 
+  primeQuoteCache(symbol: string, quote: Quote, ttlMs = 30_000): void {
+    const key = symbol.toUpperCase();
+    this.snapshotQuoteCache.set(key, { quote: { ...quote, symbol: key }, expiresAt: Date.now() + ttlMs });
+    writeCache("cached_quotes", key, quote);
+  }
+
+  storeBatchSnapshot(asset: AssetRow, quote: Quote, snapshot: YahooSnapshotPayload, ttlMs = 30_000): void {
+    this.upsertSnapshot(asset.id, snapshot);
+    this.primeQuoteCache(asset.symbol, quote, ttlMs);
+  }
+
   upsertSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
     db.prepare(
       `INSERT INTO asset_market_snapshots (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
         day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, average_volume_3m, dividend_rate, dividend_yield,
         trailing_annual_dividend_rate, trailing_annual_dividend_yield, currency, exchange,
-        full_exchange_name, quote_type, regular_market_time, source, updated_at
+        full_exchange_name, quote_type, regular_market_time, source, last_checked_at, updated_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT(asset_id) DO UPDATE SET
         market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
         last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
@@ -130,6 +147,7 @@ export class MarketSnapshotService {
         quote_type = COALESCE(excluded.quote_type, asset_market_snapshots.quote_type),
         regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
         source = excluded.source,
+        last_checked_at = excluded.last_checked_at,
         updated_at = CASE
           WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
             OR excluded.last_price IS NOT NULL
@@ -227,6 +245,20 @@ export class MarketSnapshotService {
       dividendRate: row.dividend_rate == null ? undefined : Number(row.dividend_rate),
       dividendYield: row.dividend_yield == null ? undefined : Number(row.dividend_yield)
     };
+  }
+
+  readSnapshotBySymbol(symbol: string): Quote | undefined {
+    const asset = assetRepository.findBySymbol(symbol.toUpperCase());
+    return asset ? this.readSnapshot(asset.id) : undefined;
+  }
+
+  private snapshotWasCheckedRecently(assetId: number) {
+    const row = db.prepare("SELECT last_checked_at FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as
+      | { last_checked_at?: string | null }
+      | undefined;
+    if (!row?.last_checked_at) return false;
+    const checkedAt = new Date(row.last_checked_at).getTime();
+    return Number.isFinite(checkedAt) && Date.now() - checkedAt < config.marketLiveRefreshIntervalMs;
   }
 }
 

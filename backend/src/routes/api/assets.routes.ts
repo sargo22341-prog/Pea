@@ -80,31 +80,35 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
 
   const [assetStatic, assetChart, assetDividends, assetArticles, assetMarket, dividendsResult, newsResult, marketInfoResult, assetFinancialsResult, extraDataResult] = await Promise.all([
     assetDataService.static(symbol),
-    assetDataService.chart(symbol, range, intradayDebugClock(range)),
+    assetDataService.chart(symbol, range, config.enableMarketLiveRefresh ? {} : intradayDebugClock(range)),
     assetDataService.dividends(symbol),
-    req.user!.assetNewsEnabled ? assetDataService.articles(symbol, userNewsLanguages(req)) : Promise.resolve(undefined),
+    req.user!.assetNewsEnabled && !config.enableMarketLiveRefresh ? assetDataService.articles(symbol, userNewsLanguages(req)) : Promise.resolve(undefined),
     assetDataService.market(symbol),
     Promise.resolve({ data: dividendsService.readDividends(symbol) }).catch((error) => {
       if (!isMarketDataUnavailable(error)) throw error;
       marketUnavailable = true;
       return { data: [] as DividendEvent[] };
     }),
-    req.user!.assetNewsEnabled
+    req.user!.assetNewsEnabled && !config.enableMarketLiveRefresh
       ? yahooService.news(symbol, userNewsLanguages(req)).catch((error) => {
           logger.warn("news", "asset news fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
           return { data: [] as NewsArticle[] };
         })
       : Promise.resolve({ data: [] as NewsArticle[] }),
-    yahooService.marketInfo(symbol).catch((error) => {
-      if (!isMarketDataUnavailable(error)) throw error;
-      marketUnavailable = true;
-      return { data: {} as AssetMarketInfo };
-    }),
+    config.enableMarketLiveRefresh
+      ? Promise.resolve({ data: {} as AssetMarketInfo })
+      : yahooService.marketInfo(symbol).catch((error) => {
+          if (!isMarketDataUnavailable(error)) throw error;
+          marketUnavailable = true;
+          return { data: {} as AssetMarketInfo };
+        }),
     Promise.resolve({ financials: financialsService.readFinancialRows(symbol) as AssetDetails["financials"], isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF") }),
-    yahooService.extraData(symbol).catch((error) => {
-      logger.warn("market-data", "extraData fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
-      return { data: {} };
-    })
+    config.enableMarketLiveRefresh
+      ? Promise.resolve({ data: {} })
+      : yahooService.extraData(symbol).catch((error) => {
+          logger.warn("market-data", "extraData fallback", { symbol, error: error instanceof Error ? error.message : String(error) });
+          return { data: {} };
+        })
   ]);
 
   const history: AssetDetails["history"] = [];

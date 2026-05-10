@@ -5,7 +5,7 @@
  */
 
 import type { RangeKey, User } from "@pea/shared";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "../components/common/EmptyState";
 import { PortfolioEvolutionSection } from "../components/dashboard/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "../components/dashboard/DashboardSkeletons";
@@ -23,6 +23,8 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), [selectedRange]);
   const summary = portfolioFull.data?.summary ?? null;
   const chart = portfolioFull.data?.chart ?? null;
+  const portfolioReload = portfolioFull.reload;
+  const lastAutoReloadAt = useRef(0);
 
   /**
    * Met a jour la range affichee pour tous les blocs dependants du temps.
@@ -41,6 +43,53 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   }, []);
 
   const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
+
+  useEffect(() => {
+    let eventSource: EventSource | undefined;
+    let cancelled = false;
+    let debounceTimer: number | undefined;
+
+    function reloadVisiblePortfolio() {
+      const now = Date.now();
+      if (now - lastAutoReloadAt.current < 1500) return;
+      lastAutoReloadAt.current = now;
+      void portfolioReload();
+    }
+
+    function scheduleReload() {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(reloadVisiblePortfolio, 400);
+    }
+
+    function onForeground() {
+      if (document.visibilityState === "visible") reloadVisiblePortfolio();
+    }
+
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+
+    api.marketFeatures()
+      .then((features) => {
+        if (cancelled || !features.sseEnabled) return;
+        eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
+        for (const eventName of ["market-snapshot-updated", "portfolio-market-updated", "portfolio-assets-updated", "portfolio-chart-updated", "dashboard-chart-updated", "watchlist-market-updated", "watchlist-assets-updated", "watchlist-chart-updated", "analysis-updated", "dividends-updated", "scheduler-health-updated"]) {
+          eventSource.addEventListener(eventName, (event) => {
+            const payload = JSON.parse((event as MessageEvent).data);
+            window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
+            if (payload.type === "market-snapshot-updated" || payload.type === "portfolio-market-updated" || payload.type === "portfolio-assets-updated" || payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") scheduleReload();
+          });
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+      eventSource?.close();
+    };
+  }, [portfolioReload]);
 
   if (portfolioFull.error) return <div className="card border-coral p-6 text-coral">{portfolioFull.error}</div>;
   if (portfolioIsEmpty) return <EmptyState />;

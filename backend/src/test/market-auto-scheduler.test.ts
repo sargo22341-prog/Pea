@@ -478,3 +478,314 @@ test("scheduler cleanup, health update and anti-overlap guard", () => {
   assert.ok(result.health.last_successful_tick_at);
   assert.equal(result.oldLogs.count, 0);
 });
+
+test("live refresh disabled preserves current behavior and does not call Yahoo", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    let calls = 0;
+    yahooApi.quoteBatchRaw = async (symbols) => { calls += 1; return symbols.map((symbol) => quoteRow(symbol, "REGULAR")); };
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    const group = groups.get("euronextParis");
+    const run = marketRunRepository.ensure({
+      marketKey: group.marketKey,
+      tradingDate: "2026-05-06",
+      timezone: group.calendar.timezone,
+      assetsCount: group.assets.length,
+      openExpectedAt: new Date("2026-05-06T07:00:00.000Z"),
+      closeExpectedAt: new Date("2026-05-06T15:30:00.000Z")
+    });
+    marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T07:00:00.000Z" });
+    const outcome = await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T12:00:00.000Z"));
+    console.log("__RESULT__" + JSON.stringify({ calls, outcome }));
+  `);
+
+  assert.equal(result.calls, 0);
+  assert.equal(result.outcome.enabled, false);
+});
+
+test("live refresh merges eligible multi-market symbols into one Yahoo batch", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    addTracked("MSFT", "MSFT", "NASDAQ");
+    const calls = [];
+    let singleQuoteCalls = 0;
+    yahooApi.quoteBatchRaw = async (symbols) => {
+      calls.push([...symbols]);
+      return symbols.map((symbol, index) => pricedQuoteRow(symbol, "REGULAR", 100 + index));
+    };
+    yahooApi.quote = async (symbol) => {
+      singleQuoteCalls += 1;
+      return pricedQuoteRow(symbol, "REGULAR", 999);
+    };
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    for (const group of groups.values()) {
+      const run = marketRunRepository.ensure({
+        marketKey: group.marketKey,
+        tradingDate: "2026-05-06",
+        timezone: group.calendar.timezone,
+        assetsCount: group.assets.length,
+        openExpectedAt: group.marketKey === "us" ? new Date("2026-05-06T13:30:00.000Z") : new Date("2026-05-06T07:00:00.000Z"),
+        closeExpectedAt: group.marketKey === "us" ? new Date("2026-05-06T20:00:00.000Z") : new Date("2026-05-06T15:30:00.000Z")
+      });
+      marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T13:00:00.000Z" });
+    }
+    const outcome = await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T14:00:00.000Z"));
+    const quote = await marketSnapshotService.getQuote("AAA.PA");
+    const snapshots = db.prepare("SELECT COUNT(*) AS count FROM asset_market_snapshots").get();
+    const prices = db.prepare("SELECT a.symbol, s.last_price, s.last_checked_at FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id ORDER BY a.symbol").all();
+    console.log("__RESULT__" + JSON.stringify({ calls, singleQuoteCalls, quote, outcome, snapshots, prices }));
+  `);
+
+  assert.equal(result.calls.length, 1);
+  assert.deepEqual(result.calls[0].sort(), ["AAA.PA", "MSFT"]);
+  assert.equal(result.singleQuoteCalls, 0);
+  assert.equal(result.quote.price, 100);
+  assert.equal(result.outcome.updated, 2);
+  assert.equal(result.snapshots.count, 2);
+  assert.ok(result.prices.every((row: any) => row.last_checked_at));
+});
+
+test("live refresh skips closed markets, lunch pauses, last close window and fresh open confirmations", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    addTracked("7203.T", "Toyota", "JPX");
+    let calls = 0;
+    yahooApi.quoteBatchRaw = async (symbols) => { calls += 1; return symbols.map((symbol) => quoteRow(symbol, "REGULAR")); };
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    for (const group of groups.values()) {
+      const run = marketRunRepository.ensure({
+        marketKey: group.marketKey,
+        tradingDate: group.marketKey === "tokyo" ? "2026-05-07" : "2026-05-06",
+        timezone: group.calendar.timezone,
+        assetsCount: group.assets.length,
+        openExpectedAt: group.marketKey === "tokyo" ? new Date("2026-05-07T00:00:00.000Z") : new Date("2026-05-06T07:00:00.000Z"),
+        closeExpectedAt: group.marketKey === "tokyo" ? new Date("2026-05-07T06:30:00.000Z") : new Date("2026-05-06T15:30:00.000Z")
+      });
+      marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T07:00:00.000Z" });
+    }
+    const task = new LiveMarketRefreshTask();
+    await task.run(groups.values(), new Date("2026-05-06T15:26:00.000Z"));
+    await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-07T03:00:00.000Z"));
+    const parisRun = marketRunRepository.get("euronextParis", "2026-05-06");
+    marketRunRepository.updateClose(parisRun.id, { close_status: "confirmed_closed", close_confirmed_at: "2026-05-06T15:45:00.000Z" });
+    await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T12:00:00.000Z"));
+    const freshRun = marketRunRepository.ensure({
+      marketKey: "euronextParis",
+      tradingDate: "2026-05-08",
+      timezone: "Europe/Paris",
+      assetsCount: 1,
+      openExpectedAt: new Date("2026-05-08T07:00:00.000Z"),
+      closeExpectedAt: new Date("2026-05-08T15:30:00.000Z")
+    });
+    marketRunRepository.updateOpen(freshRun.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-08T07:01:00.000Z" });
+    await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-08T07:02:00.000Z"));
+    console.log("__RESULT__" + JSON.stringify({ calls }));
+  `);
+
+  assert.equal(result.calls, 0);
+});
+
+test("live refresh falls back by market when global Yahoo batch fails", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    addTracked("MSFT", "MSFT", "NASDAQ");
+    const calls = [];
+    yahooApi.quoteBatchRaw = async (symbols) => {
+      calls.push([...symbols]);
+      if (symbols.length > 1) throw new Error("multi-market unsupported");
+      return symbols.map((symbol) => quoteRow(symbol, "REGULAR"));
+    };
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    for (const group of groups.values()) {
+      const run = marketRunRepository.ensure({
+        marketKey: group.marketKey,
+        tradingDate: "2026-05-06",
+        timezone: group.calendar.timezone,
+        assetsCount: group.assets.length,
+        openExpectedAt: group.marketKey === "us" ? new Date("2026-05-06T13:30:00.000Z") : new Date("2026-05-06T07:00:00.000Z"),
+        closeExpectedAt: group.marketKey === "us" ? new Date("2026-05-06T20:00:00.000Z") : new Date("2026-05-06T15:30:00.000Z")
+      });
+      marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T13:00:00.000Z" });
+    }
+    const outcome = await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T14:00:00.000Z"));
+    console.log("__RESULT__" + JSON.stringify({ calls, outcome }));
+  `);
+
+  assert.equal(result.calls.length, 3);
+  assert.equal(result.calls[0].length, 2);
+  assert.deepEqual(result.calls.slice(1).map((call: string[]) => call.length), [1, 1]);
+  assert.equal(result.outcome.updated, 2);
+});
+
+test("market SSE endpoint is authenticated and controlled by env flag", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_SSE = "false";
+    const { app } = await import("./app.ts");
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+        const unauthorized = await fetch(\`\${baseUrl}/api/market/events\`);
+        const disabled = await fetch(\`\${baseUrl}/api/market/events\`, { headers: { Cookie: cookie } });
+        const features = await fetch(\`\${baseUrl}/api/market/features\`, { headers: { Cookie: cookie } }).then((response) => response.json());
+        console.log("__RESULT__" + JSON.stringify({ unauthorized: unauthorized.status, disabled: disabled.status, features }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.unauthorized, 401);
+  assert.equal(result.disabled, 404);
+  assert.equal(result.features.sseEnabled, false);
+});
+
+test("live refresh mode serves dashboard assets analysis and dividends from cache without Yahoo on navigation", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
+    const { app } = await import("./app.ts");
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { yahooService } = await import("./services/yahoo/index.ts");
+    ${helpers}
+
+    const calls = { quote: 0, quoteBatchRaw: 0, chart: 0, quoteSummary: 0, fundamentals: 0, marketInfo: 0, extraData: 0, news: 0 };
+    yahooApi.quote = async (symbol) => { calls.quote += 1; return pricedQuoteRow(symbol, "REGULAR", 999); };
+    yahooApi.quoteBatchRaw = async (symbols) => { calls.quoteBatchRaw += 1; return symbols.map((symbol) => pricedQuoteRow(symbol, "REGULAR", 999)); };
+    yahooApi.chart = async () => { calls.chart += 1; return { quotes: [], dividends: [], splits: [] }; };
+    yahooApi.quoteSummary = async () => { calls.quoteSummary += 1; return { profile: {}, raw: {} }; };
+    yahooService.fundamentals = async () => { calls.fundamentals += 1; return { data: {}, stale: false }; };
+    yahooService.marketInfo = async () => { calls.marketInfo += 1; return { data: {} }; };
+    yahooService.extraData = async () => { calls.extraData += 1; return { data: {} }; };
+    yahooService.news = async () => { calls.news += 1; return { data: [] }; };
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+
+        addTracked("AAA.PA", "AAA", "Paris");
+        const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+        db.prepare(
+          "INSERT INTO asset_market_snapshots (asset_id, market_state, last_price, day_change, day_change_percent, previous_close, currency, exchange, source, last_checked_at, updated_at) VALUES (?, 'REGULAR', 123, 1, 0.82, 122, 'EUR', 'Paris', 'seed', ?, ?)"
+        ).run(asset.id, new Date().toISOString(), new Date().toISOString());
+        db.prepare(
+          "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 122, 123, 122, 122.5, 'seed'), (?, '5m', '2026-05-06T07:05:00.000Z', '2026-05-06T07:10:00.000Z', 122.5, 123, 122.5, 123, 'seed')"
+        ).run(asset.id, asset.id);
+
+        const now = Date.now();
+        const expiresAt = now + 300000;
+        const summary = {
+          totalValue: 123,
+          totalCost: 10,
+          totalDividendsReceived: 0,
+          totalFees: 0,
+          totalPerformance: 113,
+          totalPerformancePercent: 1130,
+          positionsCount: 1,
+          assetsCount: 1,
+          currency: "EUR",
+          positions: [{
+            id: 1,
+            symbol: "AAA.PA",
+            name: "AAA",
+            quantity: 1,
+            averageBuyPrice: 10,
+            currency: "EUR",
+            currentPrice: 123,
+            marketValue: 123,
+            costBasis: 10,
+            performance: 113,
+            performancePercent: 1130,
+            quote: { symbol: "AAA.PA", name: "AAA", price: 123, currency: "EUR", marketState: "REGULAR" }
+          }]
+        };
+        const chart = {
+          userId: "1",
+          range: "intraday",
+          timestamps: [new Date("2026-05-06T07:00:00.000Z").getTime(), new Date("2026-05-06T07:05:00.000Z").getTime()],
+          value: [122.5, 123],
+          invested: [10, 10],
+          gain: [112.5, 113],
+          gainPercent: [1125, 1130],
+          cachedAt: now,
+          expiresAt,
+          transactionMarkers: []
+        };
+        const analysis = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [], stale: false };
+        const dividends = { annualEstimatedTotal: 0, currency: "EUR", months: [], upcoming: [], past: [], stale: false };
+        const writeBlock = (block, range, payload) => db.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES (?, '1', ?, ?, ?, ?, ?)")
+          .run(\`1:\${block}:\${range ?? "default"}\`, block, range ?? null, JSON.stringify(payload), now, expiresAt);
+        writeBlock("portfolio-summary", "1d", summary);
+        writeBlock("analysis", null, analysis);
+        writeBlock("dividends", null, dividends);
+        db.prepare("INSERT INTO portfolio_chart_cache (cache_key, user_id, range, payload, cached_at, expires_at) VALUES ('1:1d', '1', '1d', ?, ?, ?)")
+          .run(JSON.stringify(chart), now, expiresAt);
+
+        const responses = [];
+        for (const path of ["/api/portfolio/full?range=1d", "/api/assets/AAA.PA?range=1d", "/api/portfolio/analysis", "/api/portfolio/dividends"]) {
+          const response = await fetch(\`\${baseUrl}\${path}\`, { headers: { Cookie: cookie } });
+          responses.push({ path, status: response.status });
+          await response.json();
+        }
+        console.log("__RESULT__" + JSON.stringify({ calls, responses }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.ok(result.responses.every((response: any) => response.status === 200), JSON.stringify(result.responses));
+  assert.deepEqual(result.calls, { quote: 0, quoteBatchRaw: 0, chart: 0, quoteSummary: 0, fundamentals: 0, marketInfo: 0, extraData: 0, news: 0 });
+});

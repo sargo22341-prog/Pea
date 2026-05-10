@@ -4,10 +4,12 @@
  */
 
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
+import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
+import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 
 function mapWatchlistRow(row: any): WatchlistItem {
@@ -24,8 +26,15 @@ function mapWatchlistRow(row: any): WatchlistItem {
 
 export class WatchlistService {
   async list(range: RangeKey = "1d"): Promise<WatchlistItem[]> {
+    const userId = currentUserId().toString();
+    if (config.enableMarketLiveRefresh) {
+      const cached = frontendBlockCache.read<WatchlistItem[]>(userId, "watchlist", range);
+      if (cached) return cached;
+    }
     const rows = db.prepare("SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC").all(currentUserId());
-    return Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
+    const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "watchlist", payload, config.marketLiveRefreshIntervalMs, range);
+    return payload;
   }
 
   async add(symbol: string, input?: Partial<SearchResult>): Promise<WatchlistItem> {

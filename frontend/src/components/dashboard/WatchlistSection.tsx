@@ -29,6 +29,8 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [sortOpen, setSortOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoReloadAt = useRef(0);
+  const watchlistReload = watchlist.reload;
 
   useEffect(() => {
     if (!sortOpen) return undefined;
@@ -42,6 +44,35 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, [sortOpen]);
+
+  useEffect(() => {
+    function reloadVisibleWatchlist() {
+      const now = Date.now();
+      if (now - lastAutoReloadAt.current < 1500) return;
+      lastAutoReloadAt.current = now;
+      void watchlistReload();
+    }
+
+    function onMarketEvent(event: Event) {
+      const payload = (event as CustomEvent<{ type?: string }>).detail;
+      if (payload?.type === "market-snapshot-updated" || payload?.type === "watchlist-market-updated" || payload?.type === "watchlist-assets-updated" || payload?.type === "watchlist-chart-updated") {
+        window.setTimeout(reloadVisibleWatchlist, 400);
+      }
+    }
+
+    function onForeground() {
+      if (document.visibilityState === "visible") reloadVisibleWatchlist();
+    }
+
+    window.addEventListener("pea:market-event", onMarketEvent);
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+    return () => {
+      window.removeEventListener("pea:market-event", onMarketEvent);
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+    };
+  }, [watchlistReload]);
 
   const sortedItems = useMemo(() => {
     return (watchlist.data ?? [])

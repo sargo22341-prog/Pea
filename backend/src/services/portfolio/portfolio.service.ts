@@ -8,12 +8,14 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId, normalizeUserId } from "../auth/user-context.js";
+import { config } from "../../config.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { invalidateUserAssetCaches, nowMs, toDisplayRange } from "../shared/cache.service.js";
+import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
@@ -373,6 +375,11 @@ export class PortfolioService {
   }
 
   async summary(_range: RangeKey = "1d"): Promise<PortfolioSummary> {
+    const cacheUserId = currentUserId().toString();
+    if (config.enableMarketLiveRefresh) {
+      const cached = frontendBlockCache.read<PortfolioSummary>(cacheUserId, "portfolio-summary", _range);
+      if (cached) return cached;
+    }
     const basePositions = this.listPositions();
     const quotesBySymbol = await this.quotesForPositions(basePositions);
     // Pré-charge toutes les transactions pour éviter N requêtes hasDatedTransactions dans enrichPositionWithQuote
@@ -392,7 +399,7 @@ export class PortfolioService {
     const totalFees = Number(totalFeesRow?.total_fees ?? 0);
     const totalPerformance = totalValue - totalCost;
 
-    return {
+    const payload = {
       totalValue,
       totalCost,
       totalDividendsReceived,
@@ -404,6 +411,8 @@ export class PortfolioService {
       currency: "EUR",
       positions
     };
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, config.marketLiveRefreshIntervalMs, _range);
+    return payload;
   }
 
   async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PortfolioPerformancePoint[]> {

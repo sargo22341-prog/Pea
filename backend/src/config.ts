@@ -27,6 +27,18 @@ function parseDebugDate(value: string | undefined, timeZone: string) {
   return Number.isFinite(parsed.getTime()) ? parsed : undefined;
 }
 
+function parseBoolean(value: string | undefined, fallback = false) {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return fallback;
+}
+
+function parsePositiveInteger(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
@@ -36,5 +48,8 @@ export const config = {
   nodeEnv: initialNodeEnv,
   appTimezone,
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
-  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json")
+  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
+  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
+  enableMarketSse: parseBoolean(process.env.ENABLE_MARKET_SSE, false),
+  marketLiveRefreshIntervalMs: parsePositiveInteger(process.env.MARKET_LIVE_REFRESH_INTERVAL_MS, 5 * 60 * 1000)
 };

@@ -23,6 +23,7 @@ export function AnalysisPage() {
   const [selectedChart, setSelectedChart] = useState<ChartKey>("country");
   const [selectedFinancialSymbol, setSelectedFinancialSymbol] = useState("");
   const analysis = useAsync((signal) => api.portfolioAnalysis(signal), []);
+  const analysisReload = analysis.reload;
   const activeOption = useMemo(() => chartOptions.find((option) => option.key === selectedChart) ?? chartOptions[0], [selectedChart]);
   const selectedFinancialAsset = useMemo(
     () =>
@@ -37,6 +38,31 @@ export function AnalysisPage() {
       document.title = "PEA Portfolio";
     };
   }, []);
+
+  useEffect(() => {
+    let lastReloadAt = 0;
+    function reloadVisibleAnalysis() {
+      const now = Date.now();
+      if (now - lastReloadAt < 1500) return;
+      lastReloadAt = now;
+      void analysisReload();
+    }
+    function onMarketEvent(event: Event) {
+      const payload = (event as CustomEvent<{ type?: string }>).detail;
+      if (payload?.type === "analysis-updated") window.setTimeout(reloadVisibleAnalysis, 400);
+    }
+    function onForeground() {
+      if (document.visibilityState === "visible") reloadVisibleAnalysis();
+    }
+    window.addEventListener("pea:market-event", onMarketEvent);
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+    return () => {
+      window.removeEventListener("pea:market-event", onMarketEvent);
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+    };
+  }, [analysisReload]);
 
   useEffect(() => {
     if (!selectedFinancialSymbol && analysis.data?.financialsByAsset[0]) {

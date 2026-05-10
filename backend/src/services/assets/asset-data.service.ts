@@ -14,6 +14,7 @@ import type {
   RangeKey,
   UserAssetPositionDto
 } from "@pea/shared";
+import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { assetRepository } from "../market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
@@ -39,7 +40,10 @@ export class AssetDataService {
   async static(symbol: string): Promise<AssetStaticDto> {
     const key = symbol.toUpperCase();
     const existing = assetRepository.findBySymbol(key);
-    const asset = existing ?? (await marketDataService.ensureAssetInitialized(key));
+    const asset = existing ?? (config.enableMarketLiveRefresh ? undefined : await marketDataService.ensureAssetInitialized(key));
+    if (!asset) {
+      return { symbol: key, name: key, type: "stock", currency: "EUR", exchange: "" };
+    }
     if (!existing) dataConstructionQueue.enqueueAssetConstruction(key);
     const profile = db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(asset.id) as any;
     return {
@@ -59,7 +63,7 @@ export class AssetDataService {
 
   async market(symbol: string): Promise<AssetMarketDto> {
     const key = symbol.toUpperCase();
-    await marketSnapshotService.getQuote(key);
+    if (!config.enableMarketLiveRefresh) await marketSnapshotService.getQuote(key);
     return marketSnapshotService.readMarketDto(key) ?? {
       symbol: key,
       marketState: "CLOSED",

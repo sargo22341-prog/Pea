@@ -4,6 +4,9 @@
  */
 
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
+import { config } from "../../config.js";
+import { currentUserId } from "../auth/user-context.js";
+import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
 import { portfolioService } from "./portfolio.service.js";
 import { dividendsService } from "../market/dividends.service.js";
@@ -42,6 +45,11 @@ function dividendMetrics(position: PositionWithMarket) {
 
 export class DividendService {
   async portfolioDividends(): Promise<PortfolioDividends> {
+    const userId = currentUserId().toString();
+    if (config.enableMarketLiveRefresh) {
+      const cached = frontendBlockCache.read<PortfolioDividends>(userId, "dividends");
+      if (cached) return cached;
+    }
     const positions = await portfolioService.summary();
     const upcoming: PortfolioDividendEvent[] = [];
     const past: PortfolioDividendEvent[] = [];
@@ -141,7 +149,7 @@ export class DividendService {
       };
     });
 
-    return {
+    const payload = {
       annualEstimatedTotal: months.reduce((sum, month) => sum + month.amount, 0),
       currency: "EUR",
       months,
@@ -149,6 +157,8 @@ export class DividendService {
       past: past.sort((a, b) => b.date.localeCompare(a.date)),
       stale
     };
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "dividends", payload, config.marketLiveRefreshIntervalMs);
+    return payload;
   }
 }
 

@@ -100,8 +100,7 @@ export class MarketCloseTask {
 
     const analysis = this.analyzeBatch(group.assets, rows);
     for (const item of analysis.valid) {
-      marketSnapshotService.upsertSnapshot(item.asset.id, item.snapshot);
-      marketSnapshotService.invalidateCache(item.asset.symbol);
+      marketSnapshotService.storeBatchSnapshot(item.asset, item.quote, item.snapshot);
     }
 
     const partial = analysis.failedSymbols.length > 0;

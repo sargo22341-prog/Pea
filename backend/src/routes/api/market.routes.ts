@@ -5,6 +5,7 @@
 import express from "express";
 import { config } from "../../config.js";
 import { dividendsService } from "../../services/market/dividends.service.js";
+import { marketEventsService } from "../../services/market/market-events.service.js";
 import { marketDataService } from "../../services/market/market-data.service.js";
 import { marketSnapshotService } from "../../services/market/market-snapshot.service.js";
 import { parseRange } from "../../utils/range.js";
@@ -22,8 +23,27 @@ function intradayDebugClock(range: string) {
 }
 
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
-  res.json(await marketSnapshotService.getQuote(routeParam(req.params.symbol, "symbol")));
+  const symbol = routeParam(req.params.symbol, "symbol");
+  if (config.enableMarketLiveRefresh) {
+    const snapshot = marketSnapshotService.readSnapshotBySymbol(symbol);
+    if (snapshot) {
+      res.json(snapshot);
+      return;
+    }
+  }
+  res.json(await marketSnapshotService.getQuote(symbol));
 }));
+
+marketRouter.get("/market/features", (_req, res) => {
+  res.json({
+    liveRefreshEnabled: config.enableMarketLiveRefresh,
+    sseEnabled: config.enableMarketSse
+  });
+});
+
+marketRouter.get("/market/events", (req, res) => {
+  marketEventsService.connect(req.user!.id, res);
+});
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);

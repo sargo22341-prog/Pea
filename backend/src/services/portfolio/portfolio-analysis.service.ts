@@ -12,6 +12,11 @@ import type {
   PortfolioTreemapItem,
   PositionWithMarket
 } from "@pea/shared";
+import { config } from "../../config.js";
+import { db } from "../../db.js";
+import { currentUserId } from "../auth/user-context.js";
+import { financialsService } from "../market/financials.service.js";
+import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";
 import { portfolioService } from "./portfolio.service.js";
@@ -159,6 +164,25 @@ function aggregateFinancials(items: Array<{ weight: number; fundamentals?: Funda
     }));
 }
 
+function persistedFundamentals(symbol: string): Fundamentals | undefined {
+  const asset = db.prepare("SELECT id, quote_type FROM assets WHERE symbol = ?").get(symbol.toUpperCase()) as
+    | { id: number; quote_type?: string | null }
+    | undefined;
+  if (!asset) return undefined;
+  const profile = db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(asset.id) as
+    | { country?: string | null; sector?: string | null }
+    | undefined;
+  return {
+    quoteType: { quoteType: asset.quote_type ?? undefined },
+    assetProfile: {
+      country: profile?.country ?? undefined,
+      sector: profile?.sector ?? undefined,
+      sectorDisp: profile?.sector ?? undefined
+    },
+    annualFinancials: financialsService.readFinancialRows(symbol)
+  } as Fundamentals;
+}
+
 export class PortfolioAnalysisService {
   financialRows(fundamentals?: Fundamentals) {
     return annualFinancialRows(fundamentals);
@@ -191,14 +215,24 @@ export class PortfolioAnalysisService {
   }
 
   async analysis(): Promise<PortfolioAnalysis> {
+    const userId = currentUserId().toString();
+    if (config.enableMarketLiveRefresh) {
+      const cached = frontendBlockCache.read<PortfolioAnalysis>(userId, "analysis");
+      if (cached) return cached;
+    }
     const portfolio = await portfolioService.summary("1d");
     const totalValue = portfolio.totalValue || portfolio.positions.reduce((sum, position) => sum + position.marketValue, 0);
     if (!portfolio.positions.length || !totalValue) {
-      return { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [] };
+      const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [] };
+      if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", empty, config.marketLiveRefreshIntervalMs);
+      return empty;
     }
 
     const fundamentalResults = await Promise.all(
       portfolio.positions.map(async (position) => {
+        if (config.enableMarketLiveRefresh) {
+          return { position, result: { data: persistedFundamentals(position.symbol), stale: false } };
+        }
         try {
           return { position, result: await yahooService.fundamentals(position.symbol) };
         } catch (error) {
@@ -252,7 +286,7 @@ export class PortfolioAnalysisService {
       }
     }
 
-    return {
+    const payload = {
       countryAllocation: finalizeAllocation(countryAllocation),
       sectorAllocation: finalizeAllocation(sectorAllocation),
       treemap: treemap.sort((a, b) => b.value - a.value),
@@ -261,6 +295,8 @@ export class PortfolioAnalysisService {
       financials: aggregateFinancials(financialInputs),
       stale
     };
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", payload, config.marketLiveRefreshIntervalMs);
+    return payload;
   }
 }
 

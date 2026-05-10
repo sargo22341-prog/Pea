@@ -42,6 +42,22 @@ import type {
 } from "@pea/shared";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
+export type MarketEventPayload = {
+  type:
+    | "market-snapshot-updated"
+    | "portfolio-market-updated"
+    | "watchlist-market-updated"
+    | "portfolio-assets-updated"
+    | "watchlist-assets-updated"
+    | "portfolio-chart-updated"
+    | "watchlist-chart-updated"
+    | "dashboard-chart-updated"
+    | "analysis-updated"
+    | "dividends-updated"
+    | "scheduler-health-updated";
+  markets: string[];
+  updatedAt: string;
+};
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const inFlightRequests = new Map<string, Promise<unknown>>();
@@ -125,6 +141,8 @@ export const api = {
   enrichedSearch: (q: string, signal?: AbortSignal) =>
     request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
+  marketFeatures: () => request<{ liveRefreshEnabled: boolean; sseEnabled: boolean }>("/api/market/features"),
+  marketEventsUrl: () => `${baseUrl}/api/market/events`,
   history: (symbol: string, range: RangeKey) =>
     request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),

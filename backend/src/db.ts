@@ -367,6 +367,7 @@ db.exec(`
     quote_type TEXT,
     regular_market_time TEXT,
     source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    last_checked_at TEXT,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
@@ -432,6 +433,16 @@ db.exec(`
     expires_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS frontend_block_cache (
+    cache_key TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    block TEXT NOT NULL,
+    range TEXT,
+    payload TEXT NOT NULL,
+    cached_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_chart_candles_1d_asset_interval ON chart_candles_1d(asset_id, interval);
   CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval ON chart_candles_1w(asset_id, interval);
   CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval ON chart_candles_1m(asset_id, interval);
@@ -442,6 +453,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_watchlist_user_symbol ON watchlist(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_user_block ON frontend_block_cache(user_id, block);
+  CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_expires_at ON frontend_block_cache(expires_at);
 
   CREATE TABLE IF NOT EXISTS asset_calendar_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
