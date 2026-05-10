@@ -33,6 +33,15 @@ const chartConfigSchema = z.object({
     "1d": z.object({ interval: z.enum(["5m", "15m", "30m", "1h"]) }),
     "1w": z.object({ interval: z.enum(["5m", "15m", "30m", "1h", "2h", "4h", "1d"]) }),
     "1m": z.object({ interval: z.enum(["15m", "30m", "1h", "2h", "4h", "1d"]) })
+  }),
+  marketLiveRefresh: z.object({
+    snapshotsIntervalMinutes: z.number().positive().default(5),
+    portfolioChartsIntervalMinutes: z.number().positive().default(30),
+    lazyChartRefreshThresholdRatio: z.number().positive().max(1).default(0.3)
+  }).default({
+    snapshotsIntervalMinutes: 5,
+    portfolioChartsIntervalMinutes: 30,
+    lazyChartRefreshThresholdRatio: 0.3
   })
 });
 
@@ -43,6 +52,11 @@ const defaultConfig: ChartConfig = {
     "1d": { interval: "5m" },
     "1w": { interval: "2h" },
     "1m": { interval: "4h" }
+  },
+  marketLiveRefresh: {
+    snapshotsIntervalMinutes: 5,
+    portfolioChartsIntervalMinutes: 30,
+    lazyChartRefreshThresholdRatio: 0.3
   }
 };
 
@@ -80,6 +94,23 @@ export class ChartConfigService {
     const storedRange = normalizeStoredRange(range);
     if (storedRange === "all") return "1d";
     return this.loadChartConfig().charts[storedRange].interval;
+  }
+
+  getMarketLiveRefreshConfig() {
+    return this.loadChartConfig().marketLiveRefresh;
+  }
+
+  getSnapshotRefreshIntervalMs() {
+    return this.getMarketLiveRefreshConfig().snapshotsIntervalMinutes * 60 * 1000;
+  }
+
+  getPortfolioChartRefreshIntervalMs() {
+    return this.getMarketLiveRefreshConfig().portfolioChartsIntervalMinutes * 60 * 1000;
+  }
+
+  getLazyChartRefreshThresholdMs() {
+    const live = this.getMarketLiveRefreshConfig();
+    return live.portfolioChartsIntervalMinutes * live.lazyChartRefreshThresholdRatio * 60 * 1000;
   }
 }
 

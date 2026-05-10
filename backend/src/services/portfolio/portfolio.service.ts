@@ -10,6 +10,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { currentUserId, normalizeUserId } from "../auth/user-context.js";
 import { config } from "../../config.js";
 import { assetRepository } from "../market/asset.repository.js";
+import { chartConfigService } from "../market/chart-config.service.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
 import { marketDataService } from "../market/market-data.service.js";
@@ -411,7 +412,7 @@ export class PortfolioService {
       currency: "EUR",
       positions
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, config.marketLiveRefreshIntervalMs, _range);
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, chartConfigService.getSnapshotRefreshIntervalMs(), _range);
     return payload;
   }
 

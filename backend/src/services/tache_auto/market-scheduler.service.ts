@@ -1,6 +1,7 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { logger } from "../shared/logger.service.js";
 import { config } from "../../config.js";
+import { chartConfigService } from "../market/chart-config.service.js";
 import { liveMarketRefreshTask } from "./live-market-refresh.task.js";
 import { marketOpenTask } from "./market-open.task.js";
 import { marketCloseTask } from "./market-close.task.js";
@@ -26,7 +27,8 @@ export class MarketSchedulerService {
     logger.info("market-data", "market scheduler started", {
       intervalMs: tickIntervalMs,
       liveRefreshEnabled: config.enableMarketLiveRefresh,
-      liveRefreshIntervalMs: config.marketLiveRefreshIntervalMs,
+      snapshotsIntervalMs: chartConfigService.getSnapshotRefreshIntervalMs(),
+      portfolioChartsIntervalMs: chartConfigService.getPortfolioChartRefreshIntervalMs(),
       marketSseEnabled: config.enableMarketSse
     });
   }

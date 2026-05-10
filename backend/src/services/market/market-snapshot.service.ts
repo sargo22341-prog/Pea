@@ -10,6 +10,7 @@ import { normalizeMarketState } from "../shared/cache.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
 import { writeCache } from "../yahoo/cache/yahoo.cache.js";
+import { chartConfigService } from "./chart-config.service.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
 import { candleRepository } from "../candles/candle.repository.js";
 import { getLastTradingDay, isMarketOpen } from "./marketCalendar.service.js";
@@ -258,7 +259,7 @@ export class MarketSnapshotService {
       | undefined;
     if (!row?.last_checked_at) return false;
     const checkedAt = new Date(row.last_checked_at).getTime();
-    return Number.isFinite(checkedAt) && Date.now() - checkedAt < config.marketLiveRefreshIntervalMs;
+    return Number.isFinite(checkedAt) && Date.now() - checkedAt < chartConfigService.getSnapshotRefreshIntervalMs();
   }
 }
 

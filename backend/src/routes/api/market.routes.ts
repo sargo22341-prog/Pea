@@ -3,8 +3,10 @@
  */
 
 import express from "express";
+import { z } from "zod";
 import { config } from "../../config.js";
 import { dividendsService } from "../../services/market/dividends.service.js";
+import { chartRefreshService } from "../../services/market/chart-refresh.service.js";
 import { marketEventsService } from "../../services/market/market-events.service.js";
 import { marketDataService } from "../../services/market/market-data.service.js";
 import { marketSnapshotService } from "../../services/market/market-snapshot.service.js";
@@ -43,6 +45,26 @@ marketRouter.get("/market/features", (_req, res) => {
 
 marketRouter.get("/market/events", (req, res) => {
   marketEventsService.connect(req.user!.id, res);
+});
+
+marketRouter.post("/market/chart-refresh", (req, res) => {
+  const body = z.discriminatedUnion("scope", [
+    z.object({ scope: z.literal("asset"), symbol: z.string().min(1), range: z.literal("1d").default("1d") }),
+    z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d") }),
+    z.object({ scope: z.literal("watchlist"), range: z.literal("1d").default("1d") })
+  ]).parse(req.body ?? {});
+
+  const result = body.scope === "watchlist"
+    ? chartRefreshService.requestWatchlistRefresh({ userId: req.user!.id, range: body.range })
+    : body.scope === "portfolio"
+      ? chartRefreshService.requestPortfolioRefresh({ userId: req.user!.id, range: body.range })
+      : chartRefreshService.requestAssetRefresh({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset" });
+
+  if (result.status === "not-found") {
+    res.status(404).json(result);
+    return;
+  }
+  res.status(result.status === "started" ? 202 : 200).json(result);
 });
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {

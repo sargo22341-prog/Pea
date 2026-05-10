@@ -34,11 +34,6 @@ function parseBoolean(value: string | undefined, fallback = false) {
   return fallback;
 }
 
-function parsePositiveInteger(value: string | undefined, fallback: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
-}
-
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
@@ -50,6 +45,5 @@ export const config = {
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
   chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
   enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
-  enableMarketSse: parseBoolean(process.env.ENABLE_MARKET_SSE, false),
-  marketLiveRefreshIntervalMs: parsePositiveInteger(process.env.MARKET_LIVE_REFRESH_INTERVAL_MS, 5 * 60 * 1000)
+  enableMarketSse: parseBoolean(process.env.ENABLE_MARKET_SSE, false)
 };

@@ -31,13 +31,15 @@ export const PortfolioChart = memo(function PortfolioChart({
   range,
   userTimezone,
   comparisonSeries = [],
-  comparisonLoading = false
+  comparisonLoading = false,
+  isRefreshing = false
 }: {
   chart: PortfolioChartDto;
   range: RangeKey;
   userTimezone?: string;
   comparisonSeries?: AssetComparisonSerie[];
   comparisonLoading?: boolean;
+  isRefreshing?: boolean;
 }) {
   const prive = usePrivacy();
   const chartData = useMemo(() => toChartPoints(chart), [chart]);
@@ -58,7 +60,7 @@ export const PortfolioChart = memo(function PortfolioChart({
   }
 
   return (
-    <div>
+    <div className={isRefreshing ? "stale-refreshing rounded-md" : undefined}>
       {chart.isPreparing && (
         <p className="px-4 pb-2 text-xs text-amber">
           Donnees en cours de preparation{chart.missingAssets?.length ? `: ${chart.missingAssets.join(", ")}` : ""}

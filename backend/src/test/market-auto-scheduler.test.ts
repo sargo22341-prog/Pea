@@ -260,13 +260,14 @@ test("post-close snapshot state is reused and not overwritten by a later quote r
 
 test("post-close snapshot price wins over stale fundamentals and later quote reads", () => {
   const result = runBackendScript(`
-    import { app } from "./app.ts";
-    import { db } from "./db.ts";
-    import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { yahooService } from "./services/yahoo/index.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketCloseTask } from "./services/tache_auto/market-close.task.ts";
-    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
+    const { app } = await import("./app.ts");
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { yahooService } = await import("./services/yahoo/index.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketCloseTask } = await import("./services/tache_auto/market-close.task.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
     ${helpers}
 
     yahooService.marketInfo = async () => ({ data: { marketState: "POSTPOST", regularMarketPrice: 1187, currency: "EUR" } });
@@ -515,7 +516,6 @@ test("live refresh disabled preserves current behavior and does not call Yahoo",
 test("live refresh merges eligible multi-market symbols into one Yahoo batch", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
-    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
@@ -536,6 +536,7 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
       singleQuoteCalls += 1;
       return pricedQuoteRow(symbol, "REGULAR", 999);
     };
+    yahooApi.chart = async () => ({ quotes: [], dividends: [], splits: [] });
     const groups = trackedMarketRepository.syncFromTrackedAssets();
     for (const group of groups.values()) {
       const run = marketRunRepository.ensure({
@@ -567,7 +568,6 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
 test("live refresh skips closed markets, lunch pauses, last close window and fresh open confirmations", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
-    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
@@ -616,7 +616,6 @@ test("live refresh skips closed markets, lunch pauses, last close window and fre
 test("live refresh falls back by market when global Yahoo batch fails", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
-    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
@@ -632,6 +631,7 @@ test("live refresh falls back by market when global Yahoo batch fails", () => {
       if (symbols.length > 1) throw new Error("multi-market unsupported");
       return symbols.map((symbol) => quoteRow(symbol, "REGULAR"));
     };
+    yahooApi.chart = async () => ({ quotes: [], dividends: [], splits: [] });
     const groups = trackedMarketRepository.syncFromTrackedAssets();
     for (const group of groups.values()) {
       const run = marketRunRepository.ensure({
@@ -652,6 +652,201 @@ test("live refresh falls back by market when global Yahoo batch fails", () => {
   assert.equal(result.calls[0].length, 2);
   assert.deepEqual(result.calls.slice(1).map((call: string[]) => call.length), [1, 1]);
   assert.equal(result.outcome.updated, 2);
+});
+
+test("live refresh prewarms intraday charts only for portfolio assets", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('BBB.PA', 'BBB', 'Paris', 'EUR')").run();
+    db.prepare("INSERT INTO watchlist (user_id, symbol, name, exchange, currency) VALUES (1, 'BBB.PA', 'BBB', 'Paris', 'EUR')").run();
+    const quoteCalls = [];
+    const chartCalls = [];
+    yahooApi.quoteBatchRaw = async (symbols) => {
+      quoteCalls.push([...symbols]);
+      return symbols.map((symbol, index) => pricedQuoteRow(symbol, "REGULAR", 100 + index));
+    };
+    yahooApi.chart = async (symbol) => {
+      chartCalls.push(symbol);
+      return {
+        quotes: [
+          { date: "2026-05-06T12:00:00.000Z", open: 100, high: 101, low: 99, close: 100, volume: 1000 },
+          { date: "2026-05-06T12:05:00.000Z", open: 100, high: 102, low: 100, close: 101, volume: 1200 }
+        ],
+        dividends: [],
+        splits: []
+      };
+    };
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    const group = groups.get("euronextParis");
+    const run = marketRunRepository.ensure({
+      marketKey: group.marketKey,
+      tradingDate: "2026-05-06",
+      timezone: group.calendar.timezone,
+      assetsCount: group.assets.length,
+      openExpectedAt: new Date("2026-05-06T07:00:00.000Z"),
+      closeExpectedAt: new Date("2026-05-06T15:30:00.000Z")
+    });
+    marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T07:00:00.000Z" });
+    const task = new LiveMarketRefreshTask();
+    await task.run(groups.values(), new Date("2026-05-06T12:00:00.000Z"));
+    await task.run(groups.values(), new Date("2026-05-06T12:06:00.000Z"));
+    const candles = db.prepare("SELECT a.symbol, COUNT(*) AS count FROM chart_candles_1d c JOIN assets a ON a.id = c.asset_id GROUP BY a.symbol ORDER BY a.symbol").all();
+    console.log("__RESULT__" + JSON.stringify({ quoteCalls, chartCalls, candles }));
+  `);
+
+  assert.equal(result.quoteCalls.length, 2);
+  assert.deepEqual(result.quoteCalls[0].sort(), ["AAA.PA", "BBB.PA"]);
+  assert.deepEqual(result.chartCalls, ["AAA.PA"]);
+  assert.deepEqual(result.candles, [{ symbol: "AAA.PA", count: 2 }]);
+});
+
+test("lazy chart refresh is stale-while-revalidate and dedupes in-flight refreshes", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { app } = await import("./app.ts");
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    ${helpers}
+    let chartCalls = 0;
+    let release;
+    const pending = new Promise((resolve) => { release = resolve; });
+    yahooApi.chart = async () => {
+      chartCalls += 1;
+      await pending;
+      return {
+        quotes: [
+          { date: "2026-05-06T12:00:00.000Z", open: 100, high: 101, low: 99, close: 100, volume: 1000 },
+          { date: "2026-05-06T12:05:00.000Z", open: 100, high: 102, low: 100, close: 101, volume: 1200 }
+        ],
+        dividends: [],
+        splits: []
+      };
+    };
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+        addTracked("AAA.PA", "AAA", "Paris");
+
+        const startedAt = Date.now();
+        const first = await fetch(\`\${baseUrl}/api/market/chart-refresh\`, {
+          method: "POST",
+          headers: { Cookie: cookie, "Content-Type": "application/json" },
+          body: JSON.stringify({ scope: "asset", symbol: "AAA.PA", range: "1d" })
+        });
+        const firstDurationMs = Date.now() - startedAt;
+        const second = await fetch(\`\${baseUrl}/api/market/chart-refresh\`, {
+          method: "POST",
+          headers: { Cookie: cookie, "Content-Type": "application/json" },
+          body: JSON.stringify({ scope: "asset", symbol: "AAA.PA", range: "1d" })
+        });
+        const firstBody = await first.json();
+        const secondBody = await second.json();
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        console.log("__RESULT__" + JSON.stringify({ firstStatus: first.status, secondStatus: second.status, firstBody, secondBody, chartCalls, firstDurationMs }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.firstStatus, 202);
+  assert.equal(result.firstBody.status, "started");
+  assert.equal(result.secondStatus, 200);
+  assert.equal(result.secondBody.status, "in-progress");
+  assert.equal(result.chartCalls, 1);
+  assert.ok(result.firstDurationMs < 100, `route bloquante: ${result.firstDurationMs}ms`);
+});
+
+test("lazy chart refresh is skipped while cache is fresh", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    db.prepare(
+      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', ?)"
+    ).run(asset.id, new Date().toISOString());
+    let chartCalls = 0;
+    yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
+    const fresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    console.log("__RESULT__" + JSON.stringify({ fresh, chartCalls }));
+  `);
+
+  assert.equal(result.fresh.status, "skipped-fresh");
+  assert.equal(result.chartCalls, 0);
+});
+
+test("lazy chart refresh returns skipped-fresh when intraday memory cache is fresh", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const asset = db.prepare("SELECT * FROM assets WHERE symbol = 'AAA.PA'").get();
+    let chartCalls = 0;
+    yahooApi.chart = async () => {
+      chartCalls += 1;
+      return {
+        quotes: [
+          { date: "2026-05-06T12:00:00.000Z", open: 100, high: 101, low: 99, close: 100, volume: 1000 },
+          { date: "2026-05-06T12:05:00.000Z", open: 100, high: 102, low: 100, close: 101, volume: 1200 }
+        ],
+        dividends: [],
+        splits: []
+      };
+    };
+    await marketDataService.refreshLiveIntradayForAsset(asset, new Date("2026-05-06T12:06:00.000Z"));
+    const fresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    console.log("__RESULT__" + JSON.stringify({ fresh, chartCalls }));
+  `);
+
+  assert.equal(result.fresh.status, "skipped-fresh");
+  assert.equal(result.chartCalls, 1);
+});
+
+test("lazy chart refresh is disabled when live refresh mode is off", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    let chartCalls = 0;
+    yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
+    const response = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    console.log("__RESULT__" + JSON.stringify({ response, chartCalls }));
+  `);
+
+  assert.equal(result.response.status, "disabled");
+  assert.equal(result.chartCalls, 0);
 });
 
 test("market SSE endpoint is authenticated and controlled by env flag", () => {
@@ -687,7 +882,6 @@ test("market SSE endpoint is authenticated and controlled by env flag", () => {
 test("live refresh mode serves dashboard assets analysis and dividends from cache without Yahoo on navigation", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
-    process.env.MARKET_LIVE_REFRESH_INTERVAL_MS = "300000";
     const { app } = await import("./app.ts");
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");

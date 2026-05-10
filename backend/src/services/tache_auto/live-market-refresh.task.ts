@@ -3,6 +3,7 @@ import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { runWithUser } from "../auth/user-context.js";
 import { assetRepository, type AssetRow } from "../market/asset.repository.js";
+import { chartConfigService } from "../market/chart-config.service.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketEventsService } from "../market/market-events.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
@@ -39,14 +40,15 @@ export class LiveMarketRefreshTask {
 
   async run(groups: Iterable<MarketAssetGroup>, now = new Date()) {
     if (!config.enableMarketLiveRefresh) return { enabled: false, updated: 0, yahooCalls: 0 };
-    if (now.getTime() - this.lastRunAt < config.marketLiveRefreshIntervalMs) return { enabled: true, updated: 0, yahooCalls: 0, skipped: "interval" };
+    const snapshotsIntervalMs = chartConfigService.getSnapshotRefreshIntervalMs();
+    if (now.getTime() - this.lastRunAt < snapshotsIntervalMs) return { enabled: true, updated: 0, yahooCalls: 0, skipped: "interval" };
     this.lastRunAt = now.getTime();
 
     const eligible = [...groups].map((group) => this.eligibleMarket(group, now)).filter((item): item is EligibleMarket => Boolean(item));
     const allSymbols = [...new Set(eligible.flatMap((item) => item.symbols))];
     if (!eligible.length || !allSymbols.length) return { enabled: true, updated: 0, yahooCalls: 0 };
 
-    let rows: BatchRow[] = [];
+    let rows: BatchRow[];
     let yahooCalls = 0;
     try {
       const chunks = this.chunks(allSymbols);
@@ -82,16 +84,17 @@ export class LiveMarketRefreshTask {
     }
 
     const updatedSymbols: string[] = [];
-    const updatedAssets: AssetRow[] = [];
     for (const [symbol, row] of rowsBySymbol) {
       const asset = assetRepository.findBySymbol(symbol) ?? symbolsToAsset.get(symbol);
       if (!asset) continue;
-      marketSnapshotService.storeBatchSnapshot(asset, row.quote, row.snapshot, config.marketLiveRefreshIntervalMs);
+      marketSnapshotService.storeBatchSnapshot(asset, row.quote, row.snapshot, snapshotsIntervalMs);
       updatedSymbols.push(asset.symbol);
-      updatedAssets.push(asset);
     }
 
-    const chartResult = await marketDataService.refreshLiveIntradayForAssets(updatedAssets, now).catch((error) => {
+    const portfolioAssets = this.portfolioAssetsForSymbols(updatedSymbols);
+    const chartResult = await marketDataService.refreshLiveIntradayForAssets(portfolioAssets, now, {
+      minAgeMs: chartConfigService.getPortfolioChartRefreshIntervalMs()
+    }).catch((error) => {
       logger.warn("market-data", "live intraday chart refresh failed", { error: error instanceof Error ? error.message : String(error) });
       return { updated: 0, yahooCalls: 0 };
     });
@@ -160,9 +163,10 @@ export class LiveMarketRefreshTask {
     const run = marketRunRepository.get(group.marketKey, local.isoDate);
     if (!run) return undefined;
     if (run.assets_count <= 0 || !confirmedOpenStatuses.has(run.open_status) || closedStatuses.has(run.close_status)) return undefined;
-    if (run.open_confirmed_at && now.getTime() - new Date(run.open_confirmed_at).getTime() < config.marketLiveRefreshIntervalMs) return undefined;
+    const snapshotsIntervalMs = chartConfigService.getSnapshotRefreshIntervalMs();
+    if (run.open_confirmed_at && now.getTime() - new Date(run.open_confirmed_at).getTime() < snapshotsIntervalMs) return undefined;
     if (!this.isActiveSession(group, local.isoDate, now)) return undefined;
-    if (run.close_expected_at && now.getTime() >= new Date(run.close_expected_at).getTime() - config.marketLiveRefreshIntervalMs) return undefined;
+    if (run.close_expected_at && now.getTime() >= new Date(run.close_expected_at).getTime() - snapshotsIntervalMs) return undefined;
     return {
       group,
       run,
@@ -189,6 +193,14 @@ export class LiveMarketRefreshTask {
       }
     }
     return { rows, yahooCalls };
+  }
+
+  private portfolioAssetsForSymbols(symbols: string[]) {
+    const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
+    if (!keys.length) return [];
+    const placeholders = keys.map(() => "?").join(",");
+    const rows = db.prepare(`SELECT DISTINCT symbol FROM positions WHERE symbol IN (${placeholders})`).all(...keys) as Array<{ symbol: string }>;
+    return rows.map((row) => assetRepository.findBySymbol(row.symbol)).filter((asset): asset is AssetRow => Boolean(asset));
   }
 
   private chunks(symbols: string[]) {

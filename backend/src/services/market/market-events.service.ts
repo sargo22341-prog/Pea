@@ -9,7 +9,11 @@ export type MarketEventType =
   | "watchlist-market-updated"
   | "portfolio-assets-updated"
   | "watchlist-assets-updated"
+  | "portfolio-chart-refresh-started"
+  | "asset-chart-refresh-started"
+  | "watchlist-chart-refresh-started"
   | "portfolio-chart-updated"
+  | "asset-chart-updated"
   | "watchlist-chart-updated"
   | "dashboard-chart-updated"
   | "analysis-updated"
@@ -18,8 +22,12 @@ export type MarketEventType =
 
 export interface MarketEventPayload {
   type: MarketEventType;
-  markets: string[];
-  updatedAt: string;
+  markets?: string[];
+  symbols?: string[];
+  symbol?: string;
+  range?: string;
+  updatedAt?: string;
+  startedAt?: string;
 }
 
 interface Client {
@@ -87,6 +95,14 @@ export class MarketEventsService {
         this.write(client, "watchlist-assets-updated", { type: "watchlist-assets-updated", markets, updatedAt });
         this.write(client, "watchlist-chart-updated", { type: "watchlist-chart-updated", markets, updatedAt });
       }
+    }
+  }
+
+  emitToUser(userId: string | number, event: MarketEventType, payload: Omit<MarketEventPayload, "type"> = {}) {
+    if (!config.enableMarketSse) return;
+    const target = String(userId);
+    for (const client of this.clients.values()) {
+      if (client.userId === target) this.write(client, event, { type: event, ...payload });
     }
   }
 

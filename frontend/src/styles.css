@@ -77,6 +77,10 @@ textarea {
     overflow: hidden;
   }
 
+  .stale-refreshing {
+    animation: stale-refresh-pulse 2.4s ease-in-out infinite;
+  }
+
    .chart-fade .recharts-xAxis .recharts-cartesian-axis-tick {
       display: none;
     }
@@ -167,5 +171,25 @@ textarea {
 
   .btn-ghost:hover {
     border-color: #38bdf8;
+  }
+}
+
+@keyframes stale-refresh-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: none;
+  }
+
+  50% {
+    opacity: 0.94;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stale-refreshing {
+    animation: none;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22);
   }
 }

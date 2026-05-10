@@ -9,6 +9,7 @@ import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
+import { chartConfigService } from "../market/chart-config.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 
@@ -33,7 +34,7 @@ export class WatchlistService {
     }
     const rows = db.prepare("SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC").all(currentUserId());
     const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "watchlist", payload, config.marketLiveRefreshIntervalMs, range);
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "watchlist", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
     return payload;
   }
 

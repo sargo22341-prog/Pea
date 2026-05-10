@@ -30,7 +30,8 @@ function runBackendScript(script: string) {
 
 test("watchlist add, list and remove flow", () => {
   const result = runBackendScript(`
-    import { app } from "./app.ts";
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
+    const { app } = await import("./app.ts");
 
     const password = "correct horse battery staple";
     const server = app.listen(0, "127.0.0.1", async () => {

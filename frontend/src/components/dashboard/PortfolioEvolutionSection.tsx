@@ -27,6 +27,7 @@ export function PortfolioEvolutionSection({
   watchlistDefaultSortDirection,
   setRange,
   portfolioChart,
+  portfolioChartRefreshing,
   userTimezone,
   localPeaSearchEnabled
 }: {
@@ -38,6 +39,7 @@ export function PortfolioEvolutionSection({
   watchlistDefaultSortDirection: SortDirection;
   setRange: DashboardRangeSetter;
   portfolioChart: ReturnType<typeof useAsync<PortfolioChartDto>>;
+  portfolioChartRefreshing?: boolean;
   userTimezone: string;
   localPeaSearchEnabled: boolean;
 }) {
@@ -95,6 +97,7 @@ export function PortfolioEvolutionSection({
             chart={portfolioChart.data}
             comparisonLoading={compareTargets.length > 0 && (comparisonLoading || portfolioChart.data.isPreparing)}
             comparisonSeries={comparisonSeries}
+            isRefreshing={portfolioChartRefreshing}
             range={range}
             userTimezone={userTimezone}
           />

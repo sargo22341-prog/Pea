@@ -16,6 +16,7 @@ import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
 import { financialsService } from "../market/financials.service.js";
+import { chartConfigService } from "../market/chart-config.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";
@@ -224,7 +225,7 @@ export class PortfolioAnalysisService {
     const totalValue = portfolio.totalValue || portfolio.positions.reduce((sum, position) => sum + position.marketValue, 0);
     if (!portfolio.positions.length || !totalValue) {
       const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [] };
-      if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", empty, config.marketLiveRefreshIntervalMs);
+      if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", empty, chartConfigService.getSnapshotRefreshIntervalMs());
       return empty;
     }
 
@@ -295,7 +296,7 @@ export class PortfolioAnalysisService {
       financials: aggregateFinancials(financialInputs),
       stale
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", payload, config.marketLiveRefreshIntervalMs);
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", payload, chartConfigService.getSnapshotRefreshIntervalMs());
     return payload;
   }
 }

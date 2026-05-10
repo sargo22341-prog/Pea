@@ -25,6 +25,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   const chart = portfolioFull.data?.chart ?? null;
   const portfolioReload = portfolioFull.reload;
   const lastAutoReloadAt = useRef(0);
+  const [portfolioChartRefreshing, setPortfolioChartRefreshing] = useState(false);
 
   /**
    * Met a jour la range affichee pour tous les blocs dependants du temps.
@@ -45,8 +46,6 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
 
   useEffect(() => {
-    let eventSource: EventSource | undefined;
-    let cancelled = false;
     let debounceTimer: number | undefined;
 
     function reloadVisiblePortfolio() {
@@ -65,31 +64,33 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
       if (document.visibilityState === "visible") reloadVisiblePortfolio();
     }
 
+    function onMarketEvent(event: Event) {
+      const payload = (event as CustomEvent<{ type?: string }>).detail;
+      if (payload.type === "portfolio-chart-refresh-started") setPortfolioChartRefreshing(true);
+      if (payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") setPortfolioChartRefreshing(false);
+      if (payload.type === "market-snapshot-updated" || payload.type === "portfolio-market-updated" || payload.type === "portfolio-assets-updated" || payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") scheduleReload();
+    }
+
+    window.addEventListener("pea:market-event", onMarketEvent);
     document.addEventListener("visibilitychange", onForeground);
     window.addEventListener("focus", onForeground);
 
-    api.marketFeatures()
-      .then((features) => {
-        if (cancelled || !features.sseEnabled) return;
-        eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
-        for (const eventName of ["market-snapshot-updated", "portfolio-market-updated", "portfolio-assets-updated", "portfolio-chart-updated", "dashboard-chart-updated", "watchlist-market-updated", "watchlist-assets-updated", "watchlist-chart-updated", "analysis-updated", "dividends-updated", "scheduler-health-updated"]) {
-          eventSource.addEventListener(eventName, (event) => {
-            const payload = JSON.parse((event as MessageEvent).data);
-            window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
-            if (payload.type === "market-snapshot-updated" || payload.type === "portfolio-market-updated" || payload.type === "portfolio-assets-updated" || payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") scheduleReload();
-          });
-        }
-      })
-      .catch(() => undefined);
-
     return () => {
-      cancelled = true;
       if (debounceTimer) window.clearTimeout(debounceTimer);
+      window.removeEventListener("pea:market-event", onMarketEvent);
       document.removeEventListener("visibilitychange", onForeground);
       window.removeEventListener("focus", onForeground);
-      eventSource?.close();
     };
   }, [portfolioReload]);
+
+  useEffect(() => {
+    if (selectedRange !== "1d" || !portfolioFull.data) return;
+    api.requestChartRefresh({ scope: "portfolio", range: "1d" })
+      .then((result) => {
+        if (result.status === "started") setPortfolioChartRefreshing(true);
+      })
+      .catch(() => undefined);
+  }, [portfolioFull.data, selectedRange]);
 
   if (portfolioFull.error) return <div className="card border-coral p-6 text-coral">{portfolioFull.error}</div>;
   if (portfolioIsEmpty) return <EmptyState />;
@@ -114,6 +115,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
           setRange={setSelectedRange}
           summary={summary}
           portfolioChart={{ loading: portfolioFull.loading, data: chart, error: portfolioFull.error, reload: portfolioFull.reload }}
+          portfolioChartRefreshing={portfolioChartRefreshing}
           localPeaSearchEnabled={user.localPeaSearchEnabled}
           userTimezone={appTimezone}
         />

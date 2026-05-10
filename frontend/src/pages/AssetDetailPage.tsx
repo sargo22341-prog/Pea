@@ -12,7 +12,7 @@ import {
   Plus,
   Star
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AddAssetPositionModal } from "../components/asset-detail/AddAssetPositionModal";
 import { AssetMarketInfo } from "../components/asset-detail/AssetMarketInfo";
@@ -37,6 +37,9 @@ import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/
 import { money, percent } from "../lib/format";
 import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
 
+const lazyChartRetryCooldownMs = 60_000;
+const lazyChartRefreshTimeoutMs = 45_000;
+
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
   const navigate = useNavigate();
@@ -51,6 +54,15 @@ export function AssetDetailPage({ user }: { user: User }) {
   const { series: comparisonSeries, loading: comparisonLoading } = useAssetComparisonSeries(compareTargets, range);
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [chartRefreshing, setChartRefreshing] = useState(false);
+  const lazyChartGuard = useRef({
+    key: "",
+    requestedForCacheVersion: "",
+    lastRefreshRequestedAt: 0,
+    refreshInProgress: false,
+    suppressUntil: 0,
+    timeout: undefined as number | undefined
+  });
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
   const assetReload = asset.reload;
   const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
@@ -110,6 +122,85 @@ export function AssetDetailPage({ user }: { user: User }) {
       if (timer) window.clearTimeout(timer);
     };
   }, [assetChartPreparing, assetReload]);
+
+  useEffect(() => {
+    if (range !== "1d" || !asset.data?.chart) return;
+    const key = `${symbol.toUpperCase()}:1d`;
+    const cacheVersion = chartCacheVersion(asset.data.chart);
+    const guard = lazyChartGuard.current;
+    const now = Date.now();
+
+    if (guard.key !== key) {
+      if (guard.timeout) window.clearTimeout(guard.timeout);
+      lazyChartGuard.current = {
+        key,
+        requestedForCacheVersion: "",
+        lastRefreshRequestedAt: 0,
+        refreshInProgress: false,
+        suppressUntil: 0,
+        timeout: undefined
+      };
+    }
+
+    const current = lazyChartGuard.current;
+    if (current.refreshInProgress || now < current.suppressUntil) return;
+    if (current.requestedForCacheVersion === cacheVersion && now - current.lastRefreshRequestedAt < lazyChartRetryCooldownMs) return;
+
+    current.requestedForCacheVersion = cacheVersion;
+    current.lastRefreshRequestedAt = now;
+
+    api.requestChartRefresh({ scope: "asset", symbol, range: "1d" })
+      .then((result) => {
+        if (result.status === "started" || result.status === "in-progress") {
+          current.refreshInProgress = true;
+          setChartRefreshing(true);
+          if (current.timeout) window.clearTimeout(current.timeout);
+          current.timeout = window.setTimeout(() => {
+            current.refreshInProgress = false;
+            current.timeout = undefined;
+            setChartRefreshing(false);
+          }, lazyChartRefreshTimeoutMs);
+          return;
+        }
+
+        current.refreshInProgress = false;
+        current.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (current.timeout) window.clearTimeout(current.timeout);
+        current.timeout = undefined;
+        setChartRefreshing(false);
+      })
+      .catch(() => {
+        current.refreshInProgress = false;
+        current.lastRefreshRequestedAt = Date.now();
+        setChartRefreshing(false);
+      });
+  }, [asset.data?.chart, range, symbol]);
+
+  useEffect(() => {
+    function onMarketEvent(event: Event) {
+      const payload = (event as CustomEvent<{ type?: string; symbol?: string; range?: string }>).detail;
+      if (payload?.symbol?.toUpperCase() !== symbol.toUpperCase() || payload.range !== "1d") return;
+      if (payload.type === "asset-chart-refresh-started") setChartRefreshing(true);
+      if (payload.type === "asset-chart-updated") {
+        const guard = lazyChartGuard.current;
+        guard.refreshInProgress = false;
+        guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (guard.timeout) window.clearTimeout(guard.timeout);
+        guard.timeout = undefined;
+        setChartRefreshing(false);
+        void assetReload();
+      }
+    }
+    window.addEventListener("pea:market-event", onMarketEvent);
+    return () => window.removeEventListener("pea:market-event", onMarketEvent);
+  }, [assetReload, symbol]);
+
+  useEffect(() => {
+    return () => {
+      const timeout = lazyChartGuard.current.timeout;
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, []);
 
   useEffect(() => {
     const name = asset.data?.quote?.name;
@@ -245,7 +336,7 @@ export function AssetDetailPage({ user }: { user: User }) {
 
       {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
 
-      <section className="card p-0 sm:p-4">
+      <section className={`card p-0 sm:p-4 ${chartRefreshing ? "stale-refreshing" : ""}`}>
         <div className="mb-3 flex flex-col justify-between gap-4 px-2 sm:mb-4 sm:flex-row sm:items-center sm:px-0">
           <h2 className="font-semibold">Historique</h2>
           <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
@@ -398,4 +489,8 @@ function chartDtoToPoints(chart?: AssetChartDto) {
   }));
 }
 
+function chartCacheVersion(chart: AssetChartDto) {
+  const lastTimestamp = chart.timestamps[chart.timestamps.length - 1] ?? "none";
+  return `${chart.timestamps.length}:${lastTimestamp}:${chart.baselineDatetime ?? ""}`;
+}
 

@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Shell } from "./components/common/Shell";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
@@ -14,12 +14,55 @@ const NewsPage = lazy(() => import("./pages/NewsPage").then((module) => ({ defau
 const SearchPage = lazy(() => import("./pages/SearchPage").then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 
+const marketEventNames = [
+  "market-snapshot-updated",
+  "portfolio-market-updated",
+  "portfolio-assets-updated",
+  "portfolio-chart-refresh-started",
+  "portfolio-chart-updated",
+  "dashboard-chart-updated",
+  "asset-chart-refresh-started",
+  "asset-chart-updated",
+  "watchlist-market-updated",
+  "watchlist-assets-updated",
+  "watchlist-chart-refresh-started",
+  "watchlist-chart-updated",
+  "analysis-updated",
+  "dividends-updated",
+  "scheduler-health-updated"
+];
+
 function LoadingPage() {
   return <div className="p-6 text-slate-400">Chargement...</div>;
 }
 
 export function App() {
   const me = useAsync(() => api.me(), []);
+  const userId = me.data?.user?.id;
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+    let eventSource: EventSource | undefined;
+
+    api.marketFeatures()
+      .then((features) => {
+        if (cancelled || !features.sseEnabled) return;
+        eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
+        for (const eventName of marketEventNames) {
+          eventSource.addEventListener(eventName, (event) => {
+            const payload = JSON.parse((event as MessageEvent).data);
+            window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
+          });
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      eventSource?.close();
+    };
+  }, [userId]);
 
   if (me.loading) return <div className="p-6 text-slate-400">Chargement...</div>;
   if (me.data?.setupRequired) {

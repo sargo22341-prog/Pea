@@ -49,7 +49,11 @@ export type MarketEventPayload = {
     | "watchlist-market-updated"
     | "portfolio-assets-updated"
     | "watchlist-assets-updated"
+    | "portfolio-chart-refresh-started"
+    | "asset-chart-refresh-started"
+    | "watchlist-chart-refresh-started"
     | "portfolio-chart-updated"
+    | "asset-chart-updated"
     | "watchlist-chart-updated"
     | "dashboard-chart-updated"
     | "analysis-updated"
@@ -143,6 +147,8 @@ export const api = {
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
   marketFeatures: () => request<{ liveRefreshEnabled: boolean; sseEnabled: boolean }>("/api/market/features"),
   marketEventsUrl: () => `${baseUrl}/api/market/events`,
+  requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
+    request<{ status: string }>("/api/market/chart-refresh", { method: "POST", body: JSON.stringify(input) }),
   history: (symbol: string, range: RangeKey) =>
     request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),

@@ -28,6 +28,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [sortOpen, setSortOpen] = useState(false);
+  const [chartRefreshing, setChartRefreshing] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const lastAutoReloadAt = useRef(0);
   const watchlistReload = watchlist.reload;
@@ -55,6 +56,8 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
 
     function onMarketEvent(event: Event) {
       const payload = (event as CustomEvent<{ type?: string }>).detail;
+      if (payload?.type === "watchlist-chart-refresh-started") setChartRefreshing(true);
+      if (payload?.type === "watchlist-chart-updated") setChartRefreshing(false);
       if (payload?.type === "market-snapshot-updated" || payload?.type === "watchlist-market-updated" || payload?.type === "watchlist-assets-updated" || payload?.type === "watchlist-chart-updated") {
         window.setTimeout(reloadVisibleWatchlist, 400);
       }
@@ -73,6 +76,15 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
       window.removeEventListener("focus", onForeground);
     };
   }, [watchlistReload]);
+
+  useEffect(() => {
+    if (!watchlist.data?.length || range !== "1d") return;
+    api.requestChartRefresh({ scope: "watchlist", range: "1d" })
+      .then((result) => {
+        if (result.status === "started") setChartRefreshing(true);
+      })
+      .catch(() => undefined);
+  }, [range, watchlist.data]);
 
   const sortedItems = useMemo(() => {
     return (watchlist.data ?? [])
@@ -115,7 +127,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
 
   return (
-    <section className="card overflow-hidden">
+    <section className={`card overflow-hidden ${chartRefreshing ? "stale-refreshing" : ""}`}>
       <div className="flex items-center justify-between gap-3 border-b border-line p-4">
         <div className="min-w-0">
           <h2 className="truncate font-semibold">Liste de suivi</h2>
