@@ -1,6 +1,5 @@
 import type { Response } from "express";
 import { db } from "../../db.js";
-import { config } from "../../config.js";
 import { logger } from "../shared/logger.service.js";
 
 export type MarketEventType =
@@ -12,9 +11,11 @@ export type MarketEventType =
   | "portfolio-chart-refresh-started"
   | "asset-chart-refresh-started"
   | "watchlist-chart-refresh-started"
+  | "portfolio-performance-refresh-started"
   | "portfolio-chart-updated"
   | "asset-chart-updated"
   | "watchlist-chart-updated"
+  | "portfolio-performance-updated"
   | "dashboard-chart-updated"
   | "analysis-updated"
   | "dividends-updated"
@@ -41,11 +42,6 @@ export class MarketEventsService {
   private nextClientId = 1;
 
   connect(userId: string | number, res: Response) {
-    if (!config.enableMarketSse) {
-      res.status(404).json({ message: "SSE marche desactive." });
-      return;
-    }
-
     const id = this.nextClientId++;
     const client: Client = { id, userId: String(userId), res };
     this.clients.set(id, client);
@@ -73,7 +69,7 @@ export class MarketEventsService {
   }
 
   emitMarketRefresh(input: { markets: string[]; symbols: string[]; updatedAt?: string }) {
-    if (!config.enableMarketSse || this.clients.size === 0 || input.symbols.length === 0) return;
+    if (this.clients.size === 0 || input.symbols.length === 0) return;
     const updatedAt = input.updatedAt ?? new Date().toISOString();
     const markets = [...new Set(input.markets)];
     const users = this.usersForSymbols(input.symbols);
@@ -86,6 +82,7 @@ export class MarketEventsService {
         this.write(client, "portfolio-market-updated", { type: "portfolio-market-updated", markets, updatedAt });
         this.write(client, "portfolio-assets-updated", { type: "portfolio-assets-updated", markets, updatedAt });
         this.write(client, "portfolio-chart-updated", { type: "portfolio-chart-updated", markets, updatedAt });
+        this.write(client, "portfolio-performance-updated", { type: "portfolio-performance-updated", markets, range: "1d", updatedAt });
         this.write(client, "dashboard-chart-updated", { type: "dashboard-chart-updated", markets, updatedAt });
         this.write(client, "analysis-updated", { type: "analysis-updated", markets, updatedAt });
         this.write(client, "dividends-updated", { type: "dividends-updated", markets, updatedAt });
@@ -99,7 +96,6 @@ export class MarketEventsService {
   }
 
   emitToUser(userId: string | number, event: MarketEventType, payload: Omit<MarketEventPayload, "type"> = {}) {
-    if (!config.enableMarketSse) return;
     const target = String(userId);
     for (const client of this.clients.values()) {
       if (client.userId === target) this.write(client, event, { type: event, ...payload });

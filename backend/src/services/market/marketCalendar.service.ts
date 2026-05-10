@@ -133,6 +133,8 @@ function resolveMarketInput(market: string | { symbol?: string; exchange?: strin
   return market;
 }
 
+const previousOpenMarketDaysCache = new Map<string, OpenMarketDay[]>();
+
 export function getPreviousOpenMarketDays(
   market: string | { symbol?: string; exchange?: string },
   endDate: Date,
@@ -140,10 +142,15 @@ export function getPreviousOpenMarketDays(
 ): OpenMarketDay[] {
   const { symbol, exchange } = resolveMarketInput(market);
   const calendar = getMarketCalendar(symbol, exchange);
+  const endLocalDate = getLocalDateParts(endDate, calendar.timezone).isoDate;
+  const cacheKey = `${calendar.market}:${calendar.timezone}:${endLocalDate}:${count}`;
+  const cached = previousOpenMarketDaysCache.get(cacheKey);
+  if (cached) return cached.map((day) => ({ ...day, period1: new Date(day.period1), period2: new Date(day.period2), calendar: day.calendar }));
+
   const days: OpenMarketDay[] = [];
   const ignored: Array<{ date: string; reason: string }> = [];
   const maxLookbackDays = Math.max(20, count * 4 + 20);
-  let cursorDate = getLocalDateParts(endDate, calendar.timezone).isoDate;
+  let cursorDate = endLocalDate;
 
   for (let index = 0; index < maxLookbackDays && days.length < count; index += 1) {
     const cursor = zonedTimeToUtc(cursorDate, "12:00", calendar.timezone);
@@ -168,6 +175,7 @@ export function getPreviousOpenMarketDays(
     startDate: days[days.length - 1]?.date,
     ignoredDays: ignored
   });
+  previousOpenMarketDaysCache.set(cacheKey, days);
   return days;
 }
 

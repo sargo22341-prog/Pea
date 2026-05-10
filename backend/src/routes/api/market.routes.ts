@@ -38,8 +38,7 @@ marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
 
 marketRouter.get("/market/features", (_req, res) => {
   res.json({
-    liveRefreshEnabled: config.enableMarketLiveRefresh,
-    sseEnabled: config.enableMarketSse
+    liveRefreshEnabled: config.enableMarketLiveRefresh
   });
 });
 
@@ -49,16 +48,17 @@ marketRouter.get("/market/events", (req, res) => {
 
 marketRouter.post("/market/chart-refresh", (req, res) => {
   const body = z.discriminatedUnion("scope", [
-    z.object({ scope: z.literal("asset"), symbol: z.string().min(1), range: z.literal("1d").default("1d") }),
-    z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d") }),
-    z.object({ scope: z.literal("watchlist"), range: z.literal("1d").default("1d") })
+    z.object({ scope: z.literal("asset"), symbol: z.string().min(1), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
+    z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
+    z.object({ scope: z.literal("watchlist"), range: z.literal("1d").default("1d"), force: z.boolean().optional() })
   ]).parse(req.body ?? {});
+  const force = req.user!.role === "admin" && body.force === true;
 
   const result = body.scope === "watchlist"
-    ? chartRefreshService.requestWatchlistRefresh({ userId: req.user!.id, range: body.range })
+    ? chartRefreshService.requestWatchlistRefresh({ userId: req.user!.id, range: body.range, force })
     : body.scope === "portfolio"
-      ? chartRefreshService.requestPortfolioRefresh({ userId: req.user!.id, range: body.range })
-      : chartRefreshService.requestAssetRefresh({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset" });
+      ? chartRefreshService.requestPortfolioRefresh({ userId: req.user!.id, range: body.range, force })
+      : chartRefreshService.requestAssetRefresh({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset", force });
 
   if (result.status === "not-found") {
     res.status(404).json(result);

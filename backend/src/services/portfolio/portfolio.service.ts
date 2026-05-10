@@ -21,6 +21,7 @@ import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
 import { buildTransactionCache, computeTotalDividendsReceived, downsamplePoints, getCostBasisAtTime, getQuantityAtTime, positionFromTransactionCache, type PositionTransactionCache } from "./portfolio-calculations.js";
+import { portfolioPerformanceCache } from "./portfolio-performance-cache.service.js";
 import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
@@ -788,6 +789,17 @@ export class PortfolioService {
   }
 
   async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
+    if (!options.forceIntradayOpen && !options.intradayNow) {
+      return portfolioPerformanceCache.getOrCompute({
+        userId: currentUserId().toString(),
+        range,
+        compute: () => this.calculatePositionsPerformance(range, options)
+      });
+    }
+    return this.calculatePositionsPerformance(range, options);
+  }
+
+  private async calculatePositionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
     const positions = this.listPositions();
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
     // Pré-charge toutes les transactions en une seule requête et partage le cache

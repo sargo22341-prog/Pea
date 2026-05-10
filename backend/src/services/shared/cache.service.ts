@@ -92,6 +92,7 @@ export function invalidateUserAssetCaches(userId: string, symbol?: string) {
       db.prepare("DELETE FROM user_assets").run();
     }
     db.prepare("DELETE FROM portfolio_chart_cache").run();
+    db.prepare("DELETE FROM portfolio_positions_performance_cache").run();
     db.prepare("DELETE FROM frontend_block_cache").run();
     return;
   }
@@ -101,5 +102,6 @@ export function invalidateUserAssetCaches(userId: string, symbol?: string) {
     db.prepare("DELETE FROM user_assets WHERE user_id = ?").run(userId);
   }
   db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(userId);
+  db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(userId);
   db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(userId);
 }

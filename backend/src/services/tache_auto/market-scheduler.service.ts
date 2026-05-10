@@ -28,8 +28,7 @@ export class MarketSchedulerService {
       intervalMs: tickIntervalMs,
       liveRefreshEnabled: config.enableMarketLiveRefresh,
       snapshotsIntervalMs: chartConfigService.getSnapshotRefreshIntervalMs(),
-      portfolioChartsIntervalMs: chartConfigService.getPortfolioChartRefreshIntervalMs(),
-      marketSseEnabled: config.enableMarketSse
+      portfolioChartsIntervalMs: chartConfigService.getPortfolioChartRefreshIntervalMs()
     });
   }
 

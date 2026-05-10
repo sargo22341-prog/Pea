@@ -3,6 +3,24 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 
+class EventSourceMock {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSED = 2;
+  readyState = EventSourceMock.OPEN;
+  url: string;
+  withCredentials: boolean;
+  addEventListener = vi.fn();
+  close = vi.fn(() => {
+    this.readyState = EventSourceMock.CLOSED;
+  });
+
+  constructor(url: string, init?: EventSourceInit) {
+    this.url = url;
+    this.withCredentials = Boolean(init?.withCredentials);
+  }
+}
+
 function renderApp(path = "/") {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -14,6 +32,7 @@ function renderApp(path = "/") {
 describe("App – auth gate", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("shows loading state while /api/auth/me is in flight", () => {
@@ -56,6 +75,20 @@ describe("App – auth gate", () => {
   });
 
   it("renders the main app shell when user is authenticated", async () => {
+    const eventSourceSpy = vi.fn();
+    class TestEventSource extends EventSourceMock {
+      constructor(url: string, init?: EventSourceInit) {
+        super(url, init);
+        eventSourceSpy(url, init);
+      }
+    }
+    Object.assign(TestEventSource, {
+      CONNECTING: EventSourceMock.CONNECTING,
+      OPEN: EventSourceMock.OPEN,
+      CLOSED: EventSourceMock.CLOSED
+    });
+    vi.stubGlobal("EventSource", TestEventSource);
+    Object.defineProperty(window, "EventSource", { configurable: true, value: TestEventSource });
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -84,6 +117,8 @@ describe("App – auth gate", () => {
       expect(screen.queryByText("Connexion")).not.toBeInTheDocument();
       expect(screen.queryByText("Creer le premier compte")).not.toBeInTheDocument();
     });
+    await waitFor(() => expect(eventSourceSpy).toHaveBeenCalledWith("/api/market/events", { withCredentials: true }));
+    expect(fetch).not.toHaveBeenCalledWith("/api/market/features", expect.anything());
   });
 
   it("shows login form when the API call fails", async () => {

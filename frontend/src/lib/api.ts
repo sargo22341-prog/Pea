@@ -50,9 +50,11 @@ export type MarketEventPayload = {
     | "portfolio-assets-updated"
     | "watchlist-assets-updated"
     | "portfolio-chart-refresh-started"
+    | "portfolio-performance-refresh-started"
     | "asset-chart-refresh-started"
     | "watchlist-chart-refresh-started"
     | "portfolio-chart-updated"
+    | "portfolio-performance-updated"
     | "asset-chart-updated"
     | "watchlist-chart-updated"
     | "dashboard-chart-updated"
@@ -60,7 +62,11 @@ export type MarketEventPayload = {
     | "dividends-updated"
     | "scheduler-health-updated";
   markets: string[];
-  updatedAt: string;
+  symbols?: string[];
+  symbol?: string;
+  range?: string;
+  updatedAt?: string;
+  startedAt?: string;
 };
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -145,7 +151,7 @@ export const api = {
   enrichedSearch: (q: string, signal?: AbortSignal) =>
     request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
-  marketFeatures: () => request<{ liveRefreshEnabled: boolean; sseEnabled: boolean }>("/api/market/features"),
+  marketFeatures: () => request<{ liveRefreshEnabled: boolean }>("/api/market/features"),
   marketEventsUrl: () => `${baseUrl}/api/market/events`,
   requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
     request<{ status: string }>("/api/market/chart-refresh", { method: "POST", body: JSON.stringify(input) }),

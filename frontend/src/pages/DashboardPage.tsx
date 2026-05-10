@@ -13,6 +13,9 @@ import { TopMetrics } from "../components/dashboard/TopMetrics";
 import { useAsync } from "../hooks/useAsync";
 import { api } from "../lib/api";
 
+const lazyChartRetryCooldownMs = 60_000;
+const lazyChartRefreshTimeoutMs = 45_000;
+
 export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: string }) {
   const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
     const initialRange = user.defaultChartRange ?? "1d";
@@ -26,6 +29,13 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   const portfolioReload = portfolioFull.reload;
   const lastAutoReloadAt = useRef(0);
   const [portfolioChartRefreshing, setPortfolioChartRefreshing] = useState(false);
+  const lazyChartGuard = useRef({
+    requestedForCacheVersion: "",
+    lastRefreshRequestedAt: 0,
+    refreshInProgress: false,
+    suppressUntil: 0,
+    timeout: undefined as number | undefined
+  });
 
   /**
    * Met a jour la range affichee pour tous les blocs dependants du temps.
@@ -66,8 +76,18 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
 
     function onMarketEvent(event: Event) {
       const payload = (event as CustomEvent<{ type?: string }>).detail;
-      if (payload.type === "portfolio-chart-refresh-started") setPortfolioChartRefreshing(true);
-      if (payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") setPortfolioChartRefreshing(false);
+      if (payload.type === "portfolio-chart-refresh-started") {
+        lazyChartGuard.current.refreshInProgress = true;
+        setPortfolioChartRefreshing(true);
+      }
+      if (payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") {
+        const guard = lazyChartGuard.current;
+        guard.refreshInProgress = false;
+        guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (guard.timeout) window.clearTimeout(guard.timeout);
+        guard.timeout = undefined;
+        setPortfolioChartRefreshing(false);
+      }
       if (payload.type === "market-snapshot-updated" || payload.type === "portfolio-market-updated" || payload.type === "portfolio-assets-updated" || payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") scheduleReload();
     }
 
@@ -84,13 +104,50 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   }, [portfolioReload]);
 
   useEffect(() => {
-    if (selectedRange !== "1d" || !portfolioFull.data) return;
+    if (selectedRange !== "1d" || !portfolioFull.data || !chart) return;
+    const cacheVersion = chartCacheVersion(chart);
+    const guard = lazyChartGuard.current;
+    const now = Date.now();
+    if (guard.refreshInProgress || now < guard.suppressUntil) return;
+    if (guard.requestedForCacheVersion === cacheVersion && now - guard.lastRefreshRequestedAt < lazyChartRetryCooldownMs) return;
+
+    guard.requestedForCacheVersion = cacheVersion;
+    guard.lastRefreshRequestedAt = now;
+
     api.requestChartRefresh({ scope: "portfolio", range: "1d" })
       .then((result) => {
-        if (result.status === "started") setPortfolioChartRefreshing(true);
+        if (result.status === "started" || result.status === "in-progress") {
+          guard.refreshInProgress = true;
+          setPortfolioChartRefreshing(true);
+          if (guard.timeout) window.clearTimeout(guard.timeout);
+          guard.timeout = window.setTimeout(() => {
+            guard.refreshInProgress = false;
+            guard.timeout = undefined;
+            setPortfolioChartRefreshing(false);
+          }, lazyChartRefreshTimeoutMs);
+          return;
+        }
+
+        guard.refreshInProgress = false;
+        guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (guard.timeout) window.clearTimeout(guard.timeout);
+        guard.timeout = undefined;
+        setPortfolioChartRefreshing(false);
       })
-      .catch(() => undefined);
-  }, [portfolioFull.data, selectedRange]);
+      .catch(() => {
+        guard.refreshInProgress = false;
+        guard.lastRefreshRequestedAt = Date.now();
+        setPortfolioChartRefreshing(false);
+      });
+  }, [chart, portfolioFull.data, selectedRange]);
+
+  useEffect(() => {
+    const guard = lazyChartGuard.current;
+    return () => {
+      const timeout = guard.timeout;
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, []);
 
   if (portfolioFull.error) return <div className="card border-coral p-6 text-coral">{portfolioFull.error}</div>;
   if (portfolioIsEmpty) return <EmptyState />;
@@ -126,4 +183,9 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
       
     </div>
   );
+}
+
+function chartCacheVersion(chart: { timestamps: number[]; baselineDatetime?: string }) {
+  const lastTimestamp = chart.timestamps[chart.timestamps.length - 1] ?? "none";
+  return `${chart.timestamps.length}:${lastTimestamp}:${chart.baselineDatetime ?? ""}`;
 }

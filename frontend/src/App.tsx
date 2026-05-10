@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { Shell } from "./components/common/Shell";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
@@ -19,7 +19,9 @@ const marketEventNames = [
   "portfolio-market-updated",
   "portfolio-assets-updated",
   "portfolio-chart-refresh-started",
+  "portfolio-performance-refresh-started",
   "portfolio-chart-updated",
+  "portfolio-performance-updated",
   "dashboard-chart-updated",
   "asset-chart-refresh-started",
   "asset-chart-updated",
@@ -39,28 +41,37 @@ function LoadingPage() {
 export function App() {
   const me = useAsync(() => api.me(), []);
   const userId = me.data?.user?.id;
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     if (!userId) return undefined;
-    let cancelled = false;
-    let eventSource: EventSource | undefined;
 
-    api.marketFeatures()
-      .then((features) => {
-        if (cancelled || !features.sseEnabled) return;
-        eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
-        for (const eventName of marketEventNames) {
-          eventSource.addEventListener(eventName, (event) => {
-            const payload = JSON.parse((event as MessageEvent).data);
-            window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
-          });
-        }
-      })
-      .catch(() => undefined);
+    function connect() {
+      if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) return;
+      const eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
+      eventSourceRef.current = eventSource;
+      for (const eventName of marketEventNames) {
+        eventSource.addEventListener(eventName, (event) => {
+          const payload = JSON.parse((event as MessageEvent).data);
+          window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
+        });
+      }
+    }
+
+    function reconnectWhenForegrounded() {
+      if (document.visibilityState !== "visible") return;
+      connect();
+    }
+
+    connect();
+    document.addEventListener("visibilitychange", reconnectWhenForegrounded);
+    window.addEventListener("focus", reconnectWhenForegrounded);
 
     return () => {
-      cancelled = true;
-      eventSource?.close();
+      document.removeEventListener("visibilitychange", reconnectWhenForegrounded);
+      window.removeEventListener("focus", reconnectWhenForegrounded);
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
     };
   }, [userId]);
 

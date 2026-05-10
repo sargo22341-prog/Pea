@@ -38,7 +38,9 @@ export function PositionList({
   const [sortOpen, setSortOpen] = useState(false);
   const [performanceById, setPerformanceById] = useState<Map<number, PositionRangePerformance>>(new Map());
   const [performanceError, setPerformanceError] = useState<string | null>(null);
+  const [performanceRefreshing, setPerformanceRefreshing] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
+  const lastAutoReloadAt = useRef(0);
 
   useEffect(() => {
     setSortKey(defaultSortKey);
@@ -72,6 +74,43 @@ export function PositionList({
     };
   }, [range]);
 
+  useEffect(() => {
+    let debounceTimer: number | undefined;
+
+    function reloadPerformance() {
+      const now = Date.now();
+      if (now - lastAutoReloadAt.current < 1500) return;
+      lastAutoReloadAt.current = now;
+      api.positionsPerformance(range)
+        .then((items) => {
+          setPerformanceById(new Map(items.map((item) => [item.id, item])));
+          setPerformanceRefreshing(false);
+        })
+        .catch((caughtError) => {
+          setPerformanceError(caughtError instanceof Error ? caughtError.message : "Performances indisponibles");
+          setPerformanceRefreshing(false);
+        });
+    }
+
+    function scheduleReload() {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(reloadPerformance, 300);
+    }
+
+    function onMarketEvent(event: Event) {
+      const payload = (event as CustomEvent<{ type?: string; range?: string }>).detail;
+      if (payload.range && payload.range !== range) return;
+      if (payload.type === "portfolio-performance-refresh-started") setPerformanceRefreshing(true);
+      if (payload.type === "portfolio-performance-updated") scheduleReload();
+    }
+
+    window.addEventListener("pea:market-event", onMarketEvent);
+    return () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      window.removeEventListener("pea:market-event", onMarketEvent);
+    };
+  }, [range]);
+
   const sortedPositions = useMemo(() => {
     return [...positions].sort((a, b) => {
       const direction = sortDirection === "asc" ? 1 : -1;
@@ -97,7 +136,7 @@ export function PositionList({
   const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
 
   return (
-    <div className="card overflow-hidden">
+    <div className={`card overflow-hidden ${performanceRefreshing ? "stale-refreshing" : ""}`}>
       <div className="flex items-center justify-between gap-3 border-b border-line p-4">
         <div>
           <h2 className="font-semibold"><span className="sm:hidden">Liste des positions</span><span className="hidden sm:inline">Positions</span></h2>

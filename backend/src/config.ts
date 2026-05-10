@@ -44,6 +44,5 @@ export const config = {
   appTimezone,
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
   chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
-  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
-  enableMarketSse: parseBoolean(process.env.ENABLE_MARKET_SSE, false)
+  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false)
 };

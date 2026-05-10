@@ -13,6 +13,9 @@ import { money, percent } from "../../lib/format";
 import { AssetIcon } from "../common/AssetIcon";
 import { StaleBadge } from "../common/StaleBadge";
 
+const lazyChartRetryCooldownMs = 60_000;
+const lazyChartRefreshTimeoutMs = 45_000;
+
 const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
   { label: "Nom A -> Z", key: "name", direction: "asc" },
   { label: "Nom Z -> A", key: "name", direction: "desc" },
@@ -31,6 +34,13 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const [chartRefreshing, setChartRefreshing] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const lastAutoReloadAt = useRef(0);
+  const lazyChartGuard = useRef({
+    requestedForCacheVersion: "",
+    lastRefreshRequestedAt: 0,
+    refreshInProgress: false,
+    suppressUntil: 0,
+    timeout: undefined as number | undefined
+  });
   const watchlistReload = watchlist.reload;
 
   useEffect(() => {
@@ -56,8 +66,18 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
 
     function onMarketEvent(event: Event) {
       const payload = (event as CustomEvent<{ type?: string }>).detail;
-      if (payload?.type === "watchlist-chart-refresh-started") setChartRefreshing(true);
-      if (payload?.type === "watchlist-chart-updated") setChartRefreshing(false);
+      if (payload?.type === "watchlist-chart-refresh-started") {
+        lazyChartGuard.current.refreshInProgress = true;
+        setChartRefreshing(true);
+      }
+      if (payload?.type === "watchlist-chart-updated") {
+        const guard = lazyChartGuard.current;
+        guard.refreshInProgress = false;
+        guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (guard.timeout) window.clearTimeout(guard.timeout);
+        guard.timeout = undefined;
+        setChartRefreshing(false);
+      }
       if (payload?.type === "market-snapshot-updated" || payload?.type === "watchlist-market-updated" || payload?.type === "watchlist-assets-updated" || payload?.type === "watchlist-chart-updated") {
         window.setTimeout(reloadVisibleWatchlist, 400);
       }
@@ -79,12 +99,49 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
 
   useEffect(() => {
     if (!watchlist.data?.length || range !== "1d") return;
+    const cacheVersion = watchlistCacheVersion(watchlist.data);
+    const guard = lazyChartGuard.current;
+    const now = Date.now();
+    if (guard.refreshInProgress || now < guard.suppressUntil) return;
+    if (guard.requestedForCacheVersion === cacheVersion && now - guard.lastRefreshRequestedAt < lazyChartRetryCooldownMs) return;
+
+    guard.requestedForCacheVersion = cacheVersion;
+    guard.lastRefreshRequestedAt = now;
+
     api.requestChartRefresh({ scope: "watchlist", range: "1d" })
       .then((result) => {
-        if (result.status === "started") setChartRefreshing(true);
+        if (result.status === "started" || result.status === "in-progress") {
+          guard.refreshInProgress = true;
+          setChartRefreshing(true);
+          if (guard.timeout) window.clearTimeout(guard.timeout);
+          guard.timeout = window.setTimeout(() => {
+            guard.refreshInProgress = false;
+            guard.timeout = undefined;
+            setChartRefreshing(false);
+          }, lazyChartRefreshTimeoutMs);
+          return;
+        }
+
+        guard.refreshInProgress = false;
+        guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        if (guard.timeout) window.clearTimeout(guard.timeout);
+        guard.timeout = undefined;
+        setChartRefreshing(false);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        guard.refreshInProgress = false;
+        guard.lastRefreshRequestedAt = Date.now();
+        setChartRefreshing(false);
+      });
   }, [range, watchlist.data]);
+
+  useEffect(() => {
+    const guard = lazyChartGuard.current;
+    return () => {
+      const timeout = guard.timeout;
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, []);
 
   const sortedItems = useMemo(() => {
     return (watchlist.data ?? [])
@@ -271,4 +328,14 @@ function watchlistMetrics(item: WatchlistItem) {
 
 function metricValue(value: number | undefined) {
   return Number.isFinite(value) ? Number(value) : Number.NEGATIVE_INFINITY;
+}
+
+function watchlistCacheVersion(items: WatchlistItem[]) {
+  return items
+    .map((item) => {
+      const lastPoint = item.history[item.history.length - 1];
+      return `${item.symbol}:${item.history.length}:${lastPoint?.date ?? "none"}`;
+    })
+    .sort()
+    .join("|");
 }

@@ -124,12 +124,14 @@ export class LiveMarketRefreshTask {
           frontendBlockCache.invalidate({ userId, block: "analysis" });
           frontendBlockCache.invalidate({ userId, block: "dividends" });
           db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(String(userId));
+          db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ? AND range = '1d'").run(String(userId));
         }
         if (impact.watchlist) frontendBlockCache.invalidate({ userId, block: "watchlist" });
         const tasks: Array<Promise<unknown>> = [];
         if (impact.portfolio) tasks.push(
           portfolioService.summary("1d").catch(() => undefined),
           portfolioService.chart("1d", userId).catch(() => undefined),
+          portfolioService.positionsPerformance("1d").catch(() => undefined),
           portfolioAnalysisService.analysis().catch(() => undefined),
           dividendService.portfolioDividends().catch(() => undefined)
         );
