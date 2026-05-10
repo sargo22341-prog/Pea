@@ -174,25 +174,17 @@ function CalendarEventCard({
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate text-sm font-semibold text-white">{event.title}</p>
-          {event.badge && (
-            <span className="shrink-0 rounded-md bg-mint/10 px-2 py-0.5 text-[10px] font-semibold text-mint">
-              {event.badge}
-            </span>
-          )}
         </div>
         <p className="mt-1 truncate text-xs text-slate-400">{event.subtitle}</p>
       </div>
 
-      <div className="shrink-0 text-right">
-        {event.session && (
-          <p className={`text-[10px] font-semibold uppercase ${textToneClasses[event.tone]}`}>
-            {event.session}
+      {event.time && (
+        <div className="shrink-0 text-right">
+          <p className="mt-2 flex items-center justify-end gap-1 text-xs text-slate-300">
+            <Clock3 size={13} />{event.time}
           </p>
-        )}
-        <p className="mt-2 flex items-center justify-end gap-1 text-xs text-slate-300">
-          {event.time ? (<><Clock3 size={13} />{event.time}</>) : "-"}
-        </p>
-      </div>
+        </div>
+      )}
     </article>
   );
 }

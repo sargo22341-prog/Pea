@@ -5,8 +5,8 @@
  */
 
 import type { PortfolioChartDto, RangeKey } from "@pea/shared";
-import { memo, useId, useMemo } from "react";
-import { Area, ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { memo, useMemo } from "react";
+import { ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick } from "../../lib/format";
 import { normalizeSeriesByPoints } from "../../lib/seriesNormalization";
 import { COMPARE_COLORS } from "./compareColors";
@@ -43,7 +43,6 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   userTimezone?: string;
   maskValues?: boolean;
 }) {
-  const id = useId().replace(/:/g, "");
   const compressTimeAxis = shouldNormalizeComparisonByPoints(range);
   const comparisonData = useMemo(() => buildComparisonData(chart, comparisons, range), [chart, comparisons, range]);
   const comparisonEntries = useMemo(
@@ -83,13 +82,6 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
     <div className="chart-fade h-72 w-full overflow-visible">
       <SafeResponsiveContainer>
         <ComposedChart data={renderData} margin={{ left: 0, right: 0, top: 16, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`${id}-portfolio-gradient`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={portfolioColor} stopOpacity={0.12} />
-              <stop offset="100%" stopColor={portfolioColor} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-
           <XAxis
             axisLine={false}
             dataKey={xDataKey}
@@ -142,12 +134,11 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
             )}
           />
 
-          <Area
+          <Line
             activeDot={{ r: 4 }}
             connectNulls={false}
             dataKey="portfolio"
             dot={false}
-            fill={`url(#${id}-portfolio-gradient)`}
             isAnimationActive={false}
             stroke={portfolioColor}
             strokeWidth={2.5}

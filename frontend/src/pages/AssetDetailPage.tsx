@@ -330,10 +330,6 @@ export function AssetDetailPage({ user }: { user: User }) {
                   </button>
                 </>
               )}
-              <button className={compareTargets.length > 0 ? "btn bg-blue-600 text-white" : "btn-ghost"} onClick={() => setComparing(true)} type="button">
-                <GitCompare size={17} />
-                Comparer
-              </button>
             </div>
           </div>
         </div>
@@ -344,7 +340,13 @@ export function AssetDetailPage({ user }: { user: User }) {
       <section className={`card p-0 sm:p-4 ${chartRefreshing ? "stale-refreshing" : ""}`}>
         <div className="mb-3 flex flex-col justify-between gap-4 px-2 sm:mb-4 sm:flex-row sm:items-center sm:px-0">
           <h2 className="font-semibold">Historique</h2>
-          <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
+          <div className="flex items-center justify-end gap-2">
+            <button className={compareTargets.length > 0 ? "btn bg-blue-600 text-white" : "btn-ghost"} onClick={() => setComparing(true)} type="button">
+              <GitCompare size={17} />
+              {compareTargets.length > 0 ? compareTargets.length : "Comparer"}
+            </button>
+            <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
+          </div>
         </div>
         {asset.loading || (compareTargets.length > 0 && (comparisonLoading || chart?.isPreparing)) ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>

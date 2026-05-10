@@ -21,11 +21,11 @@ export function PortfolioEvolutionHeader({
 }) {
   return (
     <div className="flex min-h-[76px] flex-col justify-between gap-4 px-2 pb-3 sm:flex-row sm:items-center sm:px-0 sm:pb-0">
-      <div className="flex items-center gap-2">
-        <div>
-          <h1 className="text-xl font-bold">Evolution du portefeuille</h1>
-          <p className="muted">Valorisation agregee depuis les historiques Yahoo Finance.</p>
-        </div>
+      <div>
+        <h1 className="text-xl font-bold">Evolution du portefeuille</h1>
+        <p className="muted">Valorisation agregee depuis les historiques Yahoo Finance.</p>
+      </div>
+      <div className="flex items-center justify-end gap-2">
         {onCompareClick && (
           <button
             className={comparisonCount > 0 ? "btn bg-blue-600 text-white" : "btn-ghost"}
@@ -36,8 +36,8 @@ export function PortfolioEvolutionHeader({
             {comparisonCount > 0 ? comparisonCount : "Comparer"}
           </button>
         )}
+        <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
       </div>
-      <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
     </div>
   );
 }
