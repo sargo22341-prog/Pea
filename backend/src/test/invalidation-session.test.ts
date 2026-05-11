@@ -187,12 +187,14 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
     const indexExistants = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((r) => r.name);
     const colonnesUsers = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
     const colonnesUserAssets = db.prepare("PRAGMA table_info(user_assets)").all();
+    const colonnesMarketSnapshots = db.prepare("PRAGMA table_info(asset_market_snapshots)").all().map((r) => r.name);
     const colonneUserId = colonnesUserAssets.find((c) => c.name === "user_id");
     const versionsMigrations = db.prepare("SELECT version FROM _migrations ORDER BY version").all().map((r) => r.version);
 
     console.log("__RESULT__" + JSON.stringify({
       indexExistants,
       colonnesUsers,
+      colonnesMarketSnapshots,
       typeUserIdUserAssets: colonneUserId?.type,
       versionsMigrations
     }));
@@ -209,7 +211,11 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_date"), "index calendar_events date absent");
   assert.ok(resultat.indexExistants.includes("idx_portfolio_positions_performance_cache_user_range"), "index positions performance cache absent");
   assert.ok(resultat.indexExistants.includes("idx_market_data_finalizations_asset_range_date"), "index finalizations asset/range/date absent");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], "les 18 migrations doivent etre enregistrees");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_low"), "colonne fifty_two_week_low absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("ex_dividend_date"), "colonne ex_dividend_date absente");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19], "les 19 migrations doivent etre enregistrees");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

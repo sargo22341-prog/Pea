@@ -9,6 +9,10 @@ vi.mock("../components/charts/PriceHistoryChart", () => ({
   ComparisonChart: () => <div>comparison-chart</div>
 }));
 
+vi.mock("../components/charts/DividendLineChartSection", () => ({
+  DividendLineChartSection: () => <div>dividend-chart</div>
+}));
+
 vi.mock("../components/common/AssetCalendarEvents", () => ({
   AssetCalendarEvents: () => null
 }));
@@ -160,5 +164,31 @@ describe("AssetDetailPage lazy chart refresh", () => {
 
     await screen.findByText("Donnees intraday pas encore disponibles, marche pas encore confirme ouvert");
     expect(api.requestChartRefresh).not.toHaveBeenCalled();
+  });
+
+  it("shows persisted 52 week range, average 3M volume and ex-date when present", async () => {
+    vi.mocked(api.asset).mockResolvedValue({
+      ...assetDto(),
+      marketInfo: {
+        regularMarketPrice: 62,
+        marketState: "POST",
+        currency: "EUR",
+        fiftyTwoWeekLow: 49.24,
+        fiftyTwoWeekHigh: 81.34,
+        averageDailyVolume3Month: 6128825,
+        exDividendDate: "2026-06-30T00:00:00.000Z",
+        dividendRate: 3.16,
+        dividendYield: 0.05
+      },
+      dividends: [{ symbol: "ASML.AS", date: "2026-05-01T00:00:00.000Z", amount: 1, currency: "EUR", status: "real" }]
+    } as never);
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-fresh" });
+
+    renderPage();
+
+    await screen.findByText((content) => content.replace(/\s/g, "") === "6128825");
+    expect(screen.getByText((content) => content.replace(/\s/g, "") === "49,24€")).toBeInTheDocument();
+    expect(screen.getByText((content) => content.replace(/\s/g, "") === "81,34€")).toBeInTheDocument();
+    expect(screen.getByText("30/06/2026")).toBeInTheDocument();
   });
 });

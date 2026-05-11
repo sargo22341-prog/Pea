@@ -8,6 +8,7 @@ import { db } from "../../db.js";
 import { assetRepository } from "../../services/market/asset.repository.js";
 import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
 import { marketDataCleaner } from "../../services/market/market-data-cleaner.js";
+import { invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { marketScheduler } from "../../services/tache_auto/market-scheduler.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 
@@ -50,6 +51,8 @@ adminRouter.post("/admin/market-data/refresh-annex", asyncRoute(async (_req, res
   // News
   db.exec("DELETE FROM cached_news");
   db.exec("DELETE FROM asset_article_cache");
+  // Blocs frontend et agregats dependants des snapshots/dividendes/fundamentals.
+  invalidateUserAssetCaches("*");
 
   const symbols = assetRepository.listTrackedSymbols();
   const job = dataConstructionQueue.enqueueAnnexRefresh(symbols);

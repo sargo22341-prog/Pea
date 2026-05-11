@@ -83,6 +83,7 @@ export class AssetDataService {
       totalDividends: history.reduce((sum, event) => sum + event.amount, 0),
       annualDividend: marketResult?.annualDividend,
       dividendYield: marketResult?.dividendYield,
+      exDate: marketResult?.exDividendDate,
       history,
       cachedAt: timestamp,
       expiresAt: timestamp

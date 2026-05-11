@@ -278,6 +278,8 @@ export class DataConstructionQueueService {
     if (task.type === "calendar-events") {
       const { db } = await import("../../db.js");
       db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(asset.symbol.toUpperCase());
+      const marketInfo = await yahooService.marketInfo(asset.symbol);
+      marketSnapshotService.upsertMarketInfo(asset.id, marketInfo.data);
       await yahooService.extraData(asset.symbol);        // quoteSummary (9 modules) → upsert calendar events
       await financialsService.refreshFinancials(asset);  // fundamentalsTimeSeries → upsert asset_financials
     }

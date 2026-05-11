@@ -173,6 +173,12 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
       regularMarketVolume: firstMarketNumber(assetMarket.volume, marketInfo.regularMarketVolume),
       bid: firstPrice(assetMarket.bid, marketInfo.bid),
       ask: firstPrice(assetMarket.ask, marketInfo.ask),
+      fiftyTwoWeekLow: firstPrice(assetMarket.week52Low, marketInfo.fiftyTwoWeekLow),
+      fiftyTwoWeekHigh: firstPrice(assetMarket.week52High, marketInfo.fiftyTwoWeekHigh),
+      averageDailyVolume3Month: firstMarketNumber(assetMarket.avgVolume3M, marketInfo.averageDailyVolume3Month),
+      dividendRate: firstMarketNumber(assetMarket.annualDividend, marketInfo.dividendRate),
+      dividendYield: firstMarketNumber(assetMarket.dividendYield, marketInfo.dividendYield),
+      exDividendDate: assetMarket.exDividendDate ?? marketInfo.exDividendDate,
       currency: assetMarket.currency ?? marketInfo.currency,
       exchangeName: assetMarket.exchangeName ?? marketInfo.exchangeName
     },

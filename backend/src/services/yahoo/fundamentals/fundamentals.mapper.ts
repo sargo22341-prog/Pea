@@ -132,8 +132,10 @@ export function fundDetailsFromSummary(summary: any): AssetFundDetails | undefin
 export function marketInfoFromSummary(summary: any): AssetMarketInfo {
   const price = summary?.price ?? {};
   const detail = summary?.summaryDetail ?? {};
+  const calendarEvents = summary?.calendarEvents ?? {};
   const fundProfile = summary?.fundProfile ?? {};
   const fundPerformance = summary?.fundPerformance ?? {};
+  const range52 = detail.fiftyTwoWeekRange ?? {};
   return {
     marketState: rawString(price.marketState),
     regularMarketPrice: rawNumber(price.regularMarketPrice),
@@ -149,12 +151,12 @@ export function marketInfoFromSummary(summary: any): AssetMarketInfo {
     regularMarketVolume: rawNumber(price.regularMarketVolume) ?? rawNumber(detail.volume),
     bid: rawNumber(price.bid),
     ask: rawNumber(price.ask),
-    fiftyTwoWeekLow: rawNumber(detail.fiftyTwoWeekLow),
-    fiftyTwoWeekHigh: rawNumber(detail.fiftyTwoWeekHigh),
+    fiftyTwoWeekLow: rawNumber(detail.fiftyTwoWeekLow) ?? rawNumber(range52.low),
+    fiftyTwoWeekHigh: rawNumber(detail.fiftyTwoWeekHigh) ?? rawNumber(range52.high),
     averageDailyVolume3Month: rawNumber(detail.averageDailyVolume3Month) ?? rawNumber(detail.averageVolume),
     totalAssets: rawNumber(detail.totalAssets) ?? rawNumber(fundProfile.totalAssets) ?? rawNumber(fundPerformance.totalAssets),
     dividendRate: rawNumber(detail.dividendRate) ?? rawNumber(price.trailingAnnualDividendRate),
     dividendYield: normalizeDividendYield(detail.dividendYield) ?? normalizeDividendYield(price.trailingAnnualDividendYield) ?? undefined,
-    exDividendDate: rawDate(detail.exDividendDate)
+    exDividendDate: rawDate(detail.exDividendDate) ?? rawDate(calendarEvents.exDividendDate)
   };
 }

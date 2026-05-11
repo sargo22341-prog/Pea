@@ -300,6 +300,7 @@ export interface AssetMarketDto {
   dayChangePercent?: number;
   volume?: number;
   avgVolume3M?: number;
+  avgVolume10D?: number;
   bid?: number;
   ask?: number;
   currency?: CurrencyCode;

@@ -3,7 +3,7 @@
  * pas un cache TTL: une seule ligne represente le dernier etat connu.
  */
 
-import type { AssetMarketDto, Quote } from "@pea/shared";
+import type { AssetMarketDto, AssetMarketInfo, Quote } from "@pea/shared";
 import { db } from "../../db.js";
 import { config } from "../../config.js";
 import { normalizeMarketState } from "../shared/cache.service.js";
@@ -87,13 +87,17 @@ export class MarketSnapshotService {
       dayChangePercent: optionalNumber(row.day_change_percent),
       volume: optionalNumber(row.volume),
       avgVolume3M: optionalNumber(row.average_volume_3m),
+      avgVolume10D: optionalNumber(row.average_volume_10d),
       bid: optionalNumber(row.bid_price),
       ask: optionalNumber(row.ask_price),
       currency: row.currency ?? undefined,
       exchangeName: row.full_exchange_name ?? row.exchange ?? undefined,
       quoteType: row.quote_type ?? undefined,
+      week52Low: optionalNumber(row.fifty_two_week_low),
+      week52High: optionalNumber(row.fifty_two_week_high),
       dividendYield: normalizeDividendYield(row.dividend_yield) ?? undefined,
       annualDividend: optionalNumber(row.dividend_rate),
+      exDividendDate: row.ex_dividend_date ?? undefined,
       cachedAt: new Date(row.updated_at).getTime(),
       expiresAt: new Date(row.updated_at).getTime()
     };
@@ -118,11 +122,13 @@ export class MarketSnapshotService {
     db.prepare(
       `INSERT INTO asset_market_snapshots (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
-        day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, average_volume_3m, dividend_rate, dividend_yield,
+        day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, average_volume_3m,
+        average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date,
+        dividend_rate, dividend_yield,
         trailing_annual_dividend_rate, trailing_annual_dividend_yield, currency, exchange,
         full_exchange_name, quote_type, regular_market_time, source, last_checked_at, updated_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT(asset_id) DO UPDATE SET
         market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
         last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
@@ -138,6 +144,11 @@ export class MarketSnapshotService {
         bid_size = COALESCE(excluded.bid_size, asset_market_snapshots.bid_size),
         ask_size = COALESCE(excluded.ask_size, asset_market_snapshots.ask_size),
         average_volume_3m = COALESCE(excluded.average_volume_3m, asset_market_snapshots.average_volume_3m),
+        average_volume_10d = COALESCE(excluded.average_volume_10d, asset_market_snapshots.average_volume_10d),
+        fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_market_snapshots.fifty_two_week_low),
+        fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_market_snapshots.fifty_two_week_high),
+        fifty_two_week_change_percent = COALESCE(excluded.fifty_two_week_change_percent, asset_market_snapshots.fifty_two_week_change_percent),
+        ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_market_snapshots.ex_dividend_date),
         dividend_rate = COALESCE(excluded.dividend_rate, asset_market_snapshots.dividend_rate),
         dividend_yield = COALESCE(excluded.dividend_yield, asset_market_snapshots.dividend_yield),
         trailing_annual_dividend_rate = COALESCE(excluded.trailing_annual_dividend_rate, asset_market_snapshots.trailing_annual_dividend_rate),
@@ -164,6 +175,11 @@ export class MarketSnapshotService {
             OR excluded.bid_size IS NOT NULL
             OR excluded.ask_size IS NOT NULL
             OR excluded.average_volume_3m IS NOT NULL
+            OR excluded.average_volume_10d IS NOT NULL
+            OR excluded.fifty_two_week_low IS NOT NULL
+            OR excluded.fifty_two_week_high IS NOT NULL
+            OR excluded.fifty_two_week_change_percent IS NOT NULL
+            OR excluded.ex_dividend_date IS NOT NULL
             OR excluded.dividend_rate IS NOT NULL
             OR excluded.dividend_yield IS NOT NULL
             OR excluded.trailing_annual_dividend_rate IS NOT NULL
@@ -192,6 +208,11 @@ export class MarketSnapshotService {
       snapshot.bidSize,
       snapshot.askSize,
       snapshot.averageDailyVolume3Month,
+      snapshot.averageDailyVolume10Day,
+      snapshot.fiftyTwoWeekLow,
+      snapshot.fiftyTwoWeekHigh,
+      snapshot.fiftyTwoWeekChangePercent,
+      snapshot.exDividendDate,
       snapshot.dividendRate,
       snapshot.dividendYield,
       snapshot.trailingAnnualDividendRate,
@@ -220,6 +241,84 @@ export class MarketSnapshotService {
       snapshot.quoteType,
       snapshot.typeDisp,
       assetId
+    );
+  }
+
+  upsertMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
+    db.prepare(
+      `INSERT INTO asset_market_snapshots (
+        asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
+        day_high, day_low, volume, average_volume_3m, fifty_two_week_low, fifty_two_week_high,
+        dividend_rate, dividend_yield, ex_dividend_date, currency, exchange, full_exchange_name,
+        regular_market_time, source, last_checked_at, updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT(asset_id) DO UPDATE SET
+        market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
+        last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
+        day_change = COALESCE(excluded.day_change, asset_market_snapshots.day_change),
+        day_change_percent = COALESCE(excluded.day_change_percent, asset_market_snapshots.day_change_percent),
+        previous_close = COALESCE(excluded.previous_close, asset_market_snapshots.previous_close),
+        open_price = COALESCE(excluded.open_price, asset_market_snapshots.open_price),
+        day_high = COALESCE(excluded.day_high, asset_market_snapshots.day_high),
+        day_low = COALESCE(excluded.day_low, asset_market_snapshots.day_low),
+        volume = COALESCE(excluded.volume, asset_market_snapshots.volume),
+        average_volume_3m = COALESCE(excluded.average_volume_3m, asset_market_snapshots.average_volume_3m),
+        fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_market_snapshots.fifty_two_week_low),
+        fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_market_snapshots.fifty_two_week_high),
+        dividend_rate = COALESCE(excluded.dividend_rate, asset_market_snapshots.dividend_rate),
+        dividend_yield = COALESCE(excluded.dividend_yield, asset_market_snapshots.dividend_yield),
+        ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_market_snapshots.ex_dividend_date),
+        currency = COALESCE(excluded.currency, asset_market_snapshots.currency),
+        exchange = COALESCE(excluded.exchange, asset_market_snapshots.exchange),
+        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_market_snapshots.full_exchange_name),
+        regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
+        source = excluded.source,
+        last_checked_at = excluded.last_checked_at,
+        updated_at = CASE
+          WHEN excluded.market_state IS NOT NULL
+            OR excluded.last_price IS NOT NULL
+            OR excluded.day_change IS NOT NULL
+            OR excluded.day_change_percent IS NOT NULL
+            OR excluded.previous_close IS NOT NULL
+            OR excluded.open_price IS NOT NULL
+            OR excluded.day_high IS NOT NULL
+            OR excluded.day_low IS NOT NULL
+            OR excluded.volume IS NOT NULL
+            OR excluded.average_volume_3m IS NOT NULL
+            OR excluded.fifty_two_week_low IS NOT NULL
+            OR excluded.fifty_two_week_high IS NOT NULL
+            OR excluded.dividend_rate IS NOT NULL
+            OR excluded.dividend_yield IS NOT NULL
+            OR excluded.ex_dividend_date IS NOT NULL
+            OR excluded.currency IS NOT NULL
+            OR excluded.exchange IS NOT NULL
+            OR excluded.full_exchange_name IS NOT NULL
+            OR excluded.regular_market_time IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.updated_at
+        END`
+    ).run(
+      assetId,
+      marketInfo.marketState,
+      marketInfo.regularMarketPrice,
+      marketInfo.regularMarketChange,
+      marketInfo.regularMarketChangePercent,
+      marketInfo.regularMarketPreviousClose,
+      marketInfo.regularMarketOpen,
+      marketInfo.regularMarketDayHigh,
+      marketInfo.regularMarketDayLow,
+      marketInfo.regularMarketVolume,
+      marketInfo.averageDailyVolume3Month,
+      marketInfo.fiftyTwoWeekLow,
+      marketInfo.fiftyTwoWeekHigh,
+      marketInfo.dividendRate,
+      marketInfo.dividendYield,
+      marketInfo.exDividendDate,
+      marketInfo.currency,
+      marketInfo.exchangeName,
+      marketInfo.exchangeName,
+      marketInfo.regularMarketTime
     );
   }
 

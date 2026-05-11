@@ -58,6 +58,11 @@ function pricedQuoteRow(symbol, state, price) {
       bidSize: 10,
       askSize: 11,
       averageDailyVolume3Month: 7654321,
+      averageDailyVolume10Day: 2345678,
+      fiftyTwoWeekLow: 49.24,
+      fiftyTwoWeekHigh: 81.34,
+      fiftyTwoWeekChangePercent: 42.83023,
+      exDividendDate: "2026-06-30T00:00:00.000Z",
       currency: "EUR",
       exchange: "PAR",
       fullExchangeName: "Paris"
@@ -318,11 +323,11 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
         await marketCloseTask.run(group, new Date("2026-05-06T15:50:00.000Z"));
         await new Promise((resolve) => setTimeout(resolve, 50));
 
-        const dbSnapshot = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+        const dbSnapshot = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m, average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
         const quote = await marketSnapshotService.getQuote("AAA.PA");
         const response = await fetch(\`\${baseUrl}/api/assets/AAA.PA?range=1d\`, { headers: { Cookie: cookie } });
         const body = await response.json();
-        const afterRoute = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+        const afterRoute = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m, average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
 
         console.log("__RESULT__" + JSON.stringify({
           batchCalls,
@@ -359,6 +364,11 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
   assert.equal(result.dbSnapshot.ask_price, 1305.5);
   assert.equal(result.dbSnapshot.regular_market_time, "2026-05-06T15:45:00.000Z");
   assert.equal(result.dbSnapshot.average_volume_3m, 7654321);
+  assert.equal(result.dbSnapshot.average_volume_10d, 2345678);
+  assert.equal(result.dbSnapshot.fifty_two_week_low, 49.24);
+  assert.equal(result.dbSnapshot.fifty_two_week_high, 81.34);
+  assert.equal(result.dbSnapshot.fifty_two_week_change_percent, 42.83023);
+  assert.equal(result.dbSnapshot.ex_dividend_date, "2026-06-30T00:00:00.000Z");
   assert.equal(result.quote.price, 1305);
   assert.equal(result.routeQuotePrice, 1305);
   assert.equal(result.routeMarketInfoPrice, 1305);
@@ -373,6 +383,10 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
   assert.equal(result.routeMarketInfo.bid, 1304.5);
   assert.equal(result.routeMarketInfo.ask, 1305.5);
   assert.equal(result.routeMarketInfo.regularMarketTime, "2026-05-06T15:45:00.000Z");
+  assert.equal(result.routeMarketInfo.averageDailyVolume3Month, 7654321);
+  assert.equal(result.routeMarketInfo.fiftyTwoWeekLow, 49.24);
+  assert.equal(result.routeMarketInfo.fiftyTwoWeekHigh, 81.34);
+  assert.equal(result.routeMarketInfo.exDividendDate, "2026-06-30T00:00:00.000Z");
   assert.equal(result.analystCurrentPrice, 1305);
   assert.equal(result.afterRoute.last_price, 1305);
 });
@@ -403,13 +417,18 @@ test("snapshot upsert keeps useful existing values when Yahoo returns null field
       bidSize: null,
       askSize: null,
       averageDailyVolume3Month: null,
+      averageDailyVolume10Day: null,
+      fiftyTwoWeekLow: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekChangePercent: null,
+      exDividendDate: null,
       currency: null,
       exchange: null,
       fullExchangeName: null,
       quoteType: null,
       regularMarketTime: null
     });
-    const row = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m, updated_at FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+    const row = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m, average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date, updated_at FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
     console.log("__RESULT__" + JSON.stringify(row));
   `);
 
@@ -426,7 +445,52 @@ test("snapshot upsert keeps useful existing values when Yahoo returns null field
   assert.equal(result.ask_price, 1305.5);
   assert.equal(result.regular_market_time, "2026-05-06T15:45:00.000Z");
   assert.equal(result.average_volume_3m, 7654321);
+  assert.equal(result.average_volume_10d, 2345678);
+  assert.equal(result.fifty_two_week_low, 49.24);
+  assert.equal(result.fifty_two_week_high, 81.34);
+  assert.equal(result.fifty_two_week_change_percent, 42.83023);
+  assert.equal(result.ex_dividend_date, "2026-06-30T00:00:00.000Z");
   assert.equal(result.updated_at, "2026-05-06T15:45:00.000Z");
+});
+
+test("marketInfo from quoteSummary replaces missing slow snapshot fields and preserves them against n/a", () => {
+  const result = runBackendScript(`
+    import { db } from "./db.ts";
+    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    ${seedUser}
+    ${helpers}
+    addTracked("TTE.PA", "TotalEnergies", "Paris");
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'TTE.PA'").get();
+    db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, source, updated_at) VALUES (?, 'POSTPOST', 'seed', '2026-05-06T15:45:00.000Z')").run(asset.id);
+    marketSnapshotService.upsertMarketInfo(asset.id, {
+      fiftyTwoWeekLow: 49.24,
+      fiftyTwoWeekHigh: 81.34,
+      averageDailyVolume3Month: 6128825,
+      exDividendDate: "2026-06-30T00:00:00.000Z",
+      dividendRate: 3.16,
+      dividendYield: 0.05
+    });
+    marketSnapshotService.upsertMarketInfo(asset.id, {
+      fiftyTwoWeekLow: undefined,
+      fiftyTwoWeekHigh: undefined,
+      averageDailyVolume3Month: undefined,
+      exDividendDate: undefined,
+      dividendRate: undefined,
+      dividendYield: undefined
+    });
+    const dto = marketSnapshotService.readMarketDto("TTE.PA");
+    const row = db.prepare("SELECT average_volume_3m, fifty_two_week_low, fifty_two_week_high, ex_dividend_date FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
+    console.log("__RESULT__" + JSON.stringify({ dto, row }));
+  `);
+
+  assert.equal(result.row.average_volume_3m, 6128825);
+  assert.equal(result.row.fifty_two_week_low, 49.24);
+  assert.equal(result.row.fifty_two_week_high, 81.34);
+  assert.equal(result.row.ex_dividend_date, "2026-06-30T00:00:00.000Z");
+  assert.equal(result.dto.avgVolume3M, 6128825);
+  assert.equal(result.dto.week52Low, 49.24);
+  assert.equal(result.dto.week52High, 81.34);
+  assert.equal(result.dto.exDividendDate, "2026-06-30T00:00:00.000Z");
 });
 
 test("market snapshot dto does not convert missing numeric fields to zero", () => {

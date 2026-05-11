@@ -52,6 +52,11 @@ export interface YahooSnapshotPayload {
   bidSize: number | null;
   askSize: number | null;
   averageDailyVolume3Month: number | null;
+  averageDailyVolume10Day: number | null;
+  fiftyTwoWeekLow: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekChangePercent: number | null;
+  exDividendDate: string | null;
   dividendRate: number | null;
   dividendYield: number | null;
   trailingAnnualDividendRate: number | null;
@@ -103,6 +108,11 @@ export function mapSnapshotQuote(row: any, fallbackSymbol: string): YahooSnapsho
     bidSize: nullableNumber(row?.bidSize),
     askSize: nullableNumber(row?.askSize),
     averageDailyVolume3Month: nullableNumber(row?.averageDailyVolume3Month),
+    averageDailyVolume10Day: nullableNumber(row?.averageDailyVolume10Day),
+    fiftyTwoWeekLow: nullableNumber(row?.fiftyTwoWeekLow ?? row?.fiftyTwoWeekRange?.low),
+    fiftyTwoWeekHigh: nullableNumber(row?.fiftyTwoWeekHigh ?? row?.fiftyTwoWeekRange?.high),
+    fiftyTwoWeekChangePercent: nullableNumber(row?.fiftyTwoWeekChangePercent),
+    exDividendDate: nullableDateIso(row?.exDividendDate),
     dividendRate: nullableNumber(row?.dividendRate),
     dividendYield: normalizeDividendYield(row?.dividendYield),
     trailingAnnualDividendRate: nullableNumber(row?.trailingAnnualDividendRate),

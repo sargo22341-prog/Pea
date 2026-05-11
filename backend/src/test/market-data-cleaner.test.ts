@@ -83,6 +83,7 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
     marketSnapshotService.refreshMarketSnapshot = async (asset) => ({ symbol: typeof asset === "string" ? asset : asset.symbol, name: "AAA", price: 1, currency: "EUR" });
     financialsService.refreshFinancials = async () => ({ updated: 1 });
     dividendsService.refreshDividends = async () => ({ updated: 1 });
+    yahooService.marketInfo = async () => ({ data: { averageDailyVolume3Month: 6128825, fiftyTwoWeekLow: 49.24, fiftyTwoWeekHigh: 81.34, exDividendDate: "2026-06-30T00:00:00.000Z" } });
     yahooService.extraData = async () => ({ data: {} });
 
     const server = app.listen(0, "127.0.0.1", async () => {
@@ -98,12 +99,16 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('AAA.PA', 'AAA', 'Paris', 'EUR')").run();
         db.prepare("INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency) VALUES (1, 'AAA.PA', 'AAA', 1, 10, 'EUR')").run();
+        db.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES ('1:watchlist:1d', '1', 'watchlist', '1d', '[]', 1, 9999999999999)").run();
         const response = await fetch(\`\${baseUrl}/api/admin/market-data/refresh-annex\`, {
           method: "POST",
           headers: { Cookie: cookie }
         });
         const body = await response.json();
-        console.log("__RESULT__" + JSON.stringify({ status: response.status, body }));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const snapshot = db.prepare("SELECT average_volume_3m, fifty_two_week_low, fifty_two_week_high, ex_dividend_date FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE a.symbol = 'AAA.PA'").get();
+        const frontendCacheCount = db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache").get().count;
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body, snapshot, frontendCacheCount }));
       } finally {
         server.close();
       }
@@ -114,4 +119,9 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
   assert.equal(result.body.totalTasks, 4);
   assert.equal(result.body.id.startsWith("job-"), true);
   assert.equal(["queued", "running", "success"].includes(result.body.status), true);
+  assert.equal(result.snapshot.average_volume_3m, 6128825);
+  assert.equal(result.snapshot.fifty_two_week_low, 49.24);
+  assert.equal(result.snapshot.fifty_two_week_high, 81.34);
+  assert.equal(result.snapshot.ex_dividend_date, "2026-06-30T00:00:00.000Z");
+  assert.equal(result.frontendCacheCount, 0);
 });
