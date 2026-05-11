@@ -25,6 +25,16 @@ export class ChartRefreshService {
     return this.startRefresh({ ...input, asset: eligible });
   }
 
+  async requestAssetRefreshWithInitialization(input: { userId: string | number; symbol: string; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean }) {
+    if (input.range !== "1d") return { status: "unsupported-range" as RefreshStatus };
+    const asset = assetRepository.findBySymbol(input.symbol.toUpperCase()) ?? await marketDataService.ensureAssetInitialized(input.symbol.toUpperCase()).catch(() => undefined);
+    if (!asset) return { status: "not-found" as RefreshStatus };
+
+    const [eligible] = this.filterRefreshableAssets([asset], { force: Boolean(input.force) });
+    if (!eligible) return { status: "skipped-market-closed" as RefreshStatus };
+    return this.startRefresh({ ...input, asset: eligible });
+  }
+
   private startRefresh(input: { userId: string | number; asset: AssetRow; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean }) {
     const thresholdMs = input.force ? 0 : chartConfigService.getIntradayRefreshIntervalMs();
     if (!input.force && !marketDataService.chartNeedsRefresh(input.asset, thresholdMs)) return { status: "skipped-fresh" as RefreshStatus };

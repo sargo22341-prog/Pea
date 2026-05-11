@@ -51,7 +51,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [adding, setAdding] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
-  const { series: comparisonSeries } = useAssetComparisonSeries(compareTargets, range);
+  const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [chartRefreshing, setChartRefreshing] = useState(false);
@@ -400,6 +400,14 @@ export function AssetDetailPage({ user }: { user: User }) {
         )}
         {range === "1d" && (chartPoints.length === 0 || asset.data.stale) && (
           <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
+        )}
+        {compareTargets.length > 0 && preparingSymbols.length > 0 && (
+          <p className="mt-3 text-xs text-amber">
+            Preparation des donnees de comparaison : {preparingSymbols.join(", ")}
+          </p>
+        )}
+        {compareTargets.length > 0 && comparisonError && preparingSymbols.length === 0 && (
+          <p className="mt-3 text-xs text-slate-400">{comparisonError}</p>
         )}
         {range === "1d" && marketSession && (marketSession.timezone !== userTimezone || marketSession.sessions.length > 1) && (
           <p className="mt-3 text-xs text-slate-400">

@@ -836,6 +836,39 @@ test("lazy chart refresh skips Yahoo while market open status is pending", () =>
   assert.equal(result.chartCalls, 0);
 });
 
+test("lazy chart refresh initializes an unknown comparison symbol once", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    ${seedUser}
+    ${helpers}
+    let quoteCalls = 0;
+    let chartCalls = 0;
+    yahooApi.quote = async (symbol) => { quoteCalls += 1; return quoteRow(symbol, "CLOSED"); };
+    yahooApi.quoteSummary = async () => ({ profile: {}, raw: {} });
+    yahooApi.chart = async () => {
+      chartCalls += 1;
+      return { quotes: [
+        { date: "2026-05-06T07:00:00.000Z", open: 100, high: 101, low: 99, close: 100 },
+        { date: "2026-05-06T07:05:00.000Z", open: 100, high: 102, low: 100, close: 101 }
+      ], dividends: [], splits: [] };
+    };
+    const refresh = await chartRefreshService.requestAssetRefreshWithInitialization({ userId: 1, symbol: "URTH", range: "1d", scope: "asset" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const asset = db.prepare("SELECT symbol FROM assets WHERE symbol = 'URTH'").get();
+    const candles = db.prepare("SELECT COUNT(*) AS count FROM chart_candles_1d c JOIN assets a ON a.id = c.asset_id WHERE a.symbol = 'URTH'").get();
+    console.log("__RESULT__" + JSON.stringify({ refresh, quoteCalls, chartCalls, asset, candles }));
+  `);
+
+  assert.equal(result.refresh.status, "started");
+  assert.ok(result.quoteCalls >= 1);
+  assert.equal(result.chartCalls, 1);
+  assert.equal(result.asset.symbol, "URTH");
+  assert.equal(result.candles.count, 2);
+});
+
 test("lazy chart refresh uses configured 1d interval instead of ratio threshold", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";

@@ -46,7 +46,7 @@ marketRouter.get("/market/events", (req, res) => {
   marketEventsService.connect(req.user!.id, res);
 });
 
-marketRouter.post("/market/chart-refresh", (req, res) => {
+marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
   const body = z.discriminatedUnion("scope", [
     z.object({ scope: z.literal("asset"), symbol: z.string().min(1), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
     z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
@@ -58,14 +58,14 @@ marketRouter.post("/market/chart-refresh", (req, res) => {
     ? chartRefreshService.requestWatchlistRefresh({ userId: req.user!.id, range: body.range, force })
     : body.scope === "portfolio"
       ? chartRefreshService.requestPortfolioRefresh({ userId: req.user!.id, range: body.range, force })
-      : chartRefreshService.requestAssetRefresh({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset", force });
+      : await chartRefreshService.requestAssetRefreshWithInitialization({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset", force });
 
   if (result.status === "not-found") {
     res.status(404).json(result);
     return;
   }
   res.status(result.status === "started" ? 202 : 200).json(result);
-});
+}));
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
