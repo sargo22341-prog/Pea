@@ -924,6 +924,23 @@ test("live stored intraday with no points is not marked preparing when no refres
   assert.equal(result.isPreparing, false);
 });
 
+test("live stored non-intraday empty chart queues initial range construction", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("URTH", "URTH", "NYSE");
+    const chart = await marketDataService.getChartData("URTH", "1w");
+    console.log("__RESULT__" + JSON.stringify({ isPreparing: chart.isPreparing ?? false, missingRanges: chart.missingRanges, jobId: chart.jobId ?? null }));
+  `);
+
+  assert.equal(result.isPreparing, true);
+  assert.deepEqual(result.missingRanges, ["1w"]);
+  assert.ok(String(result.jobId).startsWith("job-"));
+});
+
 test("dividend yield normalization accepts Yahoo fraction and percent units", () => {
   const result = runBackendScript(`
     const { normalizeDividendYield } = await import("./services/yahoo/yahoo.mapper.ts");

@@ -91,4 +91,26 @@ describe("useAssetComparisonSeries", () => {
 
     await waitFor(() => expect(screen.getByTestId("series").textContent).toBe("1"));
   });
+
+  it("keeps the previous comparison visible while another range is loading", async () => {
+    let resolveSecond: (value: AssetChartDto) => void = () => undefined;
+    vi.mocked(api.history)
+      .mockResolvedValueOnce(chart([100, 101]) as never)
+      .mockReturnValueOnce(new Promise<AssetChartDto>((resolve) => {
+        resolveSecond = resolve;
+      }) as never);
+
+    const rendered = render(<Probe range="1d" />);
+    await waitFor(() => expect(screen.getByTestId("series").textContent).toBe("1"));
+
+    rendered.rerender(<Probe range="1w" />);
+
+    expect(screen.getByTestId("series").textContent).toBe("1");
+    expect(screen.getByTestId("loading").textContent).toBe("true");
+
+    resolveSecond(chart([100, 103]));
+
+    await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
+    expect(screen.getByTestId("series").textContent).toBe("1");
+  });
 });

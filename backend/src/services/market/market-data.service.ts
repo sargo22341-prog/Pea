@@ -980,10 +980,12 @@ export class MarketDataService {
     const payload = compactHistory(asset.symbol, storedRange, interval, points, baseline, getMarketSessionInfo(asset.symbol, quote?.exchange ?? asset.exchange));
     if (points.length < 2) {
       if (config.enableMarketLiveRefresh && storedRange === "1d") return payload;
+      const job = config.enableMarketLiveRefresh ? dataConstructionQueue.enqueueCandles(asset.symbol, storedRange) : undefined;
       return {
         ...payload,
         isPreparing: true,
-        missingRanges: [storedRange]
+        missingRanges: [storedRange],
+        jobId: job?.id
       };
     }
     return payload;

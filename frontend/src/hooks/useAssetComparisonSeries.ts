@@ -15,6 +15,7 @@ export interface AssetComparisonSerie extends ComparisonSerie {
 }
 
 const refreshCooldownMs = 60_000;
+const preparationRefetchDelayMs = 5_000;
 
 export function useAssetComparisonSeries(targets: ComparableAsset[], range: RangeKey) {
   const [series, setSeries] = useState<AssetComparisonSerie[]>([]);
@@ -23,6 +24,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
   const [preparingSymbols, setPreparingSymbols] = useState<string[]>([]);
   const loadId = useRef(0);
   const refreshAttempts = useRef(new Map<string, number>());
+  const preparationRetries = useRef(new Set<string>());
   const targetsRef = useRef<ComparableAsset[]>(targets);
   const rangeRef = useRef<RangeKey>(range);
 
@@ -43,10 +45,10 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
       return;
     }
 
-    setSeries([]);
     setLoading(true);
     setError(null);
     setPreparingSymbols([]);
+    let retryTimer: number | undefined;
 
     async function loadSeries() {
       const results = await Promise.allSettled(
@@ -62,6 +64,9 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
         .filter((result): result is PromiseFulfilledResult<{ target: ComparableAsset; chart: AssetChartDto; serie: AssetComparisonSerie | null }> => result.status === "fulfilled")
         .map((result) => result.value);
       const displaySeries = loadedSeries.map((item) => item.serie).filter((item): item is AssetComparisonSerie => item != null);
+      const preparingTargets = loadedSeries
+        .filter((item) => item.chart.isPreparing && !item.serie)
+        .map((item) => item.target);
 
       if (displaySeries.length === targets.length) {
         setSeries(displaySeries);
@@ -76,15 +81,39 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
       const launched = await requestInitialRefreshes(missingTargets, range, refreshAttempts.current);
       if (cancelled || loadId.current !== currentLoadId) return;
 
-      setSeries(displaySeries);
-      setPreparingSymbols(launched);
-      setError(launched.length > 0 ? null : "Comparaison indisponible pour au moins un actif");
+      const preparing = [...new Set([...launched, ...preparingTargets.map((target) => target.symbol)])];
+      if (displaySeries.length > 0 || preparing.length === 0) setSeries(displaySeries);
+      setPreparingSymbols(preparing);
+      setError(preparing.length > 0 ? null : "Comparaison indisponible pour au moins un actif");
       setLoading(false);
+      if (preparing.length > 0) {
+        const retryKey = `${range}:${preparing.map((symbol) => symbol.toUpperCase()).sort().join(",")}`;
+        if (!preparationRetries.current.has(retryKey)) {
+          preparationRetries.current.add(retryKey);
+          retryTimer = window.setTimeout(() => {
+            loadId.current += 1;
+            const retryLoadId = loadId.current;
+            setLoading(true);
+            void loadTargetDetails(targetsRef.current, rangeRef.current).then((details) => {
+              if (cancelled || loadId.current !== retryLoadId) return;
+              const loadedAfterPreparation = details.map((item) => item.serie).filter((item): item is AssetComparisonSerie => item != null);
+              const stillPreparing = details
+                .filter((item) => item.chart.isPreparing && !item.serie)
+                .map((item) => item.target.symbol);
+              if (loadedAfterPreparation.length > 0 || stillPreparing.length === 0) setSeries(loadedAfterPreparation);
+              setPreparingSymbols(stillPreparing);
+              setError(loadedAfterPreparation.length === targetsRef.current.length || stillPreparing.length > 0 ? null : "Comparaison indisponible pour au moins un actif");
+              setLoading(false);
+            });
+          }, preparationRefetchDelayMs);
+        }
+      }
     }
 
     void loadSeries();
     return () => {
       cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [targets, range]);
 
@@ -113,13 +142,19 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
 }
 
 async function reloadTargets(targets: ComparableAsset[], range: RangeKey) {
+  return (await loadTargetDetails(targets, range)).map((item) => item.serie).filter((item): item is AssetComparisonSerie => item != null);
+}
+
+async function loadTargetDetails(targets: ComparableAsset[], range: RangeKey) {
   const results = await Promise.allSettled(
-    targets.map(async (target) => chartDtoToComparisonSerie(target, await api.history(target.symbol, range)))
+    targets.map(async (target) => {
+      const chart = await api.history(target.symbol, range);
+      return { target, chart, serie: chartDtoToComparisonSerie(target, chart) };
+    })
   );
   return results
-    .filter((result): result is PromiseFulfilledResult<AssetComparisonSerie | null> => result.status === "fulfilled")
-    .map((result) => result.value)
-    .filter((item): item is AssetComparisonSerie => item != null);
+    .filter((result): result is PromiseFulfilledResult<{ target: ComparableAsset; chart: AssetChartDto; serie: AssetComparisonSerie | null }> => result.status === "fulfilled")
+    .map((result) => result.value);
 }
 
 async function requestInitialRefreshes(targets: ComparableAsset[], range: RangeKey, attempts: Map<string, number>) {
