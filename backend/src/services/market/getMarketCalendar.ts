@@ -108,6 +108,27 @@ export function getSessionsForDate(calendar: MarketCalendar, isoDate: string): M
   return override ? override.sessions : calendar.sessions;
 }
 
+export function getFirstOpenTime(sessions: MarketSession[]) {
+  return sessions[0].openTime;
+}
+
+export function getFinalCloseTime(sessions: MarketSession[]) {
+  return sessions[sessions.length - 1].closeTime;
+}
+
+function toMinutes(time: string) {
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+export function isInsideAnySession(localMinutes: number, sessions: MarketSession[]) {
+  return sessions.some((session) => localMinutes >= toMinutes(session.openTime) && localMinutes <= toMinutes(session.closeTime));
+}
+
+export function isAfterFinalClose(localMinutes: number, sessions: MarketSession[]) {
+  return localMinutes > toMinutes(getFinalCloseTime(sessions));
+}
+
 const defaultHours: MarketCalendar = {
   market: "fallback",
   timezone: "Europe/Paris",

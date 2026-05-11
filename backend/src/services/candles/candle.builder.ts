@@ -6,8 +6,8 @@
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
 import { isTradingDay } from "../market/marketCalendar.service.js";
-import { getMarketCalendar } from "../market/getMarketCalendar.js";
-import { getZonedDateParts, localDayKey, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
+import { getFirstOpenTime, getMarketCalendar, getSessionsForDate, isInsideAnySession } from "../market/getMarketCalendar.js";
+import { getZonedDateParts, localDayKey, zonedTimeToUtc } from "../timezone/date-time.service.js";
 
 export interface BuiltCandle {
   assetId: number;
@@ -36,12 +36,14 @@ function bucketStartFor(pointDate: Date, symbol: string, exchange: string | unde
   if (interval === "1d") {
     const calendar = getMarketCalendar(symbol, exchange);
     const day = localDayKey(pointDate, calendar.timezone);
-    return zonedTimeToUtc(day, calendar.sessions[0].openTime, calendar.timezone);
+    const sessions = getSessionsForDate(calendar, day);
+    return zonedTimeToUtc(day, getFirstOpenTime(sessions), calendar.timezone);
   }
 
   const calendar = getMarketCalendar(symbol, exchange);
   const day = localDayKey(pointDate, calendar.timezone);
-  const open = zonedTimeToUtc(day, calendar.sessions[0].openTime, calendar.timezone);
+  const sessions = getSessionsForDate(calendar, day);
+  const open = zonedTimeToUtc(day, getFirstOpenTime(sessions), calendar.timezone);
   const elapsed = Math.max(0, pointDate.getTime() - open.getTime());
   return new Date(open.getTime() + Math.floor(elapsed / intervalMs(interval)) * intervalMs(interval));
 }
@@ -52,8 +54,7 @@ function inSession(pointDate: Date, symbol: string, exchange: string | undefined
   const day = localDayKey(pointDate, calendar.timezone);
   const parts = getZonedDateParts(pointDate, calendar.timezone);
   const minutes = parts.hour * 60 + parts.minute;
-  void day;
-  return minutes >= timeToMinutes(calendar.sessions[0].openTime) && minutes <= timeToMinutes(calendar.sessions[0].closeTime);
+  return isInsideAnySession(minutes, getSessionsForDate(calendar, day));
 }
 
 export class CandleBuilder {

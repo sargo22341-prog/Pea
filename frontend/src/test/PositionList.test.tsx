@@ -113,4 +113,33 @@ describe("PositionList mini charts", () => {
 
     expect((await screen.findAllByLabelText("Mini-graph indisponible")).length).toBeGreaterThan(0);
   });
+
+  it("aligns Tokyo 1d mini charts on the full trading day across the lunch break", async () => {
+    vi.mocked(api.positionsPerformance).mockResolvedValue([{
+      ...performance(),
+      miniChart: {
+        range: "1d",
+        points: [
+          { t: Date.parse("2026-05-07T00:00:00.000Z"), v: 2000 },
+          { t: Date.parse("2026-05-07T04:00:00.000Z"), v: 2100 }
+        ],
+        marketSession: {
+          timezone: "Asia/Tokyo",
+          city: "Tokyo",
+          open: "09:00",
+          close: "15:30",
+          sessions: [
+            { open: "09:00", close: "11:30" },
+            { open: "12:30", close: "15:30" }
+          ]
+        }
+      }
+    }] as never);
+
+    renderList();
+
+    await screen.findByText("AIR LIQUIDE");
+    const path = screen.getAllByRole("img", { name: /mini-graph 1d/i })[0].querySelector("path");
+    expect(path?.getAttribute("d")).toContain("L 68.2");
+  });
 });

@@ -8,7 +8,7 @@ import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../timezone/date-time.service.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
-import { getMarketCalendar, getSessionsForDate, type MarketCalendar } from "./getMarketCalendar.js";
+import { getFinalCloseTime, getFirstOpenTime, getMarketCalendar, getSessionsForDate, type MarketCalendar } from "./getMarketCalendar.js";
 
 
 
@@ -55,8 +55,8 @@ export function getMarketSessionInfo(symbol?: string, exchange?: string) {
   return {
     timezone: calendar.timezone,
     city: calendar.city,
-    open: sessions[0].openTime,
-    close: sessions[sessions.length - 1].closeTime,
+    open: getFirstOpenTime(sessions),
+    close: getFinalCloseTime(sessions),
     sessions: sessions.map((s) => ({ open: s.openTime, close: s.closeTime }))
   };
 }
@@ -82,8 +82,8 @@ export function getSessionForDate(symbol: string | undefined, exchange: string |
   const sessions = getSessionsForDate(calendar, isoDate);
   return {
     date: isoDate,
-    period1: zonedTimeToUtc(isoDate, sessions[0].openTime, calendar.timezone),
-    period2: zonedTimeToUtc(isoDate, sessions[sessions.length - 1].closeTime, calendar.timezone),
+    period1: zonedTimeToUtc(isoDate, getFirstOpenTime(sessions), calendar.timezone),
+    period2: zonedTimeToUtc(isoDate, getFinalCloseTime(sessions), calendar.timezone),
     calendar
   };
 }
@@ -97,7 +97,7 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
     if (isTradingDay(symbol, exchange, cursor)) {
       const endLocal = index === 0 ? getLocalDateParts(date, calendar.timezone) : local;
       const sessions = getSessionsForDate(calendar, local.isoDate);
-      if (endLocal.minutes >= timeToMinutes(sessions[0].openTime) || index > 0) return getSessionForDate(symbol, exchange, local.isoDate);
+      if (endLocal.minutes >= timeToMinutes(getFirstOpenTime(sessions)) || index > 0) return getSessionForDate(symbol, exchange, local.isoDate);
     }
     cursorDate = addDaysToIsoDate(cursorDate, -1);
   }
