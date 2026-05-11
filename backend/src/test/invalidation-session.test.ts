@@ -208,7 +208,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_symbol"), "index calendar_events symbol absent");
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_date"), "index calendar_events date absent");
   assert.ok(resultat.indexExistants.includes("idx_portfolio_positions_performance_cache_user_range"), "index positions performance cache absent");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], "les 17 migrations doivent etre enregistrees");
+  assert.ok(resultat.indexExistants.includes("idx_market_data_finalizations_asset_range_date"), "index finalizations asset/range/date absent");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], "les 18 migrations doivent etre enregistrees");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

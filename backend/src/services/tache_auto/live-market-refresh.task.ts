@@ -36,17 +36,23 @@ interface BatchRow {
 }
 
 export class LiveMarketRefreshTask {
-  private lastRunAt = 0;
+  private lastSuccessAt = 0;
+  private lastAttemptAt = 0;
+  private failedRetryBackoffMs = 30_000;
 
   async run(groups: Iterable<MarketAssetGroup>, now = new Date()) {
     if (!config.enableMarketLiveRefresh) return { enabled: false, updated: 0, yahooCalls: 0 };
     const snapshotsIntervalMs = chartConfigService.getSnapshotRefreshIntervalMs();
-    if (now.getTime() - this.lastRunAt < snapshotsIntervalMs) return { enabled: true, updated: 0, yahooCalls: 0, skipped: "interval" };
-    this.lastRunAt = now.getTime();
+    if (now.getTime() - this.lastSuccessAt < snapshotsIntervalMs) return { enabled: true, updated: 0, yahooCalls: 0, skipped: "interval" };
+    if (now.getTime() - this.lastAttemptAt < this.failedRetryBackoffMs) return { enabled: true, updated: 0, yahooCalls: 0, skipped: "backoff" };
+    this.lastAttemptAt = now.getTime();
 
     const eligible = [...groups].map((group) => this.eligibleMarket(group, now)).filter((item): item is EligibleMarket => Boolean(item));
     const allSymbols = [...new Set(eligible.flatMap((item) => item.symbols))];
-    if (!eligible.length || !allSymbols.length) return { enabled: true, updated: 0, yahooCalls: 0 };
+    if (!eligible.length || !allSymbols.length) {
+      this.lastSuccessAt = now.getTime();
+      return { enabled: true, updated: 0, yahooCalls: 0 };
+    }
 
     let rows: BatchRow[];
     let yahooCalls = 0;
@@ -113,6 +119,7 @@ export class LiveMarketRefreshTask {
       intradayCandles: chartResult.updated,
       yahooCalls
     });
+    this.lastSuccessAt = now.getTime();
     return { enabled: true, updated: updatedSymbols.length, yahooCalls };
   }
 

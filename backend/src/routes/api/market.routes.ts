@@ -24,6 +24,7 @@ function intradayDebugClock(range: string) {
   };
 }
 
+// Compat: endpoint kept for scripts/tests and older UI paths; rich screens use /assets or dashboard DTOs.
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
   const symbol = routeParam(req.params.symbol, "symbol");
   if (config.enableMarketLiveRefresh) {
@@ -36,6 +37,7 @@ marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
   res.json(await marketSnapshotService.getQuote(symbol));
 }));
 
+// Compat: SSE stays authenticated and always registered; this only exposes live-refresh flags.
 marketRouter.get("/market/features", (_req, res) => {
   res.json({
     liveRefreshEnabled: config.enableMarketLiveRefresh

@@ -13,11 +13,11 @@ import { logger } from "../shared/logger.service.js";
 export type MarketDataRebuildRange = StoredChartRange | "all_ranges";
 
 const storedRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
-const displayRangesByStoredRange: Record<StoredChartRange, string[]> = {
-  "1d": ["intraday"],
-  "1w": ["1W"],
-  "1m": ["1M"],
-  all: ["YTD", "1Y", "5Y", "10Y", "ALL"]
+const apiRangesByStoredRange: Record<StoredChartRange, string[]> = {
+  "1d": ["1d"],
+  "1w": ["1w"],
+  "1m": ["1m"],
+  all: ["ytd", "1y", "5y", "10y", "all"]
 };
 const historicalCacheRangesByStoredRange: Record<StoredChartRange, string[]> = {
   "1d": ["1d"],
@@ -108,7 +108,7 @@ export class MarketDataCleaner {
   }
 
   private deleteRanges(ranges: StoredChartRange[]) {
-    const displayRanges = ranges.flatMap((range) => displayRangesByStoredRange[range]);
+    const apiRanges = [...new Set(ranges.flatMap((range) => apiRangesByStoredRange[range]))];
     const historicalCacheRanges = ranges.flatMap((range) => historicalCacheRangesByStoredRange[range]);
     const deleted: Array<{ table: string; rows: number }> = [];
 
@@ -135,13 +135,22 @@ export class MarketDataCleaner {
       });
     }
 
-    if (displayRanges.length) {
-      const placeholders = displayRanges.map(() => "?").join(",");
+    if (apiRanges.length) {
+      const placeholders = apiRanges.map(() => "?").join(",");
       deleted.push({
         table: "portfolio_chart_cache",
-        rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN (${placeholders})`, ...displayRanges)
+        rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN (${placeholders})`, ...apiRanges)
+      });
+      deleted.push({
+        table: "portfolio_positions_performance_cache",
+        rows: runDelete(`DELETE FROM portfolio_positions_performance_cache WHERE range IN (${placeholders})`, ...apiRanges)
       });
     }
+
+    deleted.push({
+      table: "frontend_block_cache",
+      rows: runDelete("DELETE FROM frontend_block_cache")
+    });
 
     return deleted;
   }

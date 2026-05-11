@@ -30,6 +30,7 @@ adminRouter.post("/admin/market-data/rebuild", asyncRoute(async (req, res) => {
   res.json(marketDataCleaner.rebuildMarketData({ range: body.range }));
 }));
 
+// Compat: historical route; the UI now posts /rebuild with range=all_ranges.
 adminRouter.post("/admin/market-data/rebuild-all", asyncRoute(async (_req, res) => {
   res.json(marketDataCleaner.rebuildMarketData({ range: "all_ranges" }));
 }));
@@ -51,10 +52,7 @@ adminRouter.post("/admin/market-data/refresh-annex", asyncRoute(async (_req, res
   db.exec("DELETE FROM asset_article_cache");
 
   const symbols = assetRepository.listTrackedSymbols();
-  const job = dataConstructionQueue.enqueueForSymbols("snapshot", symbols);
-  dataConstructionQueue.enqueueForSymbols("financials", symbols);
-  dataConstructionQueue.enqueueForSymbols("dividends", symbols);
-  dataConstructionQueue.enqueueForSymbols("calendar-events", symbols);
+  const job = dataConstructionQueue.enqueueAnnexRefresh(symbols);
 
   res.json(job);
 }));

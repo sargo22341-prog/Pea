@@ -45,6 +45,17 @@ export function mapPosition(row: PositionRow): Position {
   };
 }
 
+function transactionTime(row: TransactionRow) {
+  const time = new Date(row.traded_at).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function compareTransactionAsc(a: TransactionRow, b: TransactionRow) {
+  const dateOrder = transactionTime(a) - transactionTime(b);
+  if (dateOrder !== 0) return dateOrder;
+  return Number(a.id) - Number(b.id);
+}
+
 export class PortfolioRepository {
   listPositions(userId?: number | string): PositionRow[] {
     return db.prepare("SELECT * FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(normalizeUserId(userId)) as PositionRow[];
@@ -78,11 +89,13 @@ export class PortfolioRepository {
   }
 
   listTransactions(positionId: number): TransactionRow[] {
-    return db.prepare("SELECT * FROM transactions WHERE position_id = ? ORDER BY traded_at DESC, id DESC").all(positionId) as TransactionRow[];
+    return (db.prepare("SELECT * FROM transactions WHERE position_id = ?").all(positionId) as TransactionRow[])
+      .sort((a, b) => compareTransactionAsc(b, a));
   }
 
   listTransactionSequence(positionId: number): TransactionRow[] {
-    return db.prepare("SELECT * FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC").all(positionId) as TransactionRow[];
+    return (db.prepare("SELECT * FROM transactions WHERE position_id = ?").all(positionId) as TransactionRow[])
+      .sort(compareTransactionAsc);
   }
 
   positionSymbols(userId?: number | string) {

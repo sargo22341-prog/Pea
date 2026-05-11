@@ -15,6 +15,15 @@ import { asyncRoute } from "../shared/async-route.js";
 
 export const portfolioRouter = express.Router();
 
+const tradedAtSchema = z.string().trim().min(1).transform((value, context) => {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    context.addIssue({ code: "custom", message: "Date de transaction invalide." });
+    return z.NEVER;
+  }
+  return date.toISOString();
+});
+
 function dashboardIntradayDebugClock(range: string) {
   if (range !== "1d" || !config.debugDate) return undefined;
   return {
@@ -76,7 +85,7 @@ portfolioRouter.get("/portfolio/positions/:id/transactions", asyncRoute(async (r
 portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute(async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const body = z.object({
-    tradedAt: z.string().min(1),
+    tradedAt: tradedAtSchema,
     type: z.enum(["buy", "sell"]),
     quantity: z.coerce.number().positive(),
     price: z.coerce.number().nonnegative(),
@@ -90,7 +99,7 @@ portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyn
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
   const body = z.object({
-    tradedAt: z.string().min(1),
+    tradedAt: tradedAtSchema,
     type: z.enum(["buy", "sell"]),
     quantity: z.coerce.number().positive(),
     price: z.coerce.number().nonnegative(),
@@ -114,12 +123,14 @@ portfolioRouter.delete("/portfolio/positions/:id", asyncRoute(async (req, res) =
   res.status(204).send();
 }));
 
+// Compat: Dashboard now uses /portfolio/full and /portfolio/positions/performance.
 portfolioRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "performance requested", { range, userId: req.user!.id });
   res.json(await portfolioService.performance(range));
 }));
 
+// Compat: Dashboard now uses /portfolio/full, but external/admin callers may still request chart only.
 portfolioRouter.get("/portfolio/chart", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "chart requested", { range, userId: req.user!.id });

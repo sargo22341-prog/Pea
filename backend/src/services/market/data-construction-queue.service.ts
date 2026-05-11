@@ -1,6 +1,11 @@
 /**
  * Role du fichier : executer les reconstructions marche en arriere-plan avec
  * concurrence limitee, deduplication par asset/range et suivi de progression.
+ *
+ * Limite assumee : l'etat des jobs est en memoire. Apres redemarrage serveur,
+ * l'UI retombe sur "idle" et les reconstructions doivent etre relancees si besoin.
+ * Les ecritures SQL restent idempotentes; seules la progression et la deduplication
+ * active sont perdues.
  */
 
 import type { DataConstructionJobDto } from "@pea/shared";
@@ -146,6 +151,17 @@ export class DataConstructionQueueService {
       symbols.map((symbol) => ({ type, symbol: symbol.toUpperCase(), message: `${type} ${symbol.toUpperCase()}` })),
       `${symbols.length} taches ${type} planifiees`
     );
+  }
+
+  enqueueAnnexRefresh(symbols: string[]) {
+    const uniqueSymbols = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
+    const tasks = uniqueSymbols.flatMap((symbol) => [
+      { type: "snapshot" as const, symbol, message: `${symbol} - snapshot` },
+      { type: "financials" as const, symbol, message: `${symbol} - financials` },
+      { type: "dividends" as const, symbol, message: `${symbol} - dividends` },
+      { type: "calendar-events" as const, symbol, message: `${symbol} - calendar events` }
+    ]);
+    return this.enqueue(tasks, `Rafraichissement annexe de ${uniqueSymbols.length} asset(s) planifie`);
   }
 
   latest(): DataConstructionJobDto {

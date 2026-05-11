@@ -346,7 +346,9 @@ export class PortfolioService {
   private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {
     let quantity = 0;
     const sortedRows = [...rows].sort((a, b) => {
-      const dateOrder = String(a.traded_at).localeCompare(String(b.traded_at));
+      const timeA = new Date(a.traded_at).getTime();
+      const timeB = new Date(b.traded_at).getTime();
+      const dateOrder = (Number.isFinite(timeA) ? timeA : 0) - (Number.isFinite(timeB) ? timeB : 0);
       if (dateOrder !== 0) return dateOrder;
       return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
     });

@@ -10,6 +10,7 @@ import { currentUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/market-data.service.js";
 import { marketSnapshotService } from "../market/market-snapshot.service.js";
 import { chartConfigService } from "../market/chart-config.service.js";
+import { marketEventsService } from "../market/market-events.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 
@@ -60,6 +61,8 @@ export class WatchlistService {
     ).run(currentUserId(), key, name, exchange ?? null, currency ?? null);
 
     const row = db.prepare("SELECT * FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
+    this.invalidateWatchlistCache(currentUserId());
+    marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return this.enrich(mapWatchlistRow(row), "1d");
   }
 
@@ -68,7 +71,13 @@ export class WatchlistService {
     const existing = db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
     if (!existing) return false;
     db.prepare("DELETE FROM watchlist WHERE user_id = ? AND symbol = ?").run(currentUserId(), key);
+    this.invalidateWatchlistCache(currentUserId());
+    marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return true;
+  }
+
+  private invalidateWatchlistCache(userId: string | number) {
+    frontendBlockCache.invalidate({ userId, block: "watchlist" });
   }
 
   private async enrich(item: WatchlistItem, range: RangeKey): Promise<WatchlistItem> {

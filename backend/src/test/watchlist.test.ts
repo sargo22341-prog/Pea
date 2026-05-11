@@ -191,3 +191,41 @@ test("watchlist is isolated between users: bob cannot see alice's watchlist item
 
   assert.equal(result.bobCount, 0);
 });
+
+test("watchlist add/remove invalide le cache frontend et la liste est relue immediatement", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { watchlistService } = await import("./services/assets/watchlist.service.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketEventsService } = await import("./services/market/market-events.service.ts");
+    db.prepare("INSERT INTO users (username, password_hash) VALUES ('tester', 'hash')").run();
+    const now = Date.now();
+    const expiresAt = now + 60_000;
+    const events = [];
+    marketEventsService.emitToUser = (userId, event, payload = {}) => events.push({ userId: String(userId), event, payload });
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 10, currency: "EUR", exchange: "Paris" });
+    marketDataService.getChartData = async (symbol, range) => ({ symbol, range, interval: "5m", timestamps: [1000], prices: [10], cachedAt: now, expiresAt });
+
+    const output = await runWithUser(1, async () => {
+      db.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES ('1:watchlist:1d', '1', 'watchlist', '1d', '[]', ?, ?)").run(now, expiresAt);
+      await watchlistService.add("AIR.PA", { name: "Air Liquide", exchange: "Paris", currency: "EUR" });
+      const afterAddCache = db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache WHERE block = 'watchlist'").get().count;
+      const afterAddList = await watchlistService.list("1d");
+      await watchlistService.remove("AIR.PA");
+      const afterRemoveCache = db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache WHERE block = 'watchlist'").get().count;
+      const afterRemoveList = await watchlistService.list("1d");
+      return { afterAddCache, afterAddList, afterRemoveCache, afterRemoveList };
+    });
+    console.log("__RESULT__" + JSON.stringify({ ...output, events }));
+  `);
+
+  assert.equal(result.afterAddCache, 0);
+  assert.equal(result.afterAddList.length, 1);
+  assert.equal(result.afterAddList[0].symbol, "AIR.PA");
+  assert.equal(result.afterRemoveCache, 0);
+  assert.equal(result.afterRemoveList.length, 0);
+  assert.equal(result.events.filter((entry: any) => entry.event === "watchlist-assets-updated").length, 2);
+});

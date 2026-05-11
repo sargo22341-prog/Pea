@@ -350,6 +350,13 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 18,
+    description: "Index market_data_finalizations par asset/range/date pour accelerer la lecture des dernieres finalisations",
+    appliquer: (db) => {
+      db.exec("CREATE INDEX IF NOT EXISTS idx_market_data_finalizations_asset_range_date ON market_data_finalizations(asset_id, range, trading_date DESC)");
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {

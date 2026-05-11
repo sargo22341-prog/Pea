@@ -150,7 +150,9 @@ export const api = {
   search: (q: string) => request<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
   enrichedSearch: (q: string, signal?: AbortSignal) =>
     request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
+  // Compat: kept for scripts/tests and older UI paths; current screens mostly consume richer asset/dashboard endpoints.
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
+  // Compat: SSE is always available behind auth; this endpoint only exposes live-refresh feature flags.
   marketFeatures: () => request<{ liveRefreshEnabled: boolean }>("/api/market/features"),
   marketEventsUrl: () => `${baseUrl}/api/market/events`,
   requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
@@ -191,7 +193,9 @@ export const api = {
     }),
   deletePositionTransaction: (positionId: number, transactionId: string) =>
     request<void>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, { method: "DELETE" }),
+  // Compat: Dashboard now prefers /portfolio/full.
   performance: (range: RangeKey) => request<PortfolioPerformancePoint[]>(`/api/portfolio/performance?range=${range}`),
+  // Compat: Dashboard now prefers /portfolio/full.
   portfolioChart: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioChartDto>(`/api/portfolio/chart?range=${range}`, signal),
   positionsPerformance: (range: RangeKey, signal?: AbortSignal) =>
@@ -250,6 +254,7 @@ export const api = {
   trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
+  // Compat alias for callers that still use the historical rebuild-all helper.
   rebuildAllMarketData: () =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
   cleanupUnlinkedMarketAssets: () => request<DataConstructionJobDto>("/api/admin/market-data/cleanup-unlinked-assets", { method: "POST" }),

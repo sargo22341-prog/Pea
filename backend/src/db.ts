@@ -405,7 +405,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS user_assets (
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     symbol TEXT NOT NULL,
     quantity REAL NOT NULL,
     average_price REAL NOT NULL,
@@ -469,6 +469,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_portfolio_positions_performance_cache_expires_at ON portfolio_positions_performance_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_user_block ON frontend_block_cache(user_id, block);
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_expires_at ON frontend_block_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_market_data_finalizations_asset_range_date ON market_data_finalizations(asset_id, range, trading_date DESC);
 
   CREATE TABLE IF NOT EXISTS asset_calendar_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

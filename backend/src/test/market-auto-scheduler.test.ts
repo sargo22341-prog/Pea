@@ -565,6 +565,68 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
   assert.ok(result.prices.every((row: any) => row.last_checked_at));
 });
 
+test("live refresh ne marque le cycle reussi qu'apres succes et retente apres backoff court", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    db.prepare("INSERT INTO market_daily_runs (market_key, trading_date, timezone, open_expected_at, open_status, open_confirmed_at, close_expected_at, close_status, assets_count, created_at, updated_at) VALUES ('euronextParis', '2026-05-06', 'Europe/Paris', '2026-05-06T07:00:00.000Z', 'confirmed_open', '2026-05-06T07:01:00.000Z', '2026-05-06T15:30:00.000Z', 'pending', 1, '2026-05-06T07:00:00.000Z', '2026-05-06T07:00:00.000Z')").run();
+    let calls = 0;
+    yahooApi.quoteBatchRaw = async () => {
+      calls += 1;
+      throw new Error("Yahoo down");
+    };
+    const task = new LiveMarketRefreshTask();
+    const first = await task.run(groups.values(), new Date("2026-05-06T08:00:00.000Z")).catch((error) => ({ failed: true, message: error.message }));
+    const second = await task.run(groups.values(), new Date("2026-05-06T08:00:10.000Z")).catch((error) => ({ failed: true, message: error.message }));
+    const third = await task.run(groups.values(), new Date("2026-05-06T08:00:31.000Z")).catch((error) => ({ failed: true, message: error.message }));
+    console.log("__RESULT__" + JSON.stringify({ calls, first, second, third }));
+  `);
+
+  assert.equal(result.calls, 4);
+  assert.equal(result.first.failed, true);
+  assert.equal(result.second.skipped, "backoff");
+  assert.equal(result.third.failed, true);
+});
+
+test("live refresh succes met a jour l'intervalle de succes", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const groups = trackedMarketRepository.syncFromTrackedAssets();
+    db.prepare("INSERT INTO market_daily_runs (market_key, trading_date, timezone, open_expected_at, open_status, open_confirmed_at, close_expected_at, close_status, assets_count, created_at, updated_at) VALUES ('euronextParis', '2026-05-06', 'Europe/Paris', '2026-05-06T07:00:00.000Z', 'confirmed_open', '2026-05-06T07:01:00.000Z', '2026-05-06T15:30:00.000Z', 'pending', 1, '2026-05-06T07:00:00.000Z', '2026-05-06T07:00:00.000Z')").run();
+    let calls = 0;
+    yahooApi.quoteBatchRaw = async (symbols) => {
+      calls += 1;
+      return symbols.map((symbol) => pricedQuoteRow(symbol, "REGULAR", 123));
+    };
+    yahooApi.quote = async (symbol) => pricedQuoteRow(symbol, "REGULAR", 123);
+    marketDataService.refreshLiveIntradayForAssets = async () => ({ updated: 0, yahooCalls: 0 });
+    const task = new LiveMarketRefreshTask();
+    task.prewarmFrontendBlocks = async () => undefined;
+    const first = await task.run(groups.values(), new Date("2026-05-06T08:00:00.000Z"));
+    const second = await task.run(groups.values(), new Date("2026-05-06T08:01:00.000Z"));
+    console.log("__RESULT__" + JSON.stringify({ calls, first, second }));
+  `);
+
+  assert.equal(result.calls, 1);
+  assert.equal(result.first.updated, 1);
+  assert.equal(result.second.skipped, "interval");
+});
+
 test("live refresh skips closed markets, lunch pauses, last close window and fresh open confirmations", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";

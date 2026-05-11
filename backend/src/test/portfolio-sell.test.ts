@@ -176,6 +176,53 @@ test("sell transaction is rejected when quantity would go negative", () => {
   assert.match(result.message, /negative|negatif|quantite/i);
 });
 
+test("transaction tradedAt invalide est refuse et une date valide est normalisee", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+    import { runWithUser } from "./services/auth/user-context.ts";
+    import { portfolioService } from "./services/portfolio/portfolio.service.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+        const user = await setup.json();
+        const position = await runWithUser(user.id, () => portfolioService.ensurePosition("AIR.PA", "Air Liquide", "EUR"));
+
+        const invalid = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tradedAt: "not-a-date", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR" })
+        });
+        const valid = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ tradedAt: "2026-01-10 10:00", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR" })
+        });
+        const body = await valid.json();
+        console.log("__RESULT__" + JSON.stringify({
+          invalidStatus: invalid.status,
+          validStatus: valid.status,
+          tradedAt: body[0]?.tradedAt
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.invalidStatus, 400);
+  assert.equal(result.validStatus, 201);
+  assert.match(result.tradedAt, /^2026-01-10T/);
+});
+
 test("creating a position via POST /portfolio/positions returns 201 with position data", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";
