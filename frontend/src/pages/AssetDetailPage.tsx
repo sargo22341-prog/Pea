@@ -67,6 +67,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
   const assetReload = asset.reload;
   const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
+  const chartPendingOpenConfirmation = asset.data?.chart?.availabilityStatus === "pending_open_confirmation";
   const currentChartPoints = chartDtoToPoints(asset.data?.chart);
   const displayChart = currentChartPoints.length > 1 ? asset.data?.chart : lastRenderableChart;
   const chartPoints = chartDtoToPoints(displayChart);
@@ -138,6 +139,7 @@ export function AssetDetailPage({ user }: { user: User }) {
 
   useEffect(() => {
     if (range !== "1d" || !asset.data?.chart) return;
+    if (asset.data.chart.availabilityStatus === "pending_open_confirmation") return;
     const key = `${symbol.toUpperCase()}:1d`;
     const cacheVersion = chartCacheVersion(asset.data.chart);
     const guard = lazyChartGuard.current;
@@ -390,6 +392,10 @@ export function AssetDetailPage({ user }: { user: User }) {
         ) : chart?.isPreparing ? (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-amber">
             Donnees en cours de preparation
+          </div>
+        ) : chartPendingOpenConfirmation ? (
+          <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink px-4 text-center text-sm text-slate-400">
+            Donnees intraday pas encore disponibles, marche pas encore confirme ouvert
           </div>
         ) : (
           <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-slate-400">

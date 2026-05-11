@@ -18,6 +18,9 @@ import { marketSnapshotService } from "./market-snapshot.service.js";
 import { financialsService } from "./financials.service.js";
 import { dividendsService } from "./dividends.service.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
+import { getMarketCalendar } from "./getMarketCalendar.js";
+import { marketRunRepository } from "../tache_auto/market-run.repository.js";
+import { localTradingDate } from "../tache_auto/market-task.utils.js";
 
 const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
 const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
@@ -190,6 +193,16 @@ function marketDateCount(points: HistoryPoint[], asset: Pick<AssetRow, "symbol" 
   return new Set(points.map((point) => getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date)))).size;
 }
 
+function latestStoredMarketDatePoints(points: HistoryPoint[], asset: Pick<AssetRow, "symbol" | "exchange">) {
+  const byDate = new Map<string, HistoryPoint[]>();
+  for (const point of points) {
+    const date = getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date));
+    byDate.set(date, [...(byDate.get(date) ?? []), point]);
+  }
+  const latestDate = [...byDate.keys()].sort().at(-1);
+  return latestDate ? (byDate.get(latestDate) ?? []).sort((a, b) => a.date.localeCompare(b.date)) : [];
+}
+
 function storedDailyPointForTradingDay(asset: AssetRow, tradingDay: YahooTradingDay): HistoryPoint | undefined {
   const rows = candleRepository.readCandles(asset.id, "all", chartConfigService.getIntervalForRange("all"));
   return [...rows].reverse().find((point) => getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date)) === tradingDay.date && Number.isFinite(point.close));
@@ -228,6 +241,14 @@ function latestIntradayUpdatedAt(assetId: number) {
 function validQuotePrice(quote?: Quote) {
   const price = Number(quote?.price);
   return Number.isFinite(price) && price > 0 ? price : undefined;
+}
+
+function intradayAvailabilityStatus(asset: AssetRow, now = new Date()): AssetChartDto["availabilityStatus"] | undefined {
+  const calendar = getMarketCalendar(asset.symbol, asset.exchange);
+  const local = localTradingDate(now, calendar.timezone);
+  const run = marketRunRepository.get(calendar.market, local.isoDate);
+  if (!run || run.open_status === "pending") return "pending_open_confirmation";
+  return undefined;
 }
 
 function validateChartPoints(input: {
@@ -843,7 +864,7 @@ export class MarketDataService {
     const now = options.intradayNow ?? new Date();
     const forceIntradayOpen = range === "1d" && options.forceIntradayOpen;
     if (config.enableMarketLiveRefresh && !forceIntradayOpen) {
-      return this.getStoredChartData(asset, range, quote);
+      return this.getStoredChartData(asset, range, quote, now);
     }
     if (range === "1d" && (isMarketOpen(quote?.marketState) || forceIntradayOpen)) {
       const session = getLastTradingDay(asset.symbol, quote?.exchange ?? asset.exchange, now);
@@ -971,15 +992,22 @@ export class MarketDataService {
     return previous ? { price: previous.close, datetime: previous.date } : undefined;
   }
 
-  private getStoredChartData(asset: AssetRow, range: RangeKey, quote?: Quote): AssetChartDto {
+  private getStoredChartData(asset: AssetRow, range: RangeKey, quote?: Quote, now = new Date()): AssetChartDto {
     const storedRange = normalizeStoredRange(range);
     const interval = chartConfigService.getIntervalForRange(storedRange);
     const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
-    const points = filterRangePoints(rawPoints, range, asset);
+    const initialPoints = filterRangePoints(rawPoints, range, asset, now);
+    const pendingOpen = storedRange === "1d" && intradayAvailabilityStatus(asset, now) === "pending_open_confirmation";
+    const points = pendingOpen && initialPoints.length < 2 ? latestStoredMarketDatePoints(rawPoints, asset) : initialPoints;
     const baseline = storedRange === "1d" ? this.getStoredPreviousClosePrice(asset) : undefined;
     const payload = compactHistory(asset.symbol, storedRange, interval, points, baseline, getMarketSessionInfo(asset.symbol, quote?.exchange ?? asset.exchange));
     if (points.length < 2) {
-      if (config.enableMarketLiveRefresh && storedRange === "1d") return payload;
+      if (config.enableMarketLiveRefresh && storedRange === "1d") {
+        return {
+          ...payload,
+          availabilityStatus: intradayAvailabilityStatus(asset, now)
+        };
+      }
       const job = config.enableMarketLiveRefresh ? dataConstructionQueue.enqueueCandles(asset.symbol, storedRange) : undefined;
       return {
         ...payload,

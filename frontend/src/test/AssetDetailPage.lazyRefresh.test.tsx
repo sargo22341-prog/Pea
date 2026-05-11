@@ -143,4 +143,22 @@ describe("AssetDetailPage lazy chart refresh", () => {
 
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
+
+  it("shows a temporary pending-open message for empty intraday charts", async () => {
+    vi.mocked(api.asset).mockResolvedValue({
+      ...assetDto(),
+      chart: {
+        ...assetDto().chart,
+        timestamps: [],
+        prices: [],
+        availabilityStatus: "pending_open_confirmation"
+      }
+    } as never);
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-market-closed" });
+
+    renderPage();
+
+    await screen.findByText("Donnees intraday pas encore disponibles, marche pas encore confirme ouvert");
+    expect(api.requestChartRefresh).not.toHaveBeenCalled();
+  });
 });

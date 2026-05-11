@@ -924,6 +924,60 @@ test("live stored intraday with no points is not marked preparing when no refres
   assert.equal(result.isPreparing, false);
 });
 
+test("live stored intraday pending open returns temporary availability status without preparing", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("7203.T", "Toyota", "Tokyo");
+    const calendar = getMarketCalendar("7203.T", "Tokyo");
+    marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: "2026-05-12", timezone: calendar.timezone, assetsCount: 1 });
+    const chart = await marketDataService.getChartData("7203.T", "1d", { intradayNow: new Date("2026-05-11T23:30:00.000Z") });
+    console.log("__RESULT__" + JSON.stringify({
+      points: chart.timestamps.length,
+      isPreparing: chart.isPreparing ?? false,
+      availabilityStatus: chart.availabilityStatus
+    }));
+  `);
+
+  assert.equal(result.points, 0);
+  assert.equal(result.isPreparing, false);
+  assert.equal(result.availabilityStatus, "pending_open_confirmation");
+});
+
+test("live stored intraday pending open still serves older candles when available", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("7203.T", "Toyota", "Tokyo");
+    const calendar = getMarketCalendar("7203.T", "Tokyo");
+    marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: "2026-05-12", timezone: calendar.timezone, assetsCount: 1 });
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = '7203.T'").get();
+    db.prepare(
+      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-11T00:00:00.000Z', '2026-05-11T00:05:00.000Z', 100, 101, 99, 100, 'seed'), (?, '5m', '2026-05-11T00:05:00.000Z', '2026-05-11T00:10:00.000Z', 100, 102, 100, 101, 'seed')"
+    ).run(asset.id, asset.id);
+    const chart = await marketDataService.getChartData("7203.T", "1d", { intradayNow: new Date("2026-05-11T23:30:00.000Z") });
+    console.log("__RESULT__" + JSON.stringify({
+      points: chart.timestamps.length,
+      isPreparing: chart.isPreparing ?? false,
+      availabilityStatus: chart.availabilityStatus
+    }));
+  `);
+
+  assert.equal(result.points, 2);
+  assert.equal(result.isPreparing, false);
+  assert.equal(result.availabilityStatus, undefined);
+});
+
 test("live stored non-intraday empty chart queues initial range construction", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";

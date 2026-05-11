@@ -158,6 +158,7 @@ export interface AssetChartDto {
   cachedAt: number;
   expiresAt: number;
   isPreparing?: boolean;
+  availabilityStatus?: "pending_open_confirmation" | "unavailable";
   missingRanges?: RangeKey[];
   missingAssets?: string[];
   jobId?: string;
