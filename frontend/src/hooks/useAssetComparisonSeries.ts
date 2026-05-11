@@ -17,20 +17,22 @@ export interface AssetComparisonSerie extends ComparisonSerie {
 export function useAssetComparisonSeries(targets: ComparableAsset[], range: RangeKey) {
   const [series, setSeries] = useState<AssetComparisonSerie[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const loadId = useRef(0);
 
   useEffect(() => {
     const currentLoadId = ++loadId.current;
-    let retryTimer: number | undefined;
 
     if (targets.length === 0) {
       setSeries([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
     setSeries([]);
     setLoading(true);
+    setError(null);
 
     async function loadSeries() {
       const results = await Promise.allSettled(
@@ -53,16 +55,15 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
         return;
       }
 
-      retryTimer = window.setTimeout(loadSeries, 2000);
+      setSeries(loadedSeries);
+      setError("Comparaison indisponible pour au moins un actif");
+      setLoading(false);
     }
 
     void loadSeries();
-    return () => {
-      if (retryTimer) window.clearTimeout(retryTimer);
-    };
   }, [targets, range]);
 
-  return { series, loading };
+  return { series, loading, error };
 }
 
 function chartDtoToComparisonSerie(target: ComparableAsset, chart: AssetChartDto): AssetComparisonSerie | null {

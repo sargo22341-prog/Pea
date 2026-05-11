@@ -429,6 +429,7 @@ export interface PositionMiniChart {
     t: number;
     v: number;
   }>;
+  marketSession?: MarketSessionDto;
   stale?: boolean;
   updatedAt?: string;
 }
@@ -635,6 +636,7 @@ export interface AssetDetails {
   news: NewsArticle[];
   articlesDto?: AssetArticlesDto;
   position?: PositionWithMarket;
+  positionRangePerformance?: PositionRangePerformance;
   userAssetPosition?: UserAssetPositionDto;
   positionStats?: PositionTransactionStats;
   isInWatchlist?: boolean;

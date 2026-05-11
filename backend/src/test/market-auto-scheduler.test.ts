@@ -791,9 +791,11 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
     const run = marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: local.isoDate, timezone: calendar.timezone, assetsCount: 1 });
     marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: new Date().toISOString() });
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    const start = new Date(Date.now() - 60_000);
+    const end = new Date(start.getTime() + 5 * 60_000);
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', ?)"
-    ).run(asset.id, new Date().toISOString());
+      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', ?, ?, 100, 101, 99, 100, 'seed', ?)"
+    ).run(asset.id, start.toISOString(), end.toISOString(), new Date().toISOString());
     let chartCalls = 0;
     yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
     const fresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
@@ -802,6 +804,108 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
 
   assert.equal(result.fresh.status, "skipped-fresh");
   assert.equal(result.chartCalls, 0);
+});
+
+test("lazy chart refresh skips Yahoo while market open status is pending", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const calendar = getMarketCalendar("AAA.PA", "Paris");
+    const local = localTradingDate(new Date(), calendar.timezone);
+    marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: local.isoDate, timezone: calendar.timezone, assetsCount: 1 });
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    db.prepare(
+      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed')"
+    ).run(asset.id);
+    let chartCalls = 0;
+    yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
+    const refresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    console.log("__RESULT__" + JSON.stringify({ refresh, chartCalls }));
+  `);
+
+  assert.equal(result.refresh.status, "skipped-market-closed");
+  assert.equal(result.chartCalls, 0);
+});
+
+test("lazy chart refresh uses configured 1d interval instead of ratio threshold", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
+    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const calendar = getMarketCalendar("AAA.PA", "Paris");
+    const local = localTradingDate(new Date(), calendar.timezone);
+    const run = marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: local.isoDate, timezone: calendar.timezone, assetsCount: 1 });
+    marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: new Date().toISOString() });
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    const start = new Date(Date.now() - 6 * 60_000);
+    const end = new Date(start.getTime() + 5 * 60_000);
+    db.prepare(
+      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', ?, ?, 100, 101, 99, 100, 'seed')"
+    ).run(asset.id, start.toISOString(), end.toISOString());
+    let chartCalls = 0;
+    yahooApi.chart = async () => {
+      chartCalls += 1;
+      return { quotes: [
+        { date: start.toISOString(), open: 100, high: 101, low: 99, close: 100 },
+        { date: new Date().toISOString(), open: 100, high: 102, low: 100, close: 101 }
+      ], dividends: [], splits: [] };
+    };
+    const refresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    console.log("__RESULT__" + JSON.stringify({ refresh, chartCalls }));
+  `);
+
+  assert.equal(result.refresh.status, "started");
+  assert.equal(result.chartCalls, 1);
+});
+
+test("live stored intraday with no points is not marked preparing when no refresh is launched", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const chart = await marketDataService.getChartData("AAA.PA", "1d");
+    console.log("__RESULT__" + JSON.stringify({ isPreparing: chart.isPreparing ?? false, points: chart.timestamps.length }));
+  `);
+
+  assert.equal(result.points, 0);
+  assert.equal(result.isPreparing, false);
+});
+
+test("dividend yield normalization accepts Yahoo fraction and percent units", () => {
+  const result = runBackendScript(`
+    const { normalizeDividendYield } = await import("./services/yahoo/yahoo.mapper.ts");
+    console.log("__RESULT__" + JSON.stringify({
+      fraction: normalizeDividendYield(0.0475),
+      percent: normalizeDividendYield(4.75),
+      empty: normalizeDividendYield(null),
+      aberrant: normalizeDividendYield(475)
+    }));
+  `);
+
+  assert.equal(result.fraction, 0.0475);
+  assert.equal(result.percent, 0.0475);
+  assert.equal(result.empty, null);
+  assert.equal(result.aberrant, null);
 });
 
 test("lazy chart refresh returns skipped-fresh when intraday memory cache is fresh", () => {

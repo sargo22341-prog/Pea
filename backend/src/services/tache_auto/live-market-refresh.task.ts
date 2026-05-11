@@ -93,7 +93,7 @@ export class LiveMarketRefreshTask {
 
     const portfolioAssets = this.portfolioAssetsForSymbols(updatedSymbols);
     const chartResult = await marketDataService.refreshLiveIntradayForAssets(portfolioAssets, now, {
-      minAgeMs: chartConfigService.getPortfolioChartRefreshIntervalMs()
+      minAgeMs: chartConfigService.getIntradayRefreshIntervalMs()
     }).catch((error) => {
       logger.warn("market-data", "live intraday chart refresh failed", { error: error instanceof Error ? error.message : String(error) });
       return { updated: 0, yahooCalls: 0 };

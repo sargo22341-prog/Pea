@@ -3,7 +3,7 @@
  * valorisation, performance et statistiques de transactions.
  */
 
-import type { PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
+import type { PositionRangePerformance, PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins, ReceiptText, WalletCards } from "lucide-react";
 import { usePrivacy } from "../../contexts/PrivacyContext";
 import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../../lib/format";
@@ -15,12 +15,14 @@ export function AssetPositionSummary({
   position,
   currentPrice,
   firstPriceOfRange,
+  rangePerformance,
   range,
   stats
 }: {
   position: PositionWithMarket;
   currentPrice: number;
   firstPriceOfRange?: number;
+  rangePerformance?: PositionRangePerformance;
   range: RangeKey;
   stats?: PositionTransactionStats;
 }) {
@@ -29,8 +31,10 @@ export function AssetPositionSummary({
   const currentValue = position.quantity * safeCurrentPrice;
   const totalPerformanceValue = currentValue - position.costBasis;
   const totalPerformancePercent = position.costBasis ? (totalPerformanceValue / position.costBasis) * 100 : undefined;
-  const periodPerformanceValue = firstPriceOfRange && firstPriceOfRange > 0 ? position.quantity * (safeCurrentPrice - firstPriceOfRange) : undefined;
-  const periodPerformancePercent = firstPriceOfRange && firstPriceOfRange > 0 ? ((safeCurrentPrice - firstPriceOfRange) / firstPriceOfRange) * 100 : undefined;
+  const periodPerformanceValue = rangePerformance?.intervalPerformanceValue ??
+    (firstPriceOfRange && firstPriceOfRange > 0 ? position.quantity * (safeCurrentPrice - firstPriceOfRange) : undefined);
+  const periodPerformancePercent = rangePerformance?.intervalPerformancePercent ??
+    (firstPriceOfRange && firstPriceOfRange > 0 ? ((safeCurrentPrice - firstPriceOfRange) / firstPriceOfRange) * 100 : undefined);
   const valueRatio = Math.max(0, Math.min(100, position.costBasis > 0 ? (currentValue / Math.max(position.costBasis, currentValue)) * 100 : 0));
   const totalTone = toneFromNumber(totalPerformanceValue);
   const periodTone = toneFromNumber(periodPerformanceValue);

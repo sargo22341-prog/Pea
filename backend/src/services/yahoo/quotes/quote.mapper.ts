@@ -3,6 +3,7 @@
  */
 
 import type { Quote } from "@pea/shared";
+import { normalizeDividendYield } from "../yahoo.mapper.js";
 
 /** Normalise une quote Yahoo brute et conserve les valeurs de fallback historiques. */
 export function normalizeQuote(item: any, fallbackSymbol: string): Quote {
@@ -21,7 +22,7 @@ export function normalizeQuote(item: any, fallbackSymbol: string): Quote {
     quoteType: item.quoteType,
     marketState: item.marketState,
     dividendRate: item.trailingAnnualDividendRate ? Number(item.trailingAnnualDividendRate) : undefined,
-    dividendYield: item.trailingAnnualDividendYield ? Number(item.trailingAnnualDividendYield) : undefined,
+    dividendYield: normalizeDividendYield(item.trailingAnnualDividendYield) ?? undefined,
     logoUrl: item.logoUrl
   };
 }

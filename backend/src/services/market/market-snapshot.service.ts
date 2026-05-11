@@ -8,7 +8,7 @@ import { db } from "../../db.js";
 import { config } from "../../config.js";
 import { normalizeMarketState } from "../shared/cache.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
-import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
+import { normalizeDividendYield, type YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
 import { writeCache } from "../yahoo/cache/yahoo.cache.js";
 import { chartConfigService } from "./chart-config.service.js";
 import { assetRepository, type AssetRow } from "./asset.repository.js";
@@ -92,7 +92,7 @@ export class MarketSnapshotService {
       currency: row.currency ?? undefined,
       exchangeName: row.full_exchange_name ?? row.exchange ?? undefined,
       quoteType: row.quote_type ?? undefined,
-      dividendYield: optionalNumber(row.dividend_yield),
+      dividendYield: normalizeDividendYield(row.dividend_yield) ?? undefined,
       annualDividend: optionalNumber(row.dividend_rate),
       cachedAt: new Date(row.updated_at).getTime(),
       expiresAt: new Date(row.updated_at).getTime()
@@ -244,7 +244,7 @@ export class MarketSnapshotService {
       quoteType: row.quote_type ?? undefined,
       marketState: row.market_state ?? undefined,
       dividendRate: row.dividend_rate == null ? undefined : Number(row.dividend_rate),
-      dividendYield: row.dividend_yield == null ? undefined : Number(row.dividend_yield)
+      dividendYield: normalizeDividendYield(row.dividend_yield) ?? undefined
     };
   }
 

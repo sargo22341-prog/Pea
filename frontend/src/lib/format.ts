@@ -122,7 +122,9 @@ export function formatMaybeMoney(value: number | undefined, currency: string) {
 }
 
 export function formatMaybePercentYield(value?: number) {
-  return value == null || !Number.isFinite(value) ? "n/a" : percent(value * 100);
+  if (value == null || !Number.isFinite(value) || value < 0 || value > 100) return "n/a";
+  const normalized = value > 1 ? value : value * 100;
+  return percent(normalized);
 }
 
 export function formatChange(value: number | undefined, percentValue: number | undefined, currency: string) {

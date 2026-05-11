@@ -112,6 +112,15 @@ export class ChartConfigService {
     const live = this.getMarketLiveRefreshConfig();
     return live.portfolioChartsIntervalMinutes * live.lazyChartRefreshThresholdRatio * 60 * 1000;
   }
+
+  getIntradayRefreshIntervalMs() {
+    const interval = this.getIntervalForRange("1d");
+    const amount = Number(interval.slice(0, -1));
+    const unit = interval.slice(-1);
+    if (unit === "m") return amount * 60 * 1000;
+    if (unit === "h") return amount * 60 * 60 * 1000;
+    return 24 * 60 * 60 * 1000;
+  }
 }
 
 export const chartConfigService = new ChartConfigService();

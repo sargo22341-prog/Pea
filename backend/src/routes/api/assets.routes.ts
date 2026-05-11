@@ -61,6 +61,12 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   let marketUnavailable = false;
 
   const position = await positionPromise;
+  const positionRangePerformance = position
+    ? await portfolioService.singlePositionPerformance(position.id, range).catch((error) => {
+        logger.warn("portfolio", "asset position range performance unavailable", { symbol, range, error: error instanceof Error ? error.message : String(error) });
+        return undefined;
+      })
+    : undefined;
 
   const quoteResult = await marketSnapshotService.getQuote(symbol).then((quote) => ({ data: quote })).catch((error) => {
     if (!isMarketDataUnavailable(error)) throw error;
@@ -140,6 +146,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     news,
     articlesDto: assetArticles,
     position,
+    positionRangePerformance,
     userAssetPosition: assetDataService.userPosition(String(req.user!.id), symbol),
     positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined,
     isInWatchlist: Boolean(watchlistRow),

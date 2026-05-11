@@ -5,6 +5,7 @@
 
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, FinancialYearItem } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
+import { normalizeDividendYield } from "../yahoo.mapper.js";
 
 function rawNumber(value: unknown): number | undefined {
   const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
@@ -153,7 +154,7 @@ export function marketInfoFromSummary(summary: any): AssetMarketInfo {
     averageDailyVolume3Month: rawNumber(detail.averageDailyVolume3Month) ?? rawNumber(detail.averageVolume),
     totalAssets: rawNumber(detail.totalAssets) ?? rawNumber(fundProfile.totalAssets) ?? rawNumber(fundPerformance.totalAssets),
     dividendRate: rawNumber(detail.dividendRate) ?? rawNumber(price.trailingAnnualDividendRate),
-    dividendYield: rawNumber(detail.dividendYield) ?? rawNumber(price.trailingAnnualDividendYield),
+    dividendYield: normalizeDividendYield(detail.dividendYield) ?? normalizeDividendYield(price.trailingAnnualDividendYield) ?? undefined,
     exDividendDate: rawDate(detail.exDividendDate)
   };
 }

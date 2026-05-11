@@ -51,10 +51,11 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [adding, setAdding] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
-  const { series: comparisonSeries, loading: comparisonLoading } = useAssetComparisonSeries(compareTargets, range);
+  const { series: comparisonSeries } = useAssetComparisonSeries(compareTargets, range);
   const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [chartRefreshing, setChartRefreshing] = useState(false);
+  const [lastRenderableChart, setLastRenderableChart] = useState<AssetChartDto | undefined>(undefined);
   const lazyChartGuard = useRef({
     key: "",
     requestedForCacheVersion: "",
@@ -66,7 +67,9 @@ export function AssetDetailPage({ user }: { user: User }) {
   const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
   const assetReload = asset.reload;
   const assetChartPreparing = Boolean(asset.data?.chart?.isPreparing);
-  const chartPoints = chartDtoToPoints(asset.data?.chart);
+  const currentChartPoints = chartDtoToPoints(asset.data?.chart);
+  const displayChart = currentChartPoints.length > 1 ? asset.data?.chart : lastRenderableChart;
+  const chartPoints = chartDtoToPoints(displayChart);
 
   function addCompareTarget(target: { symbol: string; name: string }) {
     setCompareTargets((prev) => (prev.some((item) => item.symbol === target.symbol) ? prev : [...prev, target]));
@@ -93,6 +96,16 @@ export function AssetDetailPage({ user }: { user: User }) {
       setWatchlisted(Boolean(asset.data.isInWatchlist));
     }
   }, [asset.data]);
+
+  useEffect(() => {
+    setLastRenderableChart(undefined);
+  }, [symbol, range]);
+
+  useEffect(() => {
+    if (asset.data?.quote.symbol.toUpperCase() === symbol.toUpperCase() && asset.data.chart && chartDtoToPoints(asset.data.chart).length > 1) {
+      setLastRenderableChart(asset.data.chart);
+    }
+  }, [asset.data?.chart, asset.data?.quote.symbol, symbol]);
 
   useEffect(() => {
     if (!assetChartPreparing) return;
@@ -348,7 +361,7 @@ export function AssetDetailPage({ user }: { user: User }) {
             <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
           </div>
         </div>
-        {asset.loading || (compareTargets.length > 0 && (comparisonLoading || chart?.isPreparing)) ? (
+        {asset.loading && chartPoints.length <= 1 ? (
           <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
         ) : chartPoints.length > 1 ? (
           comparisonSeries.length > 0 ? (
@@ -357,19 +370,19 @@ export function AssetDetailPage({ user }: { user: User }) {
               data={chartPoints}
               heightClassName="h-80"
               mainSymbol={symbol}
-              marketSession={marketSession ?? chart?.marketSession}
+              marketSession={marketSession ?? displayChart?.marketSession}
               range={range}
               userTimezone={userTimezone}
             />
           ) : (
             <PriceHistoryChart
-              baselineDatetime={chart?.baselineDatetime}
-              baselinePrice={chart?.baselinePrice}
+              baselineDatetime={displayChart?.baselineDatetime}
+              baselinePrice={displayChart?.baselinePrice}
               currency={quote.currency}
               data={chartPoints}
               heightClassName="h-80"
               hideXAxisTicks
-              marketSession={marketSession ?? chart?.marketSession}
+              marketSession={marketSession ?? displayChart?.marketSession}
               range={range}
               userTimezone={userTimezone}
             />
@@ -399,7 +412,14 @@ export function AssetDetailPage({ user }: { user: User }) {
         <div className="group p-5">
           <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-300">Ma position</h2>
           {position ? (
-            <AssetPositionSummary currentPrice={marketInfo?.regularMarketPrice ?? quote.price} firstPriceOfRange={firstClose} position={position} range={range} stats={asset.data.positionStats} />
+            <AssetPositionSummary
+              currentPrice={marketInfo?.regularMarketPrice ?? quote.price}
+              firstPriceOfRange={firstClose}
+              position={position}
+              range={range}
+              rangePerformance={asset.data.positionRangePerformance}
+              stats={asset.data.positionStats}
+            />
           ) : (
             <p className="text-slate-400">Aucune position détenue pour ce symbole.</p>
           )}

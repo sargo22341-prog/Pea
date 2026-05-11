@@ -1059,6 +1059,7 @@ export class PortfolioService {
     return {
       range: input.range,
       points: downsampleMiniChartPoints(rawPoints, 40),
+      marketSession: input.range === "1d" ? getMarketSessionInfo(input.position.symbol) : undefined,
       stale: input.stale || input.history.some((point) => point.stale),
       updatedAt: new Date().toISOString()
     };

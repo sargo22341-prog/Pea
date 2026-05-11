@@ -6,6 +6,7 @@
 import type { HistoryPoint, Quote } from "@pea/shared";
 
 export function nullableNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : null;
 }
@@ -19,6 +20,12 @@ export function nullableDateIso(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) return new Date(value * 1000).toISOString();
   if (typeof value === "string" && Number.isFinite(new Date(value).getTime())) return new Date(value).toISOString();
   return null;
+}
+
+export function normalizeDividendYield(value: unknown): number | null {
+  const numberValue = nullableNumber(value);
+  if (numberValue == null || numberValue < 0 || numberValue > 100) return null;
+  return numberValue > 1 ? numberValue / 100 : numberValue;
 }
 
 export interface YahooSnapshotPayload {
@@ -67,7 +74,7 @@ export function mapQuote(row: any, fallbackSymbol: string): Quote {
     quoteType: row?.quoteType,
     marketState: row?.marketState,
     dividendRate: nullableNumber(row?.dividendRate ?? row?.trailingAnnualDividendRate) ?? undefined,
-    dividendYield: nullableNumber(row?.dividendYield ?? row?.trailingAnnualDividendYield) ?? undefined
+    dividendYield: normalizeDividendYield(row?.dividendYield ?? row?.trailingAnnualDividendYield) ?? undefined
   };
 }
 
@@ -97,9 +104,9 @@ export function mapSnapshotQuote(row: any, fallbackSymbol: string): YahooSnapsho
     askSize: nullableNumber(row?.askSize),
     averageDailyVolume3Month: nullableNumber(row?.averageDailyVolume3Month),
     dividendRate: nullableNumber(row?.dividendRate),
-    dividendYield: nullableNumber(row?.dividendYield),
+    dividendYield: normalizeDividendYield(row?.dividendYield),
     trailingAnnualDividendRate: nullableNumber(row?.trailingAnnualDividendRate),
-    trailingAnnualDividendYield: nullableNumber(row?.trailingAnnualDividendYield),
+    trailingAnnualDividendYield: normalizeDividendYield(row?.trailingAnnualDividendYield),
     regularMarketTime: nullableDateIso(row?.regularMarketTime)
   };
 }

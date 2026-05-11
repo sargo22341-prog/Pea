@@ -12,7 +12,7 @@ import { groupAssetsByMarket, localTradingDate } from "../tache_auto/market-task
 type RefreshStatus = "skipped-fresh" | "skipped-market-closed" | "in-progress" | "started" | "unsupported-range" | "not-found";
 
 const confirmedOpenStatuses = new Set(["confirmed_open", "confirmed_open_partial"]);
-const closedStatuses = new Set(["confirmed_closed", "confirmed_closed_partial"]);
+const blockedCloseStatuses = new Set(["confirmed_closed", "confirmed_closed_partial", "close_not_confirmed", "skipped_weekend", "skipped_no_assets"]);
 
 export class ChartRefreshService {
   requestAssetRefresh(input: { userId: string | number; symbol: string; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean }) {
@@ -26,7 +26,7 @@ export class ChartRefreshService {
   }
 
   private startRefresh(input: { userId: string | number; asset: AssetRow; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean }) {
-    const thresholdMs = input.force ? 0 : chartConfigService.getLazyChartRefreshThresholdMs();
+    const thresholdMs = input.force ? 0 : chartConfigService.getIntradayRefreshIntervalMs();
     if (!input.force && !marketDataService.chartNeedsRefresh(input.asset, thresholdMs)) return { status: "skipped-fresh" as RefreshStatus };
     if (marketDataService.isIntradayRefreshInFlight(input.asset.symbol)) return { status: "in-progress" as RefreshStatus };
 
@@ -91,7 +91,7 @@ export class ChartRefreshService {
     for (const group of groups.values()) {
       const local = localTradingDate(now, group.calendar.timezone);
       const run = marketRunRepository.get(group.marketKey, local.isoDate);
-      const marketConfirmedOpen = Boolean(run && confirmedOpenStatuses.has(run.open_status) && !closedStatuses.has(run.close_status));
+      const marketConfirmedOpen = Boolean(run && confirmedOpenStatuses.has(run.open_status) && !blockedCloseStatuses.has(run.close_status));
 
       for (const asset of group.assets) {
         if (marketConfirmedOpen || !this.hasAnyChartData(asset.id)) {

@@ -11,6 +11,7 @@ import { usePrivacy } from "../../contexts/PrivacyContext";
 import { api } from "../../lib/api";
 import { formatRangeLabel, money, percent } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
+import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
 import { AssetIcon } from "../common/AssetIcon";
 
 const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: SortDirection }> = [
@@ -376,8 +377,9 @@ function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerforman
   const width = 112;
   const height = 36;
   const padding = 3;
-  const minT = points[0].t;
-  const maxT = points[points.length - 1].t;
+  const sessionDomain = miniChart?.range === "1d" ? miniChartSessionDomain(points[0].t, miniChart.marketSession) : undefined;
+  const minT = sessionDomain?.open ?? points[0].t;
+  const maxT = sessionDomain?.close ?? points[points.length - 1].t;
   const values = points.map((point) => point.v);
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
@@ -403,4 +405,14 @@ function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerforman
       <path d={path} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
+}
+
+function miniChartSessionDomain(firstTimestamp: number, marketSession?: PositionRangePerformance["miniChart"]["marketSession"]) {
+  if (!marketSession) return undefined;
+  const timeZone = normalizeTimeZone(marketSession.timezone);
+  const day = localIsoDate(new Date(firstTimestamp), timeZone);
+  return {
+    open: zonedTimeToUtc(day, marketSession.open, timeZone).getTime(),
+    close: zonedTimeToUtc(day, marketSession.close, timeZone).getTime()
+  };
 }

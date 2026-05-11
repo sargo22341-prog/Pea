@@ -71,11 +71,11 @@ export class AssetRepository {
       `INSERT INTO assets (symbol, name, exchange, currency, quote_type, type_disp)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(symbol) DO UPDATE SET
-         name = excluded.name,
-         exchange = excluded.exchange,
-         currency = excluded.currency,
-         quote_type = excluded.quote_type,
-         type_disp = excluded.type_disp,
+         name = COALESCE(excluded.name, assets.name),
+         exchange = COALESCE(excluded.exchange, assets.exchange),
+         currency = COALESCE(excluded.currency, assets.currency),
+         quote_type = COALESCE(excluded.quote_type, assets.quote_type),
+         type_disp = COALESCE(excluded.type_disp, assets.type_disp),
          updated_at = CURRENT_TIMESTAMP`
     ).run(snapshot.symbol, name, snapshot.exchange ?? snapshot.fullExchangeName, snapshot.currency, snapshot.quoteType, snapshot.typeDisp);
     return this.findBySymbol(snapshot.symbol)!;
@@ -86,14 +86,14 @@ export class AssetRepository {
       `INSERT INTO asset_profiles (asset_id, country, sector, industry, website, long_business_summary, full_time_employees, market_cap, beta, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2')
        ON CONFLICT(asset_id) DO UPDATE SET
-         country = excluded.country,
-         sector = excluded.sector,
-         industry = excluded.industry,
-         website = excluded.website,
-         long_business_summary = excluded.long_business_summary,
-         full_time_employees = excluded.full_time_employees,
-         market_cap = excluded.market_cap,
-         beta = excluded.beta,
+         country = COALESCE(excluded.country, asset_profiles.country),
+         sector = COALESCE(excluded.sector, asset_profiles.sector),
+         industry = COALESCE(excluded.industry, asset_profiles.industry),
+         website = COALESCE(excluded.website, asset_profiles.website),
+         long_business_summary = COALESCE(excluded.long_business_summary, asset_profiles.long_business_summary),
+         full_time_employees = COALESCE(excluded.full_time_employees, asset_profiles.full_time_employees),
+         market_cap = COALESCE(excluded.market_cap, asset_profiles.market_cap),
+         beta = COALESCE(excluded.beta, asset_profiles.beta),
          source = excluded.source,
          updated_at = CURRENT_TIMESTAMP`
     ).run(assetId, profile.country, profile.sector, profile.industry, profile.website, profile.longBusinessSummary, profile.fullTimeEmployees, profile.marketCap, profile.beta);

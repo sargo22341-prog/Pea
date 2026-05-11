@@ -129,10 +129,20 @@ describe("formatMaybePercentYield", () => {
     expect(formatMaybePercentYield(NaN)).toBe("n/a");
   });
 
-  it("multiplies by 100 and appends %", () => {
+  it("formats Yahoo fraction yields", () => {
     const result = formatMaybePercentYield(0.035);
     expect(result).toMatch(/3/);
     expect(result).toMatch(/%/);
+  });
+
+  it("formats Yahoo percent yields without multiplying twice", () => {
+    const result = formatMaybePercentYield(4.75);
+    expect(result).toMatch(/4,75/);
+    expect(result).not.toMatch(/475/);
+  });
+
+  it("returns n/a for aberrant yields", () => {
+    expect(formatMaybePercentYield(475)).toBe("n/a");
   });
 });
 
