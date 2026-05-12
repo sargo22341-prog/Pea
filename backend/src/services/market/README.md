@@ -2,6 +2,17 @@
 
 Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
+## Organisation
+
+- `calendars/` decrit les horaires, sessions et fenetres de marche.
+- `charts/` contient la configuration des ranges, le refresh lazy et les helpers de construction DTO.
+- `construction/` gere la queue de reconstruction et le nettoyage des donnees marche.
+- `data/` orchestre l'initialisation et la lecture des donnees marche persistantes.
+- `dividends/` persiste les dividendes.
+- `events/` emet les invalidations/SSE marche.
+- `financials/` persiste les fondamentaux.
+- `snapshots/` gere l'etat courant par asset.
+
 - `data/config.json` pilote les intervals configurables des ranges stockees `1d`, `1w`, `1m`. En prod Docker, ce fichier vit dans le volume `/app/data` pour rester modifiable.
 - `assets` et `asset_profiles` stockent les metadonnees stables issues de `quote()` et `quoteSummary()`. Les champs absents chez Yahoo restent `NULL`.
 - `chart_candles_1d`, `chart_candles_1w`, `chart_candles_1m`, `chart_candles_all` stockent les candles OHLCV pre-calculées, une table par range, avec `UNIQUE(asset_id, interval, datetime_start)` sur chacune.

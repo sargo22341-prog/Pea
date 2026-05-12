@@ -17,10 +17,10 @@ import type {
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
-import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
-import { dividendsService } from "../market/dividends.service.js";
-import { marketDataService, type ChartDataOptions } from "../market/market-data.service.js";
-import { marketSnapshotService } from "../market/market-snapshot.service.js";
+import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
+import { dividendsService } from "../market/dividends/dividends.service.js";
+import { marketDataService, type ChartDataOptions } from "../market/data/market-data.service.js";
+import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { expiresIn, nowMs, readStaticJsonCache, writeStaticJsonCache } from "../shared/cache.service.js";
 import { yahooService } from "../yahoo/index.js";

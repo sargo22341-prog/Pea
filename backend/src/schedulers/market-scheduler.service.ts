@@ -1,7 +1,7 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { logger } from "../services/shared/logger.service.js";
 import { config } from "../config.js";
-import { chartConfigService } from "../services/market/chart-config.service.js";
+import { chartConfigService } from "../services/market/charts/chart-config.service.js";
 import { liveMarketRefreshTask } from "../jobs/market/live-market-refresh.task.js";
 import { marketOpenTask } from "../jobs/market/market-open.task.js";
 import { marketCloseTask } from "../jobs/market/market-close.task.js";

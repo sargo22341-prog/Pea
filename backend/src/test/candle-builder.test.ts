@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { candleBuilder } from "../services/candles/candle.builder.js";
-import { getLastTradingDay } from "../services/market/marketCalendar.service.js";
+import { getLastTradingDay } from "../services/market/calendars/marketCalendar.service.js";
 
 test("Tokyo intraday candles keep afternoon session and ignore lunch pause / after final close", () => {
   const candles = candleBuilder.buildCandles({

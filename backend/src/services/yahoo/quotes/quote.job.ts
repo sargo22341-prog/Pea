@@ -4,7 +4,7 @@
  */
 
 import type { Quote, SearchResult } from "@pea/shared";
-import type { MarketDataResult } from "../../market/market-data-provider.js";
+import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { safeString } from "../../assets/peaEligibility.js";

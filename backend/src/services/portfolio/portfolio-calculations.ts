@@ -9,7 +9,7 @@
 
 import type { DividendEvent, PortfolioPerformancePoint, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
-import { dividendsService } from "../market/dividends.service.js";
+import { dividendsService } from "../market/dividends/dividends.service.js";
 
 /**
  * Représente une ligne de transaction brute telle que lue depuis la base.

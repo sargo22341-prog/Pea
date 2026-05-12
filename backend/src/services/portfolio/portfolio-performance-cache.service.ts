@@ -1,7 +1,7 @@
 import type { PositionRangePerformance, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
-import { chartConfigService, normalizeStoredRange } from "../market/chart-config.service.js";
-import { marketEventsService } from "../market/market-events.service.js";
+import { chartConfigService, normalizeStoredRange } from "../market/charts/chart-config.service.js";
+import { marketEventsService } from "../market/events/market-events.service.js";
 import { nowMs } from "../shared/cache.service.js";
 
 const cacheTtlMs: Partial<Record<RangeKey, number>> = {

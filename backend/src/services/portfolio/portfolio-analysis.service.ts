@@ -15,8 +15,8 @@ import type {
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
-import { financialsService } from "../market/financials.service.js";
-import { chartConfigService } from "../market/chart-config.service.js";
+import { financialsService } from "../market/financials/financials.service.js";
+import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";

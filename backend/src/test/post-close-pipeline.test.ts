@@ -58,7 +58,7 @@ function insertClose(db, candleRepository, assetId, isoCloseUtc, closePrice) {
 test("rebuildStoredRangesFromFinalData - ALL stocke exactement un point avec le prix de cloture", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -95,7 +95,7 @@ test("rebuildStoredRangesFromFinalData - ALL stocke exactement un point avec le 
 test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apres double appel)", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -121,7 +121,7 @@ test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apre
 test("rebuildStoredRangesFromFinalData - 1W produit 7 candles depuis 7 jours de 1D, close correct", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -160,7 +160,7 @@ test("rebuildStoredRangesFromFinalData - 1W produit 7 candles depuis 7 jours de 
 test("rebuildStoredRangesFromFinalData - 1W incremental preserve les 6 jours existants quand on ajoute le 7e", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -201,7 +201,7 @@ test("rebuildStoredRangesFromFinalData - 1W incremental preserve les 6 jours exi
 test("rebuildStoredRangesFromFinalData - 1M est borne a 30 jours ouvrés meme avec 35 jours de sources 1D", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -243,7 +243,7 @@ test("rebuildStoredRangesFromFinalData - 1M est borne a 30 jours ouvrés meme av
 test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis les memes 1D", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}
@@ -293,7 +293,7 @@ test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis l
 test("rebuildStoredRangesFromFinalData - marque le trading_date comme finalise apres rebuild", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { marketDataService } from "./services/market/market-data.service.ts";
+    import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     ${helperInsertClose}

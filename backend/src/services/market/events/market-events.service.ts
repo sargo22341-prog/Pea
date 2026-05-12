@@ -1,6 +1,6 @@
 import type { Response } from "express";
-import { db } from "../../db.js";
-import { logger } from "../shared/logger.service.js";
+import { db } from "../../../db.js";
+import { logger } from "../../shared/logger.service.js";
 
 export type MarketEventType =
   | "market-snapshot-updated"

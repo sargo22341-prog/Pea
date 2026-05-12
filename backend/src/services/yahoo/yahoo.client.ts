@@ -17,7 +17,7 @@
 
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
-import type { MarketDataResult } from "../market/market-data-provider.js";
+import type { MarketDataResult } from "../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "./yahoo.errors.js";

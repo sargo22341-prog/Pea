@@ -5,11 +5,11 @@
 import express from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
-import { dividendsService } from "../../services/market/dividends.service.js";
-import { chartRefreshService } from "../../services/market/chart-refresh.service.js";
-import { marketEventsService } from "../../services/market/market-events.service.js";
-import { marketDataService } from "../../services/market/market-data.service.js";
-import { marketSnapshotService } from "../../services/market/market-snapshot.service.js";
+import { dividendsService } from "../../services/market/dividends/dividends.service.js";
+import { chartRefreshService } from "../../services/market/charts/chart-refresh.service.js";
+import { marketEventsService } from "../../services/market/events/market-events.service.js";
+import { marketDataService } from "../../services/market/data/market-data.service.js";
+import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { routeParam } from "../shared/params.js";

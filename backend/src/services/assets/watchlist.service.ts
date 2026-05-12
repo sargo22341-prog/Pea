@@ -7,10 +7,10 @@ import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
-import { marketDataService } from "../market/market-data.service.js";
-import { marketSnapshotService } from "../market/market-snapshot.service.js";
-import { chartConfigService } from "../market/chart-config.service.js";
-import { marketEventsService } from "../market/market-events.service.js";
+import { marketDataService } from "../market/data/market-data.service.js";
+import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
+import { chartConfigService } from "../market/charts/chart-config.service.js";
+import { marketEventsService } from "../market/events/market-events.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 

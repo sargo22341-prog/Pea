@@ -4,11 +4,11 @@
  * positions, watchlist, preferences et dividendes utilisateur ne sont pas touches.
  */
 
-import { db } from "../../db.js";
-import type { StoredChartRange } from "./chart-config.service.js";
-import { assetRepository } from "../../repositories/market/asset.repository.js";
+import { db } from "../../../db.js";
+import type { StoredChartRange } from "../charts/chart-config.service.js";
+import { assetRepository } from "../../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
-import { logger } from "../shared/logger.service.js";
+import { logger } from "../../shared/logger.service.js";
 
 export type MarketDataRebuildRange = StoredChartRange | "all_ranges";
 

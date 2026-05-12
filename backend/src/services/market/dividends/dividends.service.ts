@@ -4,9 +4,9 @@
  */
 
 import type { DividendEvent } from "@pea/shared";
-import { db } from "../../db.js";
-import { yahooApi } from "../yahoo/yahoo.api.js";
-import { assetRepository, type AssetRow } from "../../repositories/market/asset.repository.js";
+import { db } from "../../../db.js";
+import { yahooApi } from "../../yahoo/yahoo.api.js";
+import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
 
 export class DividendsService {
   async refreshDividends(asset: AssetRow | string) {

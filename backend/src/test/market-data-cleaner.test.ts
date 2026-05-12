@@ -23,7 +23,7 @@ function runBackendScript(script: string) {
 test("rebuild 1d invalide les caches frontend et portfolio 1d sans utiliser les ranges d'affichage", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
-    const { marketDataCleaner } = await import("./services/market/market-data-cleaner.ts");
+    const { marketDataCleaner } = await import("./services/market/construction/market-data-cleaner.ts");
     const now = Date.now();
     const expiresAt = now + 60_000;
     db.prepare("INSERT INTO users (username, password_hash) VALUES ('tester', 'hash')").run();
@@ -54,7 +54,7 @@ test("rebuild 1d invalide les caches frontend et portfolio 1d sans utiliser les 
 test("rebuild all invalide les ranges API longues", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
-    const { marketDataCleaner } = await import("./services/market/market-data-cleaner.ts");
+    const { marketDataCleaner } = await import("./services/market/construction/market-data-cleaner.ts");
     const now = Date.now();
     const expiresAt = now + 60_000;
     const ranges = ["ytd", "1y", "5y", "10y", "all", "1m"];
@@ -76,9 +76,9 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
   const result = runBackendScript(`
     const { app } = await import("./app.ts");
     const { db } = await import("./db.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
-    const { financialsService } = await import("./services/market/financials.service.ts");
-    const { dividendsService } = await import("./services/market/dividends.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    const { financialsService } = await import("./services/market/financials/financials.service.ts");
+    const { dividendsService } = await import("./services/market/dividends/dividends.service.ts");
     const { yahooService } = await import("./services/yahoo/index.ts");
     marketSnapshotService.refreshMarketSnapshot = async (asset) => ({ symbol: typeof asset === "string" ? asset : asset.symbol, name: "AAA", price: 1, currency: "EUR" });
     financialsService.refreshFinancials = async () => ({ updated: 1 });

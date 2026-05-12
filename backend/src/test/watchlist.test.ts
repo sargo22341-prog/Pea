@@ -198,9 +198,9 @@ test("watchlist add/remove invalide le cache frontend et la liste est relue imme
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { watchlistService } = await import("./services/assets/watchlist.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
-    const { marketEventsService } = await import("./services/market/market-events.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    const { marketEventsService } = await import("./services/market/events/market-events.service.ts");
     db.prepare("INSERT INTO users (username, password_hash) VALUES ('tester', 'hash')").run();
     const now = Date.now();
     const expiresAt = now + 60_000;

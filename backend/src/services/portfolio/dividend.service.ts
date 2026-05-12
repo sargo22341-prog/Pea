@@ -7,10 +7,10 @@ import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, Positio
 import { config } from "../../config.js";
 import { currentUserId } from "../auth/user-context.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
-import { chartConfigService } from "../market/chart-config.service.js";
+import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
 import { portfolioService } from "./portfolio.service.js";
-import { dividendsService } from "../market/dividends.service.js";
+import { dividendsService } from "../market/dividends/dividends.service.js";
 
 function addOneYear(date: string): string {
   const next = new Date(date);

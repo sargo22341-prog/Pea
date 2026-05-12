@@ -233,7 +233,7 @@ test("post-close snapshot state is reused and not overwritten by a later quote r
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
     import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
     import { marketCloseTask } from "./jobs/market/market-close.task.ts";
-    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    import { marketSnapshotService } from "./services/market/snapshots/market-snapshot.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -272,7 +272,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
     const { yahooService } = await import("./services/yahoo/index.ts");
     const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
     const { marketCloseTask } = await import("./jobs/market/market-close.task.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${helpers}
 
     yahooService.marketInfo = async () => ({ data: { marketState: "POSTPOST", regularMarketPrice: 1187, currency: "EUR" } });
@@ -394,7 +394,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
 test("snapshot upsert keeps useful existing values when Yahoo returns null fields", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
-    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    import { marketSnapshotService } from "./services/market/snapshots/market-snapshot.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -456,7 +456,7 @@ test("snapshot upsert keeps useful existing values when Yahoo returns null field
 test("marketInfo from quoteSummary replaces missing slow snapshot fields and preserves them against n/a", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
-    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    import { marketSnapshotService } from "./services/market/snapshots/market-snapshot.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("TTE.PA", "TotalEnergies", "Paris");
@@ -496,7 +496,7 @@ test("marketInfo from quoteSummary replaces missing slow snapshot fields and pre
 test("market snapshot dto does not convert missing numeric fields to zero", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
-    import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
+    import { marketSnapshotService } from "./services/market/snapshots/market-snapshot.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -549,7 +549,7 @@ test("live refresh disabled preserves current behavior and does not call Yahoo",
     process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
@@ -582,7 +582,7 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
@@ -666,7 +666,7 @@ test("live refresh succes met a jour l'intervalle de succes", () => {
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
     const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -905,7 +905,7 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -937,7 +937,7 @@ test("lazy chart refresh skips Yahoo while market open status is pending", () =>
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -967,7 +967,7 @@ test("lazy chart refresh initializes an unknown comparison symbol once", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     ${seedUser}
     ${helpers}
     let quoteCalls = 0;
@@ -1000,7 +1000,7 @@ test("lazy chart refresh uses configured 1d interval instead of ratio threshold"
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -1038,7 +1038,7 @@ test("live stored intraday with no points is not marked preparing when no refres
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1054,7 +1054,7 @@ test("live stored intraday pending open returns temporary availability status wi
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     ${seedUser}
@@ -1079,7 +1079,7 @@ test("live stored intraday pending open still serves older candles when availabl
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     ${seedUser}
@@ -1108,7 +1108,7 @@ test("live stored non-intraday empty chart queues initial range construction", (
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("URTH", "URTH", "NYSE");
@@ -1143,8 +1143,8 @@ test("lazy chart refresh uses intraday interval for memory cache freshness", () 
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -1191,7 +1191,7 @@ test("lazy chart refresh stays available when live refresh mode is off", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "false";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1220,7 +1220,7 @@ test("lazy chart refresh skips closed markets with existing chart data", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -1249,7 +1249,7 @@ test("lazy chart refresh allows initial chart data when market is closed", () =>
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -1284,7 +1284,7 @@ test("portfolio lazy chart refresh filters by market status and initializes only
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
+    const { chartRefreshService } = await import("./services/market/charts/chart-refresh.service.ts");
     const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
     const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
@@ -1367,8 +1367,8 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1422,8 +1422,8 @@ test("portfolio position range percent uses interval market value as base", () =
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1452,8 +1452,8 @@ test("portfolio position miniChart is capped to 40 points and follows selected r
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1487,8 +1487,8 @@ test("portfolio 1d position performance includes previous close gap", () => {
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1516,8 +1516,8 @@ test("portfolio 1d position performance uses local market snapshot before chart 
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1553,9 +1553,9 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
     const { db } = await import("./db.ts");
     const { runWithUser } = await import("./services/auth/user-context.ts");
     const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
-    const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
-    const { marketEventsService } = await import("./services/market/market-events.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    const { marketEventsService } = await import("./services/market/events/market-events.service.ts");
     ${seedUser}
     db.prepare("INSERT INTO users (username, password_hash) VALUES ('bob', 'hash')").run();
     ${helpers}
@@ -1606,7 +1606,7 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
 
 test("open market window is resolved once per market date and range", () => {
   const result = runBackendScript(`
-    const { getPreviousOpenMarketDays } = await import("./services/market/marketCalendar.service.ts");
+    const { getPreviousOpenMarketDays } = await import("./services/market/calendars/marketCalendar.service.ts");
     const { logger } = await import("./services/shared/logger.service.ts");
     const messages = [];
     logger.debug = (scope, message, meta) => {

@@ -4,7 +4,7 @@
  */
 
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
-import type { MarketDataProvider, MarketDataResult } from "../market/market-data-provider.js";
+import type { MarketDataProvider, MarketDataResult } from "../market/data/market-data-provider.js";
 import { fetchDividends } from "./dividends/dividends.job.js";
 import { fetchExtraData, fetchFundamentals, fetchMarketInfo } from "./fundamentals/fundamentals.job.js";
 import { fetchHistory } from "./history/history.job.js";

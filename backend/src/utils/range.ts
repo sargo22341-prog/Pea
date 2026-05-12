@@ -1,5 +1,5 @@
 import type { RangeKey } from "@pea/shared";
-import { getLastTradingDay } from "../services/market/marketCalendar.service.js";
+import { getLastTradingDay } from "../services/market/calendars/marketCalendar.service.js";
 
 type YahooInterval = "5m" | "1h" | "1d";
 export type ChartDisplayInterval = "5m" | "2h" | "4h" | "1d";

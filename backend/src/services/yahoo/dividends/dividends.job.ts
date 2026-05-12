@@ -5,7 +5,7 @@
 
 import type { DividendEvent, Quote } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
-import type { MarketDataResult } from "../../market/market-data-provider.js";
+import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall, yahooClient } from "../yahoo.client.js";

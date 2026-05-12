@@ -5,8 +5,8 @@
 
 import type { HistoryPoint, Quote, RangeKey } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
-import type { MarketDataResult } from "../../market/market-data-provider.js";
-import { getLastTradingDay, shouldRefreshMarketData } from "../../market/marketCalendar.service.js";
+import type { MarketDataResult } from "../../market/data/market-data-provider.js";
+import { getLastTradingDay, shouldRefreshMarketData } from "../../market/calendars/marketCalendar.service.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { readHistoryCache, readIntradayCache, readLatestIntradayCache, writeHistoryCache, writeIntradayCache } from "../cache/history.cache.js";

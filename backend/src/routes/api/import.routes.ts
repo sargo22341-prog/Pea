@@ -5,7 +5,7 @@ import { z } from "zod";
 import { confirmAvisOperesImport, previewAvisOperesImport } from "../../services/boursorama/importAvisOperes.service.js";
 import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../../services/boursorama/importBoursorama.service.js";
 import { logger } from "../../services/shared/logger.service.js";
-import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
+import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartFiles } from "../shared/multipart.js";
 

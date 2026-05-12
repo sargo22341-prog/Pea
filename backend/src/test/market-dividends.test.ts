@@ -23,7 +23,7 @@ function runBackendScript(script: string) {
 test("dividends reading keeps the latest amount when Yahoo corrected a same-date dividend", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
-    const { dividendsService } = await import("./services/market/dividends.service.ts");
+    const { dividendsService } = await import("./services/market/dividends/dividends.service.ts");
     db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('7974.T', 'Nintendo', 'JPX', 'JPY')").run();
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = '7974.T'").get();
     db.prepare("INSERT INTO asset_dividends (asset_id, ex_date, amount, currency, updated_at) VALUES (?, '2026-03-30T00:00:00.000Z', 139, 'JPY', '2026-05-04 22:24:38')").run(asset.id);
@@ -39,7 +39,7 @@ test("dividend refresh replaces stale same-date amounts", () => {
   const result = runBackendScript(`
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { dividendsService } = await import("./services/market/dividends.service.ts");
+    const { dividendsService } = await import("./services/market/dividends/dividends.service.ts");
     db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('7974.T', 'Nintendo', 'JPX', 'JPY')").run();
     const asset = db.prepare("SELECT id, symbol, name, exchange, currency FROM assets WHERE symbol = '7974.T'").get();
     db.prepare("INSERT INTO asset_dividends (asset_id, ex_date, amount, currency) VALUES (?, '2026-03-30T00:00:00.000Z', 139, 'JPY')").run(asset.id);

@@ -3,7 +3,7 @@
  * (quotes, dividendes, fundamentals, news legacy).
  */
 
-import type { MarketDataResult } from "../../market/market-data-provider.js";
+import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { db } from "../../../db.js";
 import { cacheIsStale, nowSeconds } from "../utils/stale.js";
 

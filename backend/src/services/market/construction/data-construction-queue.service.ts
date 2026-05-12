@@ -9,9 +9,9 @@
  */
 
 import type { DataConstructionJobDto } from "@pea/shared";
-import type { StoredChartRange } from "./chart-config.service.js";
-import { logger } from "../shared/logger.service.js";
-import { runWithYahooUsageSource } from "../yahoo/yahoo-usage-context.js";
+import type { StoredChartRange } from "../charts/chart-config.service.js";
+import { logger } from "../../shared/logger.service.js";
+import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
 
 type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
@@ -258,12 +258,12 @@ export class DataConstructionQueueService {
 
   private async execute(task: ConstructionTask) {
     const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }, { yahooService }] = await Promise.all([
-      import("./market-data.service.js"),
-      import("./market-snapshot.service.js"),
-      import("./financials.service.js"),
-      import("./dividends.service.js"),
-      import("../../repositories/market/asset.repository.js"),
-      import("../yahoo/index.js")
+      import("../data/market-data.service.js"),
+      import("../snapshots/market-snapshot.service.js"),
+      import("../financials/financials.service.js"),
+      import("../dividends/dividends.service.js"),
+      import("../../../repositories/market/asset.repository.js"),
+      import("../../yahoo/index.js")
     ]);
 
     if (!task.symbol) return;
@@ -277,7 +277,7 @@ export class DataConstructionQueueService {
     if (task.type === "financials") await financialsService.refreshFinancials(asset);
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);
     if (task.type === "calendar-events") {
-      const { db } = await import("../../db.js");
+      const { db } = await import("../../../db.js");
       db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(asset.symbol.toUpperCase());
       const marketInfo = await yahooService.marketInfo(asset.symbol);
       marketSnapshotService.upsertMarketInfo(asset.id, marketInfo.data);

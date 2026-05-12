@@ -1,7 +1,7 @@
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
-import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
+import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { getZonedDateParts } from "../../services/timezone/date-time.service.js";
 

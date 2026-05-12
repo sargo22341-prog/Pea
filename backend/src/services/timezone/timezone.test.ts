@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
+import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
 import { zonedTimeToUtc } from "./date-time.service.js";
 
 test("market sessions expose the real exchange timezone and hours", () => {
