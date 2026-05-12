@@ -9,6 +9,7 @@ import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, Watchlist
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
+import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 
 export interface AuthUser {
   id: number;
@@ -52,6 +53,8 @@ interface LigneUtilisateur {
 
 const dureeSessionJours = 30;
 const dossierIconesProfil = path.resolve(path.dirname(config.sqlitePath), "profile-icons");
+let dernierePurgeSessionsExpirees = 0;
+const intervallePurgeSessionsExpireesMs = 60 * 60 * 1000;
 
 fs.mkdirSync(dossierIconesProfil, { recursive: true });
 
@@ -120,6 +123,13 @@ export const nomCookieAuth = "pea_session";
 export const authCookieName = nomCookieAuth;
 
 export class AuthService {
+  purgerSessionsExpirees(force = false) {
+    const maintenantMs = Date.now();
+    if (!force && maintenantMs - dernierePurgeSessionsExpirees < intervallePurgeSessionsExpireesMs) return 0;
+    dernierePurgeSessionsExpirees = maintenantMs;
+    return db.prepare("DELETE FROM user_sessions WHERE expires_at <= ?").run(Math.floor(maintenantMs / 1000));
+  }
+
   aDesUtilisateurs() {
     return Boolean(db.prepare("SELECT 1 FROM users LIMIT 1").get());
   }
@@ -170,6 +180,7 @@ export class AuthService {
   utilisateurParSession(token?: string): AuthUser | undefined {
     if (!token) return undefined;
     const maintenant = Math.floor(Date.now() / 1000);
+    this.purgerSessionsExpirees();
     const ligne = db
       .prepare(
         `SELECT users.*
@@ -291,11 +302,12 @@ export class AuthService {
     return this.fichierIconeProfil(idUtilisateur);
   }
 
-  sauvegarderIconeProfil(idUtilisateur: number, donnees: Buffer, typeMime: string) {
+  sauvegarderIconeProfil(idUtilisateur: number, donnees: Buffer, _typeMime: string) {
     const actuel = db.prepare("SELECT profile_icon_path FROM users WHERE id = ?").get(idUtilisateur) as Pick<LigneUtilisateur, "profile_icon_path"> | undefined;
     if (!actuel) throw new HttpError(404, "Utilisateur introuvable.");
 
-    const mimeNormalise = typeMime.toLowerCase();
+    const mimeNormalise = detectSupportedImageMime(donnees);
+    if (!mimeNormalise) throw new HttpError(400, "Image invalide.");
     const cheminFichier = path.join(dossierIconesProfil, `user-${idUtilisateur}.${extensionPourMime(mimeNormalise)}`);
     for (const extension of ["png", "jpg"]) {
       const chemin = path.join(dossierIconesProfil, `user-${idUtilisateur}.${extension}`);
@@ -336,7 +348,7 @@ export class AuthService {
   }
 
   typeMimeIconeAutorise(typeMime: string) {
-    return ["image/png", "image/jpeg", "image/jpg"].includes(typeMime.toLowerCase());
+    return isSupportedImageMime(typeMime);
   }
 
   // Alias conservé pour la compatibilité avec les routes existantes
@@ -362,6 +374,7 @@ export class AuthService {
   }
 
   private creerSession(idUtilisateur: number) {
+    this.purgerSessionsExpirees(true);
     const token = crypto.randomBytes(32).toString("base64url");
     const expireA = Math.floor(Date.now() / 1000) + dureeSessionJours * 24 * 60 * 60;
     db.prepare("INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)").run(idUtilisateur, hacherToken(token), expireA);

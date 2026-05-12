@@ -6,6 +6,7 @@ import express from "express";
 import { iconService } from "../../services/assets/icon.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
+import { detectSupportedImageMime } from "../../utils/image-signature.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartIcon } from "../shared/multipart.js";
 import { routeParam } from "../shared/params.js";
@@ -36,6 +37,7 @@ assetIconsRouter.post(
     const upload = await parseMultipartIcon(req);
     const symbol = routeParam(req.params.symbol, "symbol");
     if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
+    if (!detectSupportedImageMime(upload.buffer)) throw new HttpError(400, "Image invalide.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("icons", "icon upload", { symbol: symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
     res.json(await iconService.saveIconFromBuffer(symbol, upload.buffer, upload.mimeType, "manual"));

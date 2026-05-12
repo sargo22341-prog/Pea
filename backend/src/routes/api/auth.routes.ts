@@ -11,6 +11,7 @@ import { requireAuth, clearAuthCookie, readCookie, setAuthCookie } from "../../m
 import { authCookieName, authService } from "../../services/auth/auth.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
+import { detectSupportedImageMime } from "../../utils/image-signature.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartIcon } from "../shared/multipart.js";
 
@@ -108,6 +109,7 @@ authRouter.post(
   asyncRoute(async (req, res) => {
     const upload = await parseMultipartIcon(req);
     if (!authService.isAllowedProfileIconMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
+    if (!detectSupportedImageMime(upload.buffer)) throw new HttpError(400, "Image invalide.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("auth", "profile icon upload", { userId: req.user!.id, mimeType: upload.mimeType, size: upload.buffer.length });
     res.json(authService.saveProfileIcon(req.user!.id, upload.buffer, upload.mimeType));

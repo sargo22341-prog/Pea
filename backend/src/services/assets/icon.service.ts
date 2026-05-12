@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
+import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 import { currentUserId } from "../auth/user-context.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooApi } from "../yahoo/yahoo.api.js";
@@ -141,7 +142,8 @@ export class IconService {
   async saveIconFromBuffer(symbol: string, buffer: Buffer, mimeType: string, source: "auto" | "manual" = "manual"): Promise<AssetIcon> {
     const key = normalizeSymbol(symbol);
     if (!key) throw new Error("Symbole invalide.");
-    const cleanMime = mimeType.toLowerCase();
+    const cleanMime = detectSupportedImageMime(buffer);
+    if (!cleanMime) throw new Error("Image invalide.");
     const extension = extensionForMime(cleanMime);
     const filePath = path.join(iconsDir, `${key}.${extension}`);
 
@@ -253,7 +255,7 @@ export class IconService {
   }
 
   isAllowedImageMime(mimeType: string) {
-    return ["image/png", "image/jpeg", "image/jpg"].includes(mimeType.toLowerCase());
+    return isSupportedImageMime(mimeType);
   }
 
   listKnownAssets() {
@@ -369,6 +371,11 @@ export class IconService {
         continue;
       }
       const buffer = Buffer.from(await response.arrayBuffer());
+      const detectedMimeType = detectSupportedImageMime(buffer);
+      if (!detectedMimeType) {
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "invalid image signature" });
+        continue;
+      }
       if (buffer.length <= 0) {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "empty image" });
         continue;
@@ -377,8 +384,8 @@ export class IconService {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, size: buffer.length, reason: "image too large" });
         continue;
       }
-      logger.debug("icons", "icon fetch ok", { symbol, source: candidate.source, label: candidate.label, mimeType, size: buffer.length });
-      return { buffer, mimeType };
+      logger.debug("icons", "icon fetch ok", { symbol, source: candidate.source, label: candidate.label, mimeType: detectedMimeType, size: buffer.length });
+      return { buffer, mimeType: detectedMimeType };
     }
     return undefined;
   }

@@ -5,10 +5,6 @@ import { defineConfig } from "vitest/config";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export default defineConfig({
-  esbuild: {
-    jsx: "automatic",
-    jsxImportSource: "react"
-  },
   resolve: {
     alias: {
       "@pea/shared": path.resolve(projectRoot, "shared/src/index.ts")
