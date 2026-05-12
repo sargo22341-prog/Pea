@@ -3,7 +3,7 @@
 **Suivi de portefeuille auto-hébergé pour les comptes PEA (Plan d'Épargne en Actions).**  
 Suivez vos positions, dividendes et performances en temps réel — sans envoyer vos données à un service tiers.
 
-[![Version](https://img.shields.io/badge/version-0.1.25-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.36-blue)](CHANGELOG.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -165,6 +165,8 @@ Copiez `.env.example` vers `.env` et ajustez selon vos besoins.
 | `SQLITE_PATH` | `./data/pea.sqlite` | Chemin vers le fichier de base de données SQLite |
 | `TZ` | `Europe/Paris` | Fuseau horaire utilisé pour les calculs de séance de marché |
 | `FRONTEND_DIST` | `../frontend/dist` | Chemin vers le build frontend (production) |
+| `PUBLIC_URL` | *(vide)* | Origine publique autorisée en production, par exemple `https://pea.nas.meme`. Si vide, l'origine du `Host` courant est acceptée pour l'usage Docker local. |
+| `TRUST_PROXY` | `false` | Active la confiance dans les headers `X-Forwarded-*` uniquement quand Express est derrière un reverse proxy fiable. |
 | `VITE_API_BASE_URL` | `http://localhost:4000` | URL de base de l'API utilisée par le proxy Vite |
 | `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script de vérification de santé en développement |
 | `LOGO_DEV_API_KEY` | *(optionnel)* | Clé API pour la récupération automatique des logos d'actifs |
@@ -215,7 +217,7 @@ Le workflow `.gitea/workflows/docker-release.yml` s'exécute à chaque push et s
 | `GET` | `/api/portfolio/dividends` | Dividendes regroupés par actif + estimations mensuelles |
 | `GET` | `/api/portfolio/analysis` | Répartition pays/secteur, treemap, données financières |
 | `POST` | `/api/portfolio/positions` | Ajout d'une position |
-| `PATCH` | `/api/portfolio/positions/:id` | Modification d'une position |
+| `PUT` | `/api/portfolio/positions/:id` | Modification d'une position |
 | `DELETE` | `/api/portfolio/positions/:id` | Suppression d'une position |
 
 ### Données de marché

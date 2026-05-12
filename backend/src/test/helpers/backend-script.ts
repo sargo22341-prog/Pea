@@ -7,6 +7,7 @@ import path from "node:path";
 type BackendScriptOptions = {
   nodeEnv?: string;
   tempPrefix?: string;
+  env?: Record<string, string | undefined>;
 };
 
 export function runBackendScript(script: string, options: BackendScriptOptions = {}) {
@@ -18,7 +19,8 @@ export function runBackendScript(script: string, options: BackendScriptOptions =
     env: {
       ...process.env,
       NODE_ENV: options.nodeEnv ?? "development",
-      SQLITE_PATH: sqlitePath
+      SQLITE_PATH: sqlitePath,
+      ...options.env
     }
   });
 
@@ -82,4 +84,3 @@ function pricedQuoteRow(symbol, state, price) {
   };
 }
 `;
-

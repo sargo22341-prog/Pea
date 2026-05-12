@@ -34,6 +34,16 @@ function parseBoolean(value: string | undefined, fallback = false) {
   return fallback;
 }
 
+function parsePublicUrl(value: string | undefined) {
+  const raw = value?.trim();
+  if (!raw) return undefined;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
@@ -44,5 +54,7 @@ export const config = {
   appTimezone,
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
   chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
-  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false)
+  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
+  publicUrl: parsePublicUrl(process.env.PUBLIC_URL),
+  trustProxy: parseBoolean(process.env.TRUST_PROXY, false)
 };

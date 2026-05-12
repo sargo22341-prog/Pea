@@ -17,7 +17,8 @@ function requestOrigin(value?: string) {
 function allowedOrigins(req: Parameters<RequestHandler>[0]) {
   const host = req.headers.host;
   const origins = new Set<string>(config.nodeEnv === "production" ? [] : devOrigins);
-  if (host) {
+  if (config.publicUrl) origins.add(config.publicUrl);
+  if (host && !config.publicUrl) {
     const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
     origins.add(`${protocol}://${host}`);
   }

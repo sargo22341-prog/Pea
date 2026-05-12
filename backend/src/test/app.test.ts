@@ -40,6 +40,14 @@ test("CORS is enabled for the Vite dev origin outside production", () => {
   assert.equal(headers.allowCredentials, "true");
 });
 
+test("CORS is enabled for the loopback Vite dev origin outside production", () => {
+  const headers = requestHealthWithOrigin("development", "http://127.0.0.1:5173");
+
+  assert.equal(headers.status, 200);
+  assert.equal(headers.allowOrigin, "http://127.0.0.1:5173");
+  assert.equal(headers.allowCredentials, "true");
+});
+
 test("CORS does not echo arbitrary origins outside production", () => {
   const headers = requestHealthWithOrigin("development", "http://example.com");
 
@@ -357,4 +365,51 @@ test("mutating API requests reject foreign origins", () => {
   `);
 
   assert.equal(result.status, 403);
+});
+
+test("production mutating requests accept configured public URL", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "https://pea.nas.meme" },
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.nas.meme", TRUST_PROXY: "true" } });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.body.username, "alice");
+});
+
+test("production mutating requests accept local host origin when public URL is empty", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const response = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: baseUrl },
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "", TRUST_PROXY: "false" } });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.body.username, "alice");
 });

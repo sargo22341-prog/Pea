@@ -13,14 +13,15 @@ import { logger } from "./services/shared/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const devCorsOrigin = "http://localhost:5173";
+const devCorsOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
 
 export const app = express();
 
-// Nécessaire pour que req.ip contienne l'adresse du client réel derrière un reverse proxy
-// (Docker, Nginx…), et non l'IP du proxy. Sans cette ligne, le rate-limiter compte
-// toutes les requêtes dans le même bucket.
-app.set("trust proxy", 1);
+// Active uniquement derriere un reverse proxy de confiance, afin que req.ip
+// utilise l'adresse client transmise par le proxy pour le rate-limit.
+if (config.trustProxy) {
+  app.set("trust proxy", 1);
+}
 app.set("etag", false);
 app.use(
   helmet({
@@ -44,7 +45,7 @@ if (config.nodeEnv !== "production") {
   app.use(
     cors({
       credentials: true,
-      origin: (origin, callback) => callback(null, origin === devCorsOrigin ? devCorsOrigin : false)
+      origin: (origin, callback) => callback(null, origin && devCorsOrigins.has(origin) ? origin : false)
     })
   );
 }
