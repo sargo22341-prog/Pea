@@ -28,6 +28,7 @@ export function DividendLineChartSection({
   const fiveYearsAgo = new Date();
   fiveYearsAgo.setFullYear(currentYear - 5);
   const chartEvents = mergeMarketDividend(dividends, marketInfo, currentYear);
+  const chartCurrency = marketInfo?.currency ?? dividends[0]?.currency ?? "EUR";
 
   const chartData = chartEvents
     .filter((event) => {
@@ -66,13 +67,16 @@ export function DividendLineChartSection({
 
   const marketYield = currentPrice && currentPrice > 0 ? (annualDividendPerShare / currentPrice) * 100 : undefined;
   const personalYield = averageBuyPrice && averageBuyPrice > 0 ? (annualDividendPerShare / averageBuyPrice) * 100 : undefined;
+  const hasPersonalYield = personalYield != null && Number.isFinite(personalYield);
 
   return (
     <section className="card min-w-0 max-w-full overflow-hidden">
       <div className="flex flex-col gap-1 border-b border-white/[0.06] p-4">
         <h2 className="text-2xl font-bold text-white">
           {formatPlainPercent(marketYield)}
-          <span className="ml-2 text-base font-semibold text-amber">({formatPlainPercent(personalYield)} sur PRU)</span>
+          {hasPersonalYield ? (
+            <span className="ml-2 text-base font-semibold text-amber">({formatPlainPercent(personalYield)} sur PRU)</span>
+          ) : null}
         </h2>
       </div>
       <div
@@ -116,7 +120,7 @@ export function DividendLineChartSection({
                 activeDot={false}
                 dataKey="amount"
                 dot={false}
-                label={<DividendPointLabel />}
+                label={<DividendPointLabel fallbackCurrency={chartCurrency} />}
                 name="Dividende / action"
                 stroke="#d4af37"
                 strokeLinecap="round"
@@ -165,6 +169,8 @@ function marketDividendEvent(dividends: DividendEvent[], marketInfo: AssetMarket
 
   const sameDay = dividends.some((event) => sameUtcDay(event.date, parsedExDate));
   if (sameDay) return undefined;
+  const sameMonth = currentYearDividends.some((event) => sameUtcMonth(event.date, parsedExDate));
+  if (sameMonth) return undefined;
 
   const knownCurrentYearAmount = latestDividendAmount(currentYearDividends);
   const fractionCount = knownCurrentYearAmount === undefined ? previousYearDividendCount(dividends, currentYear) : 0;
@@ -216,9 +222,18 @@ function sameUtcDay(value: string, expected: Date) {
   );
 }
 
-function DividendPointLabel({ x, y, value, payload }: LabelProps & { payload?: DividendChartPoint }) {
+function sameUtcMonth(value: string, expected: Date) {
+  const date = new Date(value);
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear() === expected.getUTCFullYear() &&
+    date.getUTCMonth() === expected.getUTCMonth()
+  );
+}
+
+function DividendPointLabel({ fallbackCurrency, x, y, value, payload }: LabelProps & { fallbackCurrency: string; payload?: DividendChartPoint }) {
   if (x === undefined || y === undefined || value === undefined) return null;
-  const currency = payload?.currency ?? "EUR";
+  const currency = payload?.currency ?? fallbackCurrency;
 
   return (
     <text fill="#f8fafc" fontSize={11} fontWeight={700} textAnchor="middle" x={Number(x)} y={Number(y) - 14}>
