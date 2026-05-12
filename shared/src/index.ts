@@ -333,6 +333,15 @@ export interface YahooUsageRecentErrorDto {
   durationMs: number;
 }
 
+export interface YahooUsageCallDto extends YahooUsageRecentErrorDto {
+  success: boolean;
+  tickerCount: number;
+  range?: string;
+  interval?: string;
+  cacheHit: boolean;
+  requestKey?: string;
+}
+
 export interface YahooUsageStatsDto {
   summary: YahooUsageSummaryDto;
   callsByHour: YahooUsageBucketDto[];

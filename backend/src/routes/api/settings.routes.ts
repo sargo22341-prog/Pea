@@ -10,6 +10,7 @@ import { asyncRoute } from "../shared/async-route.js";
 export const settingsRouter = express.Router();
 
 const yahooUsageQuerySchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
   dateFrom: z.string().datetime().optional(),
   dateTo: z.string().datetime().optional(),
   method: z.string().trim().min(1).optional(),
@@ -20,10 +21,16 @@ const yahooUsageQuerySchema = z.object({
     .enum(["true", "false", "1", "0"])
     .transform((value) => value === "true" || value === "1")
     .optional(),
-  groupBy: z.enum(["hour", "day", "method", "module", "ticker"]).optional()
+  groupBy: z.enum(["hour", "day", "method", "module", "ticker"]).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional()
 });
 
 settingsRouter.get("/settings/yahoo-usage/stats", asyncRoute(async (req, res) => {
   const query = yahooUsageQuerySchema.parse(req.query);
   res.json(yahooUsageService.stats(query));
+}));
+
+settingsRouter.get("/settings/yahoo-usage/calls", asyncRoute(async (req, res) => {
+  const query = yahooUsageQuerySchema.parse(req.query);
+  res.json(yahooUsageService.list(query));
 }));

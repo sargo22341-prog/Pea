@@ -101,6 +101,14 @@ test("Yahoo usage stats aggregate and filter by day, hour, method, module and ti
   const errorFiltered = yahooUsageRepository.stats({ success: false });
   assert.equal(errorFiltered.summary.totalCalls, 1);
   assert.equal(errorFiltered.summary.errorCalls, 1);
+
+  const latestCalls = yahooUsageRepository.list({ limit: 10 });
+  assert.equal(latestCalls.length, 3);
+  assert.equal(latestCalls[0]?.success, true);
+  assert.deepEqual(yahooUsageRepository.list({ method: "chart" }).map((call) => call.method), ["chart"]);
+  assert.deepEqual(yahooUsageRepository.list({ module: "calendarEvents" }).map((call) => call.method), ["quoteSummary"]);
+  assert.equal(yahooUsageRepository.list({ ticker: "AIR.PA" }).length, 2);
+  assert.equal(yahooUsageRepository.list({ id: latestCalls[0]!.id }).length, 1);
 });
 
 test("Yahoo usage metadata inference recognizes batch tickers and chart options", () => {

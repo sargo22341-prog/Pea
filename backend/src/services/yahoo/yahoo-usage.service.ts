@@ -130,5 +130,6 @@ export function recordYahooUsage(key: string, input: Omit<YahooUsageLogInput, "m
 }
 
 export const yahooUsageService = {
-  stats: (query: YahooUsageStatsQuery) => yahooUsageRepository.stats(query)
+  stats: (query: YahooUsageStatsQuery) => yahooUsageRepository.stats(query),
+  list: (query: YahooUsageStatsQuery) => yahooUsageRepository.list(query)
 };

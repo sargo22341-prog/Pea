@@ -3,7 +3,7 @@
  * Les erreurs de tracking restent non bloquantes pour les appels metier.
  */
 
-import type { YahooUsageStatsDto } from "@pea/shared";
+import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { db } from "../../db.js";
 import { logger } from "../shared/logger.service.js";
 
@@ -24,6 +24,7 @@ export interface YahooUsageLogInput {
 }
 
 export interface YahooUsageStatsQuery {
+  id?: number;
   dateFrom?: string;
   dateTo?: string;
   method?: string;
@@ -32,6 +33,7 @@ export interface YahooUsageStatsQuery {
   source?: string;
   success?: boolean;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker";
+  limit?: number;
 }
 
 type CountRow = { key: string | null; calls: number; errors?: number; avgDurationMs?: number | null };
@@ -69,6 +71,10 @@ function buildWhere(query: YahooUsageStatsQuery) {
   if (query.dateTo) {
     clauses.push("created_at <= ?");
     params.push(query.dateTo);
+  }
+  if (query.id !== undefined) {
+    clauses.push("id = ?");
+    params.push(query.id);
   }
   if (query.method) {
     clauses.push("method = ?");
@@ -136,6 +142,42 @@ function timeBucket(period: "hour" | "day") {
   return period === "hour" ? "strftime('%Y-%m-%dT%H:00:00Z', created_at)" : "date(created_at)";
 }
 
+function mapCallRow(row: {
+  id: number;
+  created_at: string;
+  method: string;
+  ticker?: string | null;
+  tickers_json?: string | null;
+  ticker_count: number;
+  modules_json?: string | null;
+  success: number;
+  error_message?: string | null;
+  internal_source?: string | null;
+  duration_ms: number;
+  range?: string | null;
+  interval?: string | null;
+  cache_hit: number;
+  request_key?: string | null;
+}): YahooUsageCallDto {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    method: row.method,
+    ticker: row.ticker ?? undefined,
+    tickers: parseJsonArray(row.tickers_json),
+    tickerCount: Number(row.ticker_count ?? 0),
+    modules: parseJsonArray(row.modules_json),
+    success: Boolean(row.success),
+    errorMessage: row.error_message ?? undefined,
+    internalSource: row.internal_source ?? undefined,
+    durationMs: Number(row.duration_ms),
+    range: row.range ?? undefined,
+    interval: row.interval ?? undefined,
+    cacheHit: Boolean(row.cache_hit),
+    requestKey: row.request_key ?? undefined
+  };
+}
+
 export const yahooUsageRepository = {
   record(input: YahooUsageLogInput) {
     try {
@@ -179,6 +221,21 @@ export const yahooUsageRepository = {
     } catch (error) {
       logger.warn("market-data", "Yahoo usage retention cleanup failed", { error: error instanceof Error ? error.message : String(error) });
     }
+  },
+
+  list(query: YahooUsageStatsQuery): YahooUsageCallDto[] {
+    const { sql: whereSql, params } = buildWhere(query);
+    const limit = Math.min(Math.max(Math.round(Number(query.limit ?? 10)), 1), 100);
+    const rows = db
+      .prepare(
+        `SELECT id, created_at, method, ticker, tickers_json, ticker_count, modules_json, success, error_message,
+                internal_source, duration_ms, range, interval, cache_hit, request_key
+         FROM yahoo_usage_logs ${whereSql}
+         ORDER BY created_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(...params, limit) as Parameters<typeof mapCallRow>[0][];
+    return rows.map(mapCallRow);
   },
 
   stats(query: YahooUsageStatsQuery): YahooUsageStatsDto {

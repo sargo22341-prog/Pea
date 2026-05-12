@@ -41,6 +41,7 @@ import type {
   TrackedMarketsSettingsDto,
   User,
   WatchlistItem,
+  YahooUsageCallDto,
   YahooUsageStatsDto
 } from "@pea/shared";
 
@@ -54,6 +55,23 @@ export interface YahooUsageStatsFilters {
   source?: string;
   success?: boolean;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker";
+  id?: number;
+  limit?: number;
+}
+
+function yahooUsageQuery(filters: YahooUsageStatsFilters) {
+  const params = new URLSearchParams();
+  if (filters.id !== undefined) params.set("id", String(filters.id));
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.method) params.set("method", filters.method);
+  if (filters.module) params.set("module", filters.module);
+  if (filters.ticker) params.set("ticker", filters.ticker);
+  if (filters.source) params.set("source", filters.source);
+  if (filters.success !== undefined) params.set("success", String(filters.success));
+  if (filters.groupBy) params.set("groupBy", filters.groupBy);
+  if (filters.limit !== undefined) params.set("limit", String(filters.limit));
+  return params.toString();
 }
 export type MarketEventPayload = {
   type:
@@ -266,17 +284,12 @@ export const api = {
   assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons"),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
   yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-    if (filters.dateTo) params.set("dateTo", filters.dateTo);
-    if (filters.method) params.set("method", filters.method);
-    if (filters.module) params.set("module", filters.module);
-    if (filters.ticker) params.set("ticker", filters.ticker);
-    if (filters.source) params.set("source", filters.source);
-    if (filters.success !== undefined) params.set("success", String(filters.success));
-    if (filters.groupBy) params.set("groupBy", filters.groupBy);
-    const query = params.toString();
+    const query = yahooUsageQuery(filters);
     return request<YahooUsageStatsDto>(`/api/settings/yahoo-usage/stats${query ? `?${query}` : ""}`);
+  },
+  yahooUsageCalls: (filters: YahooUsageStatsFilters = {}) => {
+    const query = yahooUsageQuery(filters);
+    return request<YahooUsageCallDto[]>(`/api/settings/yahoo-usage/calls${query ? `?${query}` : ""}`);
   },
   trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
