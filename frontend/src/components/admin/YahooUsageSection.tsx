@@ -131,7 +131,7 @@ export function YahooUsageSection() {
   const chartData = groupBy === "hour" ? data?.callsByHour ?? [] : data?.callsByDay ?? [];
 
   return (
-    <Collapsible defaultOpen title="Utilisation Yahoo Finance">
+    <Collapsible title="Utilisation Yahoo Finance">
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <Filters

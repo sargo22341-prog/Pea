@@ -2,6 +2,7 @@ import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { Activity, Clock, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { ConfirmDialog } from "../asset-detail/ConfirmDialog";
 import { Collapsible, Toast, type SettingsToast } from "../settings/SettingsSection";
 
 const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -26,6 +27,7 @@ function statusLabel(status: string) {
 export function TrackedMarketsSection() {
   const [data, setData] = useState<TrackedMarketsSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingDeleteMarket, setPendingDeleteMarket] = useState<TrackedMarketDto | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   async function load() {
@@ -41,9 +43,7 @@ export function TrackedMarketsSection() {
   }
 
   async function deleteMarket(market: TrackedMarketDto) {
-    const confirmed = window.confirm(`Supprimer ${market.displayName} des marches suivis et nettoyer son historique scheduler ?`);
-    if (!confirmed) return;
-
+    setPendingDeleteMarket(null);
     setToast(null);
     try {
       const result = await api.deleteTrackedMarket(market.marketKey);
@@ -70,7 +70,17 @@ export function TrackedMarketsSection() {
         </button>
       </div>
       <SchedulerHealth data={data} />
-      <MarketsTable markets={data?.markets ?? []} loading={loading} onDelete={(market) => void deleteMarket(market)} />
+      <MarketsTable markets={data?.markets ?? []} loading={loading} onDelete={setPendingDeleteMarket} />
+      {pendingDeleteMarket ? (
+        <ConfirmDialog
+          danger
+          confirmLabel="Supprimer"
+          description={`Cette action retire ${pendingDeleteMarket.displayName} des marches suivis et nettoie son historique scheduler. Elle sera refusee si des assets sont a nouveau lies a cette bourse.`}
+          onCancel={() => setPendingDeleteMarket(null)}
+          onConfirm={() => void deleteMarket(pendingDeleteMarket)}
+          title={`Supprimer ${pendingDeleteMarket.displayName} ?`}
+        />
+      ) : null}
     </Collapsible>
   );
 }
