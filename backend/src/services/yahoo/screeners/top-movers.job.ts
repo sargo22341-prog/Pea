@@ -3,15 +3,17 @@
  * mettre en cache pour la journee calendaire locale du serveur.
  */
 
-import type { TopAndLosersResponse, TopMover } from "@pea/shared";
+import type { MarketListId, MarketListResponse, TopAndLosersResponse, TopMover } from "@pea/shared";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { retryTemporary, yahooClient } from "../yahoo.client.js";
 import { errorMessage } from "../yahoo.errors.js";
 
-type ScreenerId = "day_gainers" | "day_losers";
+type ScreenerListId = Exclude<MarketListId, "trending_fr">;
 
 let cache: TopAndLosersResponse | null = null;
+const listCache = new Map<MarketListId, MarketListResponse>();
+const LIST_COUNT = 10;
 
 /** Retourne la date locale serveur au format YYYY-MM-DD pour invalider le cache a minuit local. */
 function todayCacheDate() {
@@ -57,20 +59,66 @@ function mapScreenerQuotes(rawQuotes: unknown): TopMover[] {
       };
     })
     .filter((item): item is TopMover => Boolean(item))
-    .slice(0, 5);
+    .slice(0, LIST_COUNT);
 }
 
 /** Appelle un screener Yahoo unique, la version installee ne type pas plusieurs scrIds en un appel. */
-async function fetchScreener(scrId: ScreenerId): Promise<TopMover[]> {
+async function fetchScreener(scrId: ScreenerListId): Promise<TopMover[]> {
   try {
     const result = await retryTemporary(`screener:${scrId}`, () =>
-      yahooClient.screener({ scrIds: scrId, count: 5 }, undefined, { validateResult: false })
+      yahooClient.screener({ scrIds: scrId, count: LIST_COUNT } as any, undefined, { validateOptions: false, validateResult: false } as any)
     );
     return mapScreenerQuotes((result as { quotes?: unknown })?.quotes);
   } catch (error) {
     logger.warn("market-data", "Yahoo screener fallback used", { screener: scrId, error: errorMessage(error) });
     return [];
   }
+}
+
+async function fetchTrendingFr(): Promise<TopMover[]> {
+  try {
+    const trending = await retryTemporary("trendingSymbols:FR", () =>
+      yahooClient.trendingSymbols("FR", { count: LIST_COUNT, lang: "fr-FR", region: "FR" }, { validateResult: false })
+    );
+    const symbols = Array.isArray((trending as { quotes?: unknown })?.quotes)
+      ? (trending as { quotes: Array<{ symbol?: unknown }> }).quotes
+          .map((quote) => optionalString(quote.symbol))
+          .filter((symbol): symbol is string => Boolean(symbol))
+          .slice(0, LIST_COUNT)
+      : [];
+
+    if (!symbols.length) return [];
+
+    const quotes = await retryTemporary(`quote:trendingSymbols:FR:${symbols.join(",")}`, () =>
+      yahooClient.quote(symbols, { return: "array" } as any)
+    );
+    return mapScreenerQuotes(quotes);
+  } catch (error) {
+    logger.warn("market-data", "Yahoo trending symbols fallback used", { region: "FR", error: errorMessage(error) });
+    return [];
+  }
+}
+
+export async function fetchMarketList(id: MarketListId): Promise<MarketListResponse> {
+  const cacheDate = todayCacheDate();
+  const cached = listCache.get(id);
+  if (cached?.cacheDate === cacheDate) {
+    logger.debug("market-data", "Yahoo market list cache hit", { id, cacheDate, cachedAt: cached.cachedAt });
+    return cached;
+  }
+
+  const items = await dedupeInFlight(`market-list:${id}:${cacheDate}`, () =>
+    id === "trending_fr" ? fetchTrendingFr() : fetchScreener(id)
+  );
+  const response = {
+    id,
+    items,
+    cachedAt: new Date().toISOString(),
+    cacheDate
+  };
+  listCache.set(id, response);
+  logger.debug("market-data", "Yahoo market list fetched", { id, cacheDate, items: items.length });
+  return response;
 }
 
 function emptyTopAndLosersResponse(cacheDate: string): TopAndLosersResponse {
@@ -91,18 +139,16 @@ export async function fetchTopAndLosers(): Promise<TopAndLosersResponse> {
   }
 
   try {
-    const [gainers, losers] = await dedupeInFlight(`top-and-losers:${cacheDate}`, () =>
-      Promise.all([fetchScreener("day_gainers"), fetchScreener("day_losers")])
-    );
+    const [gainers, losers] = await Promise.all([fetchMarketList("day_gainers"), fetchMarketList("day_losers")]);
 
     cache = {
-      gainers,
-      losers,
+      gainers: gainers.items,
+      losers: losers.items,
       cachedAt: new Date().toISOString(),
       cacheDate
     };
 
-    logger.debug("market-data", "Yahoo top movers fetched", { cacheDate, gainers: gainers.length, losers: losers.length });
+    logger.debug("market-data", "Yahoo top movers fetched", { cacheDate, gainers: gainers.items.length, losers: losers.items.length });
     return cache;
   } catch (error) {
     logger.warn("market-data", "Yahoo top movers error", { cacheDate, error: errorMessage(error) });

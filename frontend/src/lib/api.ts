@@ -17,6 +17,8 @@ import type {
   DividendEvent,
   EditablePortfolioTransaction,
   EnrichedSearchResult,
+  MarketListId,
+  MarketListResponse,
   NewsArticle,
   NewsAssetsPage,
   NewsFeedPage,
@@ -218,6 +220,7 @@ export const api = {
   calendarEvents: (signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>("/api/calendar-events", signal),
   calendarEventsForSymbol: (symbol: string, signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>(`/api/calendar-events/${encodeURIComponent(symbol)}`, signal),
   topAndLosers: (signal?: AbortSignal) => dedupedRequest<TopAndLosersResponse>("/api/top-and-losers", signal),
+  marketList: (id: MarketListId, signal?: AbortSignal) => dedupedRequest<MarketListResponse>(`/api/market-lists/${id}`, signal),
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => {
     const path = `/api/watchlist?range=${range}`;
     return dedupedRequest<WatchlistItem[]>(path, signal);

@@ -80,6 +80,23 @@ export interface TopAndLosersResponse {
   cacheDate: string;
 }
 
+export type MarketListId =
+  | "day_gainers"
+  | "day_losers"
+  | "trending_fr"
+  | "high_dividend_yield"
+  | "top_etfs_us"
+  | "undervalued_large_caps"
+  | "undervalued_growth_stocks";
+
+/** Reponse lazy pour une liste Yahoo Finance demandee depuis /search. */
+export interface MarketListResponse {
+  id: MarketListId;
+  items: TopMover[];
+  cachedAt: string;
+  cacheDate: string;
+}
+
 export interface Quote {
   symbol: string;
   name: string;

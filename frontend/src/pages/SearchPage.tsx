@@ -21,7 +21,6 @@ export function SearchPage() {
   }, []);
 
   const me = useAsync(() => api.me(), []);
-  const topMovers = useAsync((signal) => api.topAndLosers(signal), []);
   const search = useEnrichedSearch({ localPeaSearchEnabled: me.data?.user?.localPeaSearchEnabled });
 
   return (
@@ -35,7 +34,7 @@ export function SearchPage() {
         query={search.query}
         results={search.results}
       />
-      <TopMoversSection data={topMovers.data} error={topMovers.error} loading={topMovers.loading} />
+      <TopMoversSection />
     </div>
   );
 }
