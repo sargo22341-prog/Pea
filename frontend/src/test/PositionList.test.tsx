@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PositionList } from "../components/dashboard/PositionList";
+import { PositionList } from "../pages/dashboard/components/PositionList";
 import { api } from "../lib/api";
 
 vi.mock("../lib/api", () => ({

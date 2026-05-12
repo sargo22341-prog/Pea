@@ -4,8 +4,8 @@
  */
 
 import { useEffect } from "react";
-import { SearchPanel } from "../components/search/SearchPanel";
-import { TopMoversSection } from "../components/search/TopMoversSection";
+import { SearchPanel } from "./search/components/SearchPanel";
+import { TopMoversSection } from "./search/components/TopMoversSection";
 import { useAsync } from "../hooks/useAsync";
 import { useEnrichedSearch } from "../hooks/useEnrichedSearch";
 import { api } from "../lib/api";

@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { Shield } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AccountSettingsSection } from "../components/settings/AccountSettingsSection";
-import { AssetIconsSettingsSection } from "../components/settings/AssetIconsSettingsSection";
-import { CsvImportSection } from "../components/settings/CsvImportSection";
-import { ImportAvisOperesPdf } from "../components/settings/ImportAvisOperesPdf";
-import { Collapsible } from "../components/settings/SettingsSection";
-import { UserPreferencesSection } from "../components/settings/UserPreferencesSection";
+import { AccountSettingsSection } from "./settings/components/AccountSettingsSection";
+import { AssetIconsSettingsSection } from "./settings/components/AssetIconsSettingsSection";
+import { CsvImportSection } from "./settings/components/CsvImportSection";
+import { ImportAvisOperesPdf } from "./settings/components/ImportAvisOperesPdf";
+import { Collapsible } from "../components/common/feedback";
+import { UserPreferencesSection } from "./settings/components/UserPreferencesSection";
 import { api } from "../lib/api";
 
 export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Promise<void>; user: User }) {

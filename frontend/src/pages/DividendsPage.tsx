@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { DividendAnnualEstimate } from "../components/dividends/DividendAnnualEstimate";
-import { DividendGroupedList } from "../components/dividends/DividendGroupedList";
+import { DividendAnnualEstimate } from "./dividends/components/DividendAnnualEstimate";
+import { DividendGroupedList } from "./dividends/components/DividendGroupedList";
 import { StaleBadge } from "../components/common/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
-import { getCurrentDividendYear, useDividendOverview } from "../hooks/useDividendOverview";
+import { getCurrentDividendYear, useDividendOverview } from "./dividends/hooks/useDividendOverview";
 import { api } from "../lib/api";
 
 const currentYear = getCurrentDividendYear();

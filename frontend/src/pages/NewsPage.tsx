@@ -1,15 +1,15 @@
 /**
  * Role du fichier : orchestrer l'affichage de la page Actualite en deleguant
- * les donnees et les blocs UI aux modules specialises de components/news.
+ * les donnees et les blocs UI aux modules specialises de pages/news.
  */
 
 import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { NewsArticleList } from "../components/common/NewsArticleList";
-import { NewsHeader } from "../components/news/NewsHeader";
-import { NewsPagination } from "../components/news/NewsPagination";
-import { NewsSkeleton } from "../components/news/NewsSkeleton";
-import { useNewsPageData } from "../components/news/useNewsPageData";
+import { NewsHeader } from "./news/components/NewsHeader";
+import { NewsPagination } from "./news/components/NewsPagination";
+import { NewsSkeleton } from "./news/components/NewsSkeleton";
+import { useNewsPageData } from "./news/hooks/useNewsPageData";
 
 export function NewsPage({ user }: { user: User }) {
   const {

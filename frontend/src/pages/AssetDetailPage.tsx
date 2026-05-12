@@ -4,37 +4,28 @@
  */
 
 import type { AssetChartDto, RangeKey, User } from "@pea/shared";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  GitCompare,
-  Pencil,
-  Plus,
-  Star
-} from "lucide-react";
+import { GitCompare } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AddAssetPositionModal } from "../components/asset-detail/AddAssetPositionModal";
-import { AssetMarketInfo } from "../components/asset-detail/AssetMarketInfo";
-import { AssetIcon } from "../components/common/AssetIcon";
-import { AssetPositionSummary } from "../components/asset-detail/AssetPositionSummary";
+import { AddAssetPositionModal } from "./asset-detail/components/AddAssetPositionModal";
+import { AssetDetailHeader } from "./asset-detail/components/AssetDetailHeader";
+import { AssetMarketInfo } from "./asset-detail/components/AssetMarketInfo";
+import { AssetPositionSummary } from "./asset-detail/components/AssetPositionSummary";
 import { DividendLineChartSection } from "../components/charts/DividendLineChartSection";
 import { FinancialComboChart } from "../components/charts/FinancialComboChart";
 import { ComparisonChart, PriceHistoryChart } from "../components/charts/PriceHistoryChart";
 import { CompareModal } from "../components/common/CompareModal";
-import { EditPositionModal } from "../components/asset-detail/EditPositionModal";
+import { EditPositionModal } from "./asset-detail/components/EditPositionModal";
 import { NewsArticleList } from "../components/common/NewsArticleList";
-import { PeaBadge } from "../components/asset-detail/PeaBadge";
-import { AssetAnalystConsensus } from "../components/asset-detail/AssetAnalystConsensus";
-import { AssetEtfFundDetails } from "../components/asset-detail/AssetEtfFundDetails";
+import { AssetAnalystConsensus } from "./asset-detail/components/AssetAnalystConsensus";
+import { AssetEtfFundDetails } from "./asset-detail/components/AssetEtfFundDetails";
 import { AssetCalendarEvents } from "../components/common/AssetCalendarEvents";
 import { RangeSelector } from "../components/common/RangeSelector";
-import { StaleBadge } from "../components/common/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
 import { useAssetComparisonSeries } from "../hooks/useAssetComparisonSeries";
+import { useAssetWatchlist } from "./asset-detail/hooks/useAssetWatchlist";
 import { api } from "../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../lib/dataConstruction";
-import { money, percent } from "../lib/format";
 import { formatMarketSessionHours, normalizeTimeZone } from "../lib/timezone";
 
 const lazyChartRetryCooldownMs = 60_000;
@@ -52,7 +43,6 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [comparing, setComparing] = useState(false);
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
   const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
-  const [watchlisted, setWatchlisted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [chartRefreshing, setChartRefreshing] = useState(false);
   const [lastRenderableChart, setLastRenderableChart] = useState<AssetChartDto | undefined>(undefined);
@@ -71,6 +61,11 @@ export function AssetDetailPage({ user }: { user: User }) {
   const currentChartPoints = chartDtoToPoints(asset.data?.chart);
   const displayChart = currentChartPoints.length > 1 ? asset.data?.chart : lastRenderableChart;
   const chartPoints = chartDtoToPoints(displayChart);
+  const { toggleWatchlist, watchlisted } = useAssetWatchlist({
+    initialWatchlisted: asset.data?.isInWatchlist,
+    onError: setToast,
+    quote: asset.data?.quote
+  });
 
   function addCompareTarget(target: { symbol: string; name: string }) {
     setCompareTargets((prev) => (prev.some((item) => item.symbol === target.symbol) ? prev : [...prev, target]));
@@ -91,12 +86,6 @@ export function AssetDetailPage({ user }: { user: User }) {
     void source;
     setRangeState(nextRange);
   }
-
-  useEffect(() => {
-    if (asset.data) {
-      setWatchlisted(Boolean(asset.data.isInWatchlist));
-    }
-  }, [asset.data]);
 
   useEffect(() => {
     setLastRenderableChart(undefined);
@@ -269,25 +258,6 @@ export function AssetDetailPage({ user }: { user: User }) {
   }
 
 
-  /**
-   * Ajoute ou retire l'actif de la liste de suivi.
-   *
-   * @returns Promesse résolue après synchronisation avec l'API.
-   */
-  async function toggleWatchlist() {
-    const next = !watchlisted;
-    setWatchlisted(next);
-    try {
-      if (next) {
-        await api.addWatchlist({ symbol: quote.symbol, name: quote.name, exchange: quote.exchange, currency: quote.currency });
-      } else {
-        await api.removeWatchlist(quote.symbol);
-      }
-    } catch (error) {
-      setWatchlisted(!next);
-      setToast(error instanceof Error ? error.message : "Liste de suivi impossible");
-    }
-  }
 
   const dayChange = range === "1d" ? marketInfo?.regularMarketChange ?? quote.change : undefined;
   const dayChangePercent = range === "1d" ? marketInfo?.regularMarketChangePercent ?? quote.changePercent : undefined;
@@ -296,59 +266,24 @@ export function AssetDetailPage({ user }: { user: User }) {
     : chart?.prices[0];
   const rangeChange = dayChange ?? chart?.performanceEuro ?? 0;
   const rangeChangePercent = dayChangePercent ?? chart?.performancePercent ?? 0;
-  const positive = rangeChange >= 0;
   const displayPrice = marketInfo?.regularMarketPrice ?? quote.price;
-
-  const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
     <div className="space-y-6">
-      <section className="card p-4">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="flex items-start gap-3">
-            <AssetIcon className="h-14 w-14" symbol={quote.symbol} />
-            <div className="min-w-0">
-              <p className="muted">{quote.symbol}</p>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold">{quote.name}</h1>
-                <PeaBadge status={asset.data.peaEligibility.status} />
-                <StaleBadge
-                  show={asset.data.stale || quote.stale || marketUnavailable}
-                  label={marketUnavailable ? "Données de marché indisponibles" : "Données différées"}
-                />
-              </div>
-              <p className="mt-2 text-slate-400">
-                {quote.exchange ?? "Marché n/a"} · {quote.currency}
-              </p>
-            </div>
-          </div>
-          <div className="text-left sm:text-right">
-            <p className="text-3xl font-bold">{money(displayPrice, quote.currency)}</p>
-            <p className={`mt-1 flex items-center gap-1 font-semibold sm:justify-end ${positive ? "text-mint" : "text-coral"}`}>
-              <Icon size={18} />
-              {money(rangeChange, quote.currency)} ({percent(rangeChangePercent)})
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
-              {position ? (
-                <button className="btn-ghost" onClick={() => setEditing(true)} type="button">
-                  <Pencil size={17} />
-                  Éditer
-                </button>
-              ) : (
-                <>
-                  <button className="btn-primary" onClick={() => setAdding(true)} type="button">
-                    <Plus size={17} />
-                    Ajouter
-                  </button>
-                  <button className={watchlisted ? "btn bg-amber text-ink" : "btn-ghost"} onClick={() => void toggleWatchlist()} type="button">
-                    <Star fill={watchlisted ? "currentColor" : "none"} size={17} />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <AssetDetailHeader
+        displayPrice={displayPrice}
+        marketUnavailable={marketUnavailable}
+        onAdd={() => setAdding(true)}
+        onEdit={() => setEditing(true)}
+        onToggleWatchlist={() => void toggleWatchlist()}
+        peaEligibilityStatus={asset.data.peaEligibility.status}
+        positionExists={Boolean(position)}
+        quote={quote}
+        rangeChange={rangeChange}
+        rangeChangePercent={rangeChangePercent}
+        stale={asset.data.stale}
+        watchlisted={watchlisted}
+      />
 
       {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
 

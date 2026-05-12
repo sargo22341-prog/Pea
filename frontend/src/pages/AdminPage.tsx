@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { DataConstructionSection } from "../components/admin/DataConstructionSection";
-import { MarketDataActionsSection } from "../components/admin/MarketDataActionsSection";
-import { TrackedMarketsSection } from "../components/admin/TrackedMarketsSection";
-import { YahooUsageSection } from "../components/admin/YahooUsageSection";
+import { DataConstructionSection } from "./admin/components/DataConstructionSection";
+import { MarketDataActionsSection } from "./admin/components/MarketDataActionsSection";
+import { TrackedMarketsSection } from "./admin/components/TrackedMarketsSection";
+import { YahooUsageSection } from "./admin/components/YahooUsageSection";
 
 export function AdminPage() {
   useEffect(() => {
