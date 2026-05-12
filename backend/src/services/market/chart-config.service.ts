@@ -36,12 +36,10 @@ const chartConfigSchema = z.object({
   }),
   marketLiveRefresh: z.object({
     snapshotsIntervalMinutes: z.number().positive().default(5),
-    portfolioChartsIntervalMinutes: z.number().positive().default(30),
-    lazyChartRefreshThresholdRatio: z.number().positive().max(1).default(0.3)
+    portfolioChartsIntervalMinutes: z.number().positive().default(30)
   }).default({
     snapshotsIntervalMinutes: 5,
-    portfolioChartsIntervalMinutes: 30,
-    lazyChartRefreshThresholdRatio: 0.3
+    portfolioChartsIntervalMinutes: 30
   })
 });
 
@@ -55,8 +53,7 @@ const defaultConfig: ChartConfig = {
   },
   marketLiveRefresh: {
     snapshotsIntervalMinutes: 5,
-    portfolioChartsIntervalMinutes: 30,
-    lazyChartRefreshThresholdRatio: 0.3
+    portfolioChartsIntervalMinutes: 30
   }
 };
 
@@ -106,11 +103,6 @@ export class ChartConfigService {
 
   getPortfolioChartRefreshIntervalMs() {
     return this.getMarketLiveRefreshConfig().portfolioChartsIntervalMinutes * 60 * 1000;
-  }
-
-  getLazyChartRefreshThresholdMs() {
-    const live = this.getMarketLiveRefreshConfig();
-    return live.portfolioChartsIntervalMinutes * live.lazyChartRefreshThresholdRatio * 60 * 1000;
   }
 
   getIntradayRefreshIntervalMs() {

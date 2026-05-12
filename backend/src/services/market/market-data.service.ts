@@ -842,7 +842,7 @@ export class MarketDataService {
     const updated = candleRepository.upsertCandles(candles);
     const baseline = this.getStoredPreviousClosePrice(asset);
     const payload = compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
-    intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + chartConfigService.getPortfolioChartRefreshIntervalMs() });
+    intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + intervalDurationMs(interval) });
     return { updated, yahooCalls: 1 };
   }
 

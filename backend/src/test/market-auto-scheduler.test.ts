@@ -1138,7 +1138,7 @@ test("dividend yield normalization accepts Yahoo fraction and percent units", ()
   assert.equal(result.aberrant, null);
 });
 
-test("lazy chart refresh returns skipped-fresh when intraday memory cache is fresh", () => {
+test("lazy chart refresh uses intraday interval for memory cache freshness", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
@@ -1168,14 +1168,22 @@ test("lazy chart refresh returns skipped-fresh when intraday memory cache is fre
         splits: []
       };
     };
+    const realDateNow = Date.now;
+    const baseNow = realDateNow();
+    Date.now = () => baseNow;
     await marketDataService.refreshLiveIntradayForAsset(asset, new Date("2026-05-06T12:06:00.000Z"));
     const fresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    console.log("__RESULT__" + JSON.stringify({ fresh, chartCalls }));
+    Date.now = () => baseNow + 6 * 60_000;
+    const stale = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    Date.now = realDateNow;
+    console.log("__RESULT__" + JSON.stringify({ fresh, stale, chartCalls }));
   `);
 
   assert.equal(result.fresh.status, "skipped-fresh");
-  assert.equal(result.chartCalls, 1);
+  assert.equal(result.stale.status, "started");
+  assert.equal(result.chartCalls, 2);
 });
 
 test("lazy chart refresh stays available when live refresh mode is off", () => {
