@@ -16,7 +16,7 @@ import type {
 } from "@pea/shared";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
-import { assetRepository } from "../market/asset.repository.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends.service.js";
 import { marketDataService, type ChartDataOptions } from "../market/market-data.service.js";

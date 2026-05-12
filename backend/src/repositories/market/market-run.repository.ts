@@ -1,5 +1,5 @@
 import { db } from "../../db.js";
-import { nowIso } from "./market-task.utils.js";
+import { nowIso } from "../../schedulers/market-task.utils.js";
 
 export type OpenRunStatus =
   | "pending"

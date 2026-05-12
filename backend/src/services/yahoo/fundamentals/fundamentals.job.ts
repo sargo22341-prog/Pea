@@ -8,7 +8,7 @@ import { safeYahooCall, yahooClient } from "../yahoo.client.js";
 import type { MarketDataResult } from "../../market/market-data-provider.js";
 import { logger } from "../../shared/logger.service.js";
 import { analystConsensusFromSummary, calendarEventsDataFromSummary, financialRowsFromTimeSeries, fundDetailsFromSummary, marketInfoFromSummary } from "./fundamentals.mapper.js";
-import { upsertCalendarEvents } from "../../calendar-events/calendar-events.repository.js";
+import { upsertCalendarEvents } from "../../../repositories/calendar-events/calendar-events.repository.js";
 
 const fundamentalsModules = [
   "assetProfile",

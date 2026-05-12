@@ -3,7 +3,7 @@
 // qu'une seule fois. Le tableau _migrations trace les versions déjà appliquées.
 
 import type { DatabaseAdapter } from "./db.js";
-import { getMarketCalendar } from "./services/market/getMarketCalendar.js";
+import { getMarketCalendar } from "./services/market/calendars/getMarketCalendar.js";
 
 interface Migration {
   version: number;

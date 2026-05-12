@@ -1,6 +1,6 @@
 import type { Position } from "@pea/shared";
 import { db } from "../../db.js";
-import { normalizeUserId } from "../auth/user-context.js";
+import { normalizeUserId } from "../../services/auth/user-context.js";
 
 export interface PositionRow {
   id: number;

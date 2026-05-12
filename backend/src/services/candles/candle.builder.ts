@@ -6,7 +6,7 @@
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
 import { isTradingDay } from "../market/marketCalendar.service.js";
-import { getFirstOpenTime, getMarketCalendar, getSessionsForDate, isInsideAnySession } from "../market/getMarketCalendar.js";
+import { getFirstOpenTime, getMarketCalendar, getSessionsForDate, isInsideAnySession } from "../market/calendars/getMarketCalendar.js";
 import { getZonedDateParts, localDayKey, zonedTimeToUtc } from "../timezone/date-time.service.js";
 
 export interface BuiltCandle {

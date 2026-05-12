@@ -9,7 +9,7 @@ import { db } from "../../db.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId, normalizeUserId } from "../auth/user-context.js";
 import { config } from "../../config.js";
-import { assetRepository } from "../market/asset.repository.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { chartConfigService } from "../market/chart-config.service.js";
 import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
 import { getMarketSessionInfo } from "../market/marketCalendar.service.js";
@@ -22,7 +22,7 @@ import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
 import { buildTransactionCache, computeTotalDividendsReceived, downsamplePoints, getCostBasisAtTime, getQuantityAtTime, positionFromTransactionCache, type PositionTransactionCache } from "./portfolio-calculations.js";
 import { portfolioPerformanceCache } from "./portfolio-performance-cache.service.js";
-import { mapPosition, portfolioRepository } from "./portfolio.repository.js";
+import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 
 const createPositionSchema = z.object({

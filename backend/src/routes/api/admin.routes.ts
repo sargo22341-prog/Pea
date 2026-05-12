@@ -5,12 +5,12 @@
 import express from "express";
 import { z } from "zod";
 import { db } from "../../db.js";
-import { assetRepository } from "../../services/market/asset.repository.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
 import { marketDataCleaner } from "../../services/market/market-data-cleaner.js";
 import { invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
-import { marketScheduler } from "../../services/tache_auto/market-scheduler.service.js";
-import { trackedMarketRepository } from "../../services/tache_auto/tracked-market.repository.js";
+import { marketScheduler } from "../../schedulers/market-scheduler.service.js";
+import { trackedMarketRepository } from "../../repositories/market/tracked-market.repository.js";
 import { yahooUsageService } from "../../services/yahoo/yahoo-usage.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";

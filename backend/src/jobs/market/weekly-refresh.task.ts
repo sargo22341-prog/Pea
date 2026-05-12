@@ -1,9 +1,9 @@
 import { config } from "../../config.js";
 import { db } from "../../db.js";
-import { assetRepository } from "../market/asset.repository.js";
-import { dataConstructionQueue } from "../market/data-construction-queue.service.js";
-import { logger } from "../shared/logger.service.js";
-import { getZonedDateParts } from "../timezone/date-time.service.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
+import { dataConstructionQueue } from "../../services/market/data-construction-queue.service.js";
+import { logger } from "../../services/shared/logger.service.js";
+import { getZonedDateParts } from "../../services/timezone/date-time.service.js";
 
 const calendarEventsTaskKey = "weekly-calendar-events";
 const calendarEventsTargetMinutes = 8 * 60;

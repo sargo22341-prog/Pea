@@ -262,7 +262,7 @@ export class DataConstructionQueueService {
       import("./market-snapshot.service.js"),
       import("./financials.service.js"),
       import("./dividends.service.js"),
-      import("./asset.repository.js"),
+      import("../../repositories/market/asset.repository.js"),
       import("../yahoo/index.js")
     ]);
 

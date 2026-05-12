@@ -6,7 +6,7 @@
 
 import { db } from "../../db.js";
 import type { StoredChartRange } from "./chart-config.service.js";
-import { assetRepository } from "./asset.repository.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { logger } from "../shared/logger.service.js";
 

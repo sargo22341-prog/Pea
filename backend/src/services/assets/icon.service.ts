@@ -8,9 +8,8 @@ import path from "node:path";
 import { config } from "../../config.js";
 import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
-import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
-import { retryTemporary, yahooClient } from "../yahoo/index.js";
+import { yahooApi } from "../yahoo/yahoo.api.js";
 
 export interface AssetIcon {
   symbol: string;
@@ -319,10 +318,8 @@ export class IconService {
 
   private async getWebsiteFromYahooAssetProfile(symbol: string): Promise<string | undefined> {
     const key = symbol.toUpperCase();
-    const summary = (await dedupeInFlight(`icon:${key}`, () =>
-      retryTemporary(`icon:${key}`, () => yahooClient.quoteSummary(key, { modules: ["assetProfile"] } as any))
-    )) as any;
-    return normalizeWebsite(summary?.assetProfile?.website);
+    const profile = await yahooApi.assetProfile(key);
+    return normalizeWebsite(profile.website ?? undefined);
   }
 
   private buildLogoDevCandidates(symbol: string, name?: string): LogoCandidate[] {

@@ -79,7 +79,7 @@ test("pruneIntradayCache ne touche pas aux donnees d'un autre symbole", () => {
 test("pruneBefore supprime les candles 1d anterieurs au cutoff", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { candleRepository } from "./services/candles/candle.repository.ts";
+    import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     db.prepare("INSERT INTO assets (symbol, name) VALUES ('TEST.PA', 'Asset Test')").run();
     const assetId = db.prepare("SELECT id FROM assets WHERE symbol = 'TEST.PA'").get().id;
@@ -118,7 +118,7 @@ test("pruneBefore supprime les candles 1d anterieurs au cutoff", () => {
 test("la retention 30 jours supporte 35 jours de candles 1d inseres en DB", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { candleRepository } from "./services/candles/candle.repository.ts";
+    import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     db.prepare("INSERT INTO assets (symbol, name) VALUES ('MC.PA', 'LVMH Test')").run();
     const assetId = db.prepare("SELECT id FROM assets WHERE symbol = 'MC.PA'").get().id;
@@ -161,7 +161,7 @@ test("la retention 30 jours supporte 35 jours de candles 1d inseres en DB", () =
 test("pruneBefore pour 1d ne supprime pas les candles d'autres ranges", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
-    import { candleRepository } from "./services/candles/candle.repository.ts";
+    import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
     db.prepare("INSERT INTO assets (symbol, name) VALUES ('AIR.PA', 'Airbus Test')").run();
     const assetId = db.prepare("SELECT id FROM assets WHERE symbol = 'AIR.PA'").get().id;

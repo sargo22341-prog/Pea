@@ -6,8 +6,8 @@
 
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
-import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/chart-config.service.js";
-import type { BuiltCandle } from "./candle.builder.js";
+import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../../services/market/chart-config.service.js";
+import type { BuiltCandle } from "../../services/candles/candle.builder.js";
 
 const CANDLE_TABLE: Record<StoredChartRange, string> = {
   "1d": "chart_candles_1d",

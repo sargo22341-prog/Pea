@@ -69,6 +69,15 @@ export class YahooApi {
     };
   }
 
+  async assetProfile(symbol: string): Promise<{ website: string | null; raw: any }> {
+    const key = symbol.toUpperCase();
+    const raw = await limited(`asset-profile:${key}`, () => yahooClient.quoteSummary(key, { modules: ["assetProfile"] } as any));
+    return {
+      raw,
+      website: nullableString((raw as any)?.assetProfile?.website)
+    };
+  }
+
   async chart(symbol: string, options: { period1: Date; period2?: Date; interval: string; events?: "div|split" | "div" }): Promise<{ quotes: HistoryPoint[]; dividends: Array<{ date: string; amount: number }>; splits: unknown[] }> {
     const key = symbol.toUpperCase();
     const chart = (await limited(`chart:${key}:${options.period1.toISOString()}:${options.period2?.toISOString() ?? "now"}:${options.interval}:${options.events ?? "history"}`, () =>

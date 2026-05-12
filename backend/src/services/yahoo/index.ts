@@ -5,7 +5,6 @@
 
 import { YahooService } from "./yahoo.service.js";
 
-export { retryTemporary, yahooClient } from "./yahoo.client.js";
 export { isMarketDataUnavailable } from "./yahoo.errors.js";
 export { YahooService } from "./yahoo.service.js";
 

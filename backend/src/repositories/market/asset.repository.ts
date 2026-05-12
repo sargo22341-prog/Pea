@@ -4,8 +4,8 @@
  */
 
 import { db } from "../../db.js";
-import type { YahooAssetProfilePayload } from "../yahoo/yahoo.api.js";
-import type { YahooSnapshotPayload } from "../yahoo/yahoo.mapper.js";
+import type { YahooAssetProfilePayload } from "../../services/yahoo/yahoo.api.js";
+import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
 
 export interface AssetRow {
   id: number;

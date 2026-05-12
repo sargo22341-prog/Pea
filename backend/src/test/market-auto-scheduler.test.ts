@@ -75,8 +75,8 @@ test("scheduler groups assets by market and does at most one Yahoo batch call pe
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketOpenTask } from "./services/tache_auto/market-open.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketOpenTask } from "./jobs/market/market-open.task.ts";
     ${seedUser}
     ${helpers}
     for (let i = 0; i < 14; i += 1) addTracked("PAR" + i + ".PA", "Paris " + i, "Paris");
@@ -101,8 +101,8 @@ test("partial Yahoo response refreshes valid snapshots and marks partial open", 
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketOpenTask } from "./services/tache_auto/market-open.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketOpenTask } from "./jobs/market/market-open.task.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -127,8 +127,8 @@ test("closed-at-open retry is persisted then becomes holiday_suspected after one
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketOpenTask } from "./services/tache_auto/market-open.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketOpenTask } from "./jobs/market/market-open.task.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -153,7 +153,7 @@ test("late server start after close marks missed_open_window instead of holiday_
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { marketScheduler } from "./services/tache_auto/market-scheduler.service.ts";
+    import { marketScheduler } from "./schedulers/market-scheduler.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -179,8 +179,8 @@ test("weekend is skipped without Yahoo calls", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketOpenTask } from "./services/tache_auto/market-open.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketOpenTask } from "./jobs/market/market-open.task.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -201,8 +201,8 @@ test("close confirmation refreshes snapshots before one unique post-close finali
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketCloseTask } from "./services/tache_auto/market-close.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketCloseTask } from "./jobs/market/market-close.task.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -231,8 +231,8 @@ test("post-close snapshot state is reused and not overwritten by a later quote r
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { trackedMarketRepository } from "./services/tache_auto/tracked-market.repository.ts";
-    import { marketCloseTask } from "./services/tache_auto/market-close.task.ts";
+    import { trackedMarketRepository } from "./repositories/market/tracked-market.repository.ts";
+    import { marketCloseTask } from "./jobs/market/market-close.task.ts";
     import { marketSnapshotService } from "./services/market/market-snapshot.service.ts";
     ${seedUser}
     ${helpers}
@@ -270,8 +270,8 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { yahooService } = await import("./services/yahoo/index.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketCloseTask } = await import("./services/tache_auto/market-close.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketCloseTask } = await import("./jobs/market/market-close.task.ts");
     const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
     ${helpers}
 
@@ -519,7 +519,7 @@ test("scheduler cleanup, health update and anti-overlap guard", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { yahooApi } from "./services/yahoo/yahoo.api.ts";
-    import { marketScheduler } from "./services/tache_auto/market-scheduler.service.ts";
+    import { marketScheduler } from "./schedulers/market-scheduler.service.ts";
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -550,9 +550,9 @@ test("live refresh disabled preserves current behavior and does not call Yahoo",
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -583,9 +583,9 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { marketSnapshotService } = await import("./services/market/market-snapshot.service.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -634,8 +634,8 @@ test("live refresh ne marque le cycle reussi qu'apres succes et retente apres ba
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -664,8 +664,8 @@ test("live refresh succes met a jour l'intervalle de succes", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     const { marketDataService } = await import("./services/market/market-data.service.ts");
     ${seedUser}
     ${helpers}
@@ -696,9 +696,9 @@ test("live refresh skips closed markets, lunch pauses, last close window and fre
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -744,9 +744,9 @@ test("live refresh falls back by market when global Yahoo batch fails", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -785,9 +785,9 @@ test("live refresh prewarms intraday charts only for portfolio assets", () => {
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
-    const { trackedMarketRepository } = await import("./services/tache_auto/tracked-market.repository.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { LiveMarketRefreshTask } = await import("./services/tache_auto/live-market-refresh.task.ts");
+    const { trackedMarketRepository } = await import("./repositories/market/tracked-market.repository.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { LiveMarketRefreshTask } = await import("./jobs/market/live-market-refresh.task.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -906,9 +906,9 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -938,9 +938,9 @@ test("lazy chart refresh skips Yahoo while market open status is pending", () =>
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1001,9 +1001,9 @@ test("lazy chart refresh uses configured 1d interval instead of ratio threshold"
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1055,8 +1055,8 @@ test("live stored intraday pending open returns temporary availability status wi
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     ${seedUser}
     ${helpers}
     addTracked("7203.T", "Toyota", "Tokyo");
@@ -1080,8 +1080,8 @@ test("live stored intraday pending open still serves older candles when availabl
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { db } = await import("./db.ts");
     const { marketDataService } = await import("./services/market/market-data.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
     ${seedUser}
     ${helpers}
     addTracked("7203.T", "Toyota", "Tokyo");
@@ -1145,9 +1145,9 @@ test("lazy chart refresh uses intraday interval for memory cache freshness", () 
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { marketDataService } = await import("./services/market/market-data.service.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1221,9 +1221,9 @@ test("lazy chart refresh skips closed markets with existing chart data", () => {
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1250,9 +1250,9 @@ test("lazy chart refresh allows initial chart data when market is closed", () =>
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
@@ -1285,9 +1285,9 @@ test("portfolio lazy chart refresh filters by market status and initializes only
     const { db } = await import("./db.ts");
     const { yahooApi } = await import("./services/yahoo/yahoo.api.ts");
     const { chartRefreshService } = await import("./services/market/chart-refresh.service.ts");
-    const { getMarketCalendar } = await import("./services/market/getMarketCalendar.ts");
-    const { marketRunRepository } = await import("./services/tache_auto/market-run.repository.ts");
-    const { localTradingDate } = await import("./services/tache_auto/market-task.utils.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    const { localTradingDate } = await import("./schedulers/market-task.utils.ts");
     ${seedUser}
     ${helpers}
     addTracked("PAR.PA", "Paris", "Paris");

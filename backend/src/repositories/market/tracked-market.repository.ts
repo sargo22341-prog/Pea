@@ -1,7 +1,7 @@
 import { db } from "../../db.js";
-import { assetRepository } from "../market/asset.repository.js";
-import type { MarketCalendar } from "../market/getMarketCalendar.js";
-import { groupAssetsByMarket, marketDisplayName, nowIso, serializeOverrides, serializeSessions, type MarketAssetGroup } from "./market-task.utils.js";
+import { assetRepository } from "./asset.repository.js";
+import type { MarketCalendar } from "../../services/market/calendars/getMarketCalendar.js";
+import { groupAssetsByMarket, marketDisplayName, nowIso, serializeOverrides, serializeSessions, type MarketAssetGroup } from "../../schedulers/market-task.utils.js";
 
 export interface TrackedMarketRow {
   id: number;
