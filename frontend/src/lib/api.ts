@@ -1,8 +1,3 @@
-/**
- * Rôle du fichier : centraliser les appels HTTP frontend vers l'API backend et
- * typer les réponses déjà transformées en DTO légers.
- */
-
 import type {
   AssetDetails,
   AssetChartDto,
@@ -44,6 +39,7 @@ import type {
   YahooUsageCallDto,
   YahooUsageStatsDto
 } from "@pea/shared";
+import { baseUrl, dedupedRequest, request } from "./api-core";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
 export interface YahooUsageStatsFilters {
@@ -99,83 +95,6 @@ export type MarketEventPayload = {
   updatedAt?: string;
   startedAt?: string;
 };
-
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
-const inFlightRequests = new Map<string, Promise<unknown>>();
-
-/**
- * Crée une erreur standardisée lorsqu'une requête est annulée.
- *
- * @returns Erreur DOM compatible avec les traitements React.
- */
-function abortError() {
-  return new DOMException("Requete annulee", "AbortError");
-}
-
-/**
- * Associe un signal d'annulation à une promesse existante.
- *
- * @param promise Promesse d'appel API.
- * @param signal Signal optionnel fourni par un hook.
- * @returns Promesse annulable.
- */
-function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return promise;
-  if (signal.aborted) return Promise.reject(abortError());
-
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      signal.addEventListener("abort", () => reject(abortError()), { once: true });
-    })
-  ]);
-}
-
-/**
- * Déduplique les requêtes GET simultanées vers le même chemin.
- *
- * @param path Chemin API relatif.
- * @param signal Signal d'annulation optionnel.
- * @returns Promesse partagée tant que la requête est en vol.
- */
-function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
-  let existing = inFlightRequests.get(path) as Promise<T> | undefined;
-  if (!existing) {
-    existing = request<T>(path).finally(() => {
-      inFlightRequests.delete(path);
-    });
-    inFlightRequests.set(path, existing);
-  }
-
-  return withAbort(existing, signal);
-}
-
-/**
- * Exécute un appel HTTP avec gestion JSON, cookies et erreurs applicatives.
- *
- * @param path Chemin API relatif.
- * @param init Options fetch optionnelles.
- * @returns Corps JSON typé ou undefined pour les réponses 204.
- */
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = init?.body instanceof FormData ? init?.headers : { "Content-Type": "application/json", ...init?.headers };
-  const response = await fetch(`${baseUrl}${path}`, {
-    headers,
-    credentials: "include",
-    ...init
-  });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.message ?? `Erreur API ${response.status}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
-}
 
 export const api = {
   search: (q: string) => request<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),

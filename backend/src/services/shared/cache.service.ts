@@ -5,6 +5,7 @@
 
 import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
+import { cacheRegistry } from "./cache-registry.service.js";
 
 const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = {
   "1d": "intraday",
@@ -86,22 +87,8 @@ function staticCacheTarget(table: string, keyColumn: string) {
 /** Supprime les caches dependants des transactions d'un utilisateur. */
 export function invalidateUserAssetCaches(userId: string, symbol?: string) {
   if (userId === "*") {
-    if (symbol) {
-      db.prepare("DELETE FROM user_assets WHERE symbol = ?").run(symbol.toUpperCase());
-    } else {
-      db.prepare("DELETE FROM user_assets").run();
-    }
-    db.prepare("DELETE FROM portfolio_chart_cache").run();
-    db.prepare("DELETE FROM portfolio_positions_performance_cache").run();
-    db.prepare("DELETE FROM frontend_block_cache").run();
+    cacheRegistry.invalidate({ type: "portfolio-all-users-changed", symbol });
     return;
   }
-  if (symbol) {
-    db.prepare("DELETE FROM user_assets WHERE user_id = ? AND symbol = ?").run(userId, symbol.toUpperCase());
-  } else {
-    db.prepare("DELETE FROM user_assets WHERE user_id = ?").run(userId);
-  }
-  db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(userId);
-  db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(userId);
-  db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(userId);
+  cacheRegistry.invalidate({ type: "portfolio-user-changed", userId, symbol });
 }

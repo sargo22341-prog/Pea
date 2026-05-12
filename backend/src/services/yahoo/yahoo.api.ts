@@ -3,13 +3,13 @@
  * source de marche. Ce module ne gere aucun TTL et ne persiste rien.
  */
 
-import { scheduleYahooCall, yahooClient } from "./yahoo.client.js";
+import { retryTemporary, yahooClient } from "./yahoo.client.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableString, type YahooSnapshotPayload } from "./yahoo.mapper.js";
 import type { HistoryPoint, Quote } from "@pea/shared";
 
 function limited<T>(key: string, task: () => Promise<T>) {
-  return dedupeInFlight(key, () => scheduleYahooCall(key, task));
+  return dedupeInFlight(key, () => retryTemporary(key, task));
 }
 
 export interface YahooAssetProfilePayload {

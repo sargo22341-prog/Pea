@@ -127,31 +127,36 @@ export class PortfolioService {
     const name = parsed.name || quoteName || parsed.symbol;
     const existing = portfolioRepository.findPositionBySymbol(parsed.symbol);
 
-    if (existing) {
-      const oldQuantity = Number(existing.quantity);
-      const newQuantity = oldQuantity + parsed.quantity;
-      const weightedAverage =
-        newQuantity === 0
-          ? parsed.averageBuyPrice
-          : (oldQuantity * Number(existing.average_buy_price) + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
+    const position = db.transaction(() => {
+      if (existing) {
+        const oldQuantity = Number(existing.quantity);
+        const newQuantity = oldQuantity + parsed.quantity;
+        const weightedAverage =
+          newQuantity === 0
+            ? parsed.averageBuyPrice
+            : (oldQuantity * Number(existing.average_buy_price) + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
 
-      db.prepare(
-        `UPDATE positions
-         SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = ? AND symbol = ?`
-      ).run(newQuantity, weightedAverage, name, parsed.currency, currentUserId(), parsed.symbol);
-    } else {
-      portfolioRepository.insertPosition({ symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency });
-    }
+        portfolioRepository.mergePositionSnapshot(existing.id, {
+          quantity: newQuantity,
+          averageBuyPrice: weightedAverage,
+          name,
+          currency: parsed.currency
+        });
+      } else {
+        portfolioRepository.insertPosition({ symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency });
+      }
 
-    const position = portfolioRepository.findPositionBySymbol(parsed.symbol)!;
+      const savedPosition = portfolioRepository.findPositionBySymbol(parsed.symbol)!;
+      portfolioRepository.insertBuyTransactionNow(savedPosition.id, {
+        quantity: parsed.quantity,
+        price: parsed.averageBuyPrice,
+        currency: parsed.currency
+      });
+      this.invalidatePositionCaches(savedPosition.id, parsed.symbol);
+      return savedPosition;
+    });
     await marketDataService.ensureAssetInitialized(parsed.symbol);
     if (options.scheduleConstruction !== false) dataConstructionQueue.enqueueAssetConstruction(parsed.symbol);
-    db.prepare(
-      `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
-       VALUES (?, 'buy', ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).run(position.id, parsed.quantity, parsed.averageBuyPrice, parsed.currency);
-    this.invalidatePositionCaches(position.id, parsed.symbol);
 
     return this.enrichPosition(mapPosition(position));
   }
@@ -261,12 +266,11 @@ export class PortfolioService {
     const position = portfolioRepository.findPositionById(positionId);
     if (!position) throw new HttpError(404, "Position introuvable");
     this.assertValidTransactionMutation(positionId, input);
-    db.prepare(
-      `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')`
-    ).run(positionId, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, input.tradedAt);
-    this.recomputePositionFromAnyTransactions(positionId);
-    this.invalidatePositionCaches(positionId);
+    db.transaction(() => {
+      portfolioRepository.insertManualTransaction(positionId, input);
+      this.recomputePositionFromAnyTransactions(positionId);
+      this.invalidatePositionCaches(positionId);
+    });
     return this.listTransactions(positionId);
   }
 
@@ -275,21 +279,21 @@ export class PortfolioService {
     const existing = db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId);
     if (!existing) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
-    db.prepare(
-      `UPDATE transactions
-       SET traded_at = ?, type = ?, quantity = ?, price = ?, total_fees = ?, currency = ?
-       WHERE id = ? AND position_id = ?`
-    ).run(input.tradedAt, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, transactionId, positionId);
-    this.recomputePositionFromAnyTransactions(positionId);
-    this.invalidatePositionCaches(positionId);
+    db.transaction(() => {
+      portfolioRepository.updateManualTransaction(positionId, transactionId, input);
+      this.recomputePositionFromAnyTransactions(positionId);
+      this.invalidatePositionCaches(positionId);
+    });
     return this.listTransactions(positionId);
   }
 
   deleteTransaction(positionId: number, transactionId: number) {
     if (!portfolioRepository.findPositionById(positionId)) throw new HttpError(404, "Position introuvable");
-    db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
-    this.recomputePositionFromAnyTransactions(positionId);
-    this.invalidatePositionCaches(positionId);
+    db.transaction(() => {
+      portfolioRepository.deleteTransaction(positionId, transactionId);
+      this.recomputePositionFromAnyTransactions(positionId);
+      this.invalidatePositionCaches(positionId);
+    });
   }
 
   recomputePositionFromAnyTransactions(positionId: number) {
@@ -367,8 +371,10 @@ export class PortfolioService {
   deletePosition(id: number): boolean {
     const existing = portfolioRepository.findPositionById(id);
     if (!existing) return false;
-    this.invalidatePositionCaches(id);
-    portfolioRepository.deletePosition(id);
+    db.transaction(() => {
+      this.invalidatePositionCaches(id);
+      portfolioRepository.deletePosition(id);
+    });
     return true;
   }
 
@@ -379,12 +385,15 @@ export class PortfolioService {
     const existing = portfolioRepository.findPositionById(id);
     if (!existing) throw new HttpError(404, "Position introuvable");
 
-    db.prepare(
-      `UPDATE positions
-       SET quantity = ?, average_buy_price = ?, currency = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(parsed.quantity, parsed.averageBuyPrice, parsed.currency, parsed.notes ?? null, id);
-    this.invalidatePositionCaches(id);
+    db.transaction(() => {
+      portfolioRepository.updatePositionSnapshot(id, {
+        quantity: parsed.quantity,
+        averageBuyPrice: parsed.averageBuyPrice,
+        currency: parsed.currency,
+        notes: parsed.notes ?? null
+      });
+      this.invalidatePositionCaches(id);
+    });
 
     const row = portfolioRepository.findPositionById(id)!;
     return this.enrichPosition(mapPosition(row));

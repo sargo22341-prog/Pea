@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { cacheRegistry } from "./cache-registry.service.js";
 import { nowMs } from "./cache.service.js";
 
 export type FrontendBlock =
@@ -29,20 +30,8 @@ export class FrontendBlockCacheService {
   }
 
   invalidate(input: { userId?: string | number; block?: FrontendBlock; symbol?: string }) {
-    if (input.userId && input.block) {
-      db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ? AND block = ?").run(String(input.userId), input.block);
-      return;
-    }
-    if (input.userId) {
-      db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(String(input.userId));
-      return;
-    }
-    if (input.block) {
-      db.prepare("DELETE FROM frontend_block_cache WHERE block = ?").run(input.block);
-      return;
-    }
     void input.symbol;
-    db.prepare("DELETE FROM frontend_block_cache").run();
+    cacheRegistry.invalidate({ type: "frontend-block-changed", userId: input.userId, block: input.block });
   }
 }
 

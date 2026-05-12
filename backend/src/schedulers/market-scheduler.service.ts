@@ -7,14 +7,16 @@ import { marketOpenTask } from "../jobs/market/market-open.task.js";
 import { marketCloseTask } from "../jobs/market/market-close.task.js";
 import { marketLogRepository } from "../repositories/market/market-log.repository.js";
 import { marketRunRepository, type MarketDailyRunRow } from "../repositories/market/market-run.repository.js";
+import { schedulerLockRepository } from "../repositories/market/scheduler-lock.repository.js";
 import { schedulerHealthRepository } from "../repositories/market/scheduler-health.repository.js";
 import { trackedMarketRepository, type TrackedMarketRow } from "../repositories/market/tracked-market.repository.js";
 import { weeklyRefreshTask } from "../jobs/market/weekly-refresh.task.js";
-import { CLOSE_BUFFER_MINUTES, expectedTimes, isWeekend, localTradingDate, minutesAfter } from "./market-task.utils.js";
+import { CLOSE_BUFFER_MINUTES, expectedTimes, isWeekend, localTradingDate, minutesAfter, type MarketSchedule } from "./market-task.utils.js";
 import { runWithYahooUsageSource } from "../services/yahoo/yahoo-usage-context.js";
 
 const schedulerName = "market-scheduler";
 const tickIntervalMs = 5 * 60 * 1000;
+const tickLockTtlMs = 4 * 60 * 1000;
 
 export class MarketSchedulerService {
   private timer?: NodeJS.Timeout;
@@ -40,6 +42,11 @@ export class MarketSchedulerService {
 
   async tick(now = new Date()) {
     if (this.running) return;
+    const lease = schedulerLockRepository.acquire(`${schedulerName}:tick`, tickLockTtlMs, now.getTime());
+    if (!lease) {
+      logger.debug("market-data", "market scheduler tick skipped because lock is held");
+      return;
+    }
     this.running = true;
     schedulerHealthRepository.markTick(schedulerName, now);
     try {
@@ -57,6 +64,7 @@ export class MarketSchedulerService {
       logger.error("market-data", "market scheduler tick failed", { error: error instanceof Error ? error.message : String(error) });
     } finally {
       this.running = false;
+      schedulerLockRepository.release(lease);
     }
   }
 
@@ -109,7 +117,11 @@ export class MarketSchedulerService {
     const weekend = isWeekend(local.weekday);
     const sessions = JSON.parse(market.sessions_json);
     const overrides = market.overrides_json ? JSON.parse(market.overrides_json) : undefined;
-    const syntheticCalendar = { market: market.market_key as any, city: market.display_name, timezone: market.timezone, sessions, dayOverrides: overrides };
+    const syntheticCalendar: MarketSchedule = {
+      timezone: market.timezone,
+      sessions,
+      dayOverrides: overrides
+    };
     const times = expectedTimes(syntheticCalendar, local.isoDate);
     return marketRunRepository.ensure({
       marketKey: market.market_key,

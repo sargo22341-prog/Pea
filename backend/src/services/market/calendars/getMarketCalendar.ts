@@ -100,7 +100,7 @@ export interface MarketCalendar {
 }
 
 /** Retourne les sessions actives pour un isoDate local, en tenant compte des dayOverrides. */
-export function getSessionsForDate(calendar: MarketCalendar, isoDate: string): MarketSession[] {
+export function getSessionsForDate(calendar: Pick<MarketCalendar, "sessions" | "dayOverrides">, isoDate: string): MarketSession[] {
   if (!calendar.dayOverrides?.length) return calendar.sessions;
   const [y, m, d] = isoDate.split("-").map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun, 1=Mon … 5=Fri, 6=Sat

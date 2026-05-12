@@ -79,9 +79,17 @@ export class PortfolioRepository {
   updatePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name?: string; currency: string; notes?: string | null }) {
     db.prepare(
       `UPDATE positions
-       SET quantity = ?, average_buy_price = ?, name = COALESCE(?, name), currency = ?, notes = COALESCE(?, notes), updated_at = CURRENT_TIMESTAMP
+       SET quantity = ?, average_buy_price = ?, name = COALESCE(?, name), currency = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
     ).run(input.quantity, input.averageBuyPrice, input.name ?? null, input.currency, input.notes ?? null, positionId);
+  }
+
+  mergePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name: string; currency: string }) {
+    db.prepare(
+      `UPDATE positions
+       SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(input.quantity, input.averageBuyPrice, input.name, input.currency, positionId);
   }
 
   deletePosition(positionId: number, userId?: number | string) {
@@ -96,6 +104,32 @@ export class PortfolioRepository {
   listTransactionSequence(positionId: number): TransactionRow[] {
     return (db.prepare("SELECT * FROM transactions WHERE position_id = ?").all(positionId) as TransactionRow[])
       .sort(compareTransactionAsc);
+  }
+
+  insertManualTransaction(positionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
+    db.prepare(
+      `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')`
+    ).run(positionId, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, input.tradedAt);
+  }
+
+  insertBuyTransactionNow(positionId: number, input: { quantity: number; price: number; currency: string }) {
+    db.prepare(
+      `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
+       VALUES (?, 'buy', ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).run(positionId, input.quantity, input.price, input.currency);
+  }
+
+  updateManualTransaction(positionId: number, transactionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
+    db.prepare(
+      `UPDATE transactions
+       SET traded_at = ?, type = ?, quantity = ?, price = ?, total_fees = ?, currency = ?
+       WHERE id = ? AND position_id = ?`
+    ).run(input.tradedAt, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, transactionId, positionId);
+  }
+
+  deleteTransaction(positionId: number, transactionId: number) {
+    db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
   }
 
   positionSymbols(userId?: number | string) {

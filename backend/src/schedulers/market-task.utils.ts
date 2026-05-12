@@ -12,6 +12,8 @@ export interface MarketAssetGroup {
   assets: AssetRow[];
 }
 
+export type MarketSchedule = Pick<MarketCalendar, "timezone" | "sessions" | "dayOverrides">;
+
 export function nowIso(date = new Date()) {
   return date.toISOString();
 }
@@ -44,7 +46,7 @@ export function isWeekend(weekday: string) {
   return weekday === "Sat" || weekday === "Sun";
 }
 
-export function expectedTimes(calendar: MarketCalendar, tradingDate: string) {
+export function expectedTimes(calendar: MarketSchedule, tradingDate: string) {
   const sessions = getSessionsForDate(calendar, tradingDate);
   const first = sessions[0];
   const last = sessions[sessions.length - 1];

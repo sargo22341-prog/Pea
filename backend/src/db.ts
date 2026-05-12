@@ -1,87 +1,12 @@
-// Rôle du fichier : initialiser la base SQLite embarquée avec better-sqlite3,
-// créer les tables initiales et appliquer les migrations de schéma.
-
-import BetterSqlite3, { type Database as BetterSqliteDatabase, type Statement } from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "./config.js";
+import { DatabaseAdapter } from "./db-adapter.js";
 import { appliquerMigrations } from "./db-migrations.js";
 
 const directory = path.dirname(config.sqlitePath);
 if (directory && directory !== ".") {
   fs.mkdirSync(directory, { recursive: true });
-}
-
-/**
- * Encapsule une requete preparee better-sqlite3 pour uniformiser get/all/run.
- *
- * @param statement Requete preparee par better-sqlite3.
- * @returns Instance capable d'executer la requete avec des parametres lies.
- */
-class PreparedStatement {
-  constructor(private statement: Statement) {}
-
-  /**
-   * Retourne la première ligne produite par la requête.
-   *
-   * @param params Valeurs liées aux marqueurs SQL.
-   * @returns Ligne sous forme d'objet ou undefined si aucun résultat n'existe.
-   */
-  get(...params: unknown[]) {
-    return this.statement.get(...params);
-  }
-
-  /**
-   * Retourne toutes les lignes produites par la requête.
-   *
-   * @param params Valeurs liées aux marqueurs SQL.
-   * @returns Liste d'objets correspondant aux lignes SQLite.
-   */
-  all(...params: unknown[]) {
-    return this.statement.all(...params);
-  }
-
-  /**
-   * Exécute une requête d'écriture puis force la persistance du fichier SQLite.
-   *
-   * @param params Valeurs liées aux marqueurs SQL.
-   * @returns Nombre de lignes modifiees par SQLite.
-   */
-  run(...params: unknown[]) {
-    return this.statement.run(...params).changes;
-  }
-}
-
-export class DatabaseAdapter {
-  private database: BetterSqliteDatabase;
-
-  constructor(filePath: string) {
-    this.database = new BetterSqlite3(filePath);
-    this.database.pragma("journal_mode = WAL");
-    this.database.pragma("foreign_keys = ON");
-    this.database.pragma("busy_timeout = 5000");
-  }
-
-  /**
-   * Execute un bloc SQL complet.
-   *
-   * @param sql Instructions SQL à appliquer.
-   * @returns Rien.
-   */
-  exec(sql: string) {
-    this.database.exec(sql);
-  }
-
-  /**
-   * Prépare une requête SQL paramétrable.
-   *
-   * @param sql Requête SQL avec marqueurs éventuels.
-   * @returns Requête préparée via l'adaptateur local.
-   */
-  prepare(sql: string) {
-    return new PreparedStatement(this.database.prepare(sql));
-  }
-
 }
 
 export const db = new DatabaseAdapter(config.sqlitePath);
@@ -577,8 +502,16 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS scheduler_locks (
+    lock_key TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    acquired_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_market_daily_runs_market_date ON market_daily_runs(market_key, trading_date);
   CREATE INDEX IF NOT EXISTS idx_market_check_logs_created_at ON market_check_logs(created_at);
+  CREATE INDEX IF NOT EXISTS idx_scheduler_locks_expires_at ON scheduler_locks(expires_at);
 `);
 
 // Applique les migrations incrémentales après la création du schéma initial
