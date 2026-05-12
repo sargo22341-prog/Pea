@@ -85,6 +85,7 @@ test("Yahoo usage stats aggregate and filter by day, hour, method, module and ti
   assert.equal(all.summary.totalCalls, 3);
   assert.equal(all.summary.errorCalls, 1);
   assert.equal(all.byMethod.find((row) => row.key === "chart")?.calls, 1);
+  assert.equal(all.bySource.find((row) => row.key === "asset-refresh")?.calls, 1);
   assert.equal(all.topModules.find((row) => row.key === "calendarEvents")?.calls, 1);
   assert.ok(all.callsByDay.length >= 1);
   assert.ok(all.callsByHour.length >= 1);
@@ -115,4 +116,12 @@ test("Yahoo usage metadata inference recognizes batch tickers and chart options"
   assert.equal(chart.method, "chart");
   assert.equal(chart.ticker, "AIR.PA");
   assert.equal(chart.interval, "history");
+
+  const trending = inferYahooUsageMetadata("quote:trendingSymbols:FR:AIR.PA,BNP.PA");
+  assert.deepEqual(trending.tickers, ["AIR.PA", "BNP.PA"]);
+  assert.equal(trending.internalSource, "top-movers");
+
+  const quoteCombine = inferYahooUsageMetadata("quoteCombine:AI.PA");
+  assert.equal(quoteCombine.method, "quoteCombine");
+  assert.deepEqual(quoteCombine.tickers, ["AI.PA"]);
 });

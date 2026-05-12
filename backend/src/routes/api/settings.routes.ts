@@ -15,6 +15,7 @@ const yahooUsageQuerySchema = z.object({
   method: z.string().trim().min(1).optional(),
   module: z.string().trim().min(1).optional(),
   ticker: z.string().trim().min(1).optional(),
+  source: z.string().trim().min(1).optional(),
   success: z
     .enum(["true", "false", "1", "0"])
     .transform((value) => value === "true" || value === "1")

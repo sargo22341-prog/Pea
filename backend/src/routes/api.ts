@@ -6,6 +6,7 @@ import express from "express";
 import { attachUser, requireAdmin, requireAuth } from "../middleware/auth.js";
 import { verifyMutatingRequestOrigin } from "../middleware/origin-protection.js";
 import { runWithUser } from "../services/auth/user-context.js";
+import { runWithYahooUsageSource } from "../services/yahoo/yahoo-usage-context.js";
 import { HttpError } from "../utils/http-error.js";
 import { adminRouter } from "./api/admin.routes.js";
 import { assetIconsRouter } from "./api/asset-icons.routes.js";
@@ -30,6 +31,7 @@ apiRouter.use("/auth", authRouter);
 
 apiRouter.use(requireAuth);
 apiRouter.use((req, _res, next) => runWithUser(req.user!.id, next));
+apiRouter.use((req, _res, next) => runWithYahooUsageSource(`navigation utilisateur: ${req.method} ${req.path}`, next));
 
 apiRouter.use(searchRouter);
 apiRouter.use(settingsRouter);

@@ -183,7 +183,7 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
   try {
     const rows = (await dedupeInFlight(`quoteCombine:${cacheKey}`, async () => {
       logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey });
-      const payload = await retryTemporary(`quoteCombine:${cacheKey}`, () => Promise.all(keys.map((key) => yahooClient.quoteCombine(key))));
+      const payload = await Promise.all(keys.map((key) => retryTemporary(`quoteCombine:${key}`, () => yahooClient.quoteCombine(key))));
       logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
       return payload;
     })) as any[];

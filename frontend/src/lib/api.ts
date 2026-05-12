@@ -51,6 +51,7 @@ export interface YahooUsageStatsFilters {
   method?: string;
   module?: string;
   ticker?: string;
+  source?: string;
   success?: boolean;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker";
 }
@@ -271,6 +272,7 @@ export const api = {
     if (filters.method) params.set("method", filters.method);
     if (filters.module) params.set("module", filters.module);
     if (filters.ticker) params.set("ticker", filters.ticker);
+    if (filters.source) params.set("source", filters.source);
     if (filters.success !== undefined) params.set("success", String(filters.success));
     if (filters.groupBy) params.set("groupBy", filters.groupBy);
     const query = params.toString();

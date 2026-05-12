@@ -338,6 +338,7 @@ export interface YahooUsageStatsDto {
   callsByHour: YahooUsageBucketDto[];
   callsByDay: YahooUsageBucketDto[];
   byMethod: YahooUsageBucketDto[];
+  bySource: YahooUsageBucketDto[];
   topTickers: YahooUsageBucketDto[];
   topModules: YahooUsageBucketDto[];
   recentErrors: YahooUsageRecentErrorDto[];

@@ -11,6 +11,7 @@
 import type { DataConstructionJobDto } from "@pea/shared";
 import type { StoredChartRange } from "./chart-config.service.js";
 import { logger } from "../shared/logger.service.js";
+import { runWithYahooUsageSource } from "../yahoo/yahoo-usage-context.js";
 
 type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
@@ -209,7 +210,7 @@ export class DataConstructionQueueService {
         symbol: task.symbol,
         range: task.range
       });
-      await this.execute(task);
+      await runWithYahooUsageSource(`tache construction: ${task.key}`, () => this.execute(task));
       job.completedTasks += 1;
       logger.debug("market-data", "construction task success", {
         task: task.key,

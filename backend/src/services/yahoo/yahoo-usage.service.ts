@@ -3,6 +3,7 @@
  */
 
 import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "./yahoo-usage.repository.js";
+import { currentYahooUsageSource } from "./yahoo-usage-context.js";
 
 const quoteSummaryModules = ["summaryProfile", "assetProfile", "price", "summaryDetail"];
 const fundamentalsModules = [
@@ -33,9 +34,12 @@ function uniqueTickers(value: string) {
 }
 
 function sourceFor(method: string, key: string) {
+  const contextSource = currentYahooUsageSource();
+  if (contextSource) return contextSource;
   if (key.startsWith("news:")) return "news";
   if (key.startsWith("search:")) return "search";
   if (key.startsWith("screener:")) return "top-and-losers";
+  if (key.startsWith("trendingSymbols:") || key.startsWith("quote:trendingSymbols:")) return "top-movers";
   if (key.startsWith("icon:")) return "asset-icons";
   if (key.startsWith("history:") || key.startsWith("chart:")) return "asset-refresh";
   if (key.startsWith("dividends:")) return "dividends";
@@ -49,9 +53,6 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
   const parts = key.split(":");
   const prefix = parts[0] ?? key;
 
-  if (prefix === "market-quote" || prefix === "quote") {
-    return { method: "quote", ticker: parts[1], internalSource: sourceFor("quote", key) };
-  }
   if (prefix === "market-quote-batch" || prefix === "market-quote-batch-raw" || prefix === "quoteBatch") {
     const tickers = uniqueTickers(parts[1] ?? "");
     return { method: "quote", tickers, ticker: tickers[0], tickerCount: tickers.length, internalSource: sourceFor("quoteBatch", key) };
@@ -59,6 +60,13 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
   if (prefix === "quoteCombine") {
     const tickers = uniqueTickers(parts[1] ?? "");
     return { method: "quoteCombine", tickers, ticker: tickers[0], tickerCount: tickers.length, internalSource: sourceFor("quoteCombine", key) };
+  }
+  if (prefix === "quote" && parts[1] === "trendingSymbols") {
+    const tickers = uniqueTickers(parts.slice(3).join(":"));
+    return { method: "quote", tickers, ticker: tickers[0], tickerCount: tickers.length, internalSource: sourceFor("quote", key) };
+  }
+  if (prefix === "market-quote" || prefix === "quote") {
+    return { method: "quote", ticker: parts[1], internalSource: sourceFor("quote", key) };
   }
   if (prefix === "quote-summary") {
     return { method: "quoteSummary", ticker: parts[1], modules: quoteSummaryModules, internalSource: sourceFor("quoteSummary", key) };
@@ -86,6 +94,9 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
   }
   if (prefix === "screener") {
     return { method: "screener", modules: [parts[1]].filter(Boolean), internalSource: sourceFor("screener", key) };
+  }
+  if (prefix === "trendingSymbols") {
+    return { method: "trendingSymbols", modules: [parts[1]].filter(Boolean), internalSource: sourceFor("trendingSymbols", key) };
   }
   if (prefix === "icon") {
     return { method: "quoteSummary", ticker: parts[1], modules: ["assetProfile"], internalSource: sourceFor("quoteSummary", key) };

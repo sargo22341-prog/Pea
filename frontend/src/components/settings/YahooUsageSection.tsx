@@ -56,6 +56,7 @@ export function YahooUsageSection() {
   const [method, setMethod] = useState("");
   const [moduleName, setModuleName] = useState("");
   const [ticker, setTicker] = useState("");
+  const [source, setSource] = useState("");
   const [success, setSuccess] = useState<SuccessFilter>("all");
   const [customFrom, setCustomFrom] = useState(isoLocalInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
   const [customTo, setCustomTo] = useState(isoLocalInput(new Date()));
@@ -71,10 +72,11 @@ export function YahooUsageSection() {
       method: method || undefined,
       module: moduleName.trim() || undefined,
       ticker: ticker.trim() || undefined,
+      source: source.trim() || undefined,
       success: success === "all" ? undefined : success === "success",
       groupBy
     };
-  }, [customFrom, customTo, groupBy, method, moduleName, period, success, ticker]);
+  }, [customFrom, customTo, groupBy, method, moduleName, period, source, success, ticker]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,8 +113,10 @@ export function YahooUsageSection() {
           setMethod={setMethod}
           setModuleName={setModuleName}
           setPeriod={setPeriod}
+          setSource={setSource}
           setSuccess={setSuccess}
           setTicker={setTicker}
+          source={source}
           success={success}
           ticker={ticker}
         />
@@ -130,7 +134,8 @@ export function YahooUsageSection() {
             <UsageChart data={chartData} title={groupBy === "hour" ? "Appels par heure" : "Appels par jour"} />
             <UsageChart data={data.byMethod} title="Repartition par type d'appel" />
           </div>
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4 xl:grid-cols-4">
+            <TopTable emptyLabel="Aucune source" rows={data.bySource} title="Sources internes" />
             <TopTable emptyLabel="Aucun ticker" rows={data.topTickers} title="Top tickers" />
             <TopTable emptyLabel="Aucun module" rows={data.topModules} title="Top modules quoteSummary" />
             <RecentErrors data={data} />
@@ -148,6 +153,7 @@ function Filters(props: {
   method: string;
   moduleName: string;
   period: PeriodKey;
+  source: string;
   success: SuccessFilter;
   ticker: string;
   setCustomFrom: (value: string) => void;
@@ -156,11 +162,12 @@ function Filters(props: {
   setMethod: (value: string) => void;
   setModuleName: (value: string) => void;
   setPeriod: (value: PeriodKey) => void;
+  setSource: (value: string) => void;
   setSuccess: (value: SuccessFilter) => void;
   setTicker: (value: string) => void;
 }) {
   return (
-    <div className="grid flex-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid flex-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
       <label className="space-y-1 text-sm">
         <span className="muted">Periode</span>
         <select className="input" value={props.period} onChange={(event) => props.setPeriod(event.target.value as PeriodKey)}>
@@ -185,6 +192,10 @@ function Filters(props: {
       <label className="space-y-1 text-sm">
         <span className="muted">Ticker</span>
         <input className="input uppercase" onChange={(event) => props.setTicker(event.target.value)} placeholder="AIR.PA" value={props.ticker} />
+      </label>
+      <label className="space-y-1 text-sm">
+        <span className="muted">Source</span>
+        <input className="input" onChange={(event) => props.setSource(event.target.value)} placeholder="navigation ou tache" value={props.source} />
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">Statut</span>

@@ -29,6 +29,7 @@ export interface YahooUsageStatsQuery {
   method?: string;
   module?: string;
   ticker?: string;
+  source?: string;
   success?: boolean;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker";
 }
@@ -81,6 +82,10 @@ function buildWhere(query: YahooUsageStatsQuery) {
     const ticker = normalizeSymbol(query.ticker);
     clauses.push("(ticker = ? OR tickers_json LIKE ?)");
     params.push(ticker, `%"${ticker}"%`);
+  }
+  if (query.source) {
+    clauses.push("internal_source LIKE ?");
+    params.push(`%${query.source}%`);
   }
   if (query.success !== undefined) {
     clauses.push("success = ?");
@@ -215,6 +220,12 @@ export const yahooUsageRepository = {
        GROUP BY method ORDER BY calls DESC, method ASC`,
       params
     );
+    const bySource = countRows(
+      `SELECT COALESCE(internal_source, 'backend') AS key, COUNT(*) AS calls, SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS errors, AVG(duration_ms) AS avgDurationMs
+       FROM yahoo_usage_logs ${whereSql}
+       GROUP BY COALESCE(internal_source, 'backend') ORDER BY calls DESC, key ASC LIMIT 30`,
+      params
+    );
 
     const recentErrors = db
       .prepare(
@@ -249,6 +260,7 @@ export const yahooUsageRepository = {
       callsByHour: callsByHour.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
       callsByDay: callsByDay.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
       byMethod: byMethod.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
+      bySource: bySource.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
       topTickers: tickerCounts(whereSql, params),
       topModules: moduleCounts(whereSql, params),
       recentErrors: recentErrors.map((row) => ({

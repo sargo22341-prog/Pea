@@ -11,6 +11,7 @@ import { schedulerHealthRepository } from "./scheduler-health.repository.js";
 import { trackedMarketRepository, type TrackedMarketRow } from "./tracked-market.repository.js";
 import { weeklyRefreshTask } from "./weekly-refresh.task.js";
 import { CLOSE_BUFFER_MINUTES, expectedTimes, isWeekend, localTradingDate, minutesAfter } from "./market-task.utils.js";
+import { runWithYahooUsageSource } from "../yahoo/yahoo-usage-context.js";
 
 const schedulerName = "market-scheduler";
 const tickIntervalMs = 5 * 60 * 1000;
@@ -44,11 +45,11 @@ export class MarketSchedulerService {
     try {
       const groups = trackedMarketRepository.syncFromTrackedAssets();
       for (const group of groups.values()) {
-        await marketOpenTask.run(group, now);
-        await marketCloseTask.run(group, now);
+        await runWithYahooUsageSource(`tache scheduler: market-open:${group.marketKey}`, () => marketOpenTask.run(group, now));
+        await runWithYahooUsageSource(`tache scheduler: market-close:${group.marketKey}`, () => marketCloseTask.run(group, now));
       }
-      await liveMarketRefreshTask.run(groups.values(), now);
-      await weeklyRefreshTask.run(now);
+      await runWithYahooUsageSource("tache scheduler: live-market-refresh", () => liveMarketRefreshTask.run(groups.values(), now));
+      await runWithYahooUsageSource("tache scheduler: weekly-refresh", () => weeklyRefreshTask.run(now));
       marketLogRepository.cleanupOlderThan(90, now);
       schedulerHealthRepository.markSuccess(schedulerName, now);
     } catch (error) {
