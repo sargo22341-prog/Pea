@@ -10,6 +10,7 @@ import type {
   Quote,
   SearchResult
 } from "@pea/shared";
+import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
 
 export type SearchAsset = Pick<SearchResult, "symbol" | "name" | "exchange" | "quoteType" | "currency"> & {
   country?: string;
@@ -20,7 +21,7 @@ export type QuoteAsset = Pick<Quote, "symbol" | "name" | "exchange" | "currency"
   country?: string;
 };
 
-const EUROPEAN_SUFFIXES = [".PA", ".AS", ".BR", ".DE", ".MI", ".MC", ".LS", ".L"];
+const EEA_SUFFIXES = [".PA", ".AS", ".BR", ".DE", ".MI", ".MC", ".LS", ".VI", ".HE", ".ST", ".CO", ".OL", ".IR"];
 const EEA_COUNTRIES = new Set([
   "FR",
   "FRANCE",
@@ -53,7 +54,22 @@ const EEA_COUNTRIES = new Set([
 ]);
 
 const US_EXCHANGES = ["NYSE", "NASDAQ", "AMEX", "NMS", "NYQ", "ASE", "NGM", "NCM", "PCX"];
-const EUROPEAN_EXCHANGE_HINTS = ["PARIS", "EURONEXT", "AMSTERDAM", "BRUSSELS", "XETRA", "MILAN", "MADRID", "LISBON", "LONDON"];
+const EEA_EXCHANGE_HINTS = [
+  "PARIS",
+  "EURONEXT",
+  "AMSTERDAM",
+  "BRUSSELS",
+  "XETRA",
+  "MILAN",
+  "MADRID",
+  "LISBON",
+  "VIENNA",
+  "HELSINKI",
+  "STOCKHOLM",
+  "COPENHAGEN",
+  "OSLO",
+  "DUBLIN"
+];
 const ETF_NAME_HINTS = ["ETF", "UCITS", "MSCI", "S&P", "STOXX", "NASDAQ", "AMUNDI", "LYXOR", "ISHARES", "XTRACKERS", "VANGUARD"];
 const EXCLUDED_NAME_HINTS = ["WARRANT", "CERTIFICATE", "ETN", "ETC", "PREFERRED", "PREF"];
 const ADR_HINTS = [" ADR", "SPONSORED ADR", "ADS"];
@@ -62,6 +78,11 @@ export const PEA_STOCK_WHITELIST = new Set(["TTE.PA", "AI.PA", "MC.PA", "OR.PA",
 export const PEA_ETF_WHITELIST = new Set(["CW8.PA", "EWLD.PA", "PAEEM.PA", "PSP5.PA"]);
 export const PEA_BLACKLIST = new Set(["AAPL", "AMZN", "MSFT", "GOOGL", "META", "NVDA", "TTE"]);
 
+interface RawPeaAsset {
+  code?: string | null;
+  symbol?: string | null;
+}
+
 export function safeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -69,6 +90,12 @@ export function safeString(value: unknown): string {
 export function normalizeYahooSymbol(symbol: string): string {
   return safeString(symbol).toUpperCase().replace(/\s+/g, "");
 }
+
+const LOCAL_PEA_SYMBOLS = new Set(
+  Object.entries(peaAssets as unknown as Record<string, RawPeaAsset>).flatMap(([code, item]) =>
+    [code, item.code, item.symbol].map((value) => normalizeYahooSymbol(value ?? "")).filter(Boolean)
+  )
+);
 
 export function rankAssetForPea(asset: SearchAsset | QuoteAsset): PeaRankingResult {
   const eligibility = evaluatePeaEligibility(asset);
@@ -85,7 +112,7 @@ export function rankAssetForPea(asset: SearchAsset | QuoteAsset): PeaRankingResu
       };
     case "unknown":
       if (isUcitsEtf(asset)) return { score: 60, group: "ucits_etf_unknown", reasons: eligibility.reasons };
-      if (isEuropeanMarket(asset)) return { score: 70, group: "european_market", reasons: eligibility.reasons };
+      if (isEeaMarket(asset)) return { score: 70, group: "european_market", reasons: eligibility.reasons };
       return { score: isUsMarket(asset) ? 20 : 40, group: isUsMarket(asset) ? "us_market" : "unknown", reasons: eligibility.reasons };
   }
 }
@@ -121,6 +148,11 @@ export function evaluatePeaEligibility(asset: SearchAsset | QuoteAsset): PeaElig
     source: "yahoo-finance2-plus-local-rules" as const
   };
 
+  if (LOCAL_PEA_SYMBOLS.has(symbol)) {
+    reasons.push("Present dans le catalogue PEA local");
+    return { ...base, status: "eligible", confidence: "high" };
+  }
+
   if (PEA_STOCK_WHITELIST.has(symbol) || PEA_ETF_WHITELIST.has(symbol)) {
     reasons.push("Présent dans la whitelist PEA locale");
     return { ...base, status: "eligible", confidence: "high" };
@@ -142,15 +174,15 @@ export function evaluatePeaEligibility(asset: SearchAsset | QuoteAsset): PeaElig
   }
 
   if (kind === "etf") {
-    if (isUcitsEtf(asset) && isEuropeanMarket(asset)) {
+    if (isUcitsEtf(asset) && isEeaMarket(asset)) {
       reasons.push("ETF UCITS européen détecté");
       warnings.push("ETF UCITS détecté, mais éligibilité PEA à vérifier auprès du broker");
       return { ...base, status: "unknown", confidence: "medium" };
     }
 
-    if (isUsMarket(asset)) {
-      reasons.push("ETF ou fonds coté sur marché US");
-      return { ...base, status: "not_eligible", confidence: "medium" };
+    if (!isEeaMarket(asset)) {
+      reasons.push("ETF ou fonds cote hors marche EEE");
+      return { ...base, status: "not_eligible", confidence: isUsMarket(asset) ? "medium" : "high" };
     }
 
     reasons.push("ETF détecté sans validation PEA locale");
@@ -169,13 +201,18 @@ export function evaluatePeaEligibility(asset: SearchAsset | QuoteAsset): PeaElig
     return { ...base, status: "not_eligible", confidence: "high" };
   }
 
-  if (kind === "stock" && (isEeaCountry(asset.country) || isEuropeanMarket(asset))) {
-    reasons.push("Action cotée sur un marché européen compatible PEA probable");
+  if (kind === "stock" && (isEeaCountry(asset.country) || isEeaMarket(asset))) {
+    reasons.push("Action cotee sur un marche EEE compatible PEA probable");
     return { ...base, status: "likely_eligible", confidence: isEeaCountry(asset.country) ? "high" : "medium" };
   }
 
-  if (isEuropeanMarket(asset)) {
-    reasons.push("Marché européen détecté, données insuffisantes pour conclure");
+  if (kind === "stock") {
+    reasons.push("Action non detectee sur un marche EEE");
+    return { ...base, status: "not_eligible", confidence: "high" };
+  }
+
+  if (isEeaMarket(asset)) {
+    reasons.push("Marche EEE detecte, donnees insuffisantes pour conclure");
     return { ...base, status: "unknown", confidence: "medium" };
   }
 
@@ -195,18 +232,18 @@ function detectInstrumentKind(asset: SearchAsset | QuoteAsset): InstrumentKind {
   return "unknown";
 }
 
-function isEuropeanMarket(asset: SearchAsset | QuoteAsset) {
+function isEeaMarket(asset: SearchAsset | QuoteAsset) {
   const symbol = normalizeYahooSymbol(asset.symbol);
   const exchange = safeString(asset.exchange).toUpperCase();
-  return EUROPEAN_SUFFIXES.some((suffix) => symbol.endsWith(suffix)) || EUROPEAN_EXCHANGE_HINTS.some((hint) => exchange.includes(hint));
+  return EEA_SUFFIXES.some((suffix) => symbol.endsWith(suffix)) || EEA_EXCHANGE_HINTS.some((hint) => exchange.includes(hint));
 }
 
 function isUsMarket(asset: SearchAsset | QuoteAsset) {
   const symbol = normalizeYahooSymbol(asset.symbol);
   const exchange = safeString(asset.exchange).toUpperCase();
   const quoteType = safeString(asset.quoteType).toUpperCase();
-  const hasEuropeanSuffix = EUROPEAN_SUFFIXES.some((suffix) => symbol.endsWith(suffix));
-  return ((!symbol.includes(".") && !hasEuropeanSuffix && ["EQUITY", "ETF"].includes(quoteType ?? "")) || US_EXCHANGES.some((hint) => exchange.includes(hint)));
+  const hasEeaSuffix = EEA_SUFFIXES.some((suffix) => symbol.endsWith(suffix));
+  return ((!symbol.includes(".") && !hasEeaSuffix && ["EQUITY", "ETF"].includes(quoteType ?? "")) || US_EXCHANGES.some((hint) => exchange.includes(hint)));
 }
 
 function isEeaCountry(country?: string) {
@@ -229,7 +266,7 @@ function isExcludedInstrument(asset: SearchAsset | QuoteAsset) {
 
 function hasBlacklistedUnderlyingOnEuropeanVenue(asset: SearchAsset | QuoteAsset) {
   const symbol = normalizeYahooSymbol(asset.symbol);
-  const suffix = EUROPEAN_SUFFIXES.find((candidate) => symbol.endsWith(candidate));
+  const suffix = EEA_SUFFIXES.find((candidate) => symbol.endsWith(candidate));
   if (!suffix) return false;
   const baseSymbol = symbol.slice(0, -suffix.length).replace(/^\d+/, "");
   return PEA_BLACKLIST.has(baseSymbol);
