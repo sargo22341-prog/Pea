@@ -1,5 +1,5 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
-import { Activity, Clock, RefreshCcw } from "lucide-react";
+import { Activity, Clock, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { Collapsible, Toast, type SettingsToast } from "../settings/SettingsSection";
@@ -40,6 +40,21 @@ export function TrackedMarketsSection() {
     }
   }
 
+  async function deleteMarket(market: TrackedMarketDto) {
+    const confirmed = window.confirm(`Supprimer ${market.displayName} des marches suivis et nettoyer son historique scheduler ?`);
+    if (!confirmed) return;
+
+    setToast(null);
+    try {
+      const result = await api.deleteTrackedMarket(market.marketKey);
+      setData((current) => current ? { ...current, markets: current.markets.filter((item) => item.marketKey !== market.marketKey) } : current);
+      setToast({ tone: "success", text: `${market.displayName} supprime (${result.runs} runs, ${result.logs} logs nettoyes).` });
+    } catch (error) {
+      setToast({ tone: "error", text: error instanceof Error ? error.message : "Suppression impossible" });
+      await load();
+    }
+  }
+
   useEffect(() => {
     void load();
   }, []);
@@ -55,7 +70,7 @@ export function TrackedMarketsSection() {
         </button>
       </div>
       <SchedulerHealth data={data} />
-      <MarketsTable markets={data?.markets ?? []} loading={loading} />
+      <MarketsTable markets={data?.markets ?? []} loading={loading} onDelete={(market) => void deleteMarket(market)} />
     </Collapsible>
   );
 }
@@ -100,7 +115,7 @@ function HealthTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MarketsTable({ markets, loading }: { markets: TrackedMarketDto[]; loading: boolean }) {
+function MarketsTable({ markets, loading, onDelete }: { markets: TrackedMarketDto[]; loading: boolean; onDelete: (market: TrackedMarketDto) => void }) {
   if (loading) return <p className="muted">Chargement des marches suivis...</p>;
   if (!markets.length) return <p className="muted">Aucune bourse active pour le moment.</p>;
 
@@ -127,11 +142,12 @@ function MarketsTable({ markets, loading }: { markets: TrackedMarketDto[]; loadi
             <th className="p-3">Statut ferm.</th>
             <th className="p-3">Message ferm.</th>
             <th className="p-3">Tentatives ferm.</th>
+            <th className="p-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
           {markets.map((market) => (
-            <MarketRow key={market.marketKey} market={market} />
+            <MarketRow key={market.marketKey} market={market} onDelete={onDelete} />
           ))}
         </tbody>
       </table>
@@ -139,7 +155,9 @@ function MarketsTable({ markets, loading }: { markets: TrackedMarketDto[]; loadi
   );
 }
 
-function MarketRow({ market }: { market: TrackedMarketDto }) {
+function MarketRow({ market, onDelete }: { market: TrackedMarketDto; onDelete: (market: TrackedMarketDto) => void }) {
+  const canDelete = market.assetsCount === 0;
+
   return (
     <tr className="align-top">
       <td className="p-3 font-semibold">
@@ -165,6 +183,19 @@ function MarketRow({ market }: { market: TrackedMarketDto }) {
       <td className="p-3 text-slate-300">{statusLabel(market.closeStatus)}</td>
       <td className="max-w-60 p-3 text-slate-300">{market.closeMessage || "-"}</td>
       <td className="p-3 text-slate-300">{market.closeAttempts}</td>
+      <td className="p-3 text-right">
+        {canDelete ? (
+          <button
+            aria-label={`Supprimer ${market.displayName}`}
+            className="btn-ghost px-2 text-coral"
+            onClick={() => onDelete(market)}
+            title="Supprimer cette bourse des marches suivis"
+            type="button"
+          >
+            <Trash2 size={16} />
+          </button>
+        ) : null}
+      </td>
     </tr>
   );
 }

@@ -292,6 +292,7 @@ export const api = {
     return request<YahooUsageCallDto[]>(`/api/admin/yahoo-usage/calls${query ? `?${query}` : ""}`);
   },
   trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
+  deleteTrackedMarket: (marketKey: string) => request<{ marketKey: string; markets: number; runs: number; logs: number }>(`/api/admin/market-data/tracked-markets/${encodeURIComponent(marketKey)}`, { method: "DELETE" }),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
   // Compat alias for callers that still use the historical rebuild-all helper.

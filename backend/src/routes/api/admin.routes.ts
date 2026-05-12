@@ -10,7 +10,9 @@ import { dataConstructionQueue } from "../../services/market/data-construction-q
 import { marketDataCleaner } from "../../services/market/market-data-cleaner.js";
 import { invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { marketScheduler } from "../../services/tache_auto/market-scheduler.service.js";
+import { trackedMarketRepository } from "../../services/tache_auto/tracked-market.repository.js";
 import { yahooUsageService } from "../../services/yahoo/yahoo-usage.service.js";
+import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
 
 export const adminRouter = express.Router();
@@ -41,6 +43,16 @@ adminRouter.get("/admin/market-data/construction", asyncRoute(async (_req, res) 
 
 adminRouter.get("/admin/market-data/tracked-markets", asyncRoute(async (_req, res) => {
   res.json(marketScheduler.getSettings());
+}));
+
+adminRouter.delete("/admin/market-data/tracked-markets/:marketKey", asyncRoute(async (req, res) => {
+  const marketKey = z.string().trim().min(1).max(80).parse(req.params.marketKey);
+  const result = trackedMarketRepository.removeUnused(marketKey);
+  if (!result.removed) {
+    if (result.reason === "not_found") throw new HttpError(404, "Bourse introuvable.");
+    throw new HttpError(409, "Cette bourse contient encore des assets suivis.");
+  }
+  res.json({ marketKey, ...result.cleanup });
 }));
 
 adminRouter.get("/admin/yahoo-usage/stats", asyncRoute(async (req, res) => {

@@ -68,6 +68,19 @@ export class TrackedMarketRepository {
   listAll(): TrackedMarketRow[] {
     return db.prepare("SELECT * FROM tracked_markets ORDER BY display_name ASC").all() as TrackedMarketRow[];
   }
+
+  removeUnused(marketKey: string) {
+    this.syncFromTrackedAssets();
+    const market = db.prepare("SELECT * FROM tracked_markets WHERE market_key = ?").get(marketKey) as TrackedMarketRow | undefined;
+    if (!market) return { removed: false, reason: "not_found" as const };
+    if (market.assets_count > 0 || market.enabled) return { removed: false, reason: "has_assets" as const };
+
+    const runs = db.prepare("DELETE FROM market_daily_runs WHERE market_key = ?").run(marketKey);
+    const logs = db.prepare("DELETE FROM market_check_logs WHERE market_key = ?").run(marketKey);
+    const markets = db.prepare("DELETE FROM tracked_markets WHERE market_key = ?").run(marketKey);
+
+    return { removed: true, cleanup: { markets, runs, logs } };
+  }
 }
 
 export const trackedMarketRepository = new TrackedMarketRepository();
