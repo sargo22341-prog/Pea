@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, type MarketDataRebuildRange } from "../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../lib/dataConstruction";
-import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
+import { Collapsible, Toast, type SettingsToast } from "../settings/SettingsSection";
 
 type ActionKey = `rebuild:${MarketDataRebuildRange}` | "refresh-annex" | "cleanup-unlinked-assets";
 

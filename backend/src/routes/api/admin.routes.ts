@@ -10,6 +10,7 @@ import { dataConstructionQueue } from "../../services/market/data-construction-q
 import { marketDataCleaner } from "../../services/market/market-data-cleaner.js";
 import { invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { marketScheduler } from "../../services/tache_auto/market-scheduler.service.js";
+import { yahooUsageService } from "../../services/yahoo/yahoo-usage.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 
 export const adminRouter = express.Router();
@@ -18,12 +19,38 @@ const rebuildMarketDataSchema = z.object({
   range: z.enum(["1d", "1w", "1m", "all", "all_ranges"])
 });
 
+const yahooUsageQuerySchema = z.object({
+  id: z.coerce.number().int().positive().optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  method: z.string().trim().min(1).optional(),
+  module: z.string().trim().min(1).optional(),
+  ticker: z.string().trim().min(1).optional(),
+  source: z.string().trim().min(1).optional(),
+  success: z
+    .enum(["true", "false", "1", "0"])
+    .transform((value) => value === "true" || value === "1")
+    .optional(),
+  groupBy: z.enum(["hour", "day", "method", "module", "ticker"]).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional()
+});
+
 adminRouter.get("/admin/market-data/construction", asyncRoute(async (_req, res) => {
   res.json(dataConstructionQueue.latest());
 }));
 
 adminRouter.get("/admin/market-data/tracked-markets", asyncRoute(async (_req, res) => {
   res.json(marketScheduler.getSettings());
+}));
+
+adminRouter.get("/admin/yahoo-usage/stats", asyncRoute(async (req, res) => {
+  const query = yahooUsageQuerySchema.parse(req.query);
+  res.json(yahooUsageService.stats(query));
+}));
+
+adminRouter.get("/admin/yahoo-usage/calls", asyncRoute(async (req, res) => {
+  const query = yahooUsageQuerySchema.parse(req.query);
+  res.json(yahooUsageService.list(query));
 }));
 
 adminRouter.post("/admin/market-data/rebuild", asyncRoute(async (req, res) => {

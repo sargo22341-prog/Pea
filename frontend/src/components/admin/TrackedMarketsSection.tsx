@@ -2,7 +2,7 @@ import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { Activity, Clock, RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
+import { Collapsible, Toast, type SettingsToast } from "../settings/SettingsSection";
 
 const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

@@ -17,7 +17,6 @@ import { marketRouter } from "./api/market.routes.js";
 import { newsRouter } from "./api/news.routes.js";
 import { portfolioRouter } from "./api/portfolio.routes.js";
 import { searchRouter } from "./api/search.routes.js";
-import { settingsRouter } from "./api/settings.routes.js";
 import { topAndLosersRouter } from "./api/top-and-losers.routes.js";
 import { watchlistRouter } from "./api/watchlist.routes.js";
 import { calendarEventsRouter } from "./api/calendar-events.routes.js";
@@ -34,7 +33,6 @@ apiRouter.use((req, _res, next) => runWithUser(req.user!.id, next));
 apiRouter.use((req, _res, next) => runWithYahooUsageSource(`navigation utilisateur: ${req.method} ${req.path}`, next));
 
 apiRouter.use(searchRouter);
-apiRouter.use(settingsRouter);
 apiRouter.use(marketRouter);
 apiRouter.use(newsRouter);
 apiRouter.use(assetIconsRouter);

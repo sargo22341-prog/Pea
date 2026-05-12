@@ -13,6 +13,7 @@ const AnalysisPage = lazy(() => import("./pages/AnalysisPage").then((module) => 
 const NewsPage = lazy(() => import("./pages/NewsPage").then((module) => ({ default: module.NewsPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
+const AdminPage = lazy(() => import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 const marketEventNames = [
   "market-snapshot-updated",
@@ -102,7 +103,8 @@ export function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/dividends" element={<DividendsPage />} />
           <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-          <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} />} />
+          <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
+          <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
           <Route path="*" element={<Navigate replace to="/" />} />
         </Route>
       </Routes>

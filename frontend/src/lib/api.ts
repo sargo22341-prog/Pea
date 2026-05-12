@@ -285,11 +285,11 @@ export const api = {
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
   yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {
     const query = yahooUsageQuery(filters);
-    return request<YahooUsageStatsDto>(`/api/settings/yahoo-usage/stats${query ? `?${query}` : ""}`);
+    return request<YahooUsageStatsDto>(`/api/admin/yahoo-usage/stats${query ? `?${query}` : ""}`);
   },
   yahooUsageCalls: (filters: YahooUsageStatsFilters = {}) => {
     const query = yahooUsageQuery(filters);
-    return request<YahooUsageCallDto[]>(`/api/settings/yahoo-usage/calls${query ? `?${query}` : ""}`);
+    return request<YahooUsageCallDto[]>(`/api/admin/yahoo-usage/calls${query ? `?${query}` : ""}`);
   },
   trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
   rebuildMarketData: (range: MarketDataRebuildRange) =>

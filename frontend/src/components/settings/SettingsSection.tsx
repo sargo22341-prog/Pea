@@ -4,8 +4,8 @@ import { useState } from "react";
 
 export type SettingsToast = { tone: "success" | "error"; text: string };
 
-export function Collapsible({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function Collapsible({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <section className="card overflow-hidden">

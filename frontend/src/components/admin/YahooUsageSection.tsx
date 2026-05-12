@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { SafeResponsiveContainer } from "../charts/SafeResponsiveContainer";
 import { api, type YahooUsageStatsFilters } from "../../lib/api";
-import { Collapsible, Toast, type SettingsToast } from "./SettingsSection";
+import { Collapsible, Toast, type SettingsToast } from "../settings/SettingsSection";
 
 type PeriodKey = "today" | "24h" | "7d" | "30d" | "custom";
 type SuccessFilter = "all" | "success" | "error";
@@ -131,7 +131,7 @@ export function YahooUsageSection() {
   const chartData = groupBy === "hour" ? data?.callsByHour ?? [] : data?.callsByDay ?? [];
 
   return (
-    <Collapsible title="Utilisation Yahoo Finance">
+    <Collapsible defaultOpen title="Utilisation Yahoo Finance">
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <Filters

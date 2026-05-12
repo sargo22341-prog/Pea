@@ -1,24 +1,22 @@
 import { useEffect } from "react";
+import type { User } from "@pea/shared";
+import { Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AccountSettingsSection } from "../components/settings/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "../components/settings/AssetIconsSettingsSection";
 import { CsvImportSection } from "../components/settings/CsvImportSection";
-import { DataConstructionSection } from "../components/settings/DataConstructionSection";
 import { ImportAvisOperesPdf } from "../components/settings/ImportAvisOperesPdf";
-import { MarketDataActionsSection } from "../components/settings/MarketDataActionsSection";
 import { Collapsible } from "../components/settings/SettingsSection";
-import { TrackedMarketsSection } from "../components/settings/TrackedMarketsSection";
 import { UserPreferencesSection } from "../components/settings/UserPreferencesSection";
-import { YahooUsageSection } from "../components/settings/YahooUsageSection";
 import { api } from "../lib/api";
 
-export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
-
-    useEffect(() => {
-      document.title = "Parametres | PEA Portfolio";
-      return () => {
-        document.title = "PEA Portfolio";
-      };
-    }, []);
+export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Promise<void>; user: User }) {
+  useEffect(() => {
+    document.title = "Parametres | PEA Portfolio";
+    return () => {
+      document.title = "PEA Portfolio";
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -26,19 +24,27 @@ export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<
         <h1 className="text-2xl font-bold">Parametres</h1>
         <p className="muted">Compte, preferences, icones et import Boursorama.</p>
       </div>
-      <DataConstructionSection />
       <AccountSettingsSection />
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
-      <TrackedMarketsSection />
-      <YahooUsageSection />
-      <MarketDataActionsSection />
       <AssetIconsSettingsSection />
       <Collapsible title="Import Boursorama">
         <CsvImportSection />
         <ImportAvisOperesPdf />
       </Collapsible>
+      {user.role === "admin" && <AdminLinkSection />}
       <LogoutSection />
     </div>
+  );
+}
+
+function AdminLinkSection() {
+  return (
+    <section className="flex justify-end">
+      <Link className="btn-primary gap-2" to="/admin">
+        <Shield size={16} />
+        Administration serveur
+      </Link>
+    </section>
   );
 }
 
