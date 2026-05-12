@@ -218,7 +218,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("ex_dividend_date"), "colonne ex_dividend_date absente");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "les 20 migrations doivent etre enregistrees");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], "les 21 migrations doivent etre enregistrees");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

@@ -16,6 +16,7 @@ export class DividendsService {
     period1.setFullYear(period1.getFullYear() - 10);
     const chart = await yahooApi.chart(assetRow.symbol, { period1, period2: new Date(), interval: "1d", events: "div|split" });
     for (const dividend of chart.dividends) {
+      db.prepare("DELETE FROM asset_dividends WHERE asset_id = ? AND ex_date = ? AND amount <> ?").run(assetRow.id, dividend.date, dividend.amount);
       db.prepare(
         `INSERT INTO asset_dividends (asset_id, ex_date, amount, currency, source)
          VALUES (?, ?, ?, ?, 'yahoo-finance2')
@@ -42,9 +43,11 @@ export class DividendsService {
     const asset = assetRepository.findBySymbol(symbol);
     if (!asset) return [];
     const rows = db
-      .prepare("SELECT ex_date, amount, currency FROM asset_dividends WHERE asset_id = ? ORDER BY ex_date ASC")
+      .prepare("SELECT ex_date, amount, currency FROM asset_dividends WHERE asset_id = ? ORDER BY ex_date ASC, updated_at ASC, id ASC")
       .all(asset.id) as Array<{ ex_date: string; amount: number; currency?: string }>;
-    return rows.map((row) => ({
+    const latestByDate = new Map<string, { ex_date: string; amount: number; currency?: string }>();
+    for (const row of rows) latestByDate.set(row.ex_date, row);
+    return [...latestByDate.values()].map((row) => ({
       symbol: asset.symbol,
       date: row.ex_date,
       amount: Number(row.amount),

@@ -398,6 +398,28 @@ const migrations: Migration[] = [
     }
   },
   {
+    version: 21,
+    description: "Dedoublonnage des dividendes corriges par Yahoo a date identique",
+    appliquer: (db) => {
+      db.exec(`
+        DELETE FROM asset_dividends
+        WHERE id NOT IN (
+          SELECT id
+          FROM (
+            SELECT
+              id,
+              ROW_NUMBER() OVER (
+                PARTITION BY asset_id, ex_date
+                ORDER BY datetime(updated_at) DESC, id DESC
+              ) AS rang
+            FROM asset_dividends
+          )
+          WHERE rang = 1
+        )
+      `);
+    }
+  },
+  {
     version: 3,
     description: "Correction du type user_id dans user_assets (TEXT → INTEGER) et ajout de la clé étrangère vers users",
     appliquer: (db) => {
