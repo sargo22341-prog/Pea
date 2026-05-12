@@ -22,6 +22,7 @@ import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "./yahoo.errors.js";
 import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
+import { recordYahooUsage, type YahooUsageMetadata } from "./yahoo-usage.service.js";
 
 export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -33,8 +34,23 @@ const limiter = new Bottleneck({
   maxConcurrent: 1
 });
 
-export function scheduleYahooCall<T>(fn: () => Promise<T>) {
-  return limiter.schedule(fn);
+export function scheduleYahooCall<T>(key: string, fn: () => Promise<T>, metadata?: YahooUsageMetadata) {
+  return limiter.schedule(async () => {
+    const startedAt = performance.now();
+    try {
+      const result = await fn();
+      recordYahooUsage(key, { durationMs: roundMs(startedAt), success: true, metadata });
+      return result;
+    } catch (error) {
+      recordYahooUsage(key, {
+        durationMs: roundMs(startedAt),
+        success: false,
+        errorMessage: errorMessage(error),
+        metadata
+      });
+      throw error;
+    }
+  });
 }
 
 function sleep(ms: number) {
@@ -42,12 +58,12 @@ function sleep(ms: number) {
 }
 
 /** Execute un appel Yahoo avec le rate limiter et quelques retries sur erreurs temporaires. */
-export async function retryTemporary<T>(key: string, fn: () => Promise<T>, attempts = 3): Promise<T> {
+export async function retryTemporary<T>(key: string, fn: () => Promise<T>, attempts = 3, metadata?: YahooUsageMetadata): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      return await scheduleYahooCall(fn);
+      return await scheduleYahooCall(key, fn, metadata);
     } catch (error) {
       lastError = error;
       if (!isTemporaryYahooError(error) || attempt === attempts - 1) break;

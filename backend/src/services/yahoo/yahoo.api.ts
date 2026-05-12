@@ -9,7 +9,7 @@ import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableStrin
 import type { HistoryPoint, Quote } from "@pea/shared";
 
 function limited<T>(key: string, task: () => Promise<T>) {
-  return dedupeInFlight(key, () => scheduleYahooCall(task));
+  return dedupeInFlight(key, () => scheduleYahooCall(key, task));
 }
 
 export interface YahooAssetProfilePayload {

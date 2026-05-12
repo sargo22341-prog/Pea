@@ -8,6 +8,7 @@ import { MarketDataActionsSection } from "../components/settings/MarketDataActio
 import { Collapsible } from "../components/settings/SettingsSection";
 import { TrackedMarketsSection } from "../components/settings/TrackedMarketsSection";
 import { UserPreferencesSection } from "../components/settings/UserPreferencesSection";
+import { YahooUsageSection } from "../components/settings/YahooUsageSection";
 import { api } from "../lib/api";
 
 export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
@@ -29,6 +30,7 @@ export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<
       <AccountSettingsSection />
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
       <TrackedMarketsSection />
+      <YahooUsageSection />
       <MarketDataActionsSection />
       <AssetIconsSettingsSection />
       <Collapsible title="Import Boursorama">

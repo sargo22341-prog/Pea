@@ -10,7 +10,7 @@ import { db } from "../../db.js";
 import { currentUserId } from "../auth/user-context.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
-import { yahooClient } from "../yahoo/index.js";
+import { retryTemporary, yahooClient } from "../yahoo/index.js";
 
 export interface AssetIcon {
   symbol: string;
@@ -320,7 +320,7 @@ export class IconService {
   private async getWebsiteFromYahooAssetProfile(symbol: string): Promise<string | undefined> {
     const key = symbol.toUpperCase();
     const summary = (await dedupeInFlight(`icon:${key}`, () =>
-      yahooClient.quoteSummary(key, { modules: ["assetProfile"] } as any)
+      retryTemporary(`icon:${key}`, () => yahooClient.quoteSummary(key, { modules: ["assetProfile"] } as any))
     )) as any;
     return normalizeWebsite(summary?.assetProfile?.website);
   }

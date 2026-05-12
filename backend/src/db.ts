@@ -162,6 +162,24 @@ db.exec(`
     last_updated_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS yahoo_usage_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    method TEXT NOT NULL,
+    modules_json TEXT,
+    ticker TEXT,
+    tickers_json TEXT,
+    ticker_count INTEGER NOT NULL DEFAULT 0,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    success INTEGER NOT NULL DEFAULT 1,
+    error_message TEXT,
+    internal_source TEXT,
+    range TEXT,
+    interval TEXT,
+    cache_hit INTEGER NOT NULL DEFAULT 0,
+    request_key TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS asset_icons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL UNIQUE,
@@ -475,6 +493,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_user_block ON frontend_block_cache(user_id, block);
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_expires_at ON frontend_block_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_market_data_finalizations_asset_range_date ON market_data_finalizations(asset_id, range, trading_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_created_at ON yahoo_usage_logs(created_at);
+  CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_method_created_at ON yahoo_usage_logs(method, created_at);
+  CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_ticker_created_at ON yahoo_usage_logs(ticker, created_at);
 
   CREATE TABLE IF NOT EXISTS asset_calendar_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

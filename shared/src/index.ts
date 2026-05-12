@@ -287,6 +287,45 @@ export interface TrackedMarketsSettingsDto {
   health: SchedulerHealthDto;
 }
 
+export interface YahooUsageSummaryDto {
+  totalCalls: number;
+  callsToday: number;
+  calls24h: number;
+  calls7d: number;
+  errorCalls: number;
+  errorRate: number;
+  avgDurationMs: number;
+}
+
+export interface YahooUsageBucketDto {
+  key: string;
+  calls: number;
+  errors?: number;
+  avgDurationMs?: number;
+}
+
+export interface YahooUsageRecentErrorDto {
+  id: number;
+  createdAt: string;
+  method: string;
+  ticker?: string;
+  tickers: string[];
+  modules: string[];
+  errorMessage?: string;
+  internalSource?: string;
+  durationMs: number;
+}
+
+export interface YahooUsageStatsDto {
+  summary: YahooUsageSummaryDto;
+  callsByHour: YahooUsageBucketDto[];
+  callsByDay: YahooUsageBucketDto[];
+  byMethod: YahooUsageBucketDto[];
+  topTickers: YahooUsageBucketDto[];
+  topModules: YahooUsageBucketDto[];
+  recentErrors: YahooUsageRecentErrorDto[];
+}
+
 export interface AssetMarketDto {
   symbol: string;
   marketState: MarketState;

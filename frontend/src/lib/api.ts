@@ -38,10 +38,20 @@ import type {
   TopAndLosersResponse,
   TrackedMarketsSettingsDto,
   User,
-  WatchlistItem
+  WatchlistItem,
+  YahooUsageStatsDto
 } from "@pea/shared";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
+export interface YahooUsageStatsFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  method?: string;
+  module?: string;
+  ticker?: string;
+  success?: boolean;
+  groupBy?: "hour" | "day" | "method" | "module" | "ticker";
+}
 export type MarketEventPayload = {
   type:
     | "market-snapshot-updated"
@@ -251,6 +261,18 @@ export const api = {
   resetAssetIcon: (symbol: string) => request<void>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
   assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons"),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
+  yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+    if (filters.dateTo) params.set("dateTo", filters.dateTo);
+    if (filters.method) params.set("method", filters.method);
+    if (filters.module) params.set("module", filters.module);
+    if (filters.ticker) params.set("ticker", filters.ticker);
+    if (filters.success !== undefined) params.set("success", String(filters.success));
+    if (filters.groupBy) params.set("groupBy", filters.groupBy);
+    const query = params.toString();
+    return request<YahooUsageStatsDto>(`/api/settings/yahoo-usage/stats${query ? `?${query}` : ""}`);
+  },
   trackedMarketsSettings: () => request<TrackedMarketsSettingsDto>("/api/admin/market-data/tracked-markets"),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
