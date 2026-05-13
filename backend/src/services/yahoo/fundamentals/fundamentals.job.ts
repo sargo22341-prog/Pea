@@ -1,10 +1,11 @@
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo } from "@pea/shared";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
-import { safeYahooCall, yahooClient } from "../yahoo.client.js";
+import { safeYahooCall } from "../yahoo.client.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { logger } from "../../shared/logger.service.js";
 import { analystConsensusFromSummary, calendarEventsDataFromSummary, financialRowsFromTimeSeries, fundDetailsFromSummary, marketInfoFromSummary } from "./fundamentals.mapper.js";
 import { upsertCalendarEvents } from "../../../repositories/calendar-events/calendar-events.repository.js";
+import { yahooFundamentalsTimeSeries, yahooQuoteSummary, type YahooFinancialTimeSeriesRaw, type YahooSummaryRaw } from "../yahoo.raw.js";
 
 const fundamentalsModules = [
   "assetProfile",
@@ -24,28 +25,28 @@ function financialsPeriod1() {
   return date;
 }
 
-async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<any[]>> {
+async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<YahooFinancialTimeSeriesRaw>> {
   const key = symbol.toUpperCase();
-  return safeYahooCall<any[]>(
+  return safeYahooCall<YahooFinancialTimeSeriesRaw>(
     `fundamentals-timeseries:${key}:annual-financials`,
     () =>
-      (yahooClient as any).fundamentalsTimeSeries(key, {
+      yahooFundamentalsTimeSeries(key, {
         period1: financialsPeriod1(),
         period2: new Date(),
         module: "financials",
         type: "annual"
       }),
-    () => readCache<any[]>("cached_fundamentals", `${key}:annual-financials`, 7 * 24 * 60 * 60),
+    () => readCache<YahooFinancialTimeSeriesRaw>("cached_fundamentals", `${key}:annual-financials`, 7 * 24 * 60 * 60),
     (data) => writeCache("cached_fundamentals", `${key}:annual-financials`, data)
   );
 }
 
-async function fetchFundamentalsSummary(symbol: string): Promise<MarketDataResult<any>> {
+async function fetchFundamentalsSummary(symbol: string): Promise<MarketDataResult<YahooSummaryRaw>> {
   const key = symbol.toUpperCase();
-  const result = await safeYahooCall<any>(
+  const result = await safeYahooCall<YahooSummaryRaw>(
     `fundamentals:${key}`,
-    () => yahooClient.quoteSummary(key, { modules: fundamentalsModules } as any),
-    () => readCache<any>("cached_fundamentals", key, 7 * 24 * 60 * 60),
+    () => yahooQuoteSummary(key, fundamentalsModules),
+    () => readCache<YahooSummaryRaw>("cached_fundamentals", key, 7 * 24 * 60 * 60),
     (data) => {
       writeCache("cached_fundamentals", key, data);
       try { upsertCalendarEvents(key, data); } catch (err) {
@@ -62,7 +63,7 @@ async function fetchFundamentalsSummary(symbol: string): Promise<MarketDataResul
 }
 
 /** Recupere les fundamentals Yahoo sans les sous-modules financiers deprecies de quoteSummary. */
-export async function fetchFundamentals(symbol: string): Promise<MarketDataResult<any>> {
+export async function fetchFundamentals(symbol: string): Promise<MarketDataResult<YahooSummaryRaw & { annualFinancials?: ReturnType<typeof financialRowsFromTimeSeries> }>> {
   const key = symbol.toUpperCase();
   const result = await fetchFundamentalsSummary(key);
 

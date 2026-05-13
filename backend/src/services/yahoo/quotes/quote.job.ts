@@ -4,8 +4,9 @@ import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { safeString } from "../../assets/peaEligibility.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
-import { retryTemporary, safeYahooCall, yahooClient } from "../yahoo.client.js";
+import { retryTemporary, safeYahooCall } from "../yahoo.client.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "../yahoo.errors.js";
+import { yahooQuote, yahooQuoteBatch, yahooQuoteCombine, yahooSearch, type YahooQuoteRaw, type YahooSearchQuoteRaw, type YahooSearchRaw } from "../yahoo.raw.js";
 import { logMarketData, roundMs } from "../utils/logging.js";
 import { markStale, nowSeconds } from "../utils/stale.js";
 import { normalizeQuote } from "./quote.mapper.js";
@@ -27,24 +28,24 @@ export async function searchYahoo(query: string): Promise<MarketDataResult<Searc
 
   const yahooStartedAt = performance.now();
   try {
-    const result = (await dedupeInFlight(`search:${normalizedQuery}`, async () => {
+    const result = await dedupeInFlight(`search:${normalizedQuery}`, async (): Promise<YahooSearchRaw> => {
       logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery });
       const payload = await retryTemporary(`search:${normalizedQuery}`, () =>
-        yahooClient.search(normalizedQuery, { quotesCount: 10, newsCount: 0 })
+        yahooSearch(normalizedQuery, { quotesCount: 10, newsCount: 0 })
       );
       logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
       return payload;
-    })) as any;
+    });
 
-    const payload = (result.quotes ?? [])
-      .map((item: any) => ({
+    const payload: SearchResult[] = (result.quotes ?? [])
+      .map((item: YahooSearchQuoteRaw) => ({
         symbol: safeString(item?.symbol),
         name: safeString(item?.shortname) || safeString(item?.longname) || safeString(item?.name) || safeString(item?.symbol),
         exchange: safeString(item?.exchange) || safeString(item?.exchDisp),
         quoteType: safeString(item?.quoteType),
         currency: safeString(item?.currency)
       }))
-      .filter((item: any) => item.symbol);
+      .filter((item) => Boolean(item.symbol));
 
     searchCache.set(normalizedQuery, { payload, fetchedAt: nowSeconds() });
     return { data: payload, stale: false };
@@ -67,7 +68,7 @@ export async function fetchQuote(symbol: string): Promise<MarketDataResult<Quote
   const result = await safeYahooCall<Quote>(
     `quote:${key}`,
     async () => {
-      const item = (await yahooClient.quote(key)) as any;
+      const item = await yahooQuote(key);
       return normalizeQuote(item, key);
     },
     () => readCache<Quote>("cached_quotes", key, quoteCacheTtlSeconds),
@@ -110,9 +111,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
         symbol: symbolsToFetch.join(","),
         batchSymbols: symbolsToFetch.length
       });
-      const payload = await retryTemporary(`quoteBatch:${symbolsToFetch.join(",")}`, () =>
-        yahooClient.quote(symbolsToFetch, { return: "array" } as any)
-      );
+      const payload = await retryTemporary(`quoteBatch:${symbolsToFetch.join(",")}`, () => yahooQuoteBatch(symbolsToFetch));
       logMarketData("external-fetch-ok", {
         provider: "Yahoo Finance",
         method: "quoteBatch",
@@ -121,7 +120,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
         durationMs: roundMs(yahooStartedAt)
       });
       return payload;
-    })) as any[];
+    })) as YahooQuoteRaw[];
 
     const fetchedQuotes = new Map<string, Quote>();
     for (const row of fetchedRows) {
@@ -178,10 +177,10 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
   try {
     const rows = (await dedupeInFlight(`quoteCombine:${cacheKey}`, async () => {
       logMarketData("external-fetch-start", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey });
-      const payload = await Promise.all(keys.map((key) => retryTemporary(`quoteCombine:${key}`, () => yahooClient.quoteCombine(key))));
+      const payload = await Promise.all(keys.map((key) => retryTemporary(`quoteCombine:${key}`, () => yahooQuoteCombine(key))));
       logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
       return payload;
-    })) as any[];
+    })) as YahooQuoteRaw[];
     const payload: Quote[] = rows
       .filter((item) => item?.symbol)
       .map((item) => normalizeQuote(item, String(item.symbol)));

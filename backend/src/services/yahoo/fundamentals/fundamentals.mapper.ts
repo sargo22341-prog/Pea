@@ -1,5 +1,6 @@
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, FinancialYearItem } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
+import { rawArray, rawRecord, type YahooFinancialTimeSeriesRaw, type YahooRawRecord, type YahooSummaryRaw } from "../yahoo.raw.js";
 import { normalizeDividendYield } from "../yahoo.mapper.js";
 
 function rawNumber(value: unknown): number | undefined {
@@ -24,31 +25,38 @@ function rawDate(value: unknown): string | undefined {
   return undefined;
 }
 
-function timeSeriesRows(raw: any): any[] {
+function timeSeriesRows(raw: YahooFinancialTimeSeriesRaw | YahooRawRecord[] | unknown): YahooRawRecord[] {
   if (Array.isArray(raw)) return raw.flatMap((row) => timeSeriesRows(row));
-  if (Array.isArray(raw?.timeseries?.result)) return raw.timeseries.result.flatMap((row: any) => expandTimeSeriesResult(row));
-  if (Array.isArray(raw?.result)) return raw.result.flatMap((row: any) => expandTimeSeriesResult(row));
+  const record = rawRecord(raw);
+  const timeseries = rawRecord(record.timeseries);
+  if (Array.isArray(timeseries.result)) return rawArray<YahooRawRecord>(timeseries.result).flatMap((row) => expandTimeSeriesResult(row));
+  if (Array.isArray(record.result)) return rawArray<YahooRawRecord>(record.result).flatMap((row) => expandTimeSeriesResult(row));
   if (raw && typeof raw === "object") return expandTimeSeriesResult(raw);
   return [];
 }
 
-function expandTimeSeriesResult(row: any): any[] {
-  const metricKey = Object.keys(row ?? {}).find((key) => key.startsWith("annual") && Array.isArray(row[key]));
-  if (!metricKey || !Array.isArray(row?.timestamp)) return [row];
-  return row.timestamp.map((timestamp: unknown, index: number) => ({
+function expandTimeSeriesResult(row: unknown): YahooRawRecord[] {
+  const record = rawRecord(row);
+  const metricKey = Object.keys(record).find((key) => key.startsWith("annual") && Array.isArray(record[key]));
+  const timestamps = rawArray<unknown>(record.timestamp);
+  if (!metricKey || !timestamps.length) return [record];
+  const metricRows = rawArray<unknown>(record[metricKey]);
+  return timestamps.map((timestamp: unknown, index: number) => ({
     date: timestamp,
-    [metricKey]: row[metricKey]?.[index]
+    [metricKey]: metricRows[index]
   }));
 }
 
-function rowYear(row: any) {
+function rowYear(row: YahooRawRecord) {
   const date = row.asOfDate ?? row.endDate ?? row.period ?? row.date;
   const timestamp = typeof date === "number" && date < 10_000_000_000 ? date * 1000 : date;
-  const year = date ? new Date(timestamp).getFullYear() : Number(row.fiscalYear);
+  const year = typeof timestamp === "string" || typeof timestamp === "number" || timestamp instanceof Date
+    ? new Date(timestamp).getFullYear()
+    : Number(row.fiscalYear);
   return Number.isInteger(year) ? year : undefined;
 }
 
-export function financialRowsFromTimeSeries(raw: any): FinancialYearItem[] {
+export function financialRowsFromTimeSeries(raw: YahooFinancialTimeSeriesRaw | YahooRawRecord[] | unknown): FinancialYearItem[] {
   const byYear = new Map<number, { revenue?: number; netIncome?: number }>();
 
   for (const row of timeSeriesRows(raw)) {
@@ -70,12 +78,14 @@ export function financialRowsFromTimeSeries(raw: any): FinancialYearItem[] {
     .slice(-5);
 }
 
-export function calendarEventsDataFromSummary(summary: any): AssetCalendarEventsData | undefined {
-  const cal = summary?.calendarEvents;
-  if (!cal) return undefined;
-  const earnings = cal.earnings ?? {};
-  const earningsDateRaw = Array.isArray(earnings.earningsDate) ? earnings.earningsDate[0] : earnings.earningsDate;
-  const earningsCallDateRaw = Array.isArray(earnings.earningsCallDate) ? earnings.earningsCallDate[0] : earnings.earningsCallDate;
+export function calendarEventsDataFromSummary(summary: YahooSummaryRaw): AssetCalendarEventsData | undefined {
+  const cal = rawRecord(summary.calendarEvents);
+  if (!Object.keys(cal).length) return undefined;
+  const earnings = rawRecord(cal.earnings);
+  const earningsDate = rawArray<unknown>(earnings.earningsDate);
+  const earningsCallDate = rawArray<unknown>(earnings.earningsCallDate);
+  const earningsDateRaw = earningsDate.length ? earningsDate[0] : earnings.earningsDate;
+  const earningsCallDateRaw = earningsCallDate.length ? earningsCallDate[0] : earnings.earningsCallDate;
   return {
     earningsDate: rawDate(earningsDateRaw),
     earningsCallDate: rawDate(earningsCallDateRaw),
@@ -85,9 +95,9 @@ export function calendarEventsDataFromSummary(summary: any): AssetCalendarEvents
   };
 }
 
-export function analystConsensusFromSummary(summary: any): AssetAnalystConsensus | undefined {
-  const fin = summary?.financialData;
-  if (!fin) return undefined;
+export function analystConsensusFromSummary(summary: YahooSummaryRaw): AssetAnalystConsensus | undefined {
+  const fin = rawRecord(summary.financialData);
+  if (!Object.keys(fin).length) return undefined;
   const numberOfAnalystOpinions = rawNumber(fin.numberOfAnalystOpinions);
   if (!numberOfAnalystOpinions) return undefined;
   return {
@@ -102,13 +112,13 @@ export function analystConsensusFromSummary(summary: any): AssetAnalystConsensus
   };
 }
 
-export function fundDetailsFromSummary(summary: any): AssetFundDetails | undefined {
-  const fp = summary?.fundProfile;
-  if (!fp) return undefined;
-  const fees = fp.feesExpensesInvestment ?? {};
-  const rawSectors = summary?.topHoldings?.sectorWeightings;
+export function fundDetailsFromSummary(summary: YahooSummaryRaw): AssetFundDetails | undefined {
+  const fp = rawRecord(summary.fundProfile);
+  if (!Object.keys(fp).length) return undefined;
+  const fees = rawRecord(fp.feesExpensesInvestment);
+  const rawSectors = rawRecord(summary.topHoldings).sectorWeightings;
   const sectorWeightings: AssetFundDetails["sectorWeightings"] = Array.isArray(rawSectors)
-    ? rawSectors.flatMap((obj: any) =>
+    ? rawSectors.flatMap((obj) =>
         Object.entries(obj)
           .map(([key, v]) => ({ key, value: rawNumber(v) ?? 0 }))
           .filter(({ value }) => value > 0)
@@ -124,13 +134,13 @@ export function fundDetailsFromSummary(summary: any): AssetFundDetails | undefin
 }
 
 /** Convertit quoteSummary en AssetMarketInfo consomme par l'API. */
-export function marketInfoFromSummary(summary: any): AssetMarketInfo {
-  const price = summary?.price ?? {};
-  const detail = summary?.summaryDetail ?? {};
-  const calendarEvents = summary?.calendarEvents ?? {};
-  const fundProfile = summary?.fundProfile ?? {};
-  const fundPerformance = summary?.fundPerformance ?? {};
-  const range52 = detail.fiftyTwoWeekRange ?? {};
+export function marketInfoFromSummary(summary: YahooSummaryRaw): AssetMarketInfo {
+  const price = rawRecord(summary.price);
+  const detail = rawRecord(summary.summaryDetail);
+  const calendarEvents = rawRecord(summary.calendarEvents);
+  const fundProfile = rawRecord(summary.fundProfile);
+  const fundPerformance = rawRecord(summary.fundPerformance);
+  const range52 = rawRecord(detail.fiftyTwoWeekRange);
   return {
     marketState: rawString(price.marketState),
     regularMarketPrice: rawNumber(price.regularMarketPrice),

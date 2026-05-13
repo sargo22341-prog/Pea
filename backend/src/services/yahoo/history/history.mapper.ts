@@ -1,12 +1,13 @@
 import type { HistoryPoint } from "@pea/shared";
 import type { ChartDisplayInterval } from "../../../utils/range.js";
+import type { YahooChartPointRaw } from "../yahoo.raw.js";
 
 /** Transforme les lignes chart Yahoo en points chronologiques bornes par period2. */
-export function mapChartRows(rows: any[], period2?: Date | string | number): HistoryPoint[] {
+export function mapChartRows(rows: YahooChartPointRaw[], period2?: Date | string | number): HistoryPoint[] {
   const end = period2 ? new Date(period2).getTime() : Date.now();
   return rows
-    .filter((row: any) => row.date && Number.isFinite(Number(row.close)) && new Date(row.date).getTime() <= end)
-    .map((row: any) => ({
+    .filter((row): row is YahooChartPointRaw & { date: string | number | Date } => row.date != null && Number.isFinite(Number(row.close)) && new Date(row.date).getTime() <= end)
+    .map((row) => ({
       date: new Date(row.date).toISOString(),
       open: Number.isFinite(Number(row.open)) ? Number(row.open) : undefined,
       high: Number.isFinite(Number(row.high)) ? Number(row.high) : undefined,

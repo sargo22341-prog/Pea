@@ -3,8 +3,9 @@ import { buildHistoricalOptions } from "../../../utils/range.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
-import { safeYahooCall, yahooClient } from "../yahoo.client.js";
+import { safeYahooCall } from "../yahoo.client.js";
 import { markStaleList } from "../utils/stale.js";
+import { yahooChart } from "../yahoo.raw.js";
 
 export type QuoteReader = (symbol: string) => Promise<MarketDataResult<Quote>>;
 
@@ -18,17 +19,17 @@ export async function fetchDividends(symbol: string, quoteReader: QuoteReader): 
       const period1 = new Date();
       period1.setFullYear(period1.getFullYear() - 5);
       const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = buildHistoricalOptions("all", { period1 });
-      const chart = (await dedupeInFlight(`chart:${key}:dividends:${yahooOptions.interval}`, () =>
-        yahooClient.chart(key, { ...yahooOptions, events: "div", return: "array" } as any)
-      )) as any;
-      const rows = chart.events?.dividends ?? [];
+      const chart = await dedupeInFlight(`chart:${key}:dividends:${yahooOptions.interval}`, () =>
+        yahooChart(key, { ...yahooOptions, events: "div" })
+      );
+      const rows = Object.values(chart.events?.dividends ?? {});
 
       const quote = await quoteReader(key);
       const dividends: DividendEvent[] = rows
-        .filter((row: any) => row.date && row.amount)
-        .map((row: any) => ({
+        .filter((row) => row.date != null && row.amount)
+        .map((row) => ({
           symbol: key,
-          date: new Date(row.date).toISOString(),
+          date: new Date(row.date!).toISOString(),
           amount: Number(row.amount),
           currency: quote.data.currency,
           status: "real" as const

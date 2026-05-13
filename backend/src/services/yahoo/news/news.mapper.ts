@@ -1,7 +1,8 @@
 import type { NewsArticle } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
+import { rawArray, rawRecord, type YahooNewsRaw, type YahooSearchRaw } from "../yahoo.raw.js";
 
-function newsPublishedAt(item: any) {
+function newsPublishedAt(item: YahooNewsRaw) {
   const value = item?.providerPublishTime ?? item?.publishTime ?? item?.publishedAt ?? item?.pubDate;
   if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
   if (typeof value === "number" && Number.isFinite(value)) return new Date(value * 1000).toISOString();
@@ -12,22 +13,22 @@ function newsPublishedAt(item: any) {
   return undefined;
 }
 
-function newsImageUrl(item: any) {
+function newsImageUrl(item: YahooNewsRaw) {
   const direct = safeString(item?.thumbnail?.originalUrl) || safeString(item?.thumbnail?.url) || safeString(item?.imageUrl);
   if (direct) return direct;
 
-  const resolutions = Array.isArray(item?.thumbnail?.resolutions) ? item.thumbnail.resolutions : [];
-  const image = resolutions.find((resolution: any) => safeString(resolution?.url)) ?? resolutions[0];
+  const resolutions = rawArray<{ url?: string }>(item?.thumbnail?.resolutions);
+  const image = resolutions.find((resolution) => safeString(resolution?.url)) ?? resolutions[0];
   return safeString(image?.url) || undefined;
 }
 
-function normalizeRelatedTickers(item: any) {
+function normalizeRelatedTickers(item: YahooNewsRaw) {
   const tickers = Array.isArray(item?.relatedTickers) ? item.relatedTickers : [];
   const normalized = tickers.map((ticker: unknown) => safeString(ticker).toUpperCase()).filter((ticker: string) => Boolean(ticker));
   return [...new Set<string>(normalized)];
 }
 
-function normalizeNewsArticle(item: any): NewsArticle | null {
+function normalizeNewsArticle(item: YahooNewsRaw): NewsArticle | null {
   const title = safeString(item?.title);
   const url = safeString(item?.link) || safeString(item?.url);
   if (!title || !url) return null;
@@ -51,7 +52,7 @@ export function normalizeNewsArticles(news: unknown): NewsArticle[] {
 
   const seen = new Set<string>();
   return news.reduce<NewsArticle[]>((articles, item) => {
-    const article = normalizeNewsArticle(item);
+    const article = normalizeNewsArticle(rawRecord(item) as YahooNewsRaw);
     if (!article || seen.has(article.url)) return articles;
     seen.add(article.url);
     articles.push(article);
@@ -60,7 +61,7 @@ export function normalizeNewsArticles(news: unknown): NewsArticle[] {
 }
 
 /** Recupere le nom propose par Yahoo dans les quotes d'une recherche news. */
-export function searchQuoteName(result: any) {
+export function searchQuoteName(result: YahooSearchRaw) {
   const quote = Array.isArray(result?.quotes) ? result.quotes[0] : undefined;
   return safeString(quote?.shortname) || safeString(quote?.longname) || safeString(quote?.name) || safeString(quote?.symbol);
 }

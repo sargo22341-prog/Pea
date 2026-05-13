@@ -1,4 +1,5 @@
 import type { HistoryPoint, Quote } from "@pea/shared";
+import type { YahooChartPointRaw, YahooQuoteRaw } from "./yahoo.raw.js";
 
 export function nullableNumber(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -59,7 +60,7 @@ export interface YahooSnapshotPayload {
   regularMarketTime: string | null;
 }
 
-export function mapQuote(row: any, fallbackSymbol: string): Quote {
+export function mapQuote(row: YahooQuoteRaw, fallbackSymbol: string): Quote {
   const symbol = String(row?.symbol ?? fallbackSymbol).toUpperCase();
   const price = nullableNumber(row?.regularMarketPrice ?? row?.postMarketPrice ?? row?.preMarketPrice) ?? 0;
   return {
@@ -78,7 +79,7 @@ export function mapQuote(row: any, fallbackSymbol: string): Quote {
   };
 }
 
-export function mapSnapshotQuote(row: any, fallbackSymbol: string): YahooSnapshotPayload {
+export function mapSnapshotQuote(row: YahooQuoteRaw, fallbackSymbol: string): YahooSnapshotPayload {
   return {
     symbol: String(row?.symbol ?? fallbackSymbol).toUpperCase(),
     shortName: nullableString(row?.shortName),
@@ -116,9 +117,9 @@ export function mapSnapshotQuote(row: any, fallbackSymbol: string): YahooSnapsho
   };
 }
 
-export function mapChartRows(rows: any[]): HistoryPoint[] {
+export function mapChartRows(rows: YahooChartPointRaw[]): HistoryPoint[] {
   return rows
-    .filter((row) => row?.date && Number.isFinite(Number(row.close)))
+    .filter((row): row is YahooChartPointRaw & { date: string | number | Date } => row?.date != null && Number.isFinite(Number(row.close)))
     .map((row) => ({
       date: new Date(row.date).toISOString(),
       open: nullableNumber(row.open) ?? undefined,

@@ -3,8 +3,9 @@ import type { MarketDataResult } from "../../market/data/market-data-provider.js
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { readNewsCache, writeNewsCache } from "../cache/news.cache.js";
-import { retryTemporary, yahooClient } from "../yahoo.client.js";
+import { retryTemporary } from "../yahoo.client.js";
 import { errorMessage } from "../yahoo.errors.js";
+import { yahooSearch, type YahooSearchRaw } from "../yahoo.raw.js";
 import { dedupeNewsArticles, filterNewsByExactTicker, filterNewsByFallbackKeywords, globalNewsOptions, globalNewsQueries, newsOptions, normalizeNewsLanguages, sortNewsByDateDesc } from "./news.filters.js";
 import { companyNewsCacheKey, globalNewsCacheKey, newsCacheKey } from "./news.keys.js";
 import { normalizeNewsArticles, searchQuoteName } from "./news.mapper.js";
@@ -59,10 +60,10 @@ async function tickerNewsByLanguage(symbol: string, language: NewsLanguage): Pro
   const options = newsOptions(language);
 
   try {
-    const result = (await dedupeInFlight(`news:${key}:${language}`, async () => {
+    const result = await dedupeInFlight(`news:${key}:${language}`, async (): Promise<YahooSearchRaw> => {
       logger.debug("news", "yahoo-call", { symbol: key, language, query: key, options });
-      return retryTemporary(`news:${key}:${language}`, () => yahooClient.search(key, options as any));
-    })) as any;
+      return retryTemporary(`news:${key}:${language}`, () => yahooSearch(key, options));
+    });
 
     const primaryArticles = normalizeNewsArticles(result?.news);
     let payload = filterNewsByExactTicker(key, primaryArticles);
@@ -71,10 +72,10 @@ async function tickerNewsByLanguage(symbol: string, language: NewsLanguage): Pro
     if (!payload.length) {
       const companyName = searchQuoteName(result);
       if (companyName && companyName.toUpperCase() !== key) {
-        const fallbackResult = (await dedupeInFlight(`news:${key}:${language}:${companyName}`, async () => {
+        const fallbackResult = await dedupeInFlight(`news:${key}:${language}:${companyName}`, async (): Promise<YahooSearchRaw> => {
           logger.debug("news", "yahoo-call", { symbol: key, language, query: companyName, options });
-          return retryTemporary(`news:${key}:${language}:${companyName}`, () => yahooClient.search(companyName, options as any));
-        })) as any;
+          return retryTemporary(`news:${key}:${language}:${companyName}`, () => yahooSearch(companyName, options));
+        });
         const fallbackArticles = normalizeNewsArticles(fallbackResult?.news);
         payload = filterNewsByFallbackKeywords(key, companyName, fallbackArticles);
         logger.debug("news", "filtered", { symbol: key, beforeCount: fallbackArticles.length, afterCount: payload.length });
@@ -107,10 +108,10 @@ async function companyNewsByLanguage(symbol: string, companyName: string, langua
 
   const options = newsOptions(language);
   try {
-    const result = (await dedupeInFlight(`news:company:${key}:${language}:${query}`, async () => {
+    const result = await dedupeInFlight(`news:company:${key}:${language}:${query}`, async (): Promise<YahooSearchRaw> => {
       logger.debug("news", "company yahoo-call", { symbol: key, language, query, options });
-      return retryTemporary(`news:company:${key}:${language}:${query}`, () => yahooClient.search(query, options as any));
-    })) as any;
+      return retryTemporary(`news:company:${key}:${language}:${query}`, () => yahooSearch(query, options));
+    });
 
     const articles = normalizeNewsArticles(result?.news);
     const payload = filterNewsByFallbackKeywords(key, query, articles);
@@ -134,14 +135,14 @@ async function globalNewsByLanguage(language: NewsLanguage): Promise<MarketDataR
   const options = globalNewsOptions(language, 20);
 
   try {
-    const result = (await dedupeInFlight(`news:global:${language}`, async () => {
-      const results = [];
+    const result = await dedupeInFlight(`news:global:${language}`, async (): Promise<YahooSearchRaw[]> => {
+      const results: YahooSearchRaw[] = [];
       for (const query of globalNewsQueries(language)) {
         logger.debug("news", "global yahoo-call", { language, query, options });
-        results.push(await retryTemporary(`news:global:${language}:${query}`, () => yahooClient.search(query, options as any)));
+        results.push(await retryTemporary(`news:global:${language}:${query}`, () => yahooSearch(query, options)));
       }
       return results;
-    })) as any[];
+    });
     const payload = sortNewsByDateDesc(dedupeNewsArticles(result.flatMap((item) => normalizeNewsArticles(item?.news))));
     if (payload.length) writeNewsCache(cacheKey, payload);
     return { data: payload, stale: false };

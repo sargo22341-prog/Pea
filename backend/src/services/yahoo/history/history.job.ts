@@ -5,11 +5,12 @@ import { getLastTradingDay, shouldRefreshMarketData } from "../../market/calenda
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { readHistoryCache, readIntradayCache, readLatestIntradayCache, writeHistoryCache, writeIntradayCache } from "../cache/history.cache.js";
-import { safeYahooCall, yahooClient } from "../yahoo.client.js";
+import { safeYahooCall } from "../yahoo.client.js";
 import { logMarketData } from "../utils/logging.js";
 import { markStaleList } from "../utils/stale.js";
 import { aggregateHistoryPoints, mapChartRows } from "./history.mapper.js";
 import { sanitizeHistoryPoints } from "./history.sanitizer.js";
+import { yahooChart } from "../yahoo.raw.js";
 
 export type QuoteReader = (symbol: string) => Promise<MarketDataResult<Quote>>;
 
@@ -60,9 +61,9 @@ export async function fetchHistory(symbol: string, range: RangeKey, quoteReader:
     `history:${key}:${range}`,
     async () => {
       const { tradingDay: _tradingDay, marketHours: _marketHours, displayInterval: _displayInterval, ...yahooOptions } = historicalOptions;
-      const chart = (await dedupeInFlight(`chart:${key}:${range}:${historicalOptions.interval}`, () =>
-        yahooClient.chart(key, { ...yahooOptions, return: "array" } as any)
-      )) as any;
+      const chart = await dedupeInFlight(`chart:${key}:${range}:${historicalOptions.interval}`, () =>
+        yahooChart(key, yahooOptions)
+      );
       const rows = chart.quotes ?? [];
       const mapped = sanitizeHistoryPoints(key, range, mapChartRows(rows, historicalOptions.period2));
       const aggregated = range === "1d" ? mapped : aggregateHistoryPoints(mapped, historicalOptions.displayInterval);

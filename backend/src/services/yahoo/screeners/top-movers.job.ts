@@ -3,6 +3,7 @@ import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { retryTemporary, yahooClient } from "../yahoo.client.js";
 import { errorMessage } from "../yahoo.errors.js";
+import { yahooQuoteBatch, yahooScreener } from "../yahoo.raw.js";
 
 type ScreenerListId = Exclude<MarketListId, "trending_fr">;
 
@@ -61,9 +62,9 @@ function mapScreenerQuotes(rawQuotes: unknown): TopMover[] {
 async function fetchScreener(scrId: ScreenerListId): Promise<TopMover[]> {
   try {
     const result = await retryTemporary(`screener:${scrId}`, () =>
-      yahooClient.screener({ scrIds: scrId, count: LIST_COUNT } as any, undefined, { validateOptions: false, validateResult: false } as any)
+      yahooScreener(scrId, LIST_COUNT)
     );
-    return mapScreenerQuotes((result as { quotes?: unknown })?.quotes);
+    return mapScreenerQuotes(result.quotes);
   } catch (error) {
     logger.warn("market-data", "Yahoo screener fallback used", { screener: scrId, error: errorMessage(error) });
     return [];
@@ -84,9 +85,7 @@ async function fetchTrendingFr(): Promise<TopMover[]> {
 
     if (!symbols.length) return [];
 
-    const quotes = await retryTemporary(`quote:trendingSymbols:FR:${symbols.join(",")}`, () =>
-      yahooClient.quote(symbols, { return: "array" } as any)
-    );
+    const quotes = await retryTemporary(`quote:trendingSymbols:FR:${symbols.join(",")}`, () => yahooQuoteBatch(symbols));
     return mapScreenerQuotes(quotes);
   } catch (error) {
     logger.warn("market-data", "Yahoo trending symbols fallback used", { region: "FR", error: errorMessage(error) });
