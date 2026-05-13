@@ -7,6 +7,7 @@ import { marketSnapshotService } from "../market/snapshots/market-snapshot.servi
 import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { marketEventsService } from "../market/events/market-events.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
+import { invalidateFrontendBlockCache } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 
 function mapWatchlistRow(row: any): WatchlistItem {
@@ -72,7 +73,7 @@ export class WatchlistService {
   }
 
   private invalidateWatchlistCache(userId: string | number) {
-    frontendBlockCache.invalidate({ userId, block: "watchlist" });
+    invalidateFrontendBlockCache({ userId, block: "watchlist" });
   }
 
   private async enrich(item: WatchlistItem, range: RangeKey): Promise<WatchlistItem> {

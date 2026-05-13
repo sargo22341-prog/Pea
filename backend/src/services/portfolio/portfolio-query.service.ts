@@ -1,6 +1,5 @@
 import type { PortfolioSummary, Position, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UserAssetPositionDto } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { currentUserId, normalizeUserId } from "../auth/user-context.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
@@ -77,15 +76,9 @@ export class PortfolioQueryService {
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
     const totalDividendsReceived = computeTotalDividendsReceived(positions, txCache);
-    const totalFeesRow = db
-      .prepare(
-        `SELECT COALESCE(SUM(t.total_fees), 0) AS total_fees
-         FROM transactions t
-         JOIN positions p ON p.id = t.position_id
-         WHERE p.user_id = ?`
-      )
-      .get(currentUserId()) as { total_fees?: number } | undefined;
-    const totalFees = Number(totalFeesRow?.total_fees ?? 0);
+    const totalFees = portfolioRepository.listPositions(currentUserId())
+      .flatMap((position) => portfolioRepository.listTransactionSequence(position.id))
+      .reduce((sum, transaction) => sum + Number(transaction.total_fees ?? 0), 0);
     const totalPerformance = totalValue - totalCost;
 
     const payload = {
@@ -107,9 +100,7 @@ export class PortfolioQueryService {
   userAssetPosition(userId: string | number, symbol: string): UserAssetPositionDto | undefined {
     const cacheUserId = normalizedUserId(userId);
     const key = symbol.toUpperCase();
-    const cached = db.prepare("SELECT * FROM user_assets WHERE user_id = ? AND symbol = ?").get(cacheUserId, key) as
-      | { user_id: string; symbol: string; quantity: number; average_price: number; transaction_count: number; total_fees: number; invested_amount: number }
-      | undefined;
+    const cached = portfolioRepository.findUserAssetPosition(cacheUserId, key);
     if (cached) {
       return {
         userId: cached.user_id,
@@ -178,11 +169,16 @@ export class PortfolioQueryService {
       totalFees,
       investedAmount
     };
-    db.prepare(
-      `INSERT INTO user_assets (user_id, symbol, quantity, average_price, transaction_count, total_fees, invested_amount, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, symbol) DO UPDATE SET quantity = excluded.quantity, average_price = excluded.average_price, transaction_count = excluded.transaction_count, total_fees = excluded.total_fees, invested_amount = excluded.invested_amount, updated_at = excluded.updated_at`
-    ).run(payload.userId, payload.symbol, payload.quantity, payload.averagePrice, payload.transactionCount, payload.totalFees, payload.investedAmount, nowMs());
+    portfolioRepository.upsertUserAssetPosition({
+      user_id: payload.userId,
+      symbol: payload.symbol,
+      quantity: payload.quantity,
+      average_price: payload.averagePrice,
+      transaction_count: payload.transactionCount,
+      total_fees: payload.totalFees,
+      invested_amount: payload.investedAmount,
+      updatedAt: nowMs()
+    });
     return payload;
   }
 

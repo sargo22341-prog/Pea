@@ -13,7 +13,7 @@ import type {
   UpdatePositionInput,
   UserAssetPositionDto
 } from "@pea/shared";
-import { db } from "../../db.js";
+import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { portfolioChartService } from "./portfolio-chart.service.js";
 import { portfolioCommandService } from "./portfolio-command.service.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
@@ -39,17 +39,32 @@ export class PortfolioService {
     return portfolioCommandService.ensurePosition(symbol, name, currency);
   }
 
+  importAvisTransaction(input: {
+    symbol: string;
+    name: string;
+    currency: string;
+    type: "buy" | "sell";
+    quantity: number;
+    price: number;
+    tradedAt: string;
+    sourceFileName?: string | null;
+    assetName?: string | null;
+    isin?: string | null;
+    ticker?: string | null;
+    totalFees?: number | null;
+    rawTextSnippet?: string | null;
+  }) {
+    return portfolioCommandService.importAvisTransaction(input);
+  }
+
   hasDatedTransactions(positionId: number): boolean {
-    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL").get(positionId) as { count?: number } | undefined;
-    return Number(row?.count ?? 0) > 0;
+    return portfolioRepository.hasDatedTransactions(positionId);
   }
 
   getQuantityHeldAtDate(assetId: number | string, date: string): number {
     const time = new Date(date).getTime();
     if (!Number.isFinite(time)) return 0;
-    const rows = db
-      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC")
-      .all(assetId) as Array<{ type: string; quantity: number; traded_at: string }>;
+    const rows = portfolioRepository.listQuantityEvents(Number(assetId));
     return rows.reduce((quantity, row) => {
       if (new Date(row.traded_at).getTime() > time) return quantity;
       if (row.type === "buy") return quantity + Number(row.quantity);
@@ -92,6 +107,10 @@ export class PortfolioService {
 
   deletePosition(id: number): boolean {
     return portfolioCommandService.deletePosition(id);
+  }
+
+  replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }) {
+    return portfolioCommandService.replaceImportedPositionSnapshot(id, input);
   }
 
   updatePosition(id: number, input: UpdatePositionInput): Promise<PositionWithMarket> {

@@ -8,7 +8,7 @@ import type {
   PositionWithMarket
 } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { currentUserId } from "../auth/user-context.js";
 import { financialsService } from "../market/financials/financials.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
@@ -161,13 +161,9 @@ function aggregateFinancials(items: Array<{ weight: number; fundamentals?: Funda
 }
 
 function persistedFundamentals(symbol: string): Fundamentals | undefined {
-  const asset = db.prepare("SELECT id, quote_type FROM assets WHERE symbol = ?").get(symbol.toUpperCase()) as
-    | { id: number; quote_type?: string | null }
-    | undefined;
+  const asset = assetRepository.findBySymbol(symbol);
   if (!asset) return undefined;
-  const profile = db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(asset.id) as
-    | { country?: string | null; sector?: string | null }
-    | undefined;
+  const profile = assetRepository.profileByAssetId(asset.id);
   return {
     quoteType: { quoteType: asset.quote_type ?? undefined },
     assetProfile: {

@@ -1,5 +1,5 @@
 import type { PositionRangePerformance, RangeKey } from "@pea/shared";
-import { db } from "../../db.js";
+import { portfolioPerformanceCacheRepository } from "../../repositories/portfolio/portfolio-performance-cache.repository.js";
 import { chartConfigService, normalizeStoredRange } from "../market/charts/chart-config.service.js";
 import { marketEventsService } from "../market/events/market-events.service.js";
 import { nowMs } from "../shared/cache.service.js";
@@ -24,10 +24,6 @@ type ComputePerformance = () => Promise<PositionRangePerformance[]>;
 
 function cacheKey(userId: string | number, range: RangeKey) {
   return `${userId}:${range}`;
-}
-
-function placeholders(values: unknown[]) {
-  return values.map(() => "?").join(",");
 }
 
 export class PortfolioPerformanceCacheService {
@@ -55,19 +51,7 @@ export class PortfolioPerformanceCacheService {
   }
 
   invalidate(input: { userId?: string | number; range?: RangeKey }) {
-    if (input.userId && input.range) {
-      db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ? AND range = ?").run(String(input.userId), input.range);
-      return;
-    }
-    if (input.userId) {
-      db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(String(input.userId));
-      return;
-    }
-    if (input.range) {
-      db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE range = ?").run(input.range);
-      return;
-    }
-    db.prepare("DELETE FROM portfolio_positions_performance_cache").run();
+    portfolioPerformanceCacheRepository.invalidate(input);
   }
 
   private refreshInBackground(input: { userId: string; range: RangeKey; versions: CacheVersions; compute: ComputePerformance }) {
@@ -86,19 +70,16 @@ export class PortfolioPerformanceCacheService {
       const cachedAt = nowMs();
       const versions = this.versions(input.userId, input.range);
       const expiresAt = cachedAt + (cacheTtlMs[input.range] ?? 4 * 60 * 60 * 1000);
-      db.prepare(
-        `INSERT INTO portfolio_positions_performance_cache (
-          cache_key, user_id, range, portfolio_version, market_data_version, payload, cached_at, expires_at, updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(cache_key) DO UPDATE SET
-          portfolio_version = excluded.portfolio_version,
-          market_data_version = excluded.market_data_version,
-          payload = excluded.payload,
-          cached_at = excluded.cached_at,
-          expires_at = excluded.expires_at,
-          updated_at = excluded.updated_at`
-      ).run(key, input.userId, input.range, versions.portfolioVersion, versions.marketDataVersion, JSON.stringify(payload), cachedAt, expiresAt, new Date(cachedAt).toISOString());
+      portfolioPerformanceCacheRepository.upsert({
+        cacheKey: key,
+        userId: input.userId,
+        range: input.range,
+        portfolioVersion: versions.portfolioVersion,
+        marketDataVersion: versions.marketDataVersion,
+        payload,
+        cachedAt,
+        expiresAt
+      });
       if (input.emitEvents) {
         marketEventsService.emitToUser(input.userId, "portfolio-performance-updated", { range: input.range, updatedAt: new Date().toISOString() });
       }
@@ -112,34 +93,16 @@ export class PortfolioPerformanceCacheService {
   }
 
   private read(key: string) {
-    const row = db.prepare(
-      `SELECT payload, portfolio_version, market_data_version, cached_at, expires_at
-       FROM portfolio_positions_performance_cache
-       WHERE cache_key = ?`
-    ).get(key) as
-      | { payload: string; portfolio_version: string; market_data_version: string; cached_at: number; expires_at: number }
-      | undefined;
-    if (!row) return undefined;
-    return {
-      payload: JSON.parse(row.payload) as PositionRangePerformance[],
-      portfolioVersion: row.portfolio_version,
-      marketDataVersion: row.market_data_version,
-      cachedAt: Number(row.cached_at),
-      expiresAt: Number(row.expires_at)
-    };
+    return portfolioPerformanceCacheRepository.read(key);
   }
 
   private versions(userId: string, range: RangeKey): CacheVersions {
-    const positionRows = db.prepare("SELECT id, symbol, updated_at FROM positions WHERE user_id = ? ORDER BY id").all(userId) as Array<{ id: number; symbol: string; updated_at: string }>;
+    const positionRows = portfolioPerformanceCacheRepository.listPortfolioVersionPositions(userId);
     if (!positionRows.length) return { portfolioVersion: "empty", marketDataVersion: "empty" };
 
     const positionIds = positionRows.map((row) => row.id);
     const symbols = positionRows.map((row) => row.symbol.toUpperCase());
-    const txStats = db.prepare(
-      `SELECT COUNT(*) AS count, COALESCE(MAX(id), 0) AS max_id, COALESCE(MAX(traded_at), '') AS max_traded_at
-       FROM transactions
-       WHERE position_id IN (${placeholders(positionIds)})`
-    ).get(...positionIds) as { count: number; max_id: number; max_traded_at: string };
+    const txStats = portfolioPerformanceCacheRepository.transactionVersionStats(positionIds);
     const portfolioVersion = JSON.stringify({
       positions: positionRows.map((row) => `${row.id}:${row.symbol}:${row.updated_at}`),
       txCount: Number(txStats.count ?? 0),
@@ -147,23 +110,15 @@ export class PortfolioPerformanceCacheService {
       txMaxTradedAt: String(txStats.max_traded_at ?? "")
     });
 
-    const assetRows = db.prepare(`SELECT id, symbol FROM assets WHERE symbol IN (${placeholders(symbols)})`).all(...symbols) as Array<{ id: number; symbol: string }>;
+    const assetRows = portfolioPerformanceCacheRepository.assetRows(symbols);
     const assetIds = assetRows.map((row) => row.id);
     if (!assetIds.length) return { portfolioVersion, marketDataVersion: "no-assets" };
 
-    const snapshotStats = db.prepare(
-      `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COALESCE(MAX(last_checked_at), '') AS last_checked_at
-       FROM asset_market_snapshots
-       WHERE asset_id IN (${placeholders(assetIds)})`
-    ).get(...assetIds) as { updated_at: string; last_checked_at: string };
+    const snapshotStats = portfolioPerformanceCacheRepository.snapshotStats(assetIds);
     const storedRange = normalizeStoredRange(range);
     const table = `chart_candles_${storedRange}`;
     const interval = chartConfigService.getIntervalForRange(storedRange);
-    const candleStats = db.prepare(
-      `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COUNT(*) AS count
-       FROM ${table}
-       WHERE asset_id IN (${placeholders(assetIds)}) AND interval = ?`
-    ).get(...assetIds, interval) as { updated_at: string; count: number };
+    const candleStats = portfolioPerformanceCacheRepository.candleStats({ table, assetIds, interval });
 
     return {
       portfolioVersion,

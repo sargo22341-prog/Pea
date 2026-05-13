@@ -12,6 +12,11 @@ export interface AssetRow {
   type_disp?: string;
 }
 
+export interface AssetProfileRow {
+  country?: string | null;
+  sector?: string | null;
+}
+
 function mapAsset(row: any): AssetRow {
   return {
     id: Number(row.id),
@@ -33,6 +38,10 @@ export class AssetRepository {
   findById(assetId: number): AssetRow | undefined {
     const row = db.prepare("SELECT * FROM assets WHERE id = ?").get(assetId);
     return row ? mapAsset(row) : undefined;
+  }
+
+  profileByAssetId(assetId: number): AssetProfileRow | undefined {
+    return db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(assetId) as AssetProfileRow | undefined;
   }
 
   listTrackedAssets(): AssetRow[] {

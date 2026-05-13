@@ -87,7 +87,7 @@ export class MarketSchedulerService {
   }
 
   private toDto(market: TrackedMarketRow, run: MarketDailyRunRow | undefined, now: Date): TrackedMarketDto {
-    const currentRun = run ?? this.ensureVisibleRun(market, now);
+    const currentRun = this.visibleRun(market, run, now);
     return {
       marketKey: market.market_key,
       displayName: market.display_name,
@@ -112,7 +112,8 @@ export class MarketSchedulerService {
     };
   }
 
-  private ensureVisibleRun(market: TrackedMarketRow, now: Date) {
+  private visibleRun(market: TrackedMarketRow, run: MarketDailyRunRow | undefined, now: Date): MarketDailyRunRow {
+    if (run) return run;
     const local = localTradingDate(now, market.timezone);
     const weekend = isWeekend(local.weekday);
     const sessions = JSON.parse(market.sessions_json);
@@ -123,24 +124,43 @@ export class MarketSchedulerService {
       dayOverrides: overrides
     };
     const times = expectedTimes(syntheticCalendar, local.isoDate);
-    return marketRunRepository.ensure({
-      marketKey: market.market_key,
-      tradingDate: local.isoDate,
+    const skippedNoAssets = market.assets_count === 0;
+    const openStatus = weekend ? "skipped_weekend" : skippedNoAssets ? "skipped_no_assets" : "pending";
+    const closeStatus = weekend ? "skipped_weekend" : skippedNoAssets ? "skipped_no_assets" : "pending";
+    return {
+      id: 0,
+      market_key: market.market_key,
+      trading_date: local.isoDate,
       timezone: market.timezone,
-      assetsCount: market.assets_count,
-      openExpectedAt: times.openExpectedAt,
-      closeExpectedAt: times.closeExpectedAt,
-      skippedWeekend: weekend,
-      skippedNoAssets: market.assets_count === 0
-    });
+      open_expected_at: times.openExpectedAt?.toISOString() ?? null,
+      open_status: openStatus,
+      open_confirmed_at: null,
+      open_attempts: 0,
+      open_last_error: null,
+      open_last_checked_at: null,
+      next_open_check_at: null,
+      open_status_message: null,
+      open_job_id: null,
+      close_expected_at: times.closeExpectedAt?.toISOString() ?? null,
+      close_status: closeStatus,
+      close_confirmed_at: null,
+      close_attempts: 0,
+      close_last_error: null,
+      close_last_checked_at: null,
+      next_close_check_at: null,
+      close_status_message: null,
+      close_job_id: null,
+      assets_count: market.assets_count,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString()
+    };
   }
 
   private computeNextTask(markets: TrackedMarketRow[], runs: Map<string, MarketDailyRunRow>, now: Date): TrackedMarketsSettingsDto["nextTask"] {
     const candidates: NonNullable<TrackedMarketsSettingsDto["nextTask"]>[] = [];
     for (const market of markets) {
       if (!market.enabled || market.assets_count <= 0) continue;
-      const run = runs.get(market.market_key) ?? this.ensureVisibleRun(market, now);
-      if (!run) continue;
+      const run = this.visibleRun(market, runs.get(market.market_key), now);
       if (run.next_open_check_at) {
         candidates.push({
           type: "open",

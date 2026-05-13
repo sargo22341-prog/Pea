@@ -32,6 +32,31 @@ export interface TransactionRow {
   raw_text_snippet?: string | null;
 }
 
+export interface PortfolioTransactionInsert {
+  positionId: number;
+  type: "buy" | "sell";
+  quantity: number;
+  price: number;
+  currency: string;
+  tradedAt: string;
+  sourceFileName?: string | null;
+  assetName?: string | null;
+  isin?: string | null;
+  ticker?: string | null;
+  totalFees?: number | null;
+  rawTextSnippet?: string | null;
+}
+
+export interface UserAssetPositionRow {
+  user_id: string;
+  symbol: string;
+  quantity: number;
+  average_price: number;
+  transaction_count: number;
+  total_fees: number;
+  invested_amount: number;
+}
+
 export function mapPosition(row: PositionRow): Position {
   return {
     id: Number(row.id),
@@ -76,6 +101,13 @@ export class PortfolioRepository {
     ).run(normalizeUserId(userId), input.symbol, input.name, input.quantity, input.averageBuyPrice, input.currency);
   }
 
+  insertEmptyPosition(input: { symbol: string; name: string; currency: string }, userId?: number | string) {
+    db.prepare(
+      `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
+       VALUES (?, ?, ?, 0, 0, ?)`
+    ).run(normalizeUserId(userId), input.symbol.toUpperCase(), input.name, input.currency);
+  }
+
   updatePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name?: string; currency: string; notes?: string | null }) {
     db.prepare(
       `UPDATE positions
@@ -90,6 +122,14 @@ export class PortfolioRepository {
        SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
     ).run(input.quantity, input.averageBuyPrice, input.name, input.currency, positionId);
+  }
+
+  replaceImportedPositionSnapshot(positionId: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }) {
+    db.prepare(
+      `UPDATE positions
+       SET name = ?, quantity = ?, average_buy_price = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(input.name, input.quantity, input.averageBuyPrice, input.currency, positionId);
   }
 
   deletePosition(positionId: number, userId?: number | string) {
@@ -113,6 +153,28 @@ export class PortfolioRepository {
     ).run(positionId, input.type, input.quantity, input.price, input.totalFees ?? 0, input.currency, input.tradedAt);
   }
 
+  insertImportedAvisTransaction(input: PortfolioTransactionInsert) {
+    db.prepare(
+      `INSERT INTO transactions (
+        position_id, type, quantity, price, currency, traded_at, source, source_file_name,
+        asset_name, isin, ticker, total_fees, raw_text_snippet
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?)`
+    ).run(
+      input.positionId,
+      input.type,
+      input.quantity,
+      input.price,
+      input.currency,
+      input.tradedAt,
+      input.sourceFileName ?? null,
+      input.assetName ?? null,
+      input.isin ?? null,
+      input.ticker ?? null,
+      input.totalFees ?? null,
+      input.rawTextSnippet ?? null
+    );
+  }
+
   insertBuyTransactionNow(positionId: number, input: { quantity: number; price: number; currency: string }) {
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
@@ -130,6 +192,48 @@ export class PortfolioRepository {
 
   deleteTransaction(positionId: number, transactionId: number) {
     db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
+  }
+
+  transactionExists(positionId: number, transactionId: number) {
+    return Boolean(db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId));
+  }
+
+  hasDatedTransactions(positionId: number) {
+    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL").get(positionId) as { count?: number } | undefined;
+    return Number(row?.count ?? 0) > 0;
+  }
+
+  listQuantityEvents(positionId: number) {
+    return db
+      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; traded_at: string }>;
+  }
+
+  listRecomputeRows(positionId: number) {
+    return db
+      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
+      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
+  }
+
+  resetPositionValuation(positionId: number) {
+    db.prepare("UPDATE positions SET quantity = 0, average_buy_price = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(positionId);
+  }
+
+  updatePositionValuation(positionId: number, quantity: number, averageBuyPrice: number) {
+    db.prepare("UPDATE positions SET quantity = ?, average_buy_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(quantity, averageBuyPrice, positionId);
+  }
+
+  findUserAssetPosition(userId: string, symbol: string): UserAssetPositionRow | undefined {
+    return db.prepare("SELECT * FROM user_assets WHERE user_id = ? AND symbol = ?").get(userId, symbol.toUpperCase()) as UserAssetPositionRow | undefined;
+  }
+
+  upsertUserAssetPosition(input: UserAssetPositionRow & { updatedAt: number }) {
+    db.prepare(
+      `INSERT INTO user_assets (user_id, symbol, quantity, average_price, transaction_count, total_fees, invested_amount, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, symbol) DO UPDATE SET quantity = excluded.quantity, average_price = excluded.average_price, transaction_count = excluded.transaction_count, total_fees = excluded.total_fees, invested_amount = excluded.invested_amount, updated_at = excluded.updated_at`
+    ).run(input.user_id, input.symbol, input.quantity, input.average_price, input.transaction_count, input.total_fees, input.invested_amount, input.updatedAt);
   }
 
   positionSymbols(userId?: number | string) {

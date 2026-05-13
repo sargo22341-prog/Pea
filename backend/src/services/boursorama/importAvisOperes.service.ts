@@ -1,7 +1,7 @@
 import { PDFParse } from "pdf-parse";
 import type { ParsedAvisOperation, PortfolioTransaction, SearchResult } from "@pea/shared";
 import { z } from "zod";
-import { db } from "../../db.js";
+import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
@@ -163,9 +163,7 @@ function markDuplicateWarning(operation: ParsedAvisOperation): ParsedAvisOperati
   const symbol = operation.selectedSymbol ?? operation.resolvedAsset?.symbol;
   if (!symbol) return operation;
 
-  const position = db
-    .prepare("SELECT id FROM positions WHERE user_id = ? AND symbol = ?")
-    .get(currentUserId(), symbol.toUpperCase()) as { id: number } | undefined;
+  const position = portfolioRepository.findPositionBySymbol(symbol.toUpperCase());
 
   if (!position) return operation;
 
@@ -247,9 +245,7 @@ function findExistingPosition(operation: ParsedAvisOperation) {
     .filter(Boolean)
     .map((value) => String(value).toUpperCase());
 
-  const rows = db
-    .prepare("SELECT symbol, name FROM positions WHERE user_id = ?")
-    .all(currentUserId()) as Array<{ symbol: string; name: string }>;
+  const rows = portfolioRepository.listPositions(currentUserId());
 
   for (const row of rows) {
     const symbol = String(row.symbol).toUpperCase();
@@ -333,39 +329,23 @@ export async function confirmAvisOperesImport(rows: unknown[]) {
       const symbol = row.selectedSymbol.toUpperCase();
       await assertYahooSymbolExists(symbol);
       const name = row.selectedAssetName || row.nomValeur || symbol;
-      const position = await portfolioService.ensurePosition(symbol, name, row.devise);
       const type = row.sensOperation === "vente" ? "sell" : "buy";
       const tradedAt = row.dateExecution ?? new Date().toISOString();
-      portfolioService.assertValidTransactionMutation(position.id, {
-        tradedAt,
+      portfolioService.importAvisTransaction({
+        symbol,
+        name,
+        currency: row.devise,
         type,
         quantity: row.quantite,
         price: row.coursExecute,
-        totalFees: row.montantTotalFrais ?? 0,
-        currency: row.devise
-      });
-
-      db.prepare(
-        `INSERT INTO transactions (
-          position_id, type, quantity, price, currency, traded_at, source, source_file_name,
-          asset_name, isin, ticker, total_fees, raw_text_snippet
-        ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?)`
-      ).run(
-        position.id,
-        type,
-        row.quantite,
-        row.coursExecute,
-        row.devise,
         tradedAt,
-        row.sourceFileName ?? null,
-        row.nomValeur ?? name,
-        row.isin ?? null,
-        symbol,
-        row.montantTotalFrais ?? null,
-        row.rawTextSnippet ?? null
-      );
-
-      portfolioService.recomputePositionFromDatedTransactions(position.id);
+        sourceFileName: row.sourceFileName ?? null,
+        assetName: row.nomValeur ?? name,
+        isin: row.isin ?? null,
+        ticker: symbol,
+        totalFees: row.montantTotalFrais ?? null,
+        rawTextSnippet: row.rawTextSnippet ?? null
+      });
       imported.push(symbol);
     } catch (error) {
       errors.push({

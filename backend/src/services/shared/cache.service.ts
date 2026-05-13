@@ -1,5 +1,6 @@
 import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
+import type { FrontendBlock } from "./frontend-block-cache.service.js";
 import { cacheRegistry } from "./cache-registry.service.js";
 
 const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = {
@@ -86,4 +87,8 @@ export function invalidateUserAssetCaches(userId: string, symbol?: string) {
     return;
   }
   cacheRegistry.invalidate({ type: "portfolio-user-changed", userId, symbol });
+}
+
+export function invalidateFrontendBlockCache(input: { userId?: string | number; block?: FrontendBlock }) {
+  cacheRegistry.invalidate({ type: "frontend-block-changed", userId: input.userId, block: input.block });
 }

@@ -11,7 +11,7 @@ import { watchlistService } from "../../services/assets/watchlist.service.js";
 import { dividendService } from "../../services/portfolio/dividend.service.js";
 import { portfolioAnalysisService } from "../../services/portfolio/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
-import { frontendBlockCache } from "../../services/shared/frontend-block-cache.service.js";
+import { invalidateFrontendBlockCache, invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { yahooApi } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
@@ -127,13 +127,9 @@ export class LiveMarketRefreshTask {
     for (const [userId, impact] of this.userImpactsForSymbols(symbols)) {
       await runWithUser(Number(userId), async () => {
         if (impact.portfolio) {
-          frontendBlockCache.invalidate({ userId, block: "portfolio-summary" });
-          frontendBlockCache.invalidate({ userId, block: "analysis" });
-          frontendBlockCache.invalidate({ userId, block: "dividends" });
-          db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(String(userId));
-          db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ? AND range = '1d'").run(String(userId));
+          invalidateUserAssetCaches(String(userId));
         }
-        if (impact.watchlist) frontendBlockCache.invalidate({ userId, block: "watchlist" });
+        if (impact.watchlist) invalidateFrontendBlockCache({ userId, block: "watchlist" });
         const tasks: Array<Promise<unknown>> = [];
         if (impact.portfolio) tasks.push(
           portfolioService.summary("1d").catch(() => undefined),
