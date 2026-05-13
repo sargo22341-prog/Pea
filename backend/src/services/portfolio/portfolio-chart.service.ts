@@ -1,0 +1,249 @@
+import type { MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioTransactionMarker, Position, RangeKey } from "@pea/shared";
+import { db } from "../../db.js";
+import { assetRepository } from "../../repositories/market/asset.repository.js";
+import { currentUserId, normalizeUserId } from "../auth/user-context.js";
+import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
+import { marketDataService } from "../market/data/market-data.service.js";
+import { nowMs, toDisplayRange } from "../shared/cache.service.js";
+import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
+import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
+import { portfolioPerformanceService } from "./portfolio-performance.service.js";
+import { portfolioQueryService } from "./portfolio-query.service.js";
+import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
+
+const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all"]);
+
+function normalizedUserId(userId?: string | number) {
+  return String(normalizeUserId(userId));
+}
+
+export class PortfolioChartService {
+  private static readonly CHART_CACHE_TTL_MS: Partial<Record<RangeKey, number>> = {
+    "1d": 5 * 60 * 1000,
+    "1w": 60 * 60 * 1000,
+    "1m": 4 * 60 * 60 * 1000,
+    "ytd": 4 * 60 * 60 * 1000,
+    "1y": 4 * 60 * 60 * 1000,
+    "5y": 12 * 60 * 60 * 1000,
+    "10y": 12 * 60 * 60 * 1000,
+    all: 12 * 60 * 60 * 1000
+  };
+
+  async full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {
+    const [summary, chart] = await Promise.all([
+      portfolioQueryService.summary(range),
+      this.chart(range, userId, options)
+    ]);
+    return { summary, chart };
+  }
+
+  async chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
+    const cacheUserId = normalizedUserId(userId);
+
+    if (!options.forceIntradayOpen && !options.intradayNow) {
+      const cacheKey = `${cacheUserId}:${range}`;
+      const cached = db.prepare(
+        "SELECT payload, expires_at FROM portfolio_chart_cache WHERE cache_key = ? AND expires_at > ?"
+      ).get(cacheKey, nowMs()) as { payload: string; expires_at: number } | undefined;
+      if (cached) return JSON.parse(cached.payload) as PortfolioChartDto;
+    }
+
+    const points = await portfolioPerformanceService.performance(range, options);
+    const positions = portfolioQueryService.listPositions();
+    const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
+    const timestamps: number[] = [];
+    const value: number[] = [];
+    const invested: number[] = [];
+    const gain: number[] = [];
+    const gainPercent: number[] = [];
+
+    for (const point of points) {
+      const timestamp = new Date(point.date).getTime();
+      if (!Number.isFinite(timestamp) || !Number.isFinite(point.value)) continue;
+      const investedAtPoint = point.invested ?? totalInvested;
+      const gainAtPoint = point.gain ?? point.value - investedAtPoint;
+      timestamps.push(timestamp);
+      value.push(point.value);
+      invested.push(investedAtPoint);
+      gain.push(gainAtPoint);
+      gainPercent.push(point.gainPercent ?? (investedAtPoint ? (gainAtPoint / investedAtPoint) * 100 : 0));
+    }
+
+    const first = value[0] ?? 0;
+    const last = value[value.length - 1] ?? first;
+    const firstGain = gain[0] ?? 0;
+    const lastGain = gain[gain.length - 1] ?? firstGain;
+    const firstInvested = invested[0] ?? 0;
+    const lastInvested = invested[invested.length - 1] ?? firstInvested;
+    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(options) : undefined;
+    const performanceStart = baseline?.price ?? first;
+    const performanceEuro = range === "1d" && baseline ? last - performanceStart : lastGain - firstGain;
+    const performanceBase = range === "1d" && baseline ? performanceStart : firstInvested || lastInvested;
+    const cachedAt = nowMs();
+    const preparation = await this.portfolioPreparationState(range, options);
+    const payload: PortfolioChartDto = {
+      userId: cacheUserId,
+      range: toDisplayRange(range),
+      timestamps,
+      value,
+      invested,
+      gain,
+      gainPercent,
+      baselinePrice: baseline?.price,
+      baselineDatetime: baseline?.datetime,
+      marketSession: range === "1d" ? this.portfolioMarketSession(positions) : undefined,
+      performanceEuro,
+      performancePercent: performanceBase ? (performanceEuro / performanceBase) * 100 : 0,
+      ...preparation,
+      cachedAt,
+      expiresAt: cachedAt,
+      transactionMarkers: this.transactionMarkersForChart(range, timestamps)
+    };
+
+    if (!payload.isPreparing && !options.forceIntradayOpen && !options.intradayNow) {
+      const ttl = PortfolioChartService.CHART_CACHE_TTL_MS[range] ?? 4 * 60 * 60 * 1000;
+      const expiresAt = cachedAt + ttl;
+      const cacheKey = `${cacheUserId}:${range}`;
+      db.prepare(
+        `INSERT INTO portfolio_chart_cache (cache_key, user_id, range, payload, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
+      ).run(cacheKey, cacheUserId, range, JSON.stringify({ ...payload, expiresAt }), cachedAt, expiresAt);
+    }
+
+    return payload;
+  }
+
+  private transactionMarkersForChart(range: RangeKey, timestamps: number[]): PortfolioTransactionMarker[] {
+    if (!portfolioTransactionMarkerRanges.has(range) || timestamps.length === 0) return [];
+
+    const sortedTimestamps = [...timestamps].filter(Number.isFinite).sort((a, b) => a - b);
+    const firstTimestamp = sortedTimestamps[0];
+    const lastTimestamp = sortedTimestamps[sortedTimestamps.length - 1];
+    if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) return [];
+
+    const rows = db
+      .prepare(
+        `SELECT
+           t.id,
+           t.position_id,
+           t.type,
+           t.quantity,
+           t.price,
+           t.traded_at,
+           p.symbol,
+           p.name AS position_name,
+           a.id AS asset_row_id,
+           a.name AS asset_name
+         FROM transactions t
+         JOIN positions p ON p.id = t.position_id
+         LEFT JOIN assets a ON a.symbol = p.symbol
+         WHERE t.traded_at IS NOT NULL
+           AND t.type IN ('buy', 'sell')
+           AND p.user_id = ?
+         ORDER BY t.traded_at ASC, t.id ASC`
+      )
+      .all(currentUserId()) as Array<{
+        id: number | string;
+        position_id: number | string;
+        type: "buy" | "sell";
+        quantity: number | string;
+        price: number | string | null;
+        traded_at: string;
+        symbol: string;
+        position_name: string;
+        asset_row_id?: number | string | null;
+        asset_name?: string | null;
+      }>;
+
+    return rows.flatMap((row) => {
+      const transactionTime = new Date(row.traded_at).getTime();
+      if (!Number.isFinite(transactionTime) || !isTransactionVisibleInRange(row.traded_at, transactionTime, firstTimestamp, lastTimestamp, range)) return [];
+      const symbol = String(row.symbol).toUpperCase();
+      const price = row.price == null ? undefined : Number(row.price);
+      return [{
+        id: String(row.id),
+        assetId: String(row.asset_row_id ?? row.position_id),
+        symbol,
+        name: String(row.asset_name ?? row.position_name ?? symbol),
+        logoUrl: `/api/assets/${encodeURIComponent(symbol)}/icon`,
+        quantity: Number(row.quantity),
+        price: Number.isFinite(price) ? price : undefined,
+        transactionDate: new Date(transactionTime).toISOString(),
+        type: row.type,
+        nearestChartPointDatetime: nearestTimestamp(transactionTime, sortedTimestamps)
+      }];
+    });
+  }
+
+  private portfolioMarketSession(positions: Position[]): MarketSessionDto | undefined {
+    if (!positions.length) return undefined;
+    const sessions = positions.map((position) => {
+      const asset = assetRepository.findBySymbol(position.symbol);
+      return getMarketSessionInfo(position.symbol, asset?.exchange);
+    });
+    const groups = new Map<string, { session: MarketSessionDto; count: number; cities: Set<string> }>();
+    for (const session of sessions) {
+      const key = `${session.timezone}|${session.open}|${session.close}`;
+      const group = groups.get(key);
+      if (group) {
+        group.count += 1;
+        group.cities.add(session.city);
+      } else {
+        groups.set(key, { session, count: 1, cities: new Set([session.city]) });
+      }
+    }
+
+    const dominant = [...groups.values()].sort((a, b) => b.count - a.count)[0];
+    if (!dominant) return undefined;
+    return {
+      ...dominant.session,
+      city: dominant.cities.size === 1 ? dominant.session.city : dominant.session.timezone
+    };
+  }
+
+  private async portfolioIntradayBaseline(options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
+    const positions = portfolioQueryService.listPositions();
+    if (!positions.length) return undefined;
+
+    const txCache = buildTransactionCache(positions.map((p) => p.id));
+    let price = 0;
+    const datetimes: string[] = [];
+    for (const position of positions) {
+      const chart = await marketDataService.getChartData(position.symbol, "1d", options).catch(() => undefined);
+      if (!chart?.baselinePrice || !Number.isFinite(chart.baselinePrice)) continue;
+      let quantity: number;
+      const entry = txCache.get(position.id);
+      if (chart.baselineDatetime && entry?.hasDated) {
+        quantity = getQuantityAtTime(entry.transactions, new Date(chart.baselineDatetime).getTime());
+      } else {
+        quantity = position.quantity;
+      }
+      price += chart.baselinePrice * quantity;
+      if (chart.baselineDatetime) datetimes.push(chart.baselineDatetime);
+    }
+
+    if (!price) return undefined;
+    return { price, datetime: datetimes.sort((a, b) => b.localeCompare(a))[0] };
+  }
+
+  private async portfolioPreparationState(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
+    const missingAssets: string[] = [];
+    const jobIds: string[] = [];
+    for (const position of portfolioQueryService.listPositions()) {
+      const chart = await marketDataService.getChartData(position.symbol, range, options);
+      if (chart.isPreparing) {
+        missingAssets.push(position.symbol);
+        if (chart.jobId) jobIds.push(chart.jobId);
+      }
+    }
+    return {
+      isPreparing: missingAssets.length > 0,
+      missingAssets,
+      missingRanges: missingAssets.length > 0 ? [range] : undefined,
+      jobId: jobIds[0]
+    };
+  }
+}
+
+export const portfolioChartService = new PortfolioChartService();

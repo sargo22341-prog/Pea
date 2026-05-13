@@ -1,0 +1,103 @@
+import { candleRepository } from "../../../repositories/candles/candle.repository.js";
+import type { AssetRow } from "../../../repositories/market/asset.repository.js";
+import { candleBuilder } from "../../candles/candle.builder.js";
+import { logger } from "../../shared/logger.service.js";
+import { yahooApi } from "../../yahoo/yahoo.api.js";
+import { getLastTradingDay, getMarketSessionInfo } from "../calendars/marketCalendar.service.js";
+import { chartConfigService } from "../charts/chart-config.service.js";
+import {
+  cloneChartDto,
+  compactHistory,
+  intradayCacheKey,
+  intradayChartCache,
+  intradayRefreshInFlight,
+  intervalDurationMs,
+  latestIntradayUpdatedAt,
+  snapshotPreviousClose,
+  validateChartPoints,
+  yahooInterval
+} from "../charts/market-chart.helpers.js";
+
+export class LiveIntradayService {
+  async refreshForAssets(assets: AssetRow[], now = new Date(), options: { minAgeMs?: number; force?: boolean } = {}) {
+    let updated = 0;
+    let yahooCalls = 0;
+    const uniqueAssets = [...new Map(assets.map((asset) => [asset.symbol.toUpperCase(), asset])).values()];
+    for (const asset of uniqueAssets) {
+      if (!options.force && !this.chartNeedsRefresh(asset, options.minAgeMs ?? chartConfigService.getIntradayRefreshIntervalMs(), now)) continue;
+      const result = await this.refreshForAsset(asset, now);
+      updated += result.updated;
+      yahooCalls += result.yahooCalls;
+    }
+    return { updated, yahooCalls };
+  }
+
+  refreshForAsset(asset: AssetRow, now = new Date()) {
+    const key = `${asset.symbol.toUpperCase()}:1d`;
+    const existing = intradayRefreshInFlight.get(key);
+    if (existing) return existing;
+
+    const promise = this.refreshForAssetNow(asset, now).finally(() => {
+      intradayRefreshInFlight.delete(key);
+    });
+    intradayRefreshInFlight.set(key, promise);
+    return promise;
+  }
+
+  isRefreshInFlight(symbol: string) {
+    return intradayRefreshInFlight.has(`${symbol.toUpperCase()}:1d`);
+  }
+
+  isChartCacheFresh(symbol: string) {
+    const interval = chartConfigService.getIntervalForRange("1d");
+    const cacheKey = intradayCacheKey(symbol, interval, {});
+    const cached = intradayChartCache.get(cacheKey);
+    return Boolean(cached && cached.expiresAt > Date.now());
+  }
+
+  chartNeedsRefresh(asset: AssetRow, minAgeMs = chartConfigService.getIntradayRefreshIntervalMs(), now = new Date()) {
+    if (this.isChartCacheFresh(asset.symbol)) return false;
+    const lastUpdatedAt = latestIntradayUpdatedAt(asset.id);
+    if (!lastUpdatedAt) return true;
+    return now.getTime() - lastUpdatedAt > minAgeMs;
+  }
+
+  private refreshForAssetNow = async (asset: AssetRow, now = new Date()) => {
+    const interval = chartConfigService.getIntervalForRange("1d");
+    const cacheKey = intradayCacheKey(asset.symbol, interval, {});
+    const cached = intradayChartCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return { updated: 0, yahooCalls: 0 };
+
+    const session = getLastTradingDay(asset.symbol, asset.exchange, now);
+    const period2 = new Date(Math.min(now.getTime(), session.period2.getTime()) + intervalDurationMs(interval));
+    const chart = await yahooApi.chart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
+    const points = validateChartPoints({ symbol: asset.symbol, range: "1d", points: chart.quotes, marketCloseTime: session.period2 });
+    if (points.length === 0) {
+      logger.warn("market-data", "live intraday refresh returned no points; keeping stored chart", { symbol: asset.symbol });
+      return { updated: 0, yahooCalls: 1 };
+    }
+    const candles = candleBuilder.buildCandles({
+      assetId: asset.id,
+      symbol: asset.symbol,
+      exchange: asset.exchange,
+      range: "1d",
+      interval,
+      points
+    });
+    const updated = candleRepository.upsertCandles(candles);
+    const baseline = this.getStoredPreviousClosePrice(asset);
+    const payload = compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
+    intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + intervalDurationMs(interval) });
+    return { updated, yahooCalls: 1 };
+  };
+
+  private getStoredPreviousClosePrice(asset: AssetRow): { price: number; datetime?: string } | undefined {
+    const snapshotPrice = snapshotPreviousClose(asset.id);
+    if (snapshotPrice) return { price: snapshotPrice };
+    const points = candleRepository.readCandles(asset.id, "1w", chartConfigService.getIntervalForRange("1w"));
+    const previous = [...points].reverse().find((point) => Number.isFinite(point.close));
+    return previous ? { price: previous.close, datetime: previous.date } : undefined;
+  }
+}
+
+export const liveIntradayService = new LiveIntradayService();
