@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher les listes Yahoo Finance de la page /search en
- * chargement lazy, seulement quand l'utilisateur clique sur une categorie.
- */
-
 import type { MarketListId, MarketListResponse, TopMover } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, BadgePercent, Flame, Gem, Landmark, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";

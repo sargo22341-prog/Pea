@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher l'en-tete de la page Actualite et le switch entre
- * actualites globales et actualites des actifs du portefeuille.
- */
-
 import type { User } from "@pea/shared";
 
 export function NewsHeader({

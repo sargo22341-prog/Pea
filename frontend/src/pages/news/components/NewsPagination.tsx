@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher les controles de pagination du mode d'actualites
- * actuellement actif.
- */
-
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export function NewsPagination({

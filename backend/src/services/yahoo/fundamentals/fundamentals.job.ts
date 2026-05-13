@@ -1,7 +1,3 @@
-/**
- * Role du fichier : recuperer les fundamentals Yahoo et produire marketInfo.
- */
-
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo } from "@pea/shared";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall, yahooClient } from "../yahoo.client.js";

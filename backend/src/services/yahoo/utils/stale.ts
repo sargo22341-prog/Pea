@@ -1,8 +1,3 @@
-/**
- * Role du fichier : regrouper les helpers de fraicheur de cache et de marquage
- * stale partages par les jobs Yahoo.
- */
-
 import type { RangeKey } from "@pea/shared";
 import { getLastTradingDay } from "../../market/calendars/marketCalendar.service.js";
 

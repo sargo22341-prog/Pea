@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher le chart de portefeuille a partir du DTO compact
- * pre-calcule par le backend.
- */
-
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
 import { Suspense, lazy, memo, useMemo } from "react";
 import { usePrivacy } from "../../../contexts/PrivacyContext";

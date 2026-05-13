@@ -1,8 +1,3 @@
-/**
- * Role du fichier : stocker les dividendes fournis par les events chart Yahoo.
- * Yahoo ne fournit pas payment_date ou record_date ici, donc ces champs n'existent pas.
- */
-
 import type { DividendEvent } from "@pea/shared";
 import { db } from "../../../db.js";
 import { yahooApi } from "../../yahoo/yahoo.api.js";

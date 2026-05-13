@@ -1,8 +1,3 @@
-/**
- * Role du fichier : orchestrer les jobs de news Yahoo (ticker, entreprise et
- * flux global) avec cache, filtrage et pagination.
- */
-
 import type { NewsArticle, NewsFeedPage, NewsLanguage } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";

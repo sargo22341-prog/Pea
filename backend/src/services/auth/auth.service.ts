@@ -1,5 +1,3 @@
-// Rôle du fichier : gérer les comptes utilisateurs, les sessions, les
-// préférences de profil et les icônes de profil stockées localement.
 
 import crypto from "node:crypto";
 import fs from "node:fs";

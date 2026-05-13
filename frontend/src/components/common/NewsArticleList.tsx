@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher une liste d'articles reutilisable par la page
- * Actualite et par le detail d'un actif.
- */
-
 import type { NewsArticle } from "@pea/shared";
 import { Newspaper } from "lucide-react";
 import type { CSSProperties } from "react";

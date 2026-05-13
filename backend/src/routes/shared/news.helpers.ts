@@ -1,7 +1,3 @@
-/**
- * Role du fichier : centraliser les helpers communs aux routes de news.
- */
-
 import type express from "express";
 import type { NewsArticle, NewsLanguage } from "@pea/shared";
 

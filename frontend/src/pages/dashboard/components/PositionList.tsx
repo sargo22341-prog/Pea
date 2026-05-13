@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher la liste des positions avec un chargement
- * paresseux ligne par ligne pour reduire le travail initial du Dashboard.
- */
-
 import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";

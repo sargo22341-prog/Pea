@@ -1,8 +1,3 @@
-/**
- * Role du fichier : reserver l'espace de la liste d'actualites pendant le
- * chargement local du mode actif.
- */
-
 import { Newspaper } from "lucide-react";
 
 export function NewsSkeleton({ title }: { title: string }) {

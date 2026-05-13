@@ -1,7 +1,3 @@
-/**
- * Role du fichier : fournir le wrapper commun pour les handlers Express async.
- */
-
 import type express from "express";
 
 /**

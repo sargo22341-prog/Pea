@@ -1,7 +1,3 @@
-/**
- * Role du fichier : transformer les cles internes Yahoo en metadonnees de suivi.
- */
-
 import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "./yahoo-usage.repository.js";
 import { currentYahooUsageSource } from "./yahoo-usage-context.js";
 

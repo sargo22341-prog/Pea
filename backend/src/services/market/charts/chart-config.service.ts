@@ -1,9 +1,3 @@
-/**
- * Role du fichier : lire et valider `config.json`, qui pilote les intervals
- * utilises pour construire et servir les charts marche. Le fichier ne contient
- * volontairement aucun champ de marche: le marche reste deduit de l'asset.
- */
-
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";

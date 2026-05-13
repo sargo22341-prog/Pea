@@ -1,9 +1,3 @@
-/**
- * Role du fichier : orchestrer les donnees du Dashboard et deleguer l'affichage
- * aux composants specialises du dossier pages/dashboard.
- * L'appel a /api/portfolio/full regroupe summary + chart en un seul aller-retour reseau.
- */
-
 import type { RangeKey, User } from "@pea/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "../components/common/EmptyState";

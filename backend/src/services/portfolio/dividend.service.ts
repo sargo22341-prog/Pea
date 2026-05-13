@@ -1,8 +1,3 @@
-/**
- * Role du fichier : calculer les dividendes passes et estimes au niveau du
- * portefeuille a partir des positions et des evenements stockes.
- */
-
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
 import { config } from "../../config.js";
 import { currentUserId } from "../auth/user-context.js";

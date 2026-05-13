@@ -1,8 +1,3 @@
-/**
- * Rôle du fichier : définir le contrat minimal des fournisseurs de données de marché
- * utilisés par les services métier du backend.
- */
-
 import type { DividendEvent, HistoryPoint, Quote, RangeKey, SearchResult } from "@pea/shared";
 
 export interface MarketDataResult<T> {

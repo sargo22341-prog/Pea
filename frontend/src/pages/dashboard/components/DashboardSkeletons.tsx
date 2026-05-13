@@ -1,8 +1,3 @@
-/**
- * Role du fichier : regrouper les placeholders propres au Dashboard pour
- * stabiliser le layout pendant les chargements progressifs.
- */
-
 import type { RangeKey } from "@pea/shared";
 import { PortfolioEvolutionHeader } from "./PortfolioEvolutionHeader";
 import type { DashboardRangeSetter } from "./types";

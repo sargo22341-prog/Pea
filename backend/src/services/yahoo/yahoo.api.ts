@@ -1,8 +1,3 @@
-/**
- * Role du fichier : isoler les appels reseau yahoo-finance2 utilises comme
- * source de marche. Ce module ne gere aucun TTL et ne persiste rien.
- */
-
 import { retryTemporary, yahooClient } from "./yahoo.client.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableString, type YahooSnapshotPayload } from "./yahoo.mapper.js";

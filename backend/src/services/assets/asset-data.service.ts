@@ -1,9 +1,3 @@
-/**
- * Role du fichier : exposer les DTO asset legers en s'appuyant sur les tables
- * marche persistantes. Les news gardent leur cache dedie; les donnees marche
- * passent par snapshots, candles, financials et dividendes stockes.
- */
-
 import type {
   AssetArticlesDto,
   AssetChartDto,

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher le formulaire de recherche d'actifs et la liste de
- * resultats enrichis avec l'etat portefeuille/liste de suivi.
- */
-
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Search, Star } from "lucide-react";
 import { Link } from "react-router-dom";

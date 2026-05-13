@@ -1,8 +1,3 @@
-/**
- * Role du fichier : gerer la watchlist et enrichir chaque actif avec sa quote
- * et son historique de prix pour l'affichage.
- */
-
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { config } from "../../config.js";
 import { db } from "../../db.js";

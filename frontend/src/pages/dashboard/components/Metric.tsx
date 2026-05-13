@@ -1,8 +1,3 @@
-/**
- * Role du fichier : fournir la tuile de metrique reutilisee dans l'en-tete du
- * Dashboard, avec son etat de chargement et sa tonalite visuelle.
- */
-
 import type { LucideIcon } from "lucide-react";
 
 export function Metric({

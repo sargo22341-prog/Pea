@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de donnees marche simples.
- */
-
 import express from "express";
 import { z } from "zod";
 import { config } from "../../config.js";

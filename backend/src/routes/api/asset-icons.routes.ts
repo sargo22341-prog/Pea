@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de lecture et de gestion des icones d'actifs.
- */
-
 import express from "express";
 import { iconService } from "../../services/assets/icon.service.js";
 import { logger } from "../../services/shared/logger.service.js";

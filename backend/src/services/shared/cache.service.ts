@@ -1,8 +1,3 @@
-/**
- * Role du fichier : fournir les primitives de cache metier SQLite pour les DTO
- * legers consommes par le frontend et centraliser cles et invalidations.
- */
-
 import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
 import { cacheRegistry } from "./cache-registry.service.js";

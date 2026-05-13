@@ -1,8 +1,3 @@
-/**
- * Role du fichier : lire et ecrire les caches SQL simples indexes par symbole
- * (quotes, dividendes, fundamentals, news legacy).
- */
-
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { db } from "../../../db.js";
 import { cacheIsStale, nowSeconds } from "../utils/stale.js";

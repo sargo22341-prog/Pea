@@ -1,7 +1,3 @@
-/**
- * Role du fichier : normaliser les articles Yahoo Search en NewsArticle.
- */
-
 import type { NewsArticle } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
 

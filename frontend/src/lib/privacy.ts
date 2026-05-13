@@ -1,8 +1,3 @@
-/**
- * Rôle du fichier : utilitaires de masquage des valeurs financières
- * personnelles quand le mode privé est activé.
- */
-
 /** Valeur affichée à la place d'un chiffre quand le mode privé est actif. */
 const VALEUR_MASQUEE = "••••";
 

@@ -1,7 +1,3 @@
-/**
- * Role du fichier : construire les cles de cache news de maniere centralisee.
- */
-
 import type { NewsLanguage } from "@pea/shared";
 import { normalizeSearchText } from "../utils/text.js";
 

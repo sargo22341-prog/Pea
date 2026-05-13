@@ -1,7 +1,3 @@
-/**
- * Role du fichier : parser les uploads multipart avec une librairie dediee.
- */
-
 import Busboy from "busboy";
 import type express from "express";
 import { HttpError } from "../../utils/http-error.js";

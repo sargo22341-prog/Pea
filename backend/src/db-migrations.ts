@@ -1,6 +1,3 @@
-// Rôle du fichier : déclarer et appliquer les migrations de schéma SQLite.
-// Chaque migration est identifiée par un numéro de version et ne s'exécute
-// qu'une seule fois. Le tableau _migrations trace les versions déjà appliquées.
 
 import type { DatabaseAdapter } from "./db-adapter.js";
 import { getMarketCalendar } from "./services/market/calendars/getMarketCalendar.js";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : executer les jobs Yahoo lies aux quotes et a la recherche
- * de symboles, avec les caches memoire/SQL historiques.
- */
-
 import type { Quote, SearchResult } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";

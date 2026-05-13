@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer la route de details complets d'un actif.
- */
-
 import express from "express";
 import type { AssetDetails, AssetMarketInfo, DividendEvent, NewsArticle, Quote } from "@pea/shared";
 import { config } from "../../config.js";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : exposer les top gainers et top losers Yahoo Finance via
- * une route backend authentifiee, sans fuite de yahoo-finance2 cote client.
- */
-
 import express from "express";
 import type { MarketListId } from "@pea/shared";
 import { fetchMarketList, fetchTopAndLosers } from "../../services/yahoo/screeners/top-movers.job.js";

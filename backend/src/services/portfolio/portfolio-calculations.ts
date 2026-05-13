@@ -1,12 +1,3 @@
-/**
- * Rôle du fichier : regrouper les calculs purs sur les transactions du portefeuille.
- *
- * Toutes les fonctions ici travaillent exclusivement en mémoire à partir de
- * données déjà chargées depuis la base. Aucun appel à `db` n'est fait ici.
- * L'objectif est d'éliminer le pattern N+1 qui consiste à interroger SQLite
- * pour chaque position × chaque point de la timeline lors du calcul de performance.
- */
-
 import type { DividendEvent, PortfolioPerformancePoint, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";

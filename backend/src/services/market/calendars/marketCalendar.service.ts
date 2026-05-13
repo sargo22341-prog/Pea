@@ -1,9 +1,3 @@
-/**
- * Role du fichier : decrire les horaires de session utilises pour construire
- * les fenetres Yahoo. L'etat ouvert/ferme et la derniere seance disponible
- * viennent de Yahoo, jamais d'un calendrier de jours feries maintenu localement.
- */
-
 import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../../timezone/date-time.service.js";
 import { logger } from "../../shared/logger.service.js";

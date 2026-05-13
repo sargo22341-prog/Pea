@@ -1,8 +1,3 @@
-/**
- * Role du fichier : importer les exports Boursorama historiques et transformer
- * les lignes en positions compatibles avec le portefeuille.
- */
-
 import type { SearchResult } from "@pea/shared";
 import type { BoursoramaUpdateRow } from "@pea/shared";
 import { db } from "../../db.js";

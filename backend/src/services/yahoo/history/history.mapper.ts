@@ -1,7 +1,3 @@
-/**
- * Role du fichier : mapper et agreger les lignes de chart Yahoo avant sanitation.
- */
-
 import type { HistoryPoint } from "@pea/shared";
 import type { ChartDisplayInterval } from "../../../utils/range.js";
 

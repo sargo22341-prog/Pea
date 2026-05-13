@@ -1,7 +1,3 @@
-/**
- * Role du fichier : transformer les quotes brutes yahoo-finance2 en DTO Quote.
- */
-
 import type { Quote } from "@pea/shared";
 import { normalizeDividendYield } from "../yahoo.mapper.js";
 

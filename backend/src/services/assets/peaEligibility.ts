@@ -1,8 +1,3 @@
-/**
- * Role du fichier : centraliser les regles locales qui classent et expliquent
- * l'eligibilite probable des actifs au PEA.
- */
-
 import type {
   InstrumentKind,
   PeaEligibilityResult,

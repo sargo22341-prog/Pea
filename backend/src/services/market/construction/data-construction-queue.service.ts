@@ -1,13 +1,3 @@
-/**
- * Role du fichier : executer les reconstructions marche en arriere-plan avec
- * concurrence limitee, deduplication par asset/range et suivi de progression.
- *
- * Limite assumee : l'etat des jobs est en memoire. Apres redemarrage serveur,
- * l'UI retombe sur "idle" et les reconstructions doivent etre relancees si besoin.
- * Les ecritures SQL restent idempotentes; seules la progression et la deduplication
- * active sont perdues.
- */
-
 import type { DataConstructionJobDto } from "@pea/shared";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { logger } from "../../shared/logger.service.js";

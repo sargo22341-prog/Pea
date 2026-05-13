@@ -1,8 +1,3 @@
-/**
- * Role du fichier : nettoyer les points historiques Yahoo invalides ou aberrants
- * tout en conservant les logs de diagnostic chart.
- */
-
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { logger } from "../../shared/logger.service.js";
 

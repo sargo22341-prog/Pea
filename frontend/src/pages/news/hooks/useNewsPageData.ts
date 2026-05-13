@@ -1,8 +1,3 @@
-/**
- * Role du fichier : regrouper l'etat, la pagination et les effets de chargement
- * de NewsPage pour laisser la page declarative.
- */
-
 import type { NewsArticle, NewsFeedPage, User } from "@pea/shared";
 import { useEffect, useMemo, useState } from "react";
 import {

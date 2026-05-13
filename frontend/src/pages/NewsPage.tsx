@@ -1,8 +1,3 @@
-/**
- * Role du fichier : orchestrer l'affichage de la page Actualite en deleguant
- * les donnees et les blocs UI aux modules specialises de pages/news.
- */
-
 import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { NewsArticleList } from "../components/common/NewsArticleList";

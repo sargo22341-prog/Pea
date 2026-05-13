@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de portefeuille, positions, performance et dividendes.
- */
-
 import express from "express";
 import { z } from "zod";
 import { config } from "../../config.js";

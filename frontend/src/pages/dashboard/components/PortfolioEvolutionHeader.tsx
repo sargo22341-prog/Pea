@@ -1,8 +1,3 @@
-/**
- * Role du fichier : partager l'en-tete du bloc d'evolution entre l'etat charge
- * et le skeleton, afin de garder un rendu identique.
- */
-
 import type { RangeKey } from "@pea/shared";
 import { GitCompare } from "lucide-react";
 import { RangeSelector } from "../../../components/common/RangeSelector";

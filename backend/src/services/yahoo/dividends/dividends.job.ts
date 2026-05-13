@@ -1,8 +1,3 @@
-/**
- * Role du fichier : recuperer les dividendes Yahoo via chart events et les
- * convertir dans le DTO DividendEvent.
- */
-
 import type { DividendEvent, Quote } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : parser les avis d'operes Boursorama et extraire les
- * transactions exploitables par le portefeuille.
- */
-
 import type { ParsedAvisOperation } from "@pea/shared";
 import { z } from "zod";
 

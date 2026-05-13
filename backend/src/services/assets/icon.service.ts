@@ -1,8 +1,3 @@
-/**
- * Role du fichier : gerer les icones d'actifs, depuis le cache SQLite jusqu'au
- * stockage local et aux tentatives de recuperation automatique.
- */
-
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";

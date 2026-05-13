@@ -1,7 +1,3 @@
-/**
- * Role du fichier : afficher la previsualisation des avis d'operes PDF avant import.
- */
-
 import type { ParsedAvisOperation } from "@pea/shared";
 import { Database, FileText, Trash2, Upload } from "lucide-react";
 import { useAvisOperesPdfImport } from "../hooks/useAvisOperesPdfImport";

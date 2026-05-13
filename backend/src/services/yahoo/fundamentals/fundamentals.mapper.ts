@@ -1,8 +1,3 @@
-/**
- * Role du fichier : extraire les informations de marche utiles depuis un
- * quoteSummary Yahoo brut.
- */
-
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, FinancialYearItem } from "@pea/shared";
 import { safeString } from "../../assets/peaEligibility.js";
 import { normalizeDividendYield } from "../yahoo.mapper.js";

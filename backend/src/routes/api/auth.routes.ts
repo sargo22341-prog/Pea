@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes d'authentification et de profil utilisateur.
- */
-
 import express from "express";
 import type { RequestHandler } from "express";
 import { z } from "zod";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : importer des avis d'operes PDF et synchroniser les
- * transactions detectees avec les positions du portefeuille.
- */
-
 import { PDFParse } from "pdf-parse";
 import type { ParsedAvisOperation, PortfolioTransaction, SearchResult } from "@pea/shared";
 import { z } from "zod";

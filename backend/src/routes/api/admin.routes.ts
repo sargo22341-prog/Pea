@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes d'administration des donnees marche.
- */
-
 import express from "express";
 import { z } from "zod";
 import { db } from "../../db.js";

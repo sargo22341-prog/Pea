@@ -1,8 +1,3 @@
-/**
- * Role du fichier : fournir le layout applicatif commun avec navigation
- * desktop/mobile et acces aux parametres de profil.
- */
-
 import type { User } from "@pea/shared";
 import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import { useEffect, useState } from "react";

@@ -1,9 +1,3 @@
-/**
- * Role du fichier : acces SQL dedie aux candles de marche. Les upserts
- * garantissent l'absence de doublons via UNIQUE(asset_id, interval, datetime_start).
- * Chaque range possede sa propre table (chart_candles_1d/1w/1m/all).
- */
-
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { db } from "../../db.js";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../../services/market/charts/chart-config.service.js";

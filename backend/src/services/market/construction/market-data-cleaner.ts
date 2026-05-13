@@ -1,9 +1,3 @@
-/**
- * Role du fichier : supprimer uniquement les donnees marche reconstruites par
- * range avant une reconstruction ciblee. Les utilisateurs, transactions,
- * positions, watchlist, preferences et dividendes utilisateur ne sont pas touches.
- */
-
 import { db } from "../../../db.js";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";

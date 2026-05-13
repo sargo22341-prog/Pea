@@ -1,7 +1,3 @@
-/**
- * Role du fichier : assembler les categories de routes API et appliquer l'authentification.
- */
-
 import express from "express";
 import { attachUser, requireAdmin, requireAuth } from "../middleware/auth.js";
 import { verifyMutatingRequestOrigin } from "../middleware/origin-protection.js";

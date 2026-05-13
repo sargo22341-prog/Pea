@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher la liste de suivi du Dashboard avec tri local et
- * performances calculees sur la range active.
- */
-
 import type { RangeKey, SortDirection, WatchlistItem, WatchlistSortKey } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";

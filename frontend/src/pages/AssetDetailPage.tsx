@@ -1,8 +1,3 @@
-/**
- * Rôle du fichier : afficher le détail d'un actif avec des DTO backend prêts à
- * l'affichage pour limiter les calculs React.
- */
-
 import type { RangeKey, User } from "@pea/shared";
 import { GitCompare } from "lucide-react";
 import { useEffect, useState } from "react";

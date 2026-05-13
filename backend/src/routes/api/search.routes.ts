@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de recherche Yahoo et recherche enrichie PEA.
- */
-
 import express from "express";
 import type { EnrichedSearchResult } from "@pea/shared";
 import { db } from "../../db.js";

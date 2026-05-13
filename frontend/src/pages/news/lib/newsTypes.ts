@@ -1,8 +1,3 @@
-/**
- * Role du fichier : partager les types internes de la page Actualite entre le
- * hook de donnees et les composants d'affichage dedies.
- */
-
 import type { NewsArticle } from "@pea/shared";
 
 export type NewsMode = "assets" | "global";

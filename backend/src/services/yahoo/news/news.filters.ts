@@ -1,7 +1,3 @@
-/**
- * Role du fichier : regrouper les regles de tri, dedupe et filtrage des news.
- */
-
 import type { NewsArticle, NewsLanguage } from "@pea/shared";
 import { escapeRegExp, normalizeSearchText } from "../utils/text.js";
 

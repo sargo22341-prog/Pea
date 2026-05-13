@@ -1,9 +1,3 @@
-/**
- * Role du fichier : exposer les evenements calendrier stockes en base.
- * GET /api/calendar-events          → evenements des actifs du portfolio
- * GET /api/calendar-events/:symbol  → evenements d'un actif specifique
- */
-
 import express from "express";
 import { currentUserId } from "../../services/auth/user-context.js";
 import { mapEventRow, readCalendarEventsBySymbol, readCalendarEventsForPortfolio } from "../../repositories/calendar-events/calendar-events.repository.js";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher le formulaire modal d'ajout manuel d'une position
- * depuis la page detail d'un actif.
- */
-
 import { Plus } from "lucide-react";
 import { useAddAssetPositionForm } from "../hooks/useAssetPositionModalForm";
 

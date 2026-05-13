@@ -1,9 +1,3 @@
-/**
- * Role du fichier : persister et lire les evenements calendrier des actifs.
- * Les events ne sont jamais supprimes : on accumule l'historique meme quand
- * Yahoo retire les dates passees de son API.
- */
-
 import { db } from "../../db.js";
 
 type EventType = "earnings" | "earnings_call" | "ex_dividend" | "dividend";

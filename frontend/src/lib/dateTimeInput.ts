@@ -1,8 +1,4 @@
 /**
- * Role du fichier : centraliser les conversions de dates pour les champs HTML datetime-local.
- */
-
-/**
  * Convertit une date stockee en valeur acceptee par un input datetime-local.
  *
  * @param value Date ISO, SQLite ou vide.

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : fournir les helpers purs de transactions de portefeuille
- * utilises par le service principal.
- */
-
 import type { EditablePortfolioTransaction, PositionTransactionStats, Position } from "@pea/shared";
 
 export function calculateTransactionStats(

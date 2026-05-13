@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher l'estimation annuelle des dividendes avec un
- * graphique mensuel et les controles d'annee.
- */
-
 import type { CurrencyCode } from "@pea/shared";
 import { Bar, BarChart, Tooltip, XAxis, YAxis } from "recharts";
 import { usePrivacy } from "../../../contexts/PrivacyContext";

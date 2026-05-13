@@ -1,7 +1,3 @@
-/**
- * Role du fichier : isoler le cache SQL des news Yahoo et sa regle de TTL.
- */
-
 import type { NewsArticle } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { db } from "../../../db.js";

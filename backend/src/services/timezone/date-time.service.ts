@@ -1,9 +1,3 @@
-/**
- * Role du fichier : centraliser les conversions entre instants UTC et vues
- * locales de timezone. Les Date retournees restent des instants UTC; la
- * timezone ne sert qu'a interpreter une date civile ou une heure de marche.
- */
-
 export interface ZonedDateParts {
   isoDate: string;
   year: number;

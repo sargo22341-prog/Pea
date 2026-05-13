@@ -1,8 +1,3 @@
-/**
- * Role du fichier : gerer les caches SQL dedies aux historiques, notamment le
- * cache intraday 1d qui possede sa propre cle de trading day.
- */
-
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { db } from "../../../db.js";

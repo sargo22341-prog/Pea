@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de liste de suivi.
- */
-
 import express from "express";
 import { z } from "zod";
 import { watchlistService } from "../../services/assets/watchlist.service.js";

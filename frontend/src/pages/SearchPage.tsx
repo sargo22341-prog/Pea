@@ -1,8 +1,3 @@
-/**
- * Role du fichier : composer la page /search avec la recherche d'actifs et les
- * classements Yahoo Finance du jour.
- */
-
 import { useEffect } from "react";
 import { SearchPanel } from "./search/components/SearchPanel";
 import { TopMoversSection } from "./search/components/TopMoversSection";

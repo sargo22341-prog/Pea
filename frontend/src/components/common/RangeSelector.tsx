@@ -1,8 +1,3 @@
-/**
- * Role du fichier : proposer le choix de range de graphique sous forme de
- * select compact partage par mobile et desktop.
- */
-
 import type { RangeKey } from "@pea/shared";
 import { ChevronDown } from "lucide-react";
 import { formatRangeLabel } from "../../lib/format";

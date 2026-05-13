@@ -1,7 +1,3 @@
-/**
- * Role du fichier : fournir les helpers texte reutilises par les filtres news.
- */
-
 /** Normalise une chaine pour des comparaisons insensibles aux accents et a la casse. */
 export function normalizeSearchText(value: string) {
   return value

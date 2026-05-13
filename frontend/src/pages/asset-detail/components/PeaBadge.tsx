@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher le statut d'eligibilite PEA d'un actif sous forme
- * de badge court dans la page detail.
- */
-
 import type { PeaEligibilityStatus } from "@pea/shared";
 
 const labels: Record<PeaEligibilityStatus, string> = {

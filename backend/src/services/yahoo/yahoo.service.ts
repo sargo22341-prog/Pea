@@ -1,8 +1,3 @@
-/**
- * Role du fichier : exposer la meme API publique que l'ancien YahooService en
- * deleguant chaque type de travail a un job specialise.
- */
-
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
 import type { MarketDataProvider, MarketDataResult } from "../market/data/market-data-provider.js";
 import { fetchDividends } from "./dividends/dividends.job.js";

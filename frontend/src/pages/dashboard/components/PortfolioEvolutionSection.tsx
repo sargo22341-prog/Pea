@@ -1,8 +1,3 @@
-/**
- * Role du fichier : afficher le bloc d'evolution du portefeuille, puis liberer
- * les sections dependantes lorsque le chart est pret.
- */
-
 import type { PortfolioChartDto, PortfolioSummary, SortDirection, User, WatchlistSortKey, RangeKey } from "@pea/shared";
 import { useEffect, useState } from "react";
 import { useAssetComparisonSeries, type ComparableAsset } from "../../../hooks/useAssetComparisonSeries";

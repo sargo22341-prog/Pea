@@ -1,4 +1,3 @@
-// Rôle du fichier : déclarer les routes d'import Boursorama et avis d'opérés.
 
 import express from "express";
 import { z } from "zod";

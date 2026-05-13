@@ -1,8 +1,3 @@
-/**
- * Role du fichier : signaler une donnee de marche differee ou stale avec un
- * badge compact reutilisable.
- */
-
 export function StaleBadge({ show, label = "Données différées" }: { show?: boolean; label?: string }) {
   if (!show) return null;
 

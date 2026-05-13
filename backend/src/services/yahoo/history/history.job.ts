@@ -1,8 +1,3 @@
-/**
- * Role du fichier : orchestrer le job historique Yahoo, du choix de session
- * marche jusqu'a la sanitation et l'ecriture cache.
- */
-
 import type { HistoryPoint, Quote, RangeKey } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";

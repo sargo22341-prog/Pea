@@ -1,8 +1,3 @@
-/**
- * Role du fichier : gerer l'etat courant du marche par asset. Cette table n'est
- * pas un cache TTL: une seule ligne represente le dernier etat connu.
- */
-
 import type { AssetMarketDto, AssetMarketInfo, Quote } from "@pea/shared";
 import { db } from "../../../db.js";
 import { config } from "../../../config.js";

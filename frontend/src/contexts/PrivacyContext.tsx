@@ -1,9 +1,3 @@
-/**
- * Rôle du fichier : fournir le contexte de mode privé à toute l'application.
- * Quand le mode privé est actif, les chiffres liés au portefeuille de
- * l'utilisateur sont masqués et remplacés par des étoiles.
- */
-
 import { createContext, useContext, type ReactNode } from "react";
 
 interface PrivacyContextValue {

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : produire les analyses de portefeuille, allocations,
- * treemap et donnees financieres agregees.
- */
-
 import type {
   AssetFinancials,
   AllocationChartItem,

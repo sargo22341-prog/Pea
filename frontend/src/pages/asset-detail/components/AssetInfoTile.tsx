@@ -1,8 +1,3 @@
-/**
- * Role du fichier : fournir une tuile libelle/valeur reutilisee dans les blocs
- * d'informations de la page detail d'un actif.
- */
-
 import type { ReactNode } from "react";
 import type { IconTone, InfoTone } from "../../../utils/assetTone";
 import { toneClass } from "../../../utils/assetTone";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : regrouper les metriques prioritaires du haut du Dashboard
- * et leur chargement progressif.
- */
-
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
 import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
 import { usePrivacy } from "../../../contexts/PrivacyContext";

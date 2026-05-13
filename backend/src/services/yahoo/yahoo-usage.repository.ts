@@ -1,8 +1,3 @@
-/**
- * Role du fichier : persister et agreger l'usage reel de yahoo-finance2.
- * Les erreurs de tracking restent non bloquantes pour les appels metier.
- */
-
 import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { db } from "../../db.js";
 import { logger } from "../shared/logger.service.js";

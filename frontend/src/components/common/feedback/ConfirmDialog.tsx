@@ -1,7 +1,3 @@
-/**
- * Role du fichier : fournir une popup de confirmation reutilisable pour les actions destructrices.
- */
-
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";

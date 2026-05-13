@@ -1,8 +1,3 @@
-/**
- * Role du fichier : transformer uniquement les champs reellement fournis par
- * yahoo-finance2 en objets internes nullables, sans inventer de donnees.
- */
-
 import type { HistoryPoint, Quote } from "@pea/shared";
 
 export function nullableNumber(value: unknown): number | null {

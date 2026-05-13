@@ -1,7 +1,3 @@
-/**
- * Role du fichier : declarer les routes de news globales, par portefeuille et par actif.
- */
-
 import express from "express";
 import { z } from "zod";
 import type { NewsArticle } from "@pea/shared";

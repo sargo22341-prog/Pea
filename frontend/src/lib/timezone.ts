@@ -1,9 +1,3 @@
-/**
- * Role du fichier : fournir les helpers frontend de timezone. Les timestamps
- * recus de l'API restent UTC; la timezone sert uniquement au formatage ou a la
- * projection des horaires locaux de marche sur l'axe du chart.
- */
-
 export const FALLBACK_TIMEZONE = "Europe/Paris";
 
 /** Garantit une timezone IANA utilisable par Intl.DateTimeFormat. */

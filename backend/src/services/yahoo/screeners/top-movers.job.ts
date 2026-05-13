@@ -1,8 +1,3 @@
-/**
- * Role du fichier : recuperer les top gainers/losers Yahoo Finance et les
- * mettre en cache pour la journee calendaire locale du serveur.
- */
-
 import type { MarketListId, MarketListResponse, TopAndLosersResponse, TopMover } from "@pea/shared";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";

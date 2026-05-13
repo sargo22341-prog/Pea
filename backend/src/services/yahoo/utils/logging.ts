@@ -1,8 +1,3 @@
-/**
- * Role du fichier : regrouper les petits helpers de logs et de mesure de duree
- * utilises par les jobs Yahoo.
- */
-
 import { logger } from "../../shared/logger.service.js";
 
 /** Arrondit une duree issue de performance.now() pour les logs. */

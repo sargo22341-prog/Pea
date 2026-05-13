@@ -1,7 +1,3 @@
-/**
- * Role du fichier : isoler la logique de preparation et de cache pour /news-assets.
- */
-
 import type { NewsArticle, NewsLanguage } from "@pea/shared";
 import { db } from "../../db.js";
 import { currentUserId } from "../../services/auth/user-context.js";

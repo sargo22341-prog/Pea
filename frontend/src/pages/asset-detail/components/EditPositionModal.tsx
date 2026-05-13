@@ -1,7 +1,3 @@
-/**
- * Role du fichier : afficher et modifier les transactions rattachees a une position.
- */
-
 import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";

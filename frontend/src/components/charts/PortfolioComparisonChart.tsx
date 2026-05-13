@@ -1,9 +1,3 @@
-/**
- * Role du fichier : graphique de comparaison portefeuille vs actifs en base 100.
- * La serie portefeuille reste normalisee via le Time-Weighted Return (TWR) afin
- * que les achats/ventes ne soient pas comptabilises comme de la performance.
- */
-
 import type { PortfolioChartDto, RangeKey } from "@pea/shared";
 import { memo, useMemo } from "react";
 import { ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";

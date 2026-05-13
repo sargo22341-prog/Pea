@@ -1,8 +1,3 @@
-/**
- * Role du fichier : centraliser le cache, les appels API et les prechargements
- * utilises uniquement par la page Actualite.
- */
-
 import type { NewsArticle, NewsAssetsPage, NewsFeedPage, User } from "@pea/shared";
 import type { Dispatch, SetStateAction } from "react";
 import { api } from "../../../lib/api";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : construire les candles OHLCV stockees en base a partir des
- * points Yahoo. Les buckets intraday sont alignes sur l'ouverture du marche.
- */
-
 import type { HistoryPoint, RangeKey } from "@pea/shared";
 import { normalizeStoredRange, type ChartInterval, type StoredChartRange } from "../market/charts/chart-config.service.js";
 import { isTradingDay } from "../market/calendars/marketCalendar.service.js";

@@ -1,8 +1,3 @@
-/**
- * Role du fichier : persister et retrouver les metadonnees d'assets separees
- * des donnees utilisateur. Les positions et transactions ne sont jamais modifiees ici.
- */
-
 import { db } from "../../db.js";
 import type { YahooAssetProfilePayload } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";

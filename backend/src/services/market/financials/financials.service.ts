@@ -1,8 +1,3 @@
-/**
- * Role du fichier : rafraichir et lire les donnees financieres annuelles quand
- * Yahoo les expose via fundamentalsTimeSeries. Les champs absents restent null.
- */
-
 import type { FinancialYearItem } from "@pea/shared";
 import { db } from "../../../db.js";
 import { yahooApi } from "../../yahoo/yahoo.api.js";

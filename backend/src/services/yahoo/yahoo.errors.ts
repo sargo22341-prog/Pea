@@ -1,8 +1,3 @@
-/**
- * Role du fichier : centraliser la detection et la traduction des erreurs Yahoo.
- * Les autres modules l'utilisent pour garder les memes fallbacks et statuts HTTP.
- */
-
 import { HttpError } from "../../utils/http-error.js";
 
 /** Retourne un message lisible, meme si Yahoo renvoie autre chose qu'une Error. */
