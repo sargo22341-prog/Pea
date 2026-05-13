@@ -5,7 +5,7 @@ import path from "node:path";
 import bcrypt from "bcryptjs";
 import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
+import { authRepository, type AuthUserRow } from "../../repositories/auth/auth.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 
@@ -28,7 +28,7 @@ export interface AuthUser {
 }
 
 // Ligne brute renvoyée par SQLite pour la table users
-interface LigneUtilisateur {
+interface LigneUtilisateur extends AuthUserRow {
   id: number | string;
   username: string;
   role: string;
@@ -125,11 +125,11 @@ export class AuthService {
     const maintenantMs = Date.now();
     if (!force && maintenantMs - dernierePurgeSessionsExpirees < intervallePurgeSessionsExpireesMs) return 0;
     dernierePurgeSessionsExpirees = maintenantMs;
-    return db.prepare("DELETE FROM user_sessions WHERE expires_at <= ?").run(Math.floor(maintenantMs / 1000));
+    return authRepository.purgeExpiredSessions(Math.floor(maintenantMs / 1000));
   }
 
   aDesUtilisateurs() {
-    return Boolean(db.prepare("SELECT 1 FROM users LIMIT 1").get());
+    return authRepository.hasUsers();
   }
 
   // Alias conservé pour la compatibilité avec les middlewares existants
@@ -138,8 +138,7 @@ export class AuthService {
   }
 
   nombreUtilisateurs() {
-    const ligne = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
-    return Number(ligne.count);
+    return authRepository.userCount();
   }
 
   async creerPremierCompte(nomUtilisateur: string, motDePasse: string, urlIconeProfil?: string) {
@@ -153,7 +152,7 @@ export class AuthService {
   }
 
   async connecter(nomUtilisateur: string, motDePasse: string) {
-    const ligne = db.prepare("SELECT * FROM users WHERE username = ?").get(nomUtilisateur.trim()) as LigneUtilisateur | undefined;
+    const ligne = authRepository.findUserByUsername(nomUtilisateur.trim()) as LigneUtilisateur | undefined;
     if (!ligne || !(await bcrypt.compare(motDePasse, String(ligne.password_hash)))) {
       throw new HttpError(401, "Identifiants invalides.");
     }
@@ -167,7 +166,7 @@ export class AuthService {
 
   deconnecter(token?: string) {
     if (!token) return;
-    db.prepare("DELETE FROM user_sessions WHERE token_hash = ?").run(hacherToken(token));
+    authRepository.deleteSession(hacherToken(token));
   }
 
   // Alias conservé pour la compatibilité avec les routes existantes
@@ -179,15 +178,8 @@ export class AuthService {
     if (!token) return undefined;
     const maintenant = Math.floor(Date.now() / 1000);
     this.purgerSessionsExpirees();
-    const ligne = db
-      .prepare(
-        `SELECT users.*
-         FROM user_sessions
-         JOIN users ON users.id = user_sessions.user_id
-         WHERE user_sessions.token_hash = ? AND user_sessions.expires_at > ?`
-      )
-      .get(hacherToken(token), maintenant);
-    return ligne ? convertirLigneEnUtilisateur(ligne as LigneUtilisateur) : undefined;
+    const ligne = authRepository.findUserBySession(hacherToken(token), maintenant) as LigneUtilisateur | undefined;
+    return ligne ? convertirLigneEnUtilisateur(ligne) : undefined;
   }
 
   // Alias conservé pour la compatibilité avec les middlewares existants
@@ -212,7 +204,7 @@ export class AuthService {
       privacyModeEnabled?: boolean;
     }
   ) {
-    const actuel = db.prepare("SELECT * FROM users WHERE id = ?").get(idUtilisateur) as LigneUtilisateur | undefined;
+    const actuel = authRepository.findUserById(idUtilisateur) as LigneUtilisateur | undefined;
     if (!actuel) throw new HttpError(404, "Utilisateur introuvable.");
 
     const nomUtilisateur = donnees.username?.trim() || String(actuel.username);
@@ -233,39 +225,21 @@ export class AuthService {
     const modePrive = donnees.privacyModeEnabled === undefined ? Number(actuel.privacy_mode_enabled ?? 0) : donnees.privacyModeEnabled ? 1 : 0;
 
     try {
-      db.prepare(
-        `UPDATE users
-         SET username = ?,
-             password_hash = ?,
-             profile_icon_url = ?,
-             dashboard_default_sort_key = ?,
-             dashboard_default_sort_direction = ?,
-             watchlist_default_sort_key = ?,
-             watchlist_default_sort_direction = ?,
-             default_chart_range = ?,
-             local_pea_search_enabled = ?,
-             asset_news_enabled = ?,
-             news_language_fr_enabled = ?,
-             news_language_en_enabled = ?,
-             privacy_mode_enabled = ?,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`
-      ).run(
-        nomUtilisateur,
-        hashMotDePasse,
-        urlIconeProfil,
-        cleTriTableauBord,
-        directionTriTableauBord,
-        cleTriListeSuivi,
-        directionTriListeSuivi,
-        intervalleParDefaut,
-        rechercheLocaleActivee,
-        actualitesActivees,
-        languesFrActivee,
-        languesEnActivee,
-        modePrive,
-        idUtilisateur
-      );
+      authRepository.updateUser(idUtilisateur, {
+        username: nomUtilisateur,
+        passwordHash: hashMotDePasse,
+        profileIconUrl: urlIconeProfil,
+        dashboardDefaultSortKey: cleTriTableauBord,
+        dashboardDefaultSortDirection: directionTriTableauBord,
+        watchlistDefaultSortKey: cleTriListeSuivi,
+        watchlistDefaultSortDirection: directionTriListeSuivi,
+        defaultChartRange: intervalleParDefaut,
+        localPeaSearchEnabled: rechercheLocaleActivee,
+        assetNewsEnabled: actualitesActivees,
+        newsLanguageFrEnabled: languesFrActivee,
+        newsLanguageEnEnabled: languesEnActivee,
+        privacyModeEnabled: modePrive
+      });
     } catch {
       throw new HttpError(409, "Ce username est deja utilise.");
     }
@@ -273,10 +247,10 @@ export class AuthService {
     // Invalide toutes les sessions actives de cet utilisateur lors d'un changement
     // de mot de passe, pour qu'un token volé ne reste pas valable après la modification.
     if (donnees.password) {
-      db.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(idUtilisateur);
+      authRepository.deleteUserSessions(idUtilisateur);
     }
 
-    return convertirLigneEnUtilisateur(db.prepare("SELECT * FROM users WHERE id = ?").get(idUtilisateur) as LigneUtilisateur);
+    return convertirLigneEnUtilisateur(authRepository.findUserById(idUtilisateur) as LigneUtilisateur);
   }
 
   // Alias conservé pour la compatibilité avec les routes existantes
@@ -288,7 +262,7 @@ export class AuthService {
   }
 
   fichierIconeProfil(idUtilisateur: number) {
-    const ligne = db.prepare("SELECT profile_icon_path, profile_icon_mime_type FROM users WHERE id = ?").get(idUtilisateur) as Pick<LigneUtilisateur, "profile_icon_path"> & { profile_icon_mime_type: string | null } | undefined;
+    const ligne = authRepository.profileIconFile(idUtilisateur);
     const cheminFichier = ligne?.profile_icon_path ? String(ligne.profile_icon_path) : undefined;
     const typeMime = ligne?.profile_icon_mime_type ? String(ligne.profile_icon_mime_type) : undefined;
     if (!cheminFichier || !typeMime || !fs.existsSync(cheminFichier)) return undefined;
@@ -301,7 +275,7 @@ export class AuthService {
   }
 
   sauvegarderIconeProfil(idUtilisateur: number, donnees: Buffer, _typeMime: string) {
-    const actuel = db.prepare("SELECT profile_icon_path FROM users WHERE id = ?").get(idUtilisateur) as Pick<LigneUtilisateur, "profile_icon_path"> | undefined;
+    const actuel = authRepository.profileIconPath(idUtilisateur);
     if (!actuel) throw new HttpError(404, "Utilisateur introuvable.");
 
     const mimeNormalise = detectSupportedImageMime(donnees);
@@ -313,13 +287,8 @@ export class AuthService {
     }
 
     fs.writeFileSync(cheminFichier, donnees);
-    db.prepare(
-      `UPDATE users
-       SET profile_icon_path = ?, profile_icon_mime_type = ?, profile_icon_size = ?,
-           profile_icon_url = NULL, has_profile_icon = 1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(cheminFichier, mimeNormalise, donnees.length, idUtilisateur);
-    return convertirLigneEnUtilisateur(db.prepare("SELECT * FROM users WHERE id = ?").get(idUtilisateur) as LigneUtilisateur);
+    authRepository.updateProfileIcon(idUtilisateur, { path: cheminFichier, mimeType: mimeNormalise, size: donnees.length });
+    return convertirLigneEnUtilisateur(authRepository.findUserById(idUtilisateur) as LigneUtilisateur);
   }
 
   // Alias conservé pour la compatibilité avec les routes existantes
@@ -328,16 +297,11 @@ export class AuthService {
   }
 
   supprimerIconeProfil(idUtilisateur: number) {
-    const actuel = db.prepare("SELECT profile_icon_path FROM users WHERE id = ?").get(idUtilisateur) as Pick<LigneUtilisateur, "profile_icon_path"> | undefined;
+    const actuel = authRepository.profileIconPath(idUtilisateur);
     if (!actuel) throw new HttpError(404, "Utilisateur introuvable.");
     const cheminFichier = actuel.profile_icon_path ? String(actuel.profile_icon_path) : undefined;
     if (cheminFichier && fs.existsSync(cheminFichier)) fs.unlinkSync(cheminFichier);
-    db.prepare(
-      `UPDATE users
-       SET profile_icon_path = NULL, profile_icon_mime_type = NULL, profile_icon_size = NULL,
-           profile_icon_url = NULL, has_profile_icon = 0, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(idUtilisateur);
+    authRepository.clearProfileIcon(idUtilisateur);
   }
 
   // Alias conservé pour la compatibilité avec les routes existantes
@@ -361,13 +325,8 @@ export class AuthService {
 
     const hashMotDePasse = await bcrypt.hash(motDePasse, 12);
     const role = this.nombreUtilisateurs() === 0 ? "admin" : "user";
-    db.prepare("INSERT INTO users (username, password_hash, role, profile_icon_url) VALUES (?, ?, ?, ?)").run(
-      nomNormalise,
-      hashMotDePasse,
-      role,
-      urlIconeProfil || null
-    );
-    const ligne = db.prepare("SELECT * FROM users WHERE username = ?").get(nomNormalise) as LigneUtilisateur;
+    authRepository.insertUser({ username: nomNormalise, passwordHash: hashMotDePasse, role, profileIconUrl: urlIconeProfil || null });
+    const ligne = authRepository.findUserByUsername(nomNormalise) as LigneUtilisateur;
     return { user: convertirLigneEnUtilisateur(ligne), token: this.creerSession(Number(ligne.id)) };
   }
 
@@ -375,7 +334,7 @@ export class AuthService {
     this.purgerSessionsExpirees(true);
     const token = crypto.randomBytes(32).toString("base64url");
     const expireA = Math.floor(Date.now() / 1000) + dureeSessionJours * 24 * 60 * 60;
-    db.prepare("INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)").run(idUtilisateur, hacherToken(token), expireA);
+    authRepository.insertSession({ userId: idUtilisateur, tokenHash: hacherToken(token), expiresAt: expireA });
     return token;
   }
 }

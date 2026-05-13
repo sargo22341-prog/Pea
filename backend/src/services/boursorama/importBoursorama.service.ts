@@ -32,6 +32,7 @@ export interface BoursoramaRow {
 
 const headers = ["name", "isin", "quantity", "buyingPrice", "lastPrice", "intradayVariation", "amount", "amountVariation", "variation"];
 const maxImportRows = 1000;
+type CsvRowCells = Record<(typeof headers)[number], string>;
 
 export function normalizeFrenchNumber(value: string): number {
   const normalized = value.replace(/\s/g, "").replace(",", ".");
@@ -70,7 +71,7 @@ export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "
     const cells = splitCsvLine(line);
     const errors: string[] = [];
     if (cells.length < headers.length) errors.push("Ligne incomplete.");
-    const row: any = {};
+    const row = {} as CsvRowCells;
     headers.forEach((header, cellIndex) => {
       row[header] = cells[cellIndex] ?? "";
     });

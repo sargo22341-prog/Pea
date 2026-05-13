@@ -9,7 +9,6 @@ import type {
   UserAssetPositionDto
 } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
@@ -39,7 +38,7 @@ export class AssetDataService {
       return { symbol: key, name: key, type: "stock", currency: "EUR", exchange: "" };
     }
     if (!existing) dataConstructionQueue.enqueueAssetConstruction(key);
-    const profile = db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(asset.id) as any;
+    const profile = assetRepository.profileByAssetId(asset.id);
     return {
       symbol: key,
       name: asset.name,

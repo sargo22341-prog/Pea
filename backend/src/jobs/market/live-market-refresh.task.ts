@@ -1,8 +1,9 @@
 import type { Quote } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
 import { runWithUser } from "../../services/auth/user-context.js";
+import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { assetRepository, type AssetRow } from "../../repositories/market/asset.repository.js";
+import { liveRefreshRepository } from "../../repositories/market/live-refresh.repository.js";
 import { chartConfigService } from "../../services/market/charts/chart-config.service.js";
 import { marketDataService } from "../../services/market/data/market-data.service.js";
 import { marketEventsService } from "../../services/market/events/market-events.service.js";
@@ -148,15 +149,12 @@ export class LiveMarketRefreshTask {
     const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
     const result = new Map<string, { portfolio: boolean; watchlist: boolean }>();
     if (!keys.length) return result;
-    const placeholders = keys.map(() => "?").join(",");
-    const positions = db.prepare(`SELECT DISTINCT user_id FROM positions WHERE symbol IN (${placeholders})`).all(...keys) as Array<{ user_id: string | number }>;
-    for (const row of positions) {
-      const userId = String(row.user_id);
+    for (const rowUserId of liveRefreshRepository.portfolioUserIdsForSymbols(keys)) {
+      const userId = String(rowUserId);
       result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), portfolio: true });
     }
-    const watchlist = db.prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`).all(...keys) as Array<{ user_id: string | number }>;
-    for (const row of watchlist) {
-      const userId = String(row.user_id);
+    for (const rowUserId of watchlistRepository.distinctUserIdsForSymbols(keys)) {
+      const userId = String(rowUserId);
       result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), watchlist: true });
     }
     return result;
@@ -203,9 +201,7 @@ export class LiveMarketRefreshTask {
   private portfolioAssetsForSymbols(symbols: string[]) {
     const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
     if (!keys.length) return [];
-    const placeholders = keys.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT DISTINCT symbol FROM positions WHERE symbol IN (${placeholders})`).all(...keys) as Array<{ symbol: string }>;
-    return rows.map((row) => assetRepository.findBySymbol(row.symbol)).filter((asset): asset is AssetRow => Boolean(asset));
+    return liveRefreshRepository.portfolioSymbolsForSymbols(keys).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
   }
 
   private chunks(symbols: string[]) {

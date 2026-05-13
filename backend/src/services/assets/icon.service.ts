@@ -31,13 +31,29 @@ type LogoCandidate = {
   label: string;
 };
 
+type AssetIconRow = {
+  symbol: string;
+  file_path?: string | null;
+  mime_type?: string | null;
+  size?: number | string | null;
+  source?: string | null;
+  fetch_status?: string | null;
+  last_attempt_at?: string | null;
+  updated_at?: string | null;
+};
+
+type KnownAssetRow = {
+  symbol: string;
+  name: string;
+};
+
 fs.mkdirSync(iconsDir, { recursive: true });
 
 function normalizeSymbol(symbol: string) {
   return String(symbol ?? "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
 }
 
-function mapIcon(row: any): AssetIcon {
+function mapIcon(row: AssetIconRow): AssetIcon {
   return {
     symbol: String(row.symbol),
     filePath: row.file_path ? String(row.file_path) : undefined,
@@ -110,7 +126,7 @@ export class IconService {
   getCached(symbol: string): AssetIcon | undefined {
     const key = normalizeSymbol(symbol);
     if (!key) return undefined;
-    const row = db.prepare("SELECT * FROM asset_icons WHERE symbol = ?").get(key);
+    const row = db.prepare("SELECT * FROM asset_icons WHERE symbol = ?").get(key) as AssetIconRow | undefined;
     return row ? mapIcon(row) : undefined;
   }
 
@@ -254,7 +270,7 @@ export class IconService {
   }
 
   listKnownAssets() {
-    return db
+    return (db
       .prepare(
         `SELECT symbol, name FROM positions
          WHERE user_id = ?
@@ -263,8 +279,8 @@ export class IconService {
          WHERE user_id = ?
          ORDER BY symbol ASC`
       )
-      .all(currentUserId(), currentUserId())
-      .map((row: any) => {
+      .all(currentUserId(), currentUserId()) as KnownAssetRow[])
+      .map((row: KnownAssetRow) => {
         const symbol = String(row.symbol);
         return { symbol, name: String(row.name), icon: this.getCached(symbol) };
       });

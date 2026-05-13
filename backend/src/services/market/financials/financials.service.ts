@@ -1,8 +1,10 @@
 import type { FinancialYearItem } from "@pea/shared";
-import { db } from "../../../db.js";
 import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { logger } from "../../shared/logger.service.js";
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
+import { financialsRepository } from "../../../repositories/market/financials.repository.js";
+
+type RawRecord = Record<string, unknown>;
 
 function safeNumber(value: unknown): number | null {
   if (value && typeof value === "object") {
@@ -13,27 +15,45 @@ function safeNumber(value: unknown): number | null {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
-function seriesRows(raw: any): any[] {
+function rawRecord(value: unknown): RawRecord | undefined {
+  return value && typeof value === "object" ? value as RawRecord : undefined;
+}
+
+function rawArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function seriesRows(raw: unknown): RawRecord[] {
   if (Array.isArray(raw)) return raw.flatMap((row) => seriesRows(row));
-  if (Array.isArray(raw?.timeseries?.result)) return raw.timeseries.result.flatMap((row: any) => expandTimeSeriesResult(row));
-  if (Array.isArray(raw?.result)) return raw.result.flatMap((row: any) => expandTimeSeriesResult(row));
-  if (raw && typeof raw === "object") return expandTimeSeriesResult(raw);
+  const record = rawRecord(raw);
+  if (record) {
+    const timeseries = rawRecord(record.timeseries);
+    const timeseriesResult = rawArray(timeseries?.result);
+    if (timeseriesResult.length) return timeseriesResult.flatMap((row) => expandTimeSeriesResult(row));
+    const result = rawArray(record.result);
+    if (result.length) return result.flatMap((row) => expandTimeSeriesResult(row));
+    return expandTimeSeriesResult(record);
+  }
   return [];
 }
 
-function expandTimeSeriesResult(row: any): any[] {
-  const metricKey = Object.keys(row ?? {}).find((key) => key.startsWith("annual") && Array.isArray(row[key]));
-  if (!metricKey || !Array.isArray(row?.timestamp)) return [row];
-  return row.timestamp.map((timestamp: unknown, index: number) => ({
+function expandTimeSeriesResult(row: unknown): RawRecord[] {
+  const record = rawRecord(row);
+  if (!record) return [];
+  const metricKey = Object.keys(record).find((key) => key.startsWith("annual") && Array.isArray(record[key]));
+  const timestamps = rawArray(record.timestamp);
+  if (!metricKey || !timestamps.length) return [record];
+  const values = rawArray(record[metricKey]);
+  return timestamps.map((timestamp: unknown, index: number) => ({
     date: timestamp,
-    [metricKey]: row[metricKey]?.[index]
+    [metricKey]: values[index]
   }));
 }
 
-function rowYear(row: any) {
+function rowYear(row: RawRecord) {
   const date = row.asOfDate ?? row.endDate ?? row.period ?? row.date;
   const timestamp = typeof date === "number" && date < 10_000_000_000 ? date * 1000 : date;
-  const year = date ? new Date(timestamp).getFullYear() : Number(row.fiscalYear);
+  const year = date && (typeof timestamp === "string" || typeof timestamp === "number" || timestamp instanceof Date) ? new Date(timestamp).getFullYear() : Number(row.fiscalYear);
   return Number.isInteger(year) ? year : undefined;
 }
 
@@ -42,7 +62,7 @@ export class FinancialsService {
     const assetRow = typeof asset === "string" ? assetRepository.findBySymbol(asset) : asset;
     if (!assetRow) return { updated: 0 };
 
-    let raw: any;
+    let raw: unknown;
     try {
       raw = await yahooApi.fundamentalsTimeSeries(assetRow.symbol);
     } catch (error) {
@@ -67,20 +87,14 @@ export class FinancialsService {
       const totalRevenue = values.totalRevenue ?? null;
       const netIncome = values.netIncome ?? null;
       const netMargin = totalRevenue && netIncome != null ? (netIncome / totalRevenue) * 100 : null;
-      db.prepare(
-        `INSERT INTO asset_financials (asset_id, fiscal_year, period, total_revenue, net_income, gross_profit, operating_income, ebitda, net_margin, currency, source)
-         VALUES (?, ?, 'annual', ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2')
-         ON CONFLICT(asset_id, fiscal_year, period) DO UPDATE SET
-           total_revenue = excluded.total_revenue,
-           net_income = excluded.net_income,
-           gross_profit = excluded.gross_profit,
-           operating_income = excluded.operating_income,
-           ebitda = excluded.ebitda,
-           net_margin = excluded.net_margin,
-           currency = excluded.currency,
-           source = excluded.source,
-           updated_at = CURRENT_TIMESTAMP`
-      ).run(assetRow.id, year, totalRevenue, netIncome, values.grossProfit ?? null, values.operatingIncome ?? null, values.ebitda ?? null, netMargin, assetRow.currency ?? null);
+      financialsRepository.upsertAnnual(assetRow.id, year, {
+        totalRevenue,
+        netIncome,
+        grossProfit: values.grossProfit ?? null,
+        operatingIncome: values.operatingIncome ?? null,
+        ebitda: values.ebitda ?? null,
+        netMargin
+      }, assetRow.currency ?? null);
     }
 
     return { updated: byYear.size };
@@ -99,17 +113,7 @@ export class FinancialsService {
   readFinancialRows(symbol: string): FinancialYearItem[] {
     const asset = assetRepository.findBySymbol(symbol);
     if (!asset) return [];
-    const rows = db
-      .prepare("SELECT fiscal_year, total_revenue, net_income, net_margin FROM asset_financials WHERE asset_id = ? AND period = 'annual' ORDER BY fiscal_year ASC")
-      .all(asset.id) as Array<{ fiscal_year: number; total_revenue: number | null; net_income: number | null; net_margin: number | null }>;
-    return rows
-      .filter((row) => row.total_revenue != null && row.net_income != null && row.net_margin != null)
-      .map((row) => ({
-        year: Number(row.fiscal_year),
-        revenue: Number(row.total_revenue),
-        netIncome: Number(row.net_income),
-        netMargin: Number(row.net_margin)
-      }));
+    return financialsRepository.readAnnualRows(asset.id);
   }
 }
 

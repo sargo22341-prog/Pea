@@ -18,6 +18,11 @@ import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";
 import { portfolioService } from "./portfolio.service.js";
 
 type Fundamentals = Awaited<ReturnType<typeof yahooService.fundamentals>>["data"];
+type FinancialStatementRow = {
+  totalRevenue?: unknown;
+  netIncome?: unknown;
+  endDate?: unknown;
+};
 
 const UNKNOWN = "Unknown";
 const ETF_DIVERSIFIED = "ETF / Diversified";
@@ -38,7 +43,7 @@ function safeNumber(value: unknown) {
 function safeYear(value: unknown) {
   const candidate = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
   const timestamp = typeof candidate === "number" && candidate < 10_000_000_000 ? candidate * 1000 : candidate;
-  const year = candidate ? new Date(timestamp as any).getFullYear() : undefined;
+  const year = candidate && (typeof timestamp === "string" || typeof timestamp === "number" || timestamp instanceof Date) ? new Date(timestamp).getFullYear() : undefined;
   return Number.isInteger(year) ? year : undefined;
 }
 
@@ -111,7 +116,7 @@ function annualFinancialRows(fundamentals?: Fundamentals): FinancialYearItem[] {
 
   const rows = fundamentals?.incomeStatementHistory?.incomeStatementHistory ?? [];
   return rows
-    .map((row: any) => {
+    .map((row: FinancialStatementRow) => {
       const revenue = safeNumber(row.totalRevenue);
       const netIncome = safeNumber(row.netIncome);
       const year = safeYear(row.endDate);

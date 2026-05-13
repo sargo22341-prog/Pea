@@ -1,6 +1,6 @@
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
+import { watchlistRepository, type WatchlistRow } from "../../repositories/assets/watchlist.repository.js";
 import { currentUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
@@ -10,7 +10,7 @@ import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { invalidateFrontendBlockCache } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 
-function mapWatchlistRow(row: any): WatchlistItem {
+function mapWatchlistRow(row: WatchlistRow): WatchlistItem {
   return {
     id: Number(row.id),
     symbol: String(row.symbol),
@@ -29,7 +29,7 @@ export class WatchlistService {
       const cached = frontendBlockCache.read<WatchlistItem[]>(userId, "watchlist", range);
       if (cached) return cached;
     }
-    const rows = db.prepare("SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC").all(currentUserId());
+    const rows = watchlistRepository.list();
     const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
     if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "watchlist", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
     return payload;
@@ -50,13 +50,10 @@ export class WatchlistService {
       if (!isMarketDataUnavailable(error)) throw error;
     }
 
-    db.prepare(
-      `INSERT INTO watchlist (user_id, symbol, name, exchange, currency)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, symbol) DO UPDATE SET name = excluded.name, exchange = excluded.exchange, currency = excluded.currency`
-    ).run(currentUserId(), key, name, exchange ?? null, currency ?? null);
+    watchlistRepository.upsert({ symbol: key, name, exchange, currency });
 
-    const row = db.prepare("SELECT * FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
+    const row = watchlistRepository.find(key);
+    if (!row) throw new Error("Watchlist introuvable apres insertion.");
     this.invalidateWatchlistCache(currentUserId());
     marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return this.enrich(mapWatchlistRow(row), "1d");
@@ -64,9 +61,8 @@ export class WatchlistService {
 
   remove(symbol: string): boolean {
     const key = symbol.toUpperCase();
-    const existing = db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), key);
-    if (!existing) return false;
-    db.prepare("DELETE FROM watchlist WHERE user_id = ? AND symbol = ?").run(currentUserId(), key);
+    if (!watchlistRepository.has(key)) return false;
+    watchlistRepository.remove(key);
     this.invalidateWatchlistCache(currentUserId());
     marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return true;

@@ -1,8 +1,7 @@
 import express from "express";
 import type { AssetDetails, AssetMarketInfo, DividendEvent, NewsArticle, Quote } from "@pea/shared";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
-import { currentUserId } from "../../services/auth/user-context.js";
+import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { assetDataService } from "../../services/assets/asset-data.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { dividendsService } from "../../services/market/dividends/dividends.service.js";
@@ -18,6 +17,8 @@ import { routeParam } from "../shared/params.js";
 import { userNewsLanguages } from "../shared/news.helpers.js";
 
 export const assetsRouter = express.Router();
+
+type ExtraAssetData = Partial<Pick<AssetDetails, "calendarEventsData" | "analystConsensus" | "fundDetails">>;
 
 function finiteNumber(value: unknown): number | undefined {
   if (value == null) return undefined;
@@ -53,7 +54,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   const symbol = routeParam(req.params.symbol, "symbol").toUpperCase();
   const positionPromise = portfolioService.getPosition(symbol);
-  const watchlistRow = db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(currentUserId(), symbol);
+  const isInWatchlist = watchlistRepository.has(symbol);
   let marketUnavailable = false;
 
   const position = await positionPromise;
@@ -118,7 +119,8 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const news = newsResult.data;
   const marketInfo = marketInfoResult.data;
   const freshMarketPrice = firstPrice(assetMarket.regularMarketPrice, quote.unavailable ? undefined : quote.price, marketInfo.regularMarketPrice);
-  const analystConsensus = (extraDataResult.data as any).analystConsensus;
+  const extraData = extraDataResult.data as ExtraAssetData;
+  const analystConsensus = extraData.analystConsensus;
   logDividendDesync(symbol, dividends, marketInfo);
   const marketSession = getMarketSessionInfo(symbol, quote.exchange ?? marketInfo.exchangeName ?? assetStatic.exchange);
   const financials = assetFinancialsResult.financials;
@@ -145,7 +147,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     positionRangePerformance,
     userAssetPosition: assetDataService.userPosition(String(req.user!.id), symbol),
     positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined,
-    isInWatchlist: Boolean(watchlistRow),
+    isInWatchlist,
     stale: marketUnavailable || quote.stale || dividends.some((event) => event.stale) || position?.quote?.stale,
     peaEligibility: evaluatePeaEligibility({ ...quote, quoteType: String(quote.quoteType ?? "") }),
     peaRank: rankAssetForPea({ ...quote, quoteType: String(quote.quoteType ?? "") }),
@@ -183,11 +185,11 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
     marketSession,
     financials,
     isEtf,
-    calendarEventsData: (extraDataResult.data as any).calendarEventsData,
+    calendarEventsData: extraData.calendarEventsData,
     analystConsensus: analystConsensus
       ? { ...analystConsensus, ...(freshMarketPrice === undefined ? {} : { currentPrice: freshMarketPrice }) }
       : undefined,
-    fundDetails: (extraDataResult.data as any).fundDetails
+    fundDetails: extraData.fundDetails
   };
 
   res.json(details);

@@ -17,7 +17,17 @@ export interface AssetProfileRow {
   sector?: string | null;
 }
 
-function mapAsset(row: any): AssetRow {
+type AssetDbRow = {
+  id: number | string;
+  symbol: string;
+  name: string;
+  exchange?: string | null;
+  currency?: string | null;
+  quote_type?: string | null;
+  type_disp?: string | null;
+};
+
+function mapAsset(row: AssetDbRow): AssetRow {
   return {
     id: Number(row.id),
     symbol: String(row.symbol),
@@ -31,12 +41,12 @@ function mapAsset(row: any): AssetRow {
 
 export class AssetRepository {
   findBySymbol(symbol: string): AssetRow | undefined {
-    const row = db.prepare("SELECT * FROM assets WHERE symbol = ?").get(symbol.toUpperCase());
+    const row = db.prepare("SELECT * FROM assets WHERE symbol = ?").get(symbol.toUpperCase()) as AssetDbRow | undefined;
     return row ? mapAsset(row) : undefined;
   }
 
   findById(assetId: number): AssetRow | undefined {
-    const row = db.prepare("SELECT * FROM assets WHERE id = ?").get(assetId);
+    const row = db.prepare("SELECT * FROM assets WHERE id = ?").get(assetId) as AssetDbRow | undefined;
     return row ? mapAsset(row) : undefined;
   }
 
@@ -53,7 +63,7 @@ export class AssetRepository {
             OR a.symbol IN (SELECT symbol FROM watchlist)
          ORDER BY a.symbol ASC`
       )
-      .all();
+      .all() as AssetDbRow[];
     return rows.map(mapAsset);
   }
 

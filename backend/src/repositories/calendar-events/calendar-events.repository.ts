@@ -9,6 +9,18 @@ interface CalendarEventInsert {
   isEstimate: boolean;
 }
 
+type CalendarEventsSummary = {
+  calendarEvents?: {
+    earnings?: {
+      isEarningsDateEstimate?: unknown;
+      earningsDate?: unknown;
+      earningsCallDate?: unknown;
+    };
+    exDividendDate?: unknown;
+    dividendDate?: unknown;
+  };
+};
+
 function toIsoDate(value: unknown): string | undefined {
   if (!value) return undefined;
   const raw = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
@@ -21,7 +33,7 @@ function toIsoDate(value: unknown): string | undefined {
   return undefined;
 }
 
-function extractFromSummary(symbol: string, summary: any): CalendarEventInsert[] {
+function extractFromSummary(symbol: string, summary: CalendarEventsSummary): CalendarEventInsert[] {
   const cal = summary?.calendarEvents;
   if (!cal) return [];
 
@@ -62,7 +74,7 @@ const upsertStmt = db.prepare(`
   ON CONFLICT(symbol, event_type, event_date) DO UPDATE SET is_estimate = excluded.is_estimate
 `);
 
-export function upsertCalendarEvents(symbol: string, summary: any) {
+export function upsertCalendarEvents(symbol: string, summary: CalendarEventsSummary) {
   const events = extractFromSummary(symbol.toUpperCase(), summary);
   for (const ev of events) {
     upsertStmt.run(ev.symbol, ev.eventType, ev.eventDate, ev.isEstimate ? 1 : 0);
