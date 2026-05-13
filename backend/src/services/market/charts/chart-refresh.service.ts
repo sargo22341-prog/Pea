@@ -1,7 +1,9 @@
-import { db } from "../../../db.js";
 import type { RangeKey } from "@pea/shared";
+import { watchlistRepository } from "../../../repositories/assets/watchlist.repository.js";
+import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
+import { portfolioRepository } from "../../../repositories/portfolio/portfolio.repository.js";
 import { chartConfigService } from "./chart-config.service.js";
 import { marketDataService } from "../data/market-data.service.js";
 import { marketEventsService } from "../events/market-events.service.js";
@@ -58,8 +60,7 @@ export class ChartRefreshService {
 
   requestWatchlistRefresh(input: { userId: string | number; range: RangeKey; force?: boolean }) {
     if (input.range !== "1d") return { status: "unsupported-range" as RefreshStatus, symbols: [] };
-    const rows = db.prepare("SELECT symbol FROM watchlist WHERE user_id = ?").all(String(input.userId)) as Array<{ symbol: string }>;
-    const assets = rows.map((row) => assetRepository.findBySymbol(row.symbol)).filter((asset): asset is AssetRow => Boolean(asset));
+    const assets = watchlistRepository.symbols(input.userId).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
     const eligibleAssets = this.filterRefreshableAssets(assets, { force: Boolean(input.force) });
     const results = eligibleAssets.map((asset) => this.startRefresh({ userId: input.userId, asset, range: input.range, scope: "watchlist", force: input.force }));
     return {
@@ -76,8 +77,7 @@ export class ChartRefreshService {
 
   requestPortfolioRefresh(input: { userId: string | number; range: RangeKey; force?: boolean }) {
     if (input.range !== "1d") return { status: "unsupported-range" as RefreshStatus, symbols: [] };
-    const rows = db.prepare("SELECT symbol FROM positions WHERE user_id = ?").all(String(input.userId)) as Array<{ symbol: string }>;
-    const assets = rows.map((row) => assetRepository.findBySymbol(row.symbol)).filter((asset): asset is AssetRow => Boolean(asset));
+    const assets = portfolioRepository.positionSymbols(input.userId).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
     const eligibleAssets = this.filterRefreshableAssets(assets, { force: Boolean(input.force) });
     const results = eligibleAssets.map((asset) => this.startRefresh({ userId: input.userId, asset, range: input.range, scope: "portfolio", force: input.force }));
     return {
@@ -122,11 +122,7 @@ export class ChartRefreshService {
   }
 
   private hasAnyChartData(assetId: number) {
-    const tables = ["chart_candles_1d", "chart_candles_1w", "chart_candles_1m", "chart_candles_all"];
-    return tables.some((table) => {
-      const row = db.prepare(`SELECT 1 AS found FROM ${table} WHERE asset_id = ? LIMIT 1`).get(assetId) as { found?: number } | undefined;
-      return Boolean(row);
-    });
+    return candleRepository.hasAnyChartData(assetId);
   }
 
 }

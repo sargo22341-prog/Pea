@@ -14,7 +14,7 @@ function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 export function useAccountSettings() {
-  const me = useAsync(() => api.me(), []);
+  const me = useAsync(() => api.me());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

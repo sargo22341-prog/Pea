@@ -1,4 +1,5 @@
 import type { DataConstructionJobDto } from "@pea/shared";
+import { marketDataConstructionRepository } from "../../../repositories/market/construction.repository.js";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
@@ -267,8 +268,7 @@ export class DataConstructionQueueService {
     if (task.type === "financials") await financialsService.refreshFinancials(asset);
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);
     if (task.type === "calendar-events") {
-      const { db } = await import("../../../db.js");
-      db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(asset.symbol.toUpperCase());
+      marketDataConstructionRepository.clearCachedFundamentals(asset.symbol);
       const marketInfo = await yahooService.marketInfo(asset.symbol);
       marketSnapshotService.upsertMarketInfo(asset.id, marketInfo.data);
       await yahooService.extraData(asset.symbol);        // quoteSummary (9 modules) → upsert calendar events

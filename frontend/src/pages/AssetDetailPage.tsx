@@ -36,7 +36,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
   const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
   const [toast, setToast] = useState<string | null>(null);
-  const asset = useAsync(() => api.asset(symbol, range), [symbol, range]);
+  const asset = useAsync(() => api.asset(symbol, range), `${symbol}:${range}`);
   const {
     chartPendingOpenConfirmation,
     chartPoints,

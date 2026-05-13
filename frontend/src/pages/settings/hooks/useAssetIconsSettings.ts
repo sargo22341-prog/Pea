@@ -4,7 +4,7 @@ import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
 
 export function useAssetIconsSettings() {
-  const icons = useAsync(() => api.assetIcons(), []);
+  const icons = useAsync(() => api.assetIcons());
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});

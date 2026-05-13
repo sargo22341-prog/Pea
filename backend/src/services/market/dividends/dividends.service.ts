@@ -1,7 +1,7 @@
 import type { DividendEvent } from "@pea/shared";
-import { db } from "../../../db.js";
 import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
+import { dividendsRepository } from "../../../repositories/market/dividends.repository.js";
 
 export class DividendsService {
   async refreshDividends(asset: AssetRow | string) {
@@ -11,15 +11,7 @@ export class DividendsService {
     period1.setFullYear(period1.getFullYear() - 10);
     const chart = await yahooApi.chart(assetRow.symbol, { period1, period2: new Date(), interval: "1d", events: "div|split" });
     for (const dividend of chart.dividends) {
-      db.prepare("DELETE FROM asset_dividends WHERE asset_id = ? AND ex_date = ? AND amount <> ?").run(assetRow.id, dividend.date, dividend.amount);
-      db.prepare(
-        `INSERT INTO asset_dividends (asset_id, ex_date, amount, currency, source)
-         VALUES (?, ?, ?, ?, 'yahoo-finance2')
-         ON CONFLICT(asset_id, ex_date, amount) DO UPDATE SET
-           currency = excluded.currency,
-           source = excluded.source,
-           updated_at = CURRENT_TIMESTAMP`
-      ).run(assetRow.id, dividend.date, dividend.amount, assetRow.currency ?? null);
+      dividendsRepository.upsert(assetRow.id, { date: dividend.date, amount: dividend.amount, currency: assetRow.currency ?? null });
     }
     return { updated: chart.dividends.length };
   }
@@ -37,18 +29,7 @@ export class DividendsService {
   readDividends(symbol: string): DividendEvent[] {
     const asset = assetRepository.findBySymbol(symbol);
     if (!asset) return [];
-    const rows = db
-      .prepare("SELECT ex_date, amount, currency FROM asset_dividends WHERE asset_id = ? ORDER BY ex_date ASC, updated_at ASC, id ASC")
-      .all(asset.id) as Array<{ ex_date: string; amount: number; currency?: string }>;
-    const latestByDate = new Map<string, { ex_date: string; amount: number; currency?: string }>();
-    for (const row of rows) latestByDate.set(row.ex_date, row);
-    return [...latestByDate.values()].map((row) => ({
-      symbol: asset.symbol,
-      date: row.ex_date,
-      amount: Number(row.amount),
-      currency: row.currency ?? asset.currency ?? "EUR",
-      status: "real"
-    }));
+    return dividendsRepository.read(asset);
   }
 }
 

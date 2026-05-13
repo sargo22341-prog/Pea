@@ -1,7 +1,7 @@
 import type { AssetChartDto, HistoryPoint, Quote, RangeKey } from "@pea/shared";
-import { db } from "../../../db.js";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
+import { marketSnapshotRepository } from "../../../repositories/market/market-snapshot.repository.js";
 import { marketRunRepository } from "../../../repositories/market/market-run.repository.js";
 import { localTradingDate } from "../../../schedulers/market-task.utils.js";
 import { logger } from "../../shared/logger.service.js";
@@ -205,22 +205,16 @@ export function fallbackClosePoint(tradingDay: YahooTradingDay): HistoryPoint {
 }
 
 export function snapshotLastPrice(assetId: number) {
-  const row = db.prepare("SELECT last_price FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { last_price?: number } | undefined;
-  const price = Number(row?.last_price);
-  return Number.isFinite(price) && price > 0 ? price : undefined;
+  return marketSnapshotRepository.lastPrice(assetId);
 }
 
 export function snapshotPreviousClose(assetId: number) {
-  const row = db.prepare("SELECT previous_close FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { previous_close?: number } | undefined;
-  const price = Number(row?.previous_close);
-  return Number.isFinite(price) && price > 0 ? price : undefined;
+  return marketSnapshotRepository.previousClose(assetId);
 }
 
 export function latestIntradayUpdatedAt(assetId: number) {
-  const row = db.prepare("SELECT MAX(datetime_start) AS datetime_start FROM chart_candles_1d WHERE asset_id = ?").get(assetId) as
-    | { datetime_start?: string | null }
-    | undefined;
-  const time = row?.datetime_start ? new Date(row.datetime_start).getTime() : NaN;
+  const datetimeStart = candleRepository.latestIntradayDatetime(assetId);
+  const time = datetimeStart ? new Date(datetimeStart).getTime() : NaN;
   return Number.isFinite(time) ? time : undefined;
 }
 

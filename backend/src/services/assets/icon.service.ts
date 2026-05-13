@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";
-import { db } from "../../db.js";
+import { assetIconRepository, type AssetIconRow, type KnownAssetRow } from "../../repositories/assets/asset-icon.repository.js";
 import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 import { currentUserId } from "../auth/user-context.js";
 import { logger } from "../shared/logger.service.js";
@@ -29,22 +29,6 @@ type LogoCandidate = {
   url: string;
   source: "logo.dev ticker" | "logo.dev name" | "logo.dev website" | "favicon";
   label: string;
-};
-
-type AssetIconRow = {
-  symbol: string;
-  file_path?: string | null;
-  mime_type?: string | null;
-  size?: number | string | null;
-  source?: string | null;
-  fetch_status?: string | null;
-  last_attempt_at?: string | null;
-  updated_at?: string | null;
-};
-
-type KnownAssetRow = {
-  symbol: string;
-  name: string;
 };
 
 fs.mkdirSync(iconsDir, { recursive: true });
@@ -89,7 +73,7 @@ function domainFromWebsite(value?: string) {
 }
 
 function readCachedQuote(symbol: string): { name?: string; quoteType?: string; website?: string } | undefined {
-  const row = db.prepare("SELECT payload FROM cached_quotes WHERE symbol = ?").get(normalizeSymbol(symbol)) as { payload?: string } | undefined;
+  const row = assetIconRepository.readCachedQuote(normalizeSymbol(symbol));
   if (!row?.payload) return undefined;
   try {
     const payload = JSON.parse(String(row.payload)) as { name?: string; quoteType?: string; website?: string };
@@ -126,7 +110,7 @@ export class IconService {
   getCached(symbol: string): AssetIcon | undefined {
     const key = normalizeSymbol(symbol);
     if (!key) return undefined;
-    const row = db.prepare("SELECT * FROM asset_icons WHERE symbol = ?").get(key) as AssetIconRow | undefined;
+    const row = assetIconRepository.find(key);
     return row ? mapIcon(row) : undefined;
   }
 
@@ -164,18 +148,7 @@ export class IconService {
     }
 
     fs.writeFileSync(filePath, buffer);
-    db.prepare(
-      `INSERT INTO asset_icons (symbol, file_path, mime_type, size, source, fetch_status, last_attempt_at)
-       VALUES (?, ?, ?, ?, ?, 'success', CURRENT_TIMESTAMP)
-       ON CONFLICT(symbol) DO UPDATE SET
-        file_path = excluded.file_path,
-        mime_type = excluded.mime_type,
-        size = excluded.size,
-        source = excluded.source,
-        fetch_status = 'success',
-        last_attempt_at = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP`
-    ).run(key, filePath, cleanMime, buffer.length, source);
+    assetIconRepository.saveSuccess({ symbol: key, filePath, mimeType: cleanMime, size: buffer.length, source });
     logger.debug("icons", "icon saved", { symbol: key, source, mimeType: cleanMime, size: buffer.length });
     return this.getCached(key)!;
   }
@@ -223,11 +196,7 @@ export class IconService {
   markIconAsFailed(symbol: string) {
     const key = normalizeSymbol(symbol);
     if (!key) return;
-    db.prepare(
-      `INSERT INTO asset_icons (symbol, source, fetch_status, last_attempt_at)
-       VALUES (?, 'auto', 'failed', CURRENT_TIMESTAMP)
-       ON CONFLICT(symbol) DO UPDATE SET fetch_status = 'failed', last_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`
-    ).run(key);
+    assetIconRepository.markFailed(key);
   }
 
   hasRecentFailure(symbol: string) {
@@ -246,18 +215,7 @@ export class IconService {
     const key = normalizeSymbol(symbol);
     const icon = this.getCached(key);
     if (icon?.filePath && fs.existsSync(icon.filePath)) fs.unlinkSync(icon.filePath);
-    db.prepare(
-      `INSERT INTO asset_icons (symbol, source, fetch_status, file_path, mime_type, size, last_attempt_at)
-       VALUES (?, 'auto', 'pending', NULL, NULL, NULL, NULL)
-       ON CONFLICT(symbol) DO UPDATE SET
-        file_path = NULL,
-        mime_type = NULL,
-        size = NULL,
-        source = 'auto',
-        fetch_status = 'pending',
-        last_attempt_at = NULL,
-        updated_at = CURRENT_TIMESTAMP`
-    ).run(key);
+    assetIconRepository.reset(key);
     logger.debug("icons", "icon deleted", { symbol: key });
   }
 
@@ -270,16 +228,7 @@ export class IconService {
   }
 
   listKnownAssets() {
-    return (db
-      .prepare(
-        `SELECT symbol, name FROM positions
-         WHERE user_id = ?
-         UNION
-         SELECT symbol, name FROM watchlist
-         WHERE user_id = ?
-         ORDER BY symbol ASC`
-      )
-      .all(currentUserId(), currentUserId()) as KnownAssetRow[])
+    return assetIconRepository.listKnownAssets(currentUserId())
       .map((row: KnownAssetRow) => {
         const symbol = String(row.symbol);
         return { symbol, name: String(row.name), icon: this.getCached(symbol) };
@@ -288,16 +237,7 @@ export class IconService {
 
   private getAssetMetadata(symbol: string) {
     const key = normalizeSymbol(symbol);
-    const known = db
-      .prepare(
-        `SELECT symbol, name FROM positions WHERE symbol = ?
-           AND user_id = ?
-         UNION
-         SELECT symbol, name FROM watchlist WHERE symbol = ?
-           AND user_id = ?
-         LIMIT 1`
-      )
-      .get(key, currentUserId(), key, currentUserId()) as { name?: string } | undefined;
+    const known = assetIconRepository.findKnownAsset(key, currentUserId());
     const quote = readCachedQuote(key);
     return {
       name: quote?.name ?? known?.name,
@@ -322,11 +262,7 @@ export class IconService {
   }
 
   private markIconPending(symbol: string) {
-    db.prepare(
-      `INSERT INTO asset_icons (symbol, source, fetch_status, last_attempt_at)
-       VALUES (?, 'auto', 'pending', CURRENT_TIMESTAMP)
-       ON CONFLICT(symbol) DO UPDATE SET fetch_status = 'pending', last_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`
-    ).run(symbol);
+    assetIconRepository.markPending(symbol);
   }
 
   private async getWebsiteFromYahooAssetProfile(symbol: string): Promise<string | undefined> {

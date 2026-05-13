@@ -75,6 +75,26 @@ export class CandleRepository {
     return Number(row?.count ?? 0);
   }
 
+  hasAnyChartData(assetId: number) {
+    return (Object.keys(CANDLE_TABLE) as StoredChartRange[]).some((range) => {
+      const table = candleTable(range);
+      const row = db.prepare(`SELECT 1 AS found FROM ${table} WHERE asset_id = ? LIMIT 1`).get(assetId) as { found?: number } | undefined;
+      return Boolean(row);
+    });
+  }
+
+  deleteAllRangeWindow(assetId: number, startIso: string, endIso: string) {
+    db.prepare("DELETE FROM chart_candles_all WHERE asset_id = ? AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
+      .run(assetId, startIso, endIso);
+  }
+
+  latestIntradayDatetime(assetId: number) {
+    const row = db.prepare("SELECT MAX(datetime_start) AS datetime_start FROM chart_candles_1d WHERE asset_id = ?").get(assetId) as
+      | { datetime_start?: string | null }
+      | undefined;
+    return row?.datetime_start ?? undefined;
+  }
+
   /**
    * Retourne la derniere date finalisee connue pour une range asset.
    *

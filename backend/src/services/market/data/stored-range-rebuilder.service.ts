@@ -1,4 +1,3 @@
-import { db } from "../../../db.js";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
 import { candleBuilder } from "../../candles/candle.builder.js";
@@ -60,8 +59,7 @@ export class StoredRangeRebuilderService {
 
         const closeDate = new Date(resolvedClose.closeIso);
         const session = getLastTradingDay(asset.symbol, asset.exchange, closeDate);
-        db.prepare("DELETE FROM chart_candles_all WHERE asset_id = ? AND interval = '1d' AND datetime_start >= ? AND datetime_start <= ?")
-          .run(asset.id, session.period1.toISOString(), session.period2.toISOString());
+        candleRepository.deleteAllRangeWindow(asset.id, session.period1.toISOString(), session.period2.toISOString());
 
         const finalClosePrice = Number(resolvedClose.closePrice);
         updated += candleRepository.upsertCandles([

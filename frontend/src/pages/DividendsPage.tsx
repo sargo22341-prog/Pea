@@ -17,7 +17,7 @@ export function DividendsPage() {
     };
   }, []);
 
-  const dividends = useAsync(() => api.portfolioDividends(), []);
+  const dividends = useAsync(() => api.portfolioDividends());
   const dividendsReload = dividends.reload;
   const [year, setYear] = useState(String(currentYear));
 

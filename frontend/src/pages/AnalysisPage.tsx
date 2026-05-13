@@ -22,7 +22,7 @@ const chartOptions: Array<{ key: ChartKey; label: string }> = [
 export function AnalysisPage() {
   const [selectedChart, setSelectedChart] = useState<ChartKey>("country");
   const [selectedFinancialSymbol, setSelectedFinancialSymbol] = useState("");
-  const analysis = useAsync((signal) => api.portfolioAnalysis(signal), []);
+  const analysis = useAsync((signal) => api.portfolioAnalysis(signal));
   const analysisReload = analysis.reload;
   const activeOption = useMemo(() => chartOptions.find((option) => option.key === selectedChart) ?? chartOptions[0], [selectedChart]);
   const selectedFinancialAsset = useMemo(

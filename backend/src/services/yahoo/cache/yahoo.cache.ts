@@ -1,8 +1,8 @@
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
-import { db } from "../../../db.js";
+import { yahooCacheRepository, type YahooCacheTable } from "../../../repositories/yahoo/yahoo-cache.repository.js";
 import { cacheIsStale, nowSeconds } from "../utils/stale.js";
 
-export type CacheTable = "cached_quotes" | "cached_dividends" | "cached_news" | "cached_fundamentals";
+export type CacheTable = YahooCacheTable;
 
 function exchangeFromCachedPayload(payload: unknown) {
   if (payload && typeof payload === "object" && "exchange" in payload) {
@@ -14,9 +14,7 @@ function exchangeFromCachedPayload(payload: unknown) {
 
 /** Lit un payload JSON et calcule son etat stale selon le TTL fourni. */
 export function readCache<T>(table: CacheTable, symbol: string, ttlSeconds: number): MarketDataResult<T> | null {
-  const row = db.prepare(`SELECT payload, fetched_at FROM ${table} WHERE symbol = ?`).get(symbol.toUpperCase()) as
-    | { payload: string; fetched_at: number }
-    | undefined;
+  const row = yahooCacheRepository.readSymbol(table, symbol);
 
   if (!row) return null;
   const data = JSON.parse(String(row.payload)) as T;
@@ -26,9 +24,5 @@ export function readCache<T>(table: CacheTable, symbol: string, ttlSeconds: numb
 
 /** Ecrit un payload JSON dans une table de cache par symbole. */
 export function writeCache(table: CacheTable, symbol: string, payload: unknown) {
-  db.prepare(
-    `INSERT INTO ${table} (symbol, payload, fetched_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(symbol) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
-  ).run(symbol.toUpperCase(), JSON.stringify(payload), nowSeconds());
+  yahooCacheRepository.writeSymbol(table, symbol, payload, nowSeconds());
 }

@@ -15,7 +15,7 @@ export function SearchPage() {
     };
   }, []);
 
-  const me = useAsync(() => api.me(), []);
+  const me = useAsync(() => api.me());
   const search = useEnrichedSearch({ localPeaSearchEnabled: me.data?.user?.localPeaSearchEnabled });
 
   return (

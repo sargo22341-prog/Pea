@@ -17,7 +17,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   });
 
   // Un seul appel réseau remplace les deux appels /portfolio et /portfolio/chart distincts.
-  const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), [selectedRange]);
+  const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), selectedRange);
   const summary = portfolioFull.data?.summary ?? null;
   const chart = portfolioFull.data?.chart ?? null;
   const portfolioReload = portfolioFull.reload;

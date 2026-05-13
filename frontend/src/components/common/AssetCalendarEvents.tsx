@@ -95,7 +95,7 @@ function CalendarEventsList({ events }: { events: VisualEvent[] }) {
 
 /** Version home : charge les events de tous les actifs du portfolio */
 export function PortfolioCalendarEvents() {
-  const result = useAsync(() => api.calendarEvents(), []);
+  const result = useAsync(() => api.calendarEvents());
 
   if (result.loading && !result.data) return null;
   if (!result.data || result.data.length === 0) return null;
@@ -115,7 +115,7 @@ export function PortfolioCalendarEvents() {
 
 /** Version page actif : charge uniquement les events de ce symbol */
 export function AssetCalendarEvents({ symbol }: { symbol: string }) {
-  const result = useAsync(() => api.calendarEventsForSymbol(symbol), [symbol]);
+  const result = useAsync(() => api.calendarEventsForSymbol(symbol), symbol);
 
   if (result.loading && !result.data) return null;
   if (!result.data || result.data.length === 0) return null;

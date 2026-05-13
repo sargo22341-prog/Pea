@@ -40,7 +40,7 @@ function LoadingPage() {
 }
 
 export function App() {
-  const me = useAsync(() => api.me(), []);
+  const me = useAsync(() => api.me());
   const userId = me.data?.user?.id;
   const eventSourceRef = useRef<EventSource | null>(null);
 

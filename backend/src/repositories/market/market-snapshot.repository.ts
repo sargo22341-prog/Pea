@@ -49,6 +49,18 @@ export class MarketSnapshotRepository {
     return row?.last_checked_at ? String(row.last_checked_at) : undefined;
   }
 
+  lastPrice(assetId: number): number | undefined {
+    const row = db.prepare("SELECT last_price FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { last_price?: number } | undefined;
+    const price = Number(row?.last_price);
+    return Number.isFinite(price) && price > 0 ? price : undefined;
+  }
+
+  previousClose(assetId: number): number | undefined {
+    const row = db.prepare("SELECT previous_close FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { previous_close?: number } | undefined;
+    const price = Number(row?.previous_close);
+    return Number.isFinite(price) && price > 0 ? price : undefined;
+  }
+
   upsertSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
     db.prepare(
       `INSERT INTO asset_market_snapshots (

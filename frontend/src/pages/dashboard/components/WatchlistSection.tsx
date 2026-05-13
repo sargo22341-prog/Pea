@@ -22,7 +22,7 @@ const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direct
 
 export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaultSortDirection = "asc" }: { range?: RangeKey; defaultSortKey?: WatchlistSortKey; defaultSortDirection?: SortDirection }) {
   const navigate = useNavigate();
-  const watchlist = useAsync((signal) => api.watchlist(range, signal), [range]);
+  const watchlist = useAsync((signal) => api.watchlist(range, signal), range);
   const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [sortOpen, setSortOpen] = useState(false);

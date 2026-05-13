@@ -1,6 +1,6 @@
-import { db } from "../../../db.js";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";
+import { marketDataConstructionRepository } from "../../../repositories/market/construction.repository.js";
 import { dataConstructionQueue } from "./data-construction-queue.service.js";
 import { logger } from "../../shared/logger.service.js";
 
@@ -22,10 +22,6 @@ const historicalCacheRangesByStoredRange: Record<StoredChartRange, string[]> = {
 
 function rangesForRebuild(range: MarketDataRebuildRange): StoredChartRange[] {
   return range === "all_ranges" ? storedRanges : [range];
-}
-
-function runDelete(sql: string, ...params: unknown[]) {
-  return db.prepare(sql).run(...params);
 }
 
 function nowIso() {
@@ -51,33 +47,10 @@ export class MarketDataCleaner {
    * exclus de la selection avant toute suppression.
    */
   cleanupUnlinkedAssets() {
-    const rows = db
-      .prepare(
-        `SELECT a.id, a.symbol
-         FROM assets a
-         LEFT JOIN positions p ON p.symbol = a.symbol
-         LEFT JOIN watchlist w ON w.symbol = a.symbol
-         WHERE p.id IS NULL AND w.id IS NULL
-         ORDER BY a.symbol ASC`
-      )
-      .all() as Array<{ id: number; symbol: string }>;
-
-    const deleted: Array<{ table: string; rows: number }> = [];
+    const rows = marketDataConstructionRepository.unlinkedAssets();
+    const deleted = marketDataConstructionRepository.cleanupUnlinkedAssets(rows);
     if (rows.length) {
-      const ids = rows.map((row) => Number(row.id));
       const symbols = rows.map((row) => String(row.symbol).toUpperCase());
-      const idPlaceholders = ids.map(() => "?").join(",");
-      const symbolPlaceholders = symbols.map(() => "?").join(",");
-
-      for (const table of ["chart_candles_1d", "chart_candles_1w", "chart_candles_1m", "chart_candles_all", "market_data_finalizations", "asset_market_snapshots", "asset_profiles", "asset_financials", "asset_dividends"]) {
-        deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN (${idPlaceholders})`, ...ids) });
-      }
-
-      for (const table of ["cached_history", "cached_intraday_history", "asset_article_cache", "asset_icons"]) {
-        deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
-      }
-
-      deleted.push({ table: "assets", rows: runDelete(`DELETE FROM assets WHERE id IN (${idPlaceholders})`, ...ids) });
       logger.info("market-data", "unlinked assets cleaned", { assets: symbols, deleted });
     }
 
@@ -104,49 +77,7 @@ export class MarketDataCleaner {
   private deleteRanges(ranges: StoredChartRange[]) {
     const apiRanges = [...new Set(ranges.flatMap((range) => apiRangesByStoredRange[range]))];
     const historicalCacheRanges = ranges.flatMap((range) => historicalCacheRangesByStoredRange[range]);
-    const deleted: Array<{ table: string; rows: number }> = [];
-
-    for (const range of ranges) {
-      deleted.push({
-        table: `chart_candles_${range}`,
-        rows: runDelete(`DELETE FROM chart_candles_${range}`)
-      });
-      deleted.push({
-        table: `market_data_finalizations:${range}`,
-        rows: runDelete("DELETE FROM market_data_finalizations WHERE range = ?", range)
-      });
-    }
-
-    if (historicalCacheRanges.length) {
-      const placeholders = historicalCacheRanges.map(() => "?").join(",");
-      deleted.push({
-        table: "cached_history",
-        rows: runDelete(`DELETE FROM cached_history WHERE range IN (${placeholders})`, ...historicalCacheRanges)
-      });
-      deleted.push({
-        table: "cached_intraday_history",
-        rows: runDelete(`DELETE FROM cached_intraday_history WHERE range IN (${placeholders})`, ...historicalCacheRanges)
-      });
-    }
-
-    if (apiRanges.length) {
-      const placeholders = apiRanges.map(() => "?").join(",");
-      deleted.push({
-        table: "portfolio_chart_cache",
-        rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN (${placeholders})`, ...apiRanges)
-      });
-      deleted.push({
-        table: "portfolio_positions_performance_cache",
-        rows: runDelete(`DELETE FROM portfolio_positions_performance_cache WHERE range IN (${placeholders})`, ...apiRanges)
-      });
-    }
-
-    deleted.push({
-      table: "frontend_block_cache",
-      rows: runDelete("DELETE FROM frontend_block_cache")
-    });
-
-    return deleted;
+    return marketDataConstructionRepository.deleteRanges({ ranges, historicalCacheRanges, apiRanges });
   }
 }
 

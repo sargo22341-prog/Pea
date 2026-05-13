@@ -1,5 +1,5 @@
 import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
-import { db } from "../../db.js";
+import { cacheRepository } from "../../repositories/cache/cache.repository.js";
 import type { FrontendBlock } from "./frontend-block-cache.service.js";
 import { cacheRegistry } from "./cache-registry.service.js";
 
@@ -48,9 +48,7 @@ export function normalizeMarketState(value: unknown): MarketState {
 /** Lit un cache JSON sans controle d'etat de marche. */
 export function readStaticJsonCache<T>(table: string, keyColumn: string, key: string): CacheRecord<T> | null {
   const cacheTarget = staticCacheTarget(table, keyColumn);
-  const row = db.prepare(`SELECT payload, cached_at, expires_at FROM ${cacheTarget.table} WHERE ${cacheTarget.keyColumn} = ?`).get(key) as
-    | { payload: string; cached_at: number; expires_at: number }
-    | undefined;
+  const row = cacheRepository.readStatic(cacheTarget, key);
   if (!row) return null;
   if (nowMs() > Number(row.expires_at)) return null;
   return {
@@ -63,11 +61,7 @@ export function readStaticJsonCache<T>(table: string, keyColumn: string, key: st
 /** Ecrit un cache JSON dans une table sans colonne d'etat de marche. */
 export function writeStaticJsonCache(table: string, keyColumn: string, key: string, payload: unknown, cachedAt: number, expiresAt: number) {
   const cacheTarget = staticCacheTarget(table, keyColumn);
-  db.prepare(
-    `INSERT INTO ${cacheTarget.table} (${cacheTarget.keyColumn}, payload, cached_at, expires_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(${cacheTarget.keyColumn}) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
-  ).run(key, JSON.stringify(payload), cachedAt, expiresAt);
+  cacheRepository.writeStatic(cacheTarget, key, payload, cachedAt, expiresAt);
 }
 
 const staticJsonCacheTargets = new Map<string, { table: string; keyColumn: string }>([

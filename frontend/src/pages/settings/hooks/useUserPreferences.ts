@@ -5,7 +5,7 @@ import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
 
 export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
-  const me = useAsync(() => api.me(), []);
+  const me = useAsync(() => api.me());
   const [sortValue, setSortValue] = useState("name:asc");
   const [watchlistSortValue, setWatchlistSortValue] = useState("name:asc");
   const [range, setRange] = useState<RangeKey>("1d");
