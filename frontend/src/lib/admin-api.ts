@@ -1,4 +1,4 @@
-import type { DataConstructionJobDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
+import type { DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { request } from "./api-core";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
@@ -33,6 +33,7 @@ function yahooUsageQuery(filters: YahooUsageStatsFilters) {
 
 export const adminApi = {
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
+  getRuntimeHealth: () => request<RuntimeHealthDto>("/api/admin/runtime-health"),
   yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {
     const query = yahooUsageQuery(filters);
     return request<YahooUsageStatsDto>(`/api/admin/yahoo-usage/stats${query ? `?${query}` : ""}`);

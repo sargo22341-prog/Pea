@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { DataConstructionSection } from "./components/DataConstructionSection";
 import { MarketDataActionsSection } from "./components/MarketDataActionsSection";
+import { RuntimeHealthSection } from "./components/RuntimeHealthSection";
 import { TrackedMarketsSection } from "./components/TrackedMarketsSection";
 import { YahooUsageSection } from "./components/YahooUsageSection";
 
@@ -19,6 +20,7 @@ export function AdminPage() {
         <p className="muted">Diagnostics Yahoo Finance, marches suivis et actions de maintenance.</p>
       </div>
       <DataConstructionSection />
+      <RuntimeHealthSection />
       <YahooUsageSection />
       <TrackedMarketsSection />
       <MarketDataActionsSection />
