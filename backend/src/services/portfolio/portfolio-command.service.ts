@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
-import { currentUserId } from "../auth/user-context.js";
+import { currentUserId, requireUserId } from "../auth/user-context.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
@@ -22,7 +22,8 @@ const createPositionSchema = z.object({
 });
 
 export class PortfolioCommandService {
-  async createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean } = {}): Promise<PositionWithMarket> {
+  async createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean; userId?: number | string } = {}): Promise<PositionWithMarket> {
+    const userId = requireUserId(options.userId);
     const parsed = createPositionSchema.parse({
       ...input,
       symbol: input.symbol.toUpperCase()
@@ -37,7 +38,7 @@ export class PortfolioCommandService {
     }
 
     const name = parsed.name || quoteName || parsed.symbol;
-    const existing = portfolioRepository.findPositionBySymbol(parsed.symbol);
+    const existing = portfolioRepository.findPositionBySymbol(parsed.symbol, userId);
 
     const position = db.transaction(() => {
       if (existing) {
@@ -55,16 +56,19 @@ export class PortfolioCommandService {
           currency: parsed.currency
         });
       } else {
-        portfolioRepository.insertPosition({ symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency });
+        portfolioRepository.insertPosition(
+          { symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency },
+          userId
+        );
       }
 
-      const savedPosition = portfolioRepository.findPositionBySymbol(parsed.symbol)!;
+      const savedPosition = portfolioRepository.findPositionBySymbol(parsed.symbol, userId)!;
       portfolioRepository.insertBuyTransactionNow(savedPosition.id, {
         quantity: parsed.quantity,
         price: parsed.averageBuyPrice,
         currency: parsed.currency
       });
-      this.invalidatePositionCaches(savedPosition.id, parsed.symbol);
+      this.invalidatePositionCaches(savedPosition.id, userId, parsed.symbol);
       return savedPosition;
     });
     await marketDataService.ensureAssetInitialized(parsed.symbol);
@@ -73,12 +77,13 @@ export class PortfolioCommandService {
     return portfolioQueryService.enrichPosition(mapPosition(position));
   }
 
-  ensurePosition(symbol: string, name: string, currency = "EUR"): Position {
+  ensurePosition(symbol: string, name: string, currency = "EUR", userId?: number | string): Position {
+    const resolvedUserId = requireUserId(userId);
     const normalizedSymbol = symbol.toUpperCase();
-    const existing = portfolioRepository.findPositionBySymbol(normalizedSymbol);
+    const existing = portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId);
     if (existing) return mapPosition(existing);
-    portfolioRepository.insertEmptyPosition({ symbol: normalizedSymbol, name, currency });
-    const created = portfolioRepository.findPositionBySymbol(normalizedSymbol)!;
+    portfolioRepository.insertEmptyPosition({ symbol: normalizedSymbol, name, currency }, resolvedUserId);
+    const created = portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId)!;
     return mapPosition(created);
   }
 
@@ -97,8 +102,9 @@ export class PortfolioCommandService {
     totalFees?: number | null;
     rawTextSnippet?: string | null;
   }) {
+    const userId = currentUserId();
     return db.transaction(() => {
-      const position = this.ensurePosition(input.symbol, input.name, input.currency);
+      const position = this.ensurePosition(input.symbol, input.name, input.currency, userId);
       this.assertValidTransactionMutation(position.id, {
         tradedAt: input.tradedAt,
         type: input.type,
@@ -122,7 +128,7 @@ export class PortfolioCommandService {
         rawTextSnippet: input.rawTextSnippet
       });
       this.recomputePositionFromDatedTransactions(position.id);
-      this.invalidatePositionCaches(position.id, input.symbol);
+      this.invalidatePositionCaches(position.id, userId, input.symbol);
       return position;
     });
   }
@@ -150,44 +156,48 @@ export class PortfolioCommandService {
     portfolioRepository.updatePositionValuation(positionId, quantity, averageBuyPrice);
   }
 
-  createTransaction(positionId: number, input: TransactionMutationInput) {
-    const position = portfolioRepository.findPositionById(positionId);
+  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
+    const resolvedUserId = requireUserId(userId);
+    const position = portfolioRepository.findPositionById(positionId, resolvedUserId);
     if (!position) throw new HttpError(404, "Position introuvable");
     this.assertValidTransactionMutation(positionId, input);
     db.transaction(() => {
       portfolioRepository.insertManualTransaction(positionId, input);
-      this.recomputePositionFromAnyTransactions(positionId);
-      this.invalidatePositionCaches(positionId);
+      this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
+      this.invalidatePositionCaches(positionId, resolvedUserId);
     });
-    return portfolioQueryService.listTransactions(positionId);
+    return portfolioQueryService.listTransactions(positionId, resolvedUserId);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput) {
-    if (!portfolioRepository.findPositionById(positionId)) throw new HttpError(404, "Position introuvable");
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string) {
+    const resolvedUserId = requireUserId(userId);
+    if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
     db.transaction(() => {
       portfolioRepository.updateManualTransaction(positionId, transactionId, input);
-      this.recomputePositionFromAnyTransactions(positionId);
-      this.invalidatePositionCaches(positionId);
+      this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
+      this.invalidatePositionCaches(positionId, resolvedUserId);
     });
-    return portfolioQueryService.listTransactions(positionId);
+    return portfolioQueryService.listTransactions(positionId, resolvedUserId);
   }
 
-  deleteTransaction(positionId: number, transactionId: number) {
-    if (!portfolioRepository.findPositionById(positionId)) throw new HttpError(404, "Position introuvable");
+  deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
+    const resolvedUserId = requireUserId(userId);
+    if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     db.transaction(() => {
       portfolioRepository.deleteTransaction(positionId, transactionId);
-      this.recomputePositionFromAnyTransactions(positionId);
-      this.invalidatePositionCaches(positionId);
+      this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
+      this.invalidatePositionCaches(positionId, resolvedUserId);
     });
   }
 
-  recomputePositionFromAnyTransactions(positionId: number) {
+  recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
+    const resolvedUserId = requireUserId(userId);
     const rows = portfolioRepository.listTransactionSequence(positionId);
     if (!rows.length) {
       portfolioRepository.resetPositionValuation(positionId);
-      portfolioQueryService.persistUserAssetPosition(currentUserId().toString(), positionId);
+      portfolioQueryService.persistUserAssetPosition(resolvedUserId, positionId);
       return;
     }
 
@@ -207,7 +217,7 @@ export class PortfolioCommandService {
     }
 
     portfolioRepository.updatePositionValuation(positionId, quantity, quantity > 0 ? costBasis / quantity : 0);
-    portfolioQueryService.persistUserAssetPosition(currentUserId().toString(), positionId);
+    portfolioQueryService.persistUserAssetPosition(resolvedUserId, positionId);
   }
 
   assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
@@ -233,30 +243,33 @@ export class PortfolioCommandService {
     this.assertTransactionSequenceDoesNotGoNegative(nextRows);
   }
 
-  deletePosition(id: number): boolean {
-    const existing = portfolioRepository.findPositionById(id);
+  deletePosition(id: number, userId?: number | string): boolean {
+    const resolvedUserId = requireUserId(userId);
+    const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) return false;
     db.transaction(() => {
-      this.invalidatePositionCaches(id);
-      portfolioRepository.deletePosition(id);
+      this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
+      portfolioRepository.deletePosition(id, resolvedUserId);
     });
     return true;
   }
 
-  replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }) {
-    const existing = portfolioRepository.findPositionById(id);
+  replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
+    const resolvedUserId = requireUserId(userId);
+    const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) throw new HttpError(404, "Position introuvable");
     db.transaction(() => {
       portfolioRepository.replaceImportedPositionSnapshot(id, input);
-      this.invalidatePositionCaches(id, existing.symbol);
+      this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
     });
   }
 
-  async updatePosition(id: number, input: UpdatePositionInput): Promise<PositionWithMarket> {
+  async updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {
+    const resolvedUserId = requireUserId(userId);
     const parsed = createPositionSchema
       .omit({ symbol: true, name: true })
       .parse(input);
-    const existing = portfolioRepository.findPositionById(id);
+    const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) throw new HttpError(404, "Position introuvable");
 
     db.transaction(() => {
@@ -266,16 +279,16 @@ export class PortfolioCommandService {
         currency: parsed.currency,
         notes: parsed.notes ?? null
       });
-      this.invalidatePositionCaches(id);
+      this.invalidatePositionCaches(id, resolvedUserId);
     });
 
-    const row = portfolioRepository.findPositionById(id)!;
+    const row = portfolioRepository.findPositionById(id, resolvedUserId)!;
     return portfolioQueryService.enrichPosition(mapPosition(row));
   }
 
-  invalidatePositionCaches(positionId: number, fallbackSymbol?: string) {
-    const row = portfolioRepository.findPositionById(positionId);
-    invalidateUserAssetCaches(currentUserId().toString(), row?.symbol ?? fallbackSymbol);
+  invalidatePositionCaches(positionId: number, userId: number | string, fallbackSymbol?: string) {
+    const row = portfolioRepository.findPositionById(positionId, userId);
+    invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
   }
 
   private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {

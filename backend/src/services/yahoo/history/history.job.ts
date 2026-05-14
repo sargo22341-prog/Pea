@@ -4,6 +4,12 @@ import type { MarketDataResult } from "../../market/data/market-data-provider.js
 import { getLastTradingDay, shouldRefreshMarketData } from "../../market/calendars/marketCalendar.service.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
+import {
+  HISTORY_LONG_FRESH_TTL_S,
+  HISTORY_LONG_STALE_REJECT_S,
+  HISTORY_WEEK_FRESH_TTL_S,
+  HISTORY_WEEK_STALE_REJECT_S
+} from "../cache/cache.constants.js";
 import { readHistoryCache, readIntradayCache, readLatestIntradayCache, writeHistoryCache, writeIntradayCache } from "../cache/history.cache.js";
 import { safeYahooCall } from "../yahoo.client.js";
 import { logMarketData } from "../utils/logging.js";
@@ -42,8 +48,11 @@ export async function fetchHistory(symbol: string, range: RangeKey, quoteReader:
 
   const displayInterval = String(historicalOptions.displayInterval);
   logger.debug("chart", "history fetch requested", { symbol: key, range, interval: historicalOptions.interval, displayInterval, tradingDay: historicalOptions.tradingDay });
-  const historyTtlSeconds = range === "1w" ? 15 * 60 : 60 * 60;
-  const cacheReader = range === "1d" ? () => readIntradayCache(key, historicalOptions.tradingDay) : () => readHistoryCache(key, range, displayInterval, historyTtlSeconds);
+  const historyFreshTtl = range === "1w" ? HISTORY_WEEK_FRESH_TTL_S : HISTORY_LONG_FRESH_TTL_S;
+  const historyStaleReject = range === "1w" ? HISTORY_WEEK_STALE_REJECT_S : HISTORY_LONG_STALE_REJECT_S;
+  const cacheReader = range === "1d"
+    ? () => readIntradayCache(key, historicalOptions.tradingDay)
+    : () => readHistoryCache(key, range, displayInterval, historyFreshTtl, historyStaleReject);
   const cacheWriter =
     range === "1d" ? (data: HistoryPoint[]) => writeIntradayCache(key, data, historicalOptions.tradingDay) : (data: HistoryPoint[]) => writeHistoryCache(key, range, displayInterval, data);
 

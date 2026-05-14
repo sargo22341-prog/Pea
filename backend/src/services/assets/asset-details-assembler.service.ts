@@ -9,6 +9,7 @@ import type {
 } from "@pea/shared";
 import { config } from "../../config.js";
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
+import { currentUserId } from "../auth/user-context.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
@@ -270,7 +271,7 @@ export class AssetDetailsAssembler {
       positionRangePerformance: portfolio.positionRangePerformance,
       userAssetPosition: portfolio.userAssetPosition,
       positionStats: portfolio.positionStats,
-      isInWatchlist: watchlistRepository.has(symbol),
+      isInWatchlist: watchlistRepository.has(symbol, currentUserId()),
       stale: Boolean(
         market.marketUnavailable ||
         fundamentals.marketUnavailable ||

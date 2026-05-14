@@ -7,6 +7,10 @@ import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 
+// Toutes les opérations d'import s'exécutent sous `runWithUser` (route protégée par requireAuth),
+// `currentUserId()` est donc fiable. Les helpers internes le récupèrent quand ils touchent
+// directement la repo portfolio (qui exige un userId explicite).
+
 export interface BoursoramaRow {
   line: number;
   name: string;
@@ -135,7 +139,7 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
       }
     }
     const symbol = resolved.symbol?.toUpperCase() ?? null;
-    const existing = symbol ? portfolioRepository.findPositionBySymbol(symbol) : undefined;
+    const existing = symbol ? portfolioRepository.findPositionBySymbol(symbol, currentUserId()) : undefined;
     rows.push({
       ...row,
       symbol,
@@ -167,7 +171,7 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
       }
       if (row.errors.length) throw new Error(row.errors.join(", "));
       await assertYahooSymbolExists(row.symbol);
-      const existing = portfolioRepository.findPositionBySymbol(row.symbol);
+      const existing = portfolioRepository.findPositionBySymbol(row.symbol, currentUserId());
       if (existing && row.action === "replace") {
         portfolioService.replaceImportedPositionSnapshot(existing.id, {
           name: row.name,
@@ -199,7 +203,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   const rows: BoursoramaUpdateRow[] = [];
 
   for (const row of previewRows) {
-    const existing = row.symbol ? portfolioRepository.findPositionBySymbol(row.symbol) : undefined;
+    const existing = row.symbol ? portfolioRepository.findPositionBySymbol(row.symbol, currentUserId()) : undefined;
     const currentQuantity = existing ? Number(existing.quantity) : undefined;
     const currentAverageBuyPrice = existing ? Number(existing.average_buy_price) : undefined;
     const quantityDiff = row.quantity - (currentQuantity ?? 0);
@@ -280,7 +284,7 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
         continue;
       }
       await assertYahooSymbolExists(row.symbol);
-      const existing = portfolioRepository.findPositionBySymbol(row.symbol);
+      const existing = portfolioRepository.findPositionBySymbol(row.symbol, currentUserId());
       if (existing) {
         portfolioService.replaceImportedPositionSnapshot(existing.id, {
           name: row.name,

@@ -229,7 +229,11 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("range_52w_updated_at"), "colonne range_52w_updated_at absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("dividend_info_updated_at"), "colonne dividend_info_updated_at absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], "les 23 migrations doivent etre enregistrees");
+  assert.deepEqual(
+    resultat.versionsMigrations,
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+    "les 24 migrations doivent etre enregistrees"
+  );
 });
 
 test("cache registry applique les regles d'invalidation metier", () => {

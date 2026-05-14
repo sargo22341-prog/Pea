@@ -1,4 +1,5 @@
 import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo } from "@pea/shared";
+import { FUNDAMENTALS_FRESH_TTL_S, FUNDAMENTALS_STALE_REJECT_S } from "../cache/cache.constants.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall } from "../yahoo.client.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
@@ -36,7 +37,13 @@ async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<Y
         module: "financials",
         type: "annual"
       }),
-    () => readCache<YahooFinancialTimeSeriesRaw>("cached_fundamentals", `${key}:annual-financials`, 7 * 24 * 60 * 60),
+    () =>
+      readCache<YahooFinancialTimeSeriesRaw>(
+        "cached_fundamentals",
+        `${key}:annual-financials`,
+        FUNDAMENTALS_FRESH_TTL_S,
+        FUNDAMENTALS_STALE_REJECT_S
+      ),
     (data) => writeCache("cached_fundamentals", `${key}:annual-financials`, data)
   );
 }
@@ -46,7 +53,7 @@ async function fetchFundamentalsSummary(symbol: string): Promise<MarketDataResul
   const result = await safeYahooCall<YahooSummaryRaw>(
     `fundamentals:${key}`,
     () => yahooQuoteSummary(key, fundamentalsModules),
-    () => readCache<YahooSummaryRaw>("cached_fundamentals", key, 7 * 24 * 60 * 60),
+    () => readCache<YahooSummaryRaw>("cached_fundamentals", key, FUNDAMENTALS_FRESH_TTL_S, FUNDAMENTALS_STALE_REJECT_S),
     (data) => {
       writeCache("cached_fundamentals", key, data);
       try { upsertCalendarEvents(key, data); } catch (err) {

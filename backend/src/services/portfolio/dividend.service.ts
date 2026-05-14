@@ -1,6 +1,6 @@
 import type { DividendEvent, PortfolioDividendEvent, PortfolioDividends, PositionWithMarket } from "@pea/shared";
 import { config } from "../../config.js";
-import { currentUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
@@ -40,13 +40,14 @@ function dividendMetrics(position: PositionWithMarket) {
 }
 
 export class DividendService {
-  async portfolioDividends(): Promise<PortfolioDividends> {
-    const userId = currentUserId().toString();
+  async portfolioDividends(userId?: number | string): Promise<PortfolioDividends> {
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<PortfolioDividends>(userId, "dividends");
+      const cached = frontendBlockCache.read<PortfolioDividends>(cacheUserId, "dividends");
       if (cached) return cached;
     }
-    const positions = await portfolioService.summary();
+    const positions = await portfolioService.summary("1d", resolvedUserId);
     const upcoming: PortfolioDividendEvent[] = [];
     const past: PortfolioDividendEvent[] = [];
     const currentYear = new Date().getFullYear();
@@ -153,7 +154,7 @@ export class DividendService {
       past: past.sort((a, b) => b.date.localeCompare(a.date)),
       stale
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "dividends", payload, chartConfigService.getSnapshotRefreshIntervalMs());
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "dividends", payload, chartConfigService.getSnapshotRefreshIntervalMs());
     return payload;
   }
 }

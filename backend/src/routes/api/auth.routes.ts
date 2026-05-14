@@ -5,6 +5,7 @@ import { config } from "../../config.js";
 import { createRateLimit } from "../../middleware/rate-limit.js";
 import { requireAuth, clearAuthCookie, readCookie, setAuthCookie } from "../../middleware/auth.js";
 import { authCookieName, authService } from "../../services/auth/auth.service.js";
+import { authFailureTracker, clientIpFrom, sleep } from "../../services/auth/auth-failure-tracker.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { detectSupportedImageMime } from "../../utils/image-signature.js";
@@ -35,19 +36,28 @@ authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) =>
   }).parse(req.body);
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
-  logger.debug("auth", "setup success", { username: result.user.username, userId: result.user.id });
+  logger.info("auth", "setup success", { username: result.user.username, userId: result.user.id, ip: clientIpFrom(req) });
   setAuthCookie(res, result.token);
   res.status(201).json(result.user);
 }));
 
 authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) => {
   const body = z.object({ username: z.string().trim().min(1), password: z.string().min(1) }).parse(req.body);
+  const ip = clientIpFrom(req);
+
+  // Backoff exponentiel basé sur l'historique récent (par IP ou par username), même AVANT
+  // d'appeler bcrypt — limite drastiquement le débit d'un attaquant.
+  const backoffMs = authFailureTracker.delayForKeys([`ip:${ip}`, `user:${body.username.toLowerCase()}`]);
+  if (backoffMs > 0) await sleep(backoffMs);
+
   let result: Awaited<ReturnType<typeof authService.login>>;
   try {
     result = await authService.login(body.username, body.password);
-    logger.debug("auth", "login success", { username: result.user.username, userId: result.user.id });
+    authFailureTracker.recordSuccess({ ip, username: body.username });
+    logger.info("auth", "login success", { username: result.user.username, userId: result.user.id, ip });
   } catch (error) {
-    logger.debug("auth", "login fail", { username: body.username, error: error instanceof Error ? error.message : "unknown error" });
+    const reason = error instanceof Error ? error.message : "unknown error";
+    authFailureTracker.recordFailure({ ip, username: body.username, reason });
     throw error;
   }
   setAuthCookie(res, result.token);
@@ -87,6 +97,9 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
     assetNewsEnabled: updated.assetNewsEnabled,
     newsLanguages: updated.newsLanguages.join(",")
   });
+  if (body.password) {
+    logger.info("auth", "password changed", { userId: updated.id, username: updated.username, ip: clientIpFrom(req) });
+  }
   res.json(updated);
 }));
 

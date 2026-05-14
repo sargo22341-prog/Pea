@@ -17,7 +17,7 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
 
   if (req.user?.localPeaSearchEnabled) {
     const localStartedAt = performance.now();
-    const enriched = localPeaSearchService.search(q);
+    const enriched = localPeaSearchService.search(q, req.user.id);
     logger.debug("search", "local PEA search", { q, results: enriched.length, totalMs: Math.round(performance.now() - localStartedAt) });
     res.json(enriched);
     return;
@@ -35,8 +35,8 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   const quoteBySymbol = new Map(quotes.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
 
   const dbStartedAt = performance.now();
-  const watchlistSymbols = new Set(watchlistRepository.symbols());
-  const portfolioSymbols = new Set(portfolioRepository.positionSymbols());
+  const watchlistSymbols = new Set(watchlistRepository.symbols(req.user!.id));
+  const portfolioSymbols = new Set(portfolioRepository.positionSymbols(req.user!.id));
   const dbMs = performance.now() - dbStartedAt;
 
   const enriched: EnrichedSearchResult[] = items.map((item) => {

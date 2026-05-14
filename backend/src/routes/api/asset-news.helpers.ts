@@ -1,5 +1,5 @@
 import type { NewsArticle, NewsLanguage } from "@pea/shared";
-import { currentUserId } from "../../services/auth/user-context.js";
+import { requireUserId } from "../../services/auth/user-context.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { assetNewsRepository } from "../../repositories/news/asset-news.repository.js";
 
@@ -59,8 +59,8 @@ export function companyNewsQuery(name: string | undefined, symbol: string) {
 /**
  * Lit les positions utiles aux news directement en base, sans enrichissement Yahoo.
  */
-export function listAssetNewsPositionRows(): AssetNewsPositionRow[] {
-  return portfolioRepository.listPositions(currentUserId()).map((row) => ({
+export function listAssetNewsPositionRows(userId?: number | string): AssetNewsPositionRow[] {
+  return portfolioRepository.listPositions(requireUserId(userId)).map((row) => ({
     id: Number(row.id),
     symbol: String(row.symbol),
     name: String(row.name),

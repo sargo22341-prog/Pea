@@ -2,8 +2,10 @@ import type { HistoryPoint, RangeKey } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { yahooCacheRepository } from "../../../repositories/yahoo/yahoo-cache.repository.js";
 import { getCurrentTradingDay } from "../../../utils/range.js";
+import { logger } from "../../shared/logger.service.js";
 import { cacheIsStale, historyCacheIsStale, nowSeconds } from "../utils/stale.js";
 import { sanitizeHistoryPoints } from "../history/history.sanitizer.js";
+import { HISTORY_INTRADAY_STALE_REJECT_S } from "./cache.constants.js";
 
 export type IntradayCacheResult = MarketDataResult<HistoryPoint[]> & { tradingDay: string; lastUpdatedAt: number };
 
@@ -15,12 +17,28 @@ function intradayCacheKey(symbol: string, tradingDay: string) {
   return `${symbol.toUpperCase()}:1d:5m:${tradingDay}`;
 }
 
-/** Lit un cache historique hors 1d. */
-export function readHistoryCache(symbol: string, range: RangeKey, interval: string, ttlSeconds: number): MarketDataResult<HistoryPoint[]> | null {
+/**
+ * Lit un cache historique hors 1d.
+ *
+ * `staleRejectSeconds` si défini écarte les entrées plus vieilles que le seuil afin que le
+ * fallback "stale" ne serve jamais de données obsolètes au-delà d'une fenêtre raisonnable.
+ */
+export function readHistoryCache(
+  symbol: string,
+  range: RangeKey,
+  interval: string,
+  ttlSeconds: number,
+  staleRejectSeconds?: number
+): MarketDataResult<HistoryPoint[]> | null {
   const cacheKey = historyCacheKey(symbol, range, interval);
   const row = yahooCacheRepository.readHistory(cacheKey);
 
   if (!row) return null;
+  const ageSeconds = nowSeconds() - Number(row.fetched_at);
+  if (staleRejectSeconds !== undefined && ageSeconds > staleRejectSeconds) {
+    logger.warn("cache", "stale history cache rejected", { symbol, range, interval, ageSeconds, staleRejectSeconds });
+    return null;
+  }
   const stale = range === "1w" ? historyCacheIsStale(symbol, range, Number(row.fetched_at)) : cacheIsStale(symbol, undefined, Number(row.fetched_at), ttlSeconds);
   return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(String(row.payload)) as HistoryPoint[]), stale };
 }
@@ -33,6 +51,11 @@ export function readIntradayCache(symbol: string, tradingDay = getCurrentTrading
   if (!row) {
     const fallback = yahooCacheRepository.readIntradayFallback(symbol);
     if (!fallback) return null;
+    const ageSeconds = nowSeconds() - Number(fallback.last_updated_at);
+    if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
+      logger.warn("cache", "stale intraday fallback rejected", { symbol, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
+      return null;
+    }
     return {
       data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(fallback.payload)) as HistoryPoint[]),
       stale: true,
@@ -41,6 +64,11 @@ export function readIntradayCache(symbol: string, tradingDay = getCurrentTrading
     };
   }
 
+  const ageSeconds = nowSeconds() - Number(row.last_updated_at);
+  if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
+    logger.warn("cache", "stale intraday cache rejected", { symbol, tradingDay, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
+    return null;
+  }
   const stale = historyCacheIsStale(symbol, "1d", Number(row.last_updated_at));
   return {
     data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
@@ -50,10 +78,15 @@ export function readIntradayCache(symbol: string, tradingDay = getCurrentTrading
   };
 }
 
-/** Lit le dernier cache intraday disponible, meme s'il est force stale. */
+/** Lit le dernier cache intraday disponible, meme s'il est force stale (mais pas au-dela du seuil de rejet). */
 export function readLatestIntradayCache(symbol: string): IntradayCacheResult | null {
   const row = yahooCacheRepository.readLatestIntraday(symbol);
   if (!row) return null;
+  const ageSeconds = nowSeconds() - Number(row.last_updated_at);
+  if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
+    logger.warn("cache", "stale latest intraday rejected", { symbol, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
+    return null;
+  }
   return {
     data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
     stale: true,

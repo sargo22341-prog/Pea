@@ -3,6 +3,14 @@ import type { MarketDataResult } from "../../market/data/market-data-provider.js
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
 import { logger } from "../../shared/logger.service.js";
 import { safeString } from "../../assets/peaEligibility.js";
+import {
+  QUOTE_COMBINE_FRESH_TTL_S,
+  QUOTE_COMBINE_STALE_REJECT_S,
+  QUOTE_FRESH_TTL_S,
+  QUOTE_STALE_REJECT_S,
+  SEARCH_FRESH_TTL_S,
+  SEARCH_STALE_REJECT_S
+} from "../cache/cache.constants.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { retryTemporary, safeYahooCall } from "../yahoo.client.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "../yahoo.errors.js";
@@ -13,7 +21,6 @@ import { normalizeQuote } from "./quote.mapper.js";
 
 const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number }>();
 const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
-const quoteCacheTtlSeconds = 0;
 
 /** Recherche des symboles Yahoo, avec cache memoire 24h. */
 export async function searchYahoo(query: string): Promise<MarketDataResult<SearchResult[]>> {
@@ -21,9 +28,15 @@ export async function searchYahoo(query: string): Promise<MarketDataResult<Searc
   if (!normalizedQuery) return { data: [], stale: false };
 
   const cached = searchCache.get(normalizedQuery);
-  if (cached && nowSeconds() - cached.fetchedAt < 24 * 60 * 60) {
+  const cachedAge = cached ? nowSeconds() - cached.fetchedAt : Number.POSITIVE_INFINITY;
+  // Purge proactive des entrées au-delà du seuil de rejet (évite de fuir mémoire indéfiniment).
+  if (cached && cachedAge > SEARCH_STALE_REJECT_S) {
+    searchCache.delete(normalizedQuery);
+  }
+  const usableCache = cached && cachedAge <= SEARCH_STALE_REJECT_S ? cached : undefined;
+  if (usableCache && cachedAge < SEARCH_FRESH_TTL_S) {
     logMarketData("cache-hit", { provider: "memory-cache", method: "search", symbol: normalizedQuery, stale: false, durationMs: 0 });
-    return { data: cached.payload, stale: false };
+    return { data: usableCache.payload, stale: false };
   }
 
   const yahooStartedAt = performance.now();
@@ -52,9 +65,9 @@ export async function searchYahoo(query: string): Promise<MarketDataResult<Searc
   } catch (error) {
     logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
     logger.warn("market-data", "Yahoo search error", { query: normalizedQuery, error: errorMessage(error) });
-    if (cached && isTemporaryYahooError(error)) {
+    if (usableCache && isTemporaryYahooError(error)) {
       logMarketData("cache-hit", { provider: "memory-cache", method: "search", symbol: normalizedQuery, stale: true, reason: "yahoo-error", durationMs: 0 });
-      return { data: cached.payload, stale: true };
+      return { data: usableCache.payload, stale: true };
     }
 
     throw toYahooHttpError(error);
@@ -71,7 +84,7 @@ export async function fetchQuote(symbol: string): Promise<MarketDataResult<Quote
       const item = await yahooQuote(key);
       return normalizeQuote(item, key);
     },
-    () => readCache<Quote>("cached_quotes", key, quoteCacheTtlSeconds),
+    () => readCache<Quote>("cached_quotes", key, QUOTE_FRESH_TTL_S, QUOTE_STALE_REJECT_S),
     (data) => writeCache("cached_quotes", key, data)
   );
 
@@ -87,7 +100,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
   const staleCachedQuotes = new Map<string, Quote>();
   const symbolsToFetch: string[] = [];
   for (const key of keys) {
-    const cached = readCache<Quote>("cached_quotes", key, quoteCacheTtlSeconds);
+    const cached = readCache<Quote>("cached_quotes", key, QUOTE_FRESH_TTL_S, QUOTE_STALE_REJECT_S);
     if (cached && !cached.stale) {
       cachedQuotes.set(key, markStale(cached.data, false));
       logMarketData("cache-hit", { provider: "local-cache", method: "quoteBatch", symbol: key, stale: false, durationMs: 0 });
@@ -168,9 +181,14 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
 
   const cacheKey = keys.sort().join(",");
   const cached = quoteCombineCache.get(cacheKey);
-  if (cached && nowSeconds() - cached.fetchedAt < 60) {
+  const cachedAge = cached ? nowSeconds() - cached.fetchedAt : Number.POSITIVE_INFINITY;
+  if (cached && cachedAge > QUOTE_COMBINE_STALE_REJECT_S) {
+    quoteCombineCache.delete(cacheKey);
+  }
+  const usableCache = cached && cachedAge <= QUOTE_COMBINE_STALE_REJECT_S ? cached : undefined;
+  if (usableCache && cachedAge < QUOTE_COMBINE_FRESH_TTL_S) {
     logMarketData("cache-hit", { provider: "memory-cache", method: "quoteCombine", symbol: cacheKey, stale: false, durationMs: 0 });
-    return { data: cached.payload, stale: false };
+    return { data: usableCache.payload, stale: false };
   }
 
   const yahooStartedAt = performance.now();
@@ -189,9 +207,9 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
   } catch (error) {
     logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
     logger.warn("market-data", "Yahoo quote batch error", { symbols: cacheKey, error: errorMessage(error) });
-    if (cached) {
+    if (usableCache) {
       logMarketData("cache-hit", { provider: "memory-cache", method: "quoteCombine", symbol: cacheKey, stale: true, reason: "yahoo-error", durationMs: 0 });
-      return { data: cached.payload, stale: true };
+      return { data: usableCache.payload, stale: true };
     }
     throw toYahooHttpError(error);
   }

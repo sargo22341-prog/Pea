@@ -1,7 +1,7 @@
 import type { PortfolioSummary, Position, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UserAssetPositionDto } from "@pea/shared";
 import { config } from "../../config.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
-import { currentUserId, normalizeUserId } from "../auth/user-context.js";
+import { currentUserId, requireUserId } from "../auth/user-context.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
@@ -12,24 +12,23 @@ import { buildTransactionCache, computeTotalDividendsReceived, positionFromTrans
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 import type { EditablePortfolioTransaction } from "@pea/shared";
 
-function normalizedUserId(userId?: string | number) {
-  return String(normalizeUserId(userId));
-}
-
 export class PortfolioQueryService {
-  listPositions(): Position[] {
-    const rows = portfolioRepository.listPositions();
+  listPositions(userId?: number | string): Position[] {
+    const resolved = requireUserId(userId);
+    const rows = portfolioRepository.listPositions(resolved);
     return rows.map(mapPosition);
   }
 
-  async getPosition(symbol: string): Promise<PositionWithMarket | undefined> {
-    const row = portfolioRepository.findPositionBySymbol(symbol);
+  async getPosition(symbol: string, userId?: number | string): Promise<PositionWithMarket | undefined> {
+    const resolved = requireUserId(userId);
+    const row = portfolioRepository.findPositionBySymbol(symbol, resolved);
     if (!row) return undefined;
     return this.enrichPosition(mapPosition(row));
   }
 
-  listTransactions(positionId: number): EditablePortfolioTransaction[] {
-    const ownedPosition = portfolioRepository.findPositionById(positionId);
+  listTransactions(positionId: number, userId?: number | string): EditablePortfolioTransaction[] {
+    const resolved = requireUserId(userId);
+    const ownedPosition = portfolioRepository.findPositionById(positionId, resolved);
     if (!ownedPosition) return [];
     const rows = portfolioRepository.listTransactions(positionId);
     if (!rows.length) {
@@ -58,25 +57,26 @@ export class PortfolioQueryService {
     }));
   }
 
-  transactionStats(positionId: number, totalDividendsReceived = 0, currency = "EUR"): PositionTransactionStats {
-    const rows = this.listTransactions(positionId);
+  transactionStats(positionId: number, totalDividendsReceived = 0, currency = "EUR", userId?: number | string): PositionTransactionStats {
+    const rows = this.listTransactions(positionId, userId);
     return calculateTransactionStats(rows, totalDividendsReceived, currency);
   }
 
-  async summary(range: RangeKey = "1d"): Promise<PortfolioSummary> {
-    const cacheUserId = currentUserId().toString();
+  async summary(range: RangeKey = "1d", userId?: number | string): Promise<PortfolioSummary> {
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
       const cached = frontendBlockCache.read<PortfolioSummary>(cacheUserId, "portfolio-summary", range);
       if (cached) return cached;
     }
-    const basePositions = this.listPositions();
+    const basePositions = this.listPositions(resolvedUserId);
     const quotesBySymbol = await this.quotesForPositions(basePositions);
     const txCache = buildTransactionCache(basePositions.map((p) => p.id));
     const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
     const totalDividendsReceived = computeTotalDividendsReceived(positions, txCache);
-    const totalFees = portfolioRepository.listPositions(currentUserId())
+    const totalFees = portfolioRepository.listPositions(resolvedUserId)
       .flatMap((position) => portfolioRepository.listTransactionSequence(position.id))
       .reduce((sum, transaction) => sum + Number(transaction.total_fees ?? 0), 0);
     const totalPerformance = totalValue - totalCost;
@@ -98,9 +98,10 @@ export class PortfolioQueryService {
   }
 
   userAssetPosition(userId: string | number, symbol: string): UserAssetPositionDto | undefined {
-    const cacheUserId = normalizedUserId(userId);
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
     const key = symbol.toUpperCase();
-    const cached = portfolioRepository.findUserAssetPosition(cacheUserId, key);
+    const cached = portfolioRepository.findUserAssetPosition(resolvedUserId, key);
     if (cached) {
       return {
         userId: cached.user_id,
@@ -113,7 +114,7 @@ export class PortfolioQueryService {
       };
     }
 
-    const position = portfolioRepository.findPositionBySymbol(key, cacheUserId);
+    const position = portfolioRepository.findPositionBySymbol(key, resolvedUserId);
     if (!position) return undefined;
     return this.persistUserAssetPosition(cacheUserId, position.id);
   }
@@ -153,15 +154,17 @@ export class PortfolioQueryService {
     };
   }
 
-  persistUserAssetPosition(userId: string, positionId: number): UserAssetPositionDto | undefined {
-    const position = portfolioRepository.findPositionById(positionId, userId);
+  persistUserAssetPosition(userId: string | number, positionId: number): UserAssetPositionDto | undefined {
+    const resolved = requireUserId(userId);
+    const cacheUserId = String(resolved);
+    const position = portfolioRepository.findPositionById(positionId, resolved);
     if (!position) return undefined;
     const transactions = portfolioRepository.listTransactionSequence(positionId);
     const transactionCount = transactions.length;
     const totalFees = transactions.reduce((sum, row) => sum + Number(row.total_fees ?? 0), 0);
     const investedAmount = Number(position.quantity) * Number(position.average_buy_price);
     const payload: UserAssetPositionDto = {
-      userId,
+      userId: cacheUserId,
       symbol: String(position.symbol).toUpperCase(),
       quantity: Number(position.quantity),
       averagePrice: Number(position.average_buy_price),
@@ -196,7 +199,8 @@ export class PortfolioQueryService {
       if (!isMarketDataUnavailable(error)) throw error;
       logger.warn("portfolio", "portfolio quotes batch unavailable", {
         symbols: positions.map((position) => position.symbol).join(","),
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        userId: currentUserId()
       });
       return new Map<string, Quote>();
     }

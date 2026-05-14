@@ -1,7 +1,7 @@
 import type { HistoryPoint, PortfolioPerformancePoint, Position, PositionMiniChart, PositionRangePerformance, Quote, RangeKey } from "@pea/shared";
 import { HttpError } from "../../utils/http-error.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
-import { currentUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
@@ -48,8 +48,9 @@ function downsampleHistoryForMiniChart(points: HistoryPoint[], maxPoints = 40): 
 }
 
 export class PortfolioPerformanceService {
-  async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PortfolioPerformancePoint[]> {
-    const positions = portfolioQueryService.listPositions();
+  async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PortfolioPerformancePoint[]> {
+    const resolvedUserId = requireUserId(userId);
+    const positions = portfolioQueryService.listPositions(resolvedUserId);
     if (!positions.length) return [];
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 
@@ -127,26 +128,28 @@ export class PortfolioPerformanceService {
     return maxPoints !== undefined ? downsamplePoints(rawPoints, maxPoints) : rawPoints;
   }
 
-  async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
+  async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
+    const resolvedUserId = requireUserId(userId);
     if (!options.forceIntradayOpen && !options.intradayNow) {
       return portfolioPerformanceCache.getOrCompute({
-        userId: currentUserId().toString(),
+        userId: resolvedUserId,
         range,
-        compute: () => this.calculatePositionsPerformance(range, options)
+        compute: () => this.calculatePositionsPerformance(range, options, resolvedUserId)
       });
     }
-    return this.calculatePositionsPerformance(range, options);
+    return this.calculatePositionsPerformance(range, options, resolvedUserId);
   }
 
-  async singlePositionPerformance(positionId: number, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance> {
-    const row = portfolioRepository.findPositionById(positionId);
+  async singlePositionPerformance(positionId: number, range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance> {
+    const resolvedUserId = requireUserId(userId);
+    const row = portfolioRepository.findPositionById(positionId, resolvedUserId);
     if (!row) throw new HttpError(404, "Position introuvable");
     logger.debug("portfolio", "single position performance calculation", { range, positionId });
     return this.positionRangePerformance(mapPosition(row), range, options);
   }
 
-  private async calculatePositionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PositionRangePerformance[]> {
-    const positions = portfolioQueryService.listPositions();
+  private async calculatePositionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
+    const positions = portfolioQueryService.listPositions(userId);
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
     const txCache = buildTransactionCache(positions.map((p) => p.id));
     return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options, txCache)));

@@ -1,7 +1,7 @@
 import type { RangeKey, SearchResult, WatchlistItem } from "@pea/shared";
 import { config } from "../../config.js";
 import { watchlistRepository, type WatchlistRow } from "../../repositories/assets/watchlist.repository.js";
-import { currentUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
@@ -23,19 +23,21 @@ function mapWatchlistRow(row: WatchlistRow): WatchlistItem {
 }
 
 export class WatchlistService {
-  async list(range: RangeKey = "1d"): Promise<WatchlistItem[]> {
-    const userId = currentUserId().toString();
+  async list(range: RangeKey = "1d", userId?: number | string): Promise<WatchlistItem[]> {
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<WatchlistItem[]>(userId, "watchlist", range);
+      const cached = frontendBlockCache.read<WatchlistItem[]>(cacheUserId, "watchlist", range);
       if (cached) return cached;
     }
-    const rows = watchlistRepository.list();
+    const rows = watchlistRepository.list(resolvedUserId);
     const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "watchlist", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "watchlist", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
     return payload;
   }
 
-  async add(symbol: string, input?: Partial<SearchResult>): Promise<WatchlistItem> {
+  async add(symbol: string, input?: Partial<SearchResult>, userId?: number | string): Promise<WatchlistItem> {
+    const resolvedUserId = requireUserId(userId);
     const key = symbol.toUpperCase();
     let name = input?.name || key;
     let exchange = input?.exchange;
@@ -50,22 +52,33 @@ export class WatchlistService {
       if (!isMarketDataUnavailable(error)) throw error;
     }
 
-    watchlistRepository.upsert({ symbol: key, name, exchange, currency });
+    watchlistRepository.upsert({ symbol: key, name, exchange, currency }, resolvedUserId);
 
-    const row = watchlistRepository.find(key);
+    const row = watchlistRepository.find(key, resolvedUserId);
     if (!row) throw new Error("Watchlist introuvable apres insertion.");
-    this.invalidateWatchlistCache(currentUserId());
-    marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
+    this.invalidateWatchlistCache(resolvedUserId);
+    marketEventsService.emitToUser(resolvedUserId, "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return this.enrich(mapWatchlistRow(row), "1d");
   }
 
-  remove(symbol: string): boolean {
+  remove(symbol: string, userId?: number | string): boolean {
+    const resolvedUserId = requireUserId(userId);
     const key = symbol.toUpperCase();
-    if (!watchlistRepository.has(key)) return false;
-    watchlistRepository.remove(key);
-    this.invalidateWatchlistCache(currentUserId());
-    marketEventsService.emitToUser(currentUserId(), "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
+    if (!watchlistRepository.has(key, resolvedUserId)) return false;
+    watchlistRepository.remove(key, resolvedUserId);
+    this.invalidateWatchlistCache(resolvedUserId);
+    marketEventsService.emitToUser(resolvedUserId, "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
     return true;
+  }
+
+  has(symbol: string, userId?: number | string): boolean {
+    const resolvedUserId = requireUserId(userId);
+    return watchlistRepository.has(symbol, resolvedUserId);
+  }
+
+  symbols(userId?: number | string): string[] {
+    const resolvedUserId = requireUserId(userId);
+    return watchlistRepository.symbols(resolvedUserId);
   }
 
   private invalidateWatchlistCache(userId: string | number) {

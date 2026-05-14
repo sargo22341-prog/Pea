@@ -2,6 +2,7 @@ import type { DividendEvent, Quote } from "@pea/shared";
 import { buildHistoricalOptions } from "../../../utils/range.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { dedupeInFlight } from "../../shared/inFlightDeduper.js";
+import { DIVIDENDS_FRESH_TTL_S, DIVIDENDS_STALE_REJECT_S } from "../cache/cache.constants.js";
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall } from "../yahoo.client.js";
 import { markStaleList } from "../utils/stale.js";
@@ -36,7 +37,7 @@ export async function fetchDividends(symbol: string, quoteReader: QuoteReader): 
         }));
       return dividends;
     },
-    () => readCache<DividendEvent[]>("cached_dividends", key, 60 * 60 * 12),
+    () => readCache<DividendEvent[]>("cached_dividends", key, DIVIDENDS_FRESH_TTL_S, DIVIDENDS_STALE_REJECT_S),
     (data) => writeCache("cached_dividends", key, data)
   );
 

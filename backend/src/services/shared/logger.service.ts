@@ -79,7 +79,11 @@ function writeJsonLine(entry: { timestamp: string; level: LogLevel; category: Lo
 function log(level: LogLevel, category: LogCategory, message: string, meta?: unknown) {
   if (!categories.has(category)) category = "general";
   const debugEnabled = isDebugEnabled();
-  if (level !== "error" && !debugEnabled) return;
+  // Auparavant : seul `error` passait en mode non-debug, ce qui rendait toute alerte WARN
+  // (brute-force, fallback Yahoo, retry temporaire) invisible en production. On laisse
+  // désormais passer info/warn/error en console en permanence ; les fichiers JSON détaillés
+  // restent réservés au mode DEBUG pour ne pas saturer le disque.
+  if (level === "debug" && !debugEnabled) return;
 
   const timestamp = new Date().toISOString();
   const cleanMeta = meta === undefined ? undefined : sanitizeMeta(meta);
@@ -90,7 +94,9 @@ function log(level: LogLevel, category: LogCategory, message: string, meta?: unk
   else if (level === "info") console.info(line);
   else console.debug(line);
 
-  if (debugEnabled) writeJsonLine({ timestamp, level, category, message, meta: cleanMeta });
+  if (debugEnabled || level === "warn" || level === "error") {
+    writeJsonLine({ timestamp, level, category, message, meta: cleanMeta });
+  }
 }
 
 export const logger = {

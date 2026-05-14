@@ -2,6 +2,7 @@ import type { EnrichedSearchResult } from "@pea/shared";
 import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
+import { requireUserId } from "../auth/user-context.js";
 
 interface RawPeaAsset {
   code?: string | null;
@@ -72,12 +73,13 @@ const assets: LocalPeaAsset[] = Object.entries(peaAssets as unknown as Record<st
   .filter((item): item is LocalPeaAsset => Boolean(item));
 
 export class LocalPeaSearchService {
-  search(query: string): EnrichedSearchResult[] {
+  search(query: string, userId?: number | string): EnrichedSearchResult[] {
     const normalizedQuery = normalize(query);
     if (normalizedQuery.length < 2) return [];
 
-    const watchlistSymbols = new Set(watchlistRepository.symbols());
-    const portfolioSymbols = new Set(portfolioRepository.positionSymbols());
+    const resolvedUserId = requireUserId(userId);
+    const watchlistSymbols = new Set(watchlistRepository.symbols(resolvedUserId));
+    const portfolioSymbols = new Set(portfolioRepository.positionSymbols(resolvedUserId));
 
     return assets
       .filter((item) => item.searchText.includes(normalizedQuery))

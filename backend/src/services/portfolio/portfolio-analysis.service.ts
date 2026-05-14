@@ -9,7 +9,7 @@ import type {
 } from "@pea/shared";
 import { config } from "../../config.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
-import { currentUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { financialsService } from "../market/financials/financials.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
@@ -212,17 +212,18 @@ export class PortfolioAnalysisService {
     };
   }
 
-  async analysis(): Promise<PortfolioAnalysis> {
-    const userId = currentUserId().toString();
+  async analysis(userId?: number | string): Promise<PortfolioAnalysis> {
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<PortfolioAnalysis>(userId, "analysis");
+      const cached = frontendBlockCache.read<PortfolioAnalysis>(cacheUserId, "analysis");
       if (cached) return cached;
     }
-    const portfolio = await portfolioService.summary("1d");
+    const portfolio = await portfolioService.summary("1d", resolvedUserId);
     const totalValue = portfolio.totalValue || portfolio.positions.reduce((sum, position) => sum + position.marketValue, 0);
     if (!portfolio.positions.length || !totalValue) {
       const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [] };
-      if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", empty, chartConfigService.getSnapshotRefreshIntervalMs());
+      if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", empty, chartConfigService.getSnapshotRefreshIntervalMs());
       return empty;
     }
 
@@ -293,7 +294,7 @@ export class PortfolioAnalysisService {
       financials: aggregateFinancials(financialInputs),
       stale
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(userId, "analysis", payload, chartConfigService.getSnapshotRefreshIntervalMs());
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", payload, chartConfigService.getSnapshotRefreshIntervalMs());
     return payload;
   }
 }

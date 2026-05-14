@@ -5,7 +5,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
   db.exec(`
   CREATE TABLE IF NOT EXISTS positions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
     symbol TEXT NOT NULL,
     name TEXT NOT NULL,
     quantity REAL NOT NULL,
@@ -142,7 +142,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
 
   CREATE TABLE IF NOT EXISTS watchlist (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
     symbol TEXT NOT NULL,
     name TEXT NOT NULL,
     exchange TEXT,

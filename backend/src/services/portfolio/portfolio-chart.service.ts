@@ -1,7 +1,7 @@
 import type { MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioTransactionMarker, Position, RangeKey } from "@pea/shared";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { portfolioChartRepository } from "../../repositories/portfolio/portfolio-chart.repository.js";
-import { currentUserId, normalizeUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { nowMs, toDisplayRange } from "../shared/cache.service.js";
@@ -12,10 +12,6 @@ import { portfolioQueryService } from "./portfolio-query.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
 
 const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all"]);
-
-function normalizedUserId(userId?: string | number) {
-  return String(normalizeUserId(userId));
-}
 
 export class PortfolioChartService {
   private static readonly CHART_CACHE_TTL_MS: Partial<Record<RangeKey, number>> = {
@@ -30,15 +26,17 @@ export class PortfolioChartService {
   };
 
   async full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {
+    const resolvedUserId = requireUserId(userId);
     const [summary, chart] = await Promise.all([
-      portfolioQueryService.summary(range),
-      this.chart(range, userId, options)
+      portfolioQueryService.summary(range, resolvedUserId),
+      this.chart(range, resolvedUserId, options)
     ]);
     return { summary, chart };
   }
 
   async chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
-    const cacheUserId = normalizedUserId(userId);
+    const resolvedUserId = requireUserId(userId);
+    const cacheUserId = String(resolvedUserId);
 
     if (!options.forceIntradayOpen && !options.intradayNow) {
       const cacheKey = `${cacheUserId}:${range}`;
@@ -46,8 +44,8 @@ export class PortfolioChartService {
       if (cached) return cached;
     }
 
-    const points = await portfolioPerformanceService.performance(range, options);
-    const positions = portfolioQueryService.listPositions();
+    const points = await portfolioPerformanceService.performance(range, options, resolvedUserId);
+    const positions = portfolioQueryService.listPositions(resolvedUserId);
     const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
     const value: number[] = [];
@@ -73,12 +71,12 @@ export class PortfolioChartService {
     const lastGain = gain[gain.length - 1] ?? firstGain;
     const firstInvested = invested[0] ?? 0;
     const lastInvested = invested[invested.length - 1] ?? firstInvested;
-    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(options) : undefined;
+    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(resolvedUserId, options) : undefined;
     const performanceStart = baseline?.price ?? first;
     const performanceEuro = range === "1d" && baseline ? last - performanceStart : lastGain - firstGain;
     const performanceBase = range === "1d" && baseline ? performanceStart : firstInvested || lastInvested;
     const cachedAt = nowMs();
-    const preparation = await this.portfolioPreparationState(range, options);
+    const preparation = await this.portfolioPreparationState(range, resolvedUserId, options);
     const payload: PortfolioChartDto = {
       userId: cacheUserId,
       range: toDisplayRange(range),
@@ -95,7 +93,7 @@ export class PortfolioChartService {
       ...preparation,
       cachedAt,
       expiresAt: cachedAt,
-      transactionMarkers: this.transactionMarkersForChart(range, timestamps)
+      transactionMarkers: this.transactionMarkersForChart(range, timestamps, resolvedUserId)
     };
 
     if (!payload.isPreparing && !options.forceIntradayOpen && !options.intradayNow) {
@@ -108,7 +106,7 @@ export class PortfolioChartService {
     return payload;
   }
 
-  private transactionMarkersForChart(range: RangeKey, timestamps: number[]): PortfolioTransactionMarker[] {
+  private transactionMarkersForChart(range: RangeKey, timestamps: number[], userId: number): PortfolioTransactionMarker[] {
     if (!portfolioTransactionMarkerRanges.has(range) || timestamps.length === 0) return [];
 
     const sortedTimestamps = [...timestamps].filter(Number.isFinite).sort((a, b) => a - b);
@@ -116,7 +114,7 @@ export class PortfolioChartService {
     const lastTimestamp = sortedTimestamps[sortedTimestamps.length - 1];
     if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) return [];
 
-    const rows = portfolioChartRepository.listTransactionMarkers(currentUserId());
+    const rows = portfolioChartRepository.listTransactionMarkers(userId);
 
     return rows.flatMap((row) => {
       const transactionTime = new Date(row.traded_at).getTime();
@@ -164,8 +162,8 @@ export class PortfolioChartService {
     };
   }
 
-  private async portfolioIntradayBaseline(options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
-    const positions = portfolioQueryService.listPositions();
+  private async portfolioIntradayBaseline(userId: number, options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
+    const positions = portfolioQueryService.listPositions(userId);
     if (!positions.length) return undefined;
 
     const txCache = buildTransactionCache(positions.map((p) => p.id));
@@ -189,10 +187,10 @@ export class PortfolioChartService {
     return { price, datetime: datetimes.sort((a, b) => b.localeCompare(a))[0] };
   }
 
-  private async portfolioPreparationState(range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
+  private async portfolioPreparationState(range: RangeKey, userId: number, options: PortfolioMarketDataOptions = {}): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
     const missingAssets: string[] = [];
     const jobIds: string[] = [];
-    for (const position of portfolioQueryService.listPositions()) {
+    for (const position of portfolioQueryService.listPositions(userId)) {
       const chart = await marketDataService.getChartData(position.symbol, range, options);
       if (chart.isPreparing) {
         missingAssets.push(position.symbol);

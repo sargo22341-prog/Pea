@@ -38,7 +38,7 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
     res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;
   }
-  const positions = listAssetNewsPositionRows();
+  const positions = listAssetNewsPositionRows(req.user!.id);
   if (!positions.length) {
     res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;

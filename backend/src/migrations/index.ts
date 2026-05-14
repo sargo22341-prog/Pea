@@ -21,6 +21,7 @@ import { yahooUsageLogsMigration } from "./020-yahoo-usage-logs.js";
 import { dedupeDividendsMigration } from "./021-dedupe-dividends.js";
 import { dataConstructionQueueMigration } from "./022-data-construction-queue.js";
 import { snapshotFreshnessAndCandleOrderIndexesMigration } from "./023-snapshot-freshness-and-candle-order-indexes.js";
+import { positionsWatchlistNoDefaultUserIdMigration } from "./024-positions-watchlist-no-default-user-id.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -46,5 +47,6 @@ export const migrations: Migration[] = [
   yahooUsageLogsMigration,
   dedupeDividendsMigration,
   dataConstructionQueueMigration,
-  snapshotFreshnessAndCandleOrderIndexesMigration
+  snapshotFreshnessAndCandleOrderIndexesMigration,
+  positionsWatchlistNoDefaultUserIdMigration
 ];

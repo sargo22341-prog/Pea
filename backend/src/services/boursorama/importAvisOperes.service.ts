@@ -163,7 +163,7 @@ function markDuplicateWarning(operation: ParsedAvisOperation): ParsedAvisOperati
   const symbol = operation.selectedSymbol ?? operation.resolvedAsset?.symbol;
   if (!symbol) return operation;
 
-  const position = portfolioRepository.findPositionBySymbol(symbol.toUpperCase());
+  const position = portfolioRepository.findPositionBySymbol(symbol.toUpperCase(), currentUserId());
 
   if (!position) return operation;
 

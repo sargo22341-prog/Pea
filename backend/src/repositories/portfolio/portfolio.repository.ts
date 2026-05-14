@@ -1,6 +1,5 @@
 import type { Position } from "@pea/shared";
 import { db } from "../../db.js";
-import { normalizeUserId } from "../../services/auth/user-context.js";
 
 export interface PositionRow {
   id: number;
@@ -81,31 +80,50 @@ function compareTransactionAsc(a: TransactionRow, b: TransactionRow) {
   return Number(a.id) - Number(b.id);
 }
 
+function ensureUserId(userId: number | string): number {
+  const numeric = Number(userId);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error(`PortfolioRepository: userId invalide (${userId})`);
+  }
+  return Math.floor(numeric);
+}
+
+/**
+ * Repository portfolio.
+ *
+ * Toutes les méthodes touchant `user_id` exigent désormais un userId explicite et numérique.
+ * Le fallback historique vers `defaultSingleUserId=1` a été supprimé : un userId manquant lève
+ * désormais une erreur claire pour empêcher tout accès cross-user silencieux.
+ *
+ * Les méthodes opérant par `positionId` (transactions) ne prennent pas userId : c'est la
+ * responsabilité du service appelant de vérifier au préalable que la position appartient bien à
+ * l'utilisateur courant via `findPositionById(positionId, userId)`.
+ */
 export class PortfolioRepository {
-  listPositions(userId?: number | string): PositionRow[] {
-    return db.prepare("SELECT * FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(normalizeUserId(userId)) as PositionRow[];
+  listPositions(userId: number | string): PositionRow[] {
+    return db.prepare("SELECT * FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(ensureUserId(userId)) as PositionRow[];
   }
 
-  findPositionBySymbol(symbol: string, userId?: number | string): PositionRow | undefined {
-    return db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(normalizeUserId(userId), symbol.toUpperCase()) as PositionRow | undefined;
+  findPositionBySymbol(symbol: string, userId: number | string): PositionRow | undefined {
+    return db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(ensureUserId(userId), symbol.toUpperCase()) as PositionRow | undefined;
   }
 
-  findPositionById(positionId: number, userId?: number | string): PositionRow | undefined {
-    return db.prepare("SELECT * FROM positions WHERE user_id = ? AND id = ?").get(normalizeUserId(userId), positionId) as PositionRow | undefined;
+  findPositionById(positionId: number, userId: number | string): PositionRow | undefined {
+    return db.prepare("SELECT * FROM positions WHERE user_id = ? AND id = ?").get(ensureUserId(userId), positionId) as PositionRow | undefined;
   }
 
-  insertPosition(input: { symbol: string; name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
+  insertPosition(input: { symbol: string; name: string; quantity: number; averageBuyPrice: number; currency: string }, userId: number | string) {
     db.prepare(
       `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
        VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(normalizeUserId(userId), input.symbol, input.name, input.quantity, input.averageBuyPrice, input.currency);
+    ).run(ensureUserId(userId), input.symbol, input.name, input.quantity, input.averageBuyPrice, input.currency);
   }
 
-  insertEmptyPosition(input: { symbol: string; name: string; currency: string }, userId?: number | string) {
+  insertEmptyPosition(input: { symbol: string; name: string; currency: string }, userId: number | string) {
     db.prepare(
       `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
        VALUES (?, ?, ?, 0, 0, ?)`
-    ).run(normalizeUserId(userId), input.symbol.toUpperCase(), input.name, input.currency);
+    ).run(ensureUserId(userId), input.symbol.toUpperCase(), input.name, input.currency);
   }
 
   updatePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name?: string; currency: string; notes?: string | null }) {
@@ -132,8 +150,8 @@ export class PortfolioRepository {
     ).run(input.name, input.quantity, input.averageBuyPrice, input.currency, positionId);
   }
 
-  deletePosition(positionId: number, userId?: number | string) {
-    return db.prepare("DELETE FROM positions WHERE user_id = ? AND id = ?").run(normalizeUserId(userId), positionId);
+  deletePosition(positionId: number, userId: number | string) {
+    return db.prepare("DELETE FROM positions WHERE user_id = ? AND id = ?").run(ensureUserId(userId), positionId);
   }
 
   listTransactions(positionId: number): TransactionRow[] {
@@ -224,8 +242,8 @@ export class PortfolioRepository {
       .run(quantity, averageBuyPrice, positionId);
   }
 
-  findUserAssetPosition(userId: string, symbol: string): UserAssetPositionRow | undefined {
-    return db.prepare("SELECT * FROM user_assets WHERE user_id = ? AND symbol = ?").get(userId, symbol.toUpperCase()) as UserAssetPositionRow | undefined;
+  findUserAssetPosition(userId: string | number, symbol: string): UserAssetPositionRow | undefined {
+    return db.prepare("SELECT * FROM user_assets WHERE user_id = ? AND symbol = ?").get(String(ensureUserId(userId)), symbol.toUpperCase()) as UserAssetPositionRow | undefined;
   }
 
   upsertUserAssetPosition(input: UserAssetPositionRow & { updatedAt: number }) {
@@ -236,7 +254,7 @@ export class PortfolioRepository {
     ).run(input.user_id, input.symbol, input.quantity, input.average_price, input.transaction_count, input.total_fees, input.invested_amount, input.updatedAt);
   }
 
-  positionSymbols(userId?: number | string) {
+  positionSymbols(userId: number | string) {
     return this.listPositions(userId).map((row) => row.symbol.toUpperCase());
   }
 }
