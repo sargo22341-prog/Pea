@@ -238,7 +238,7 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
     addTracked("AAA.PA", "AAA", "Paris");
     db.prepare("INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency) VALUES (2, 'AAA.PA', 'AAA', 3, 20, 'EUR')").run();
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
-    db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, last_price, previous_close, currency, source, updated_at, last_checked_at) VALUES (?, 'REGULAR', 110, 100, 'EUR', 'seed', '2026-05-06T07:00:00.000Z', '2026-05-06T07:00:00.000Z')").run(asset.id);
+    db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, previous_close, currency, source, updated_at, last_checked_at) VALUES (?, 'REGULAR', 110, 100, 'EUR', 'seed', '2026-05-06T07:00:00.000Z', '2026-05-06T07:00:00.000Z')").run(asset.id);
     let chartCalls = 0;
     marketDataService.getChartData = async (symbol, range) => {
       chartCalls += 1;
@@ -264,7 +264,7 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
     };
     const firstUser = await runWithUser(1, async () => portfolioService.positionsPerformance("1d"));
     const secondUser = await runWithUser(2, async () => portfolioService.positionsPerformance("1d"));
-    db.prepare("UPDATE asset_market_snapshots SET updated_at = '2026-05-06T07:05:00.000Z', last_checked_at = '2026-05-06T07:05:00.000Z' WHERE asset_id = ?").run(asset.id);
+    db.prepare("UPDATE asset_quote_snapshot SET updated_at = '2026-05-06T07:05:00.000Z', last_checked_at = '2026-05-06T07:05:00.000Z' WHERE asset_id = ?").run(asset.id);
     const staleServed = await runWithUser(1, async () => portfolioService.positionsPerformance("1d"));
     await new Promise((resolve) => setTimeout(resolve, 40));
     const refreshed = await runWithUser(1, async () => portfolioService.positionsPerformance("1d"));
@@ -332,10 +332,10 @@ test("live refresh mode serves dashboard assets analysis and dividends from cach
         addTracked("AAA.PA", "AAA", "Paris");
         const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
         db.prepare(
-          "INSERT INTO asset_market_snapshots (asset_id, market_state, last_price, day_change, day_change_percent, previous_close, currency, exchange, source, last_checked_at, updated_at) VALUES (?, 'REGULAR', 123, 1, 0.82, 122, 'EUR', 'Paris', 'seed', ?, ?)"
+          "INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, day_change, day_change_percent, previous_close, currency, exchange, source, last_checked_at, updated_at) VALUES (?, 'REGULAR', 123, 1, 0.82, 122, 'EUR', 'Paris', 'seed', ?, ?)"
         ).run(asset.id, new Date().toISOString(), new Date().toISOString());
         db.prepare(
-          "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 122, 123, 122, 122.5, 'seed'), (?, '5m', '2026-05-06T07:05:00.000Z', '2026-05-06T07:10:00.000Z', 122.5, 123, 122.5, 123, 'seed')"
+          "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '1d', '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 122, 123, 122, 122.5, 'seed'), (?, '1d', '5m', '2026-05-06T07:05:00.000Z', '2026-05-06T07:10:00.000Z', 122.5, 123, 122.5, 123, 'seed')"
         ).run(asset.id, asset.id);
 
         const now = Date.now();

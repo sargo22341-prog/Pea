@@ -108,17 +108,17 @@ export class PortfolioPerformanceCacheRepository {
   snapshotStats(assetIds: number[]) {
     return db.prepare(
       `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COALESCE(MAX(last_checked_at), '') AS last_checked_at
-       FROM asset_market_snapshots
+       FROM asset_quote_snapshot
        WHERE asset_id IN (${placeholders(assetIds)})`
     ).get(...assetIds) as { updated_at: string; last_checked_at: string };
   }
 
-  candleStats(input: { table: string; assetIds: number[]; interval: string }) {
+  candleStats(input: { rangeKey: string; assetIds: number[]; interval: string }) {
     return db.prepare(
       `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COUNT(*) AS count
-       FROM ${input.table}
-       WHERE asset_id IN (${placeholders(input.assetIds)}) AND interval = ?`
-    ).get(...input.assetIds, input.interval) as { updated_at: string; count: number };
+       FROM chart_candles
+       WHERE asset_id IN (${placeholders(input.assetIds)}) AND range_key = ? AND interval = ?`
+    ).get(...input.assetIds, input.rangeKey, input.interval) as { updated_at: string; count: number };
   }
 }
 

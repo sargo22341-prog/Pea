@@ -24,6 +24,8 @@ import { snapshotFreshnessAndCandleOrderIndexesMigration } from "./023-snapshot-
 import { positionsWatchlistNoDefaultUserIdMigration } from "./024-positions-watchlist-no-default-user-id.js";
 import { unifiedCacheEntriesMigration } from "./025-unified-cache-entries.js";
 import { dataConstructionPriorityMigration } from "./026-data-construction-priority.js";
+import { unifiedChartCandlesMigration } from "./027-unified-chart-candles.js";
+import { snapshotSplitMigration } from "./028-snapshot-split.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -52,5 +54,7 @@ export const migrations: Migration[] = [
   snapshotFreshnessAndCandleOrderIndexesMigration,
   positionsWatchlistNoDefaultUserIdMigration,
   unifiedCacheEntriesMigration,
-  dataConstructionPriorityMigration
+  dataConstructionPriorityMigration,
+  unifiedChartCandlesMigration,
+  snapshotSplitMigration
 ];

@@ -91,7 +91,7 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
     const start = new Date(Date.now() - 60_000);
     const end = new Date(start.getTime() + 5 * 60_000);
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', ?, ?, 100, 101, 99, 100, 'seed', ?)"
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '1d', '5m', ?, ?, 100, 101, 99, 100, 'seed', ?)"
     ).run(asset.id, start.toISOString(), end.toISOString(), new Date().toISOString());
     let chartCalls = 0;
     yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
@@ -120,7 +120,7 @@ test("lazy chart refresh skips Yahoo while market open status is pending", () =>
     marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: local.isoDate, timezone: calendar.timezone, assetsCount: 1 });
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed')"
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '1d', '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed')"
     ).run(asset.id);
     let chartCalls = 0;
     yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
@@ -155,7 +155,7 @@ test("lazy chart refresh initializes an unknown comparison symbol once", () => {
     const refresh = await chartRefreshService.requestAssetRefreshWithInitialization({ userId: 1, symbol: "URTH", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 50));
     const asset = db.prepare("SELECT symbol FROM assets WHERE symbol = 'URTH'").get();
-    const candles = db.prepare("SELECT COUNT(*) AS count FROM chart_candles_1d c JOIN assets a ON a.id = c.asset_id WHERE a.symbol = 'URTH'").get();
+    const candles = db.prepare("SELECT COUNT(*) AS count FROM chart_candles c JOIN assets a ON a.id = c.asset_id WHERE c.range_key = '1d' AND a.symbol = 'URTH'").get();
     console.log("__RESULT__" + JSON.stringify({ refresh, quoteCalls, chartCalls, asset, candles }));
   `);
 
@@ -186,7 +186,7 @@ test("lazy chart refresh uses configured 1d interval instead of ratio threshold"
     const start = new Date(Date.now() - 6 * 60_000);
     const end = new Date(start.getTime() + 5 * 60_000);
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', ?, ?, 100, 101, 99, 100, 'seed')"
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '1d', '5m', ?, ?, 100, 101, 99, 100, 'seed')"
     ).run(asset.id, start.toISOString(), end.toISOString());
     let chartCalls = 0;
     yahooApi.chart = async () => {
@@ -260,7 +260,7 @@ test("live stored intraday pending open still serves older candles when availabl
     marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: "2026-05-12", timezone: calendar.timezone, assetsCount: 1 });
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = '7203.T'").get();
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '5m', '2026-05-11T00:00:00.000Z', '2026-05-11T00:05:00.000Z', 100, 101, 99, 100, 'seed'), (?, '5m', '2026-05-11T00:05:00.000Z', '2026-05-11T00:10:00.000Z', 100, 102, 100, 101, 'seed')"
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '1d', '5m', '2026-05-11T00:00:00.000Z', '2026-05-11T00:05:00.000Z', 100, 101, 99, 100, 'seed'), (?, '1d', '5m', '2026-05-11T00:05:00.000Z', '2026-05-11T00:10:00.000Z', 100, 102, 100, 101, 'seed')"
     ).run(asset.id, asset.id);
     const chart = await marketDataService.getChartData("7203.T", "1d", { intradayNow: new Date("2026-05-11T23:30:00.000Z") });
     console.log("__RESULT__" + JSON.stringify({
@@ -400,7 +400,7 @@ test("lazy chart refresh skips closed markets with existing chart data", () => {
     addTracked("AAA.PA", "AAA", "Paris");
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
     db.prepare(
-      "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', '2026-05-06T07:05:00.000Z')"
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '1d', '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', '2026-05-06T07:05:00.000Z')"
     ).run(asset.id);
     const calendar = getMarketCalendar("AAA.PA", "Paris");
     const local = localTradingDate(new Date(), calendar.timezone);
@@ -475,7 +475,7 @@ test("portfolio lazy chart refresh filters by market status and initializes only
     const mil = assets.find((asset) => asset.symbol === "MIL.MI");
     for (const asset of [par, mil]) {
       db.prepare(
-        "INSERT INTO chart_candles_1d (asset_id, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', '2026-05-06T07:05:00.000Z')"
+        "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source, updated_at) VALUES (?, '1d', '5m', '2026-05-06T07:00:00.000Z', '2026-05-06T07:05:00.000Z', 100, 101, 99, 100, 'seed', '2026-05-06T07:05:00.000Z')"
       ).run(asset.id);
     }
     const chartCalls = [];

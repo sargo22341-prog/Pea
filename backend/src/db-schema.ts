@@ -1,5 +1,5 @@
 import type { DatabaseAdapter } from "./db-adapter.js";
-import { appliquerMigrations } from "./db-migrations.js";
+import { applyMigrations } from "./db-migrations.js";
 
 export function initializeSchema(db: DatabaseAdapter): void {
   db.exec(`
@@ -161,9 +161,10 @@ export function initializeSchema(db: DatabaseAdapter): void {
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
-  CREATE TABLE IF NOT EXISTS chart_candles_1d (
+  CREATE TABLE IF NOT EXISTS chart_candles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     asset_id INTEGER NOT NULL,
+    range_key TEXT NOT NULL,
     interval TEXT NOT NULL,
     datetime_start TEXT NOT NULL,
     datetime_end TEXT NOT NULL,
@@ -175,61 +176,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
     source TEXT NOT NULL DEFAULT 'yahoo-finance2',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, interval, datetime_start),
-    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS chart_candles_1w (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    asset_id INTEGER NOT NULL,
-    interval TEXT NOT NULL,
-    datetime_start TEXT NOT NULL,
-    datetime_end TEXT NOT NULL,
-    open REAL,
-    high REAL,
-    low REAL,
-    close REAL NOT NULL,
-    volume REAL,
-    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, interval, datetime_start),
-    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS chart_candles_1m (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    asset_id INTEGER NOT NULL,
-    interval TEXT NOT NULL,
-    datetime_start TEXT NOT NULL,
-    datetime_end TEXT NOT NULL,
-    open REAL,
-    high REAL,
-    low REAL,
-    close REAL NOT NULL,
-    volume REAL,
-    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, interval, datetime_start),
-    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS chart_candles_all (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    asset_id INTEGER NOT NULL,
-    interval TEXT NOT NULL,
-    datetime_start TEXT NOT NULL,
-    datetime_end TEXT NOT NULL,
-    open REAL,
-    high REAL,
-    low REAL,
-    close REAL NOT NULL,
-    volume REAL,
-    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(asset_id, interval, datetime_start),
+    UNIQUE(asset_id, range_key, interval, datetime_start),
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
 
@@ -254,9 +201,8 @@ export function initializeSchema(db: DatabaseAdapter): void {
     UNIQUE(task_key, run_date)
   );
 
-  CREATE TABLE IF NOT EXISTS asset_market_snapshots (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    asset_id INTEGER NOT NULL UNIQUE,
+  CREATE TABLE IF NOT EXISTS asset_quote_snapshot (
+    asset_id INTEGER PRIMARY KEY,
     market_state TEXT,
     last_price REAL,
     day_change REAL,
@@ -270,31 +216,86 @@ export function initializeSchema(db: DatabaseAdapter): void {
     ask_price REAL,
     bid_size REAL,
     ask_size REAL,
-    average_volume_3m REAL,
-    average_volume_10d REAL,
+    regular_market_time TEXT,
+    currency TEXT,
+    exchange TEXT,
+    full_exchange_name TEXT,
+    quote_type TEXT,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    last_checked_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_quote_range (
+    asset_id INTEGER PRIMARY KEY,
     fifty_two_week_low REAL,
     fifty_two_week_high REAL,
     fifty_two_week_change_percent REAL,
+    average_volume_3m REAL,
+    average_volume_10d REAL,
+    source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS asset_dividend_snapshot (
+    asset_id INTEGER PRIMARY KEY,
     ex_dividend_date TEXT,
     dividend_rate REAL,
     dividend_yield REAL,
     trailing_annual_dividend_rate REAL,
     trailing_annual_dividend_yield REAL,
-    currency TEXT,
-    exchange TEXT,
-    full_exchange_name TEXT,
-    quote_type TEXT,
-    regular_market_time TEXT,
     source TEXT NOT NULL DEFAULT 'yahoo-finance2',
-    last_checked_at TEXT,
-    market_core_updated_at TEXT,
-    liquidity_updated_at TEXT,
-    range_52w_updated_at TEXT,
-    dividend_info_updated_at TEXT,
-    market_profile_updated_at TEXT,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
+
+  -- Vue de compatibilite : reproduit l ancienne mega-table asset_market_snapshots en LEFT
+  -- JOIN sur les 3 tables splittees. Lecture seule (les ecritures se font directement sur
+  -- asset_quote_snapshot / asset_quote_range / asset_dividend_snapshot via le repository).
+  CREATE VIEW IF NOT EXISTS asset_market_snapshots AS
+  SELECT
+    q.asset_id,
+    q.market_state,
+    q.last_price,
+    q.day_change,
+    q.day_change_percent,
+    q.previous_close,
+    q.open_price,
+    q.day_high,
+    q.day_low,
+    q.volume,
+    q.bid_price,
+    q.ask_price,
+    q.bid_size,
+    q.ask_size,
+    q.regular_market_time,
+    q.currency,
+    q.exchange,
+    q.full_exchange_name,
+    q.quote_type,
+    q.source,
+    q.last_checked_at,
+    r.fifty_two_week_low,
+    r.fifty_two_week_high,
+    r.fifty_two_week_change_percent,
+    r.average_volume_3m,
+    r.average_volume_10d,
+    d.ex_dividend_date,
+    d.dividend_rate,
+    d.dividend_yield,
+    d.trailing_annual_dividend_rate,
+    d.trailing_annual_dividend_yield,
+    q.updated_at AS market_core_updated_at,
+    q.updated_at AS liquidity_updated_at,
+    r.updated_at AS range_52w_updated_at,
+    d.updated_at AS dividend_info_updated_at,
+    q.updated_at AS market_profile_updated_at,
+    COALESCE(q.updated_at, r.updated_at, d.updated_at) AS updated_at
+  FROM asset_quote_snapshot q
+  LEFT JOIN asset_quote_range r ON r.asset_id = q.asset_id
+  LEFT JOIN asset_dividend_snapshot d ON d.asset_id = q.asset_id;
 
   CREATE TABLE IF NOT EXISTS asset_financials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -372,14 +373,8 @@ export function initializeSchema(db: DatabaseAdapter): void {
     expires_at INTEGER NOT NULL
   );
 
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1d_asset_interval ON chart_candles_1d(asset_id, interval);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval ON chart_candles_1w(asset_id, interval);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval ON chart_candles_1m(asset_id, interval);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_all_asset_interval ON chart_candles_all(asset_id, interval);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1d_asset_interval_start ON chart_candles_1d(asset_id, interval, datetime_start);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval_start ON chart_candles_1w(asset_id, interval, datetime_start);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval_start ON chart_candles_1m(asset_id, interval, datetime_start);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_all_asset_interval_start ON chart_candles_all(asset_id, interval, datetime_start);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval ON chart_candles(asset_id, range_key, interval);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval_start ON chart_candles(asset_id, range_key, interval, datetime_start);
   CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);
@@ -524,5 +519,5 @@ export function initializeSchema(db: DatabaseAdapter): void {
   `);
 
 // Applique les migrations incrémentales après la création du schéma initial
-  appliquerMigrations(db);
+  applyMigrations(db);
 }

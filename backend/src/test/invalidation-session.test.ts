@@ -203,14 +203,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1d_asset_interval"), "index chart_candles_1d absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1d_asset_interval_start"), "index chart_candles_1d date absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1w_asset_interval_start"), "index chart_candles_1w date absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1m_asset_interval_start"), "index chart_candles_1m date absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_all_asset_interval_start"), "index chart_candles_all date absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1w_asset_interval"), "index chart_candles_1w absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1m_asset_interval"), "index chart_candles_1m absent");
-  assert.ok(resultat.indexExistants.includes("idx_chart_candles_all_asset_interval"), "index chart_candles_all absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles range/interval absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval_start"), "index chart_candles range/interval/start absent");
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_symbol"), "index calendar_events symbol absent");
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_date"), "index calendar_events date absent");
   assert.ok(resultat.indexExistants.includes("idx_portfolio_positions_performance_cache_user_range"), "index positions performance cache absent");
@@ -231,8 +225,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
-    "les 26 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
+    "les 28 migrations doivent etre enregistrees"
   );
 });
 

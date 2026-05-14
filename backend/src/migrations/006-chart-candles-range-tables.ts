@@ -6,6 +6,14 @@ export const chartCandlesRangeTablesMigration: Migration = {
   version: 6,
   description: "Split chart_candles en 4 tables par range (1d, 1w, 1m, all)",
   appliquer: (db) => {
+    // Sur une base neuve installée après la migration 027, la table `chart_candles` est déjà
+    // unifiée (range_key) et les tables `chart_candles_${range}` n'existent plus. Cette
+    // migration n'a alors plus de sens : on skippe gracieusement.
+    const legacyChartCandles = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='chart_candles'").all() as Array<{ name: string }>;
+    if (legacyChartCandles.length === 0) return;
+    const columns = db.prepare("PRAGMA table_info(chart_candles)").all() as Array<{ name: string }>;
+    if (!columns.some((c) => c.name === "range")) return;
+
     for (const range of chartRanges) {
       db.exec(`
         CREATE TABLE IF NOT EXISTS chart_candles_${range} (
@@ -28,9 +36,6 @@ export const chartCandlesRangeTablesMigration: Migration = {
       `);
       db.exec(`CREATE INDEX IF NOT EXISTS idx_chart_candles_${range}_asset_interval ON chart_candles_${range}(asset_id, interval)`);
     }
-
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='chart_candles'").all() as Array<{ name: string }>;
-    if (tables.length === 0) return;
 
     for (const range of chartRanges) {
       db.exec(

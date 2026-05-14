@@ -40,128 +40,167 @@ export type QuoteSnapshotRow = AssetMarketSnapshotRow & {
   name: string;
 };
 
+/**
+ * Champs SELECT exposés par la vue logique `asset_market_snapshots` après split (migration 028).
+ *
+ * Le split physique `asset_quote_snapshot / asset_quote_range / asset_dividend_snapshot` est
+ * masqué derrière un LEFT JOIN qui reproduit le contrat de l'ancienne mega-table — chaque
+ * sous-table porte son propre `updated_at`, exposé sous des alias `*_updated_at` pour la
+ * compatibilité avec les services consommateurs.
+ *
+ * Pour les écritures, on dispatche selon le type d'update : un upsert "quote" ne touche pas
+ * `asset_quote_range` ni `asset_dividend_snapshot`. Plus de CASE WHEN gigantesques sur 5
+ * timestamps : chaque table met à jour son seul `updated_at` au moment de l'écriture.
+ */
+const SNAPSHOT_SELECT = `
+  q.market_state,
+  q.last_price,
+  q.day_change,
+  q.day_change_percent,
+  q.previous_close,
+  q.open_price,
+  q.day_high,
+  q.day_low,
+  q.volume,
+  q.bid_price,
+  q.ask_price,
+  q.bid_size,
+  q.ask_size,
+  q.regular_market_time,
+  q.currency,
+  q.exchange,
+  q.full_exchange_name,
+  q.quote_type,
+  q.source,
+  q.last_checked_at,
+  r.fifty_two_week_low,
+  r.fifty_two_week_high,
+  r.fifty_two_week_change_percent,
+  r.average_volume_3m,
+  r.average_volume_10d,
+  d.ex_dividend_date,
+  d.dividend_rate,
+  d.dividend_yield,
+  d.trailing_annual_dividend_rate,
+  d.trailing_annual_dividend_yield,
+  q.updated_at AS market_core_updated_at,
+  q.updated_at AS liquidity_updated_at,
+  r.updated_at AS range_52w_updated_at,
+  d.updated_at AS dividend_info_updated_at,
+  q.updated_at AS market_profile_updated_at,
+  COALESCE(q.updated_at, r.updated_at, d.updated_at) AS updated_at
+`;
+
+const SNAPSHOT_FROM = `
+  asset_quote_snapshot q
+  LEFT JOIN asset_quote_range r ON r.asset_id = q.asset_id
+  LEFT JOIN asset_dividend_snapshot d ON d.asset_id = q.asset_id
+`;
+
 export class MarketSnapshotRepository {
   findByAssetId(assetId: number): AssetMarketSnapshotRow | undefined {
-    return db.prepare("SELECT * FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as AssetMarketSnapshotRow | undefined;
+    return db
+      .prepare(`SELECT ${SNAPSHOT_SELECT} FROM ${SNAPSHOT_FROM} WHERE q.asset_id = ?`)
+      .get(assetId) as AssetMarketSnapshotRow | undefined;
   }
 
   readQuoteSnapshot(assetId: number): QuoteSnapshotRow | undefined {
-    return db.prepare("SELECT a.symbol, a.name, s.* FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE s.asset_id = ?").get(assetId) as QuoteSnapshotRow | undefined;
+    return db
+      .prepare(
+        `SELECT a.symbol, a.name, ${SNAPSHOT_SELECT}
+         FROM ${SNAPSHOT_FROM}
+         JOIN assets a ON a.id = q.asset_id
+         WHERE q.asset_id = ?`
+      )
+      .get(assetId) as QuoteSnapshotRow | undefined;
   }
 
   lastCheckedAt(assetId: number): string | undefined {
-    const row = db.prepare("SELECT last_checked_at FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { last_checked_at?: string | null } | undefined;
+    const row = db.prepare("SELECT last_checked_at FROM asset_quote_snapshot WHERE asset_id = ?").get(assetId) as { last_checked_at?: string | null } | undefined;
     return row?.last_checked_at ? String(row.last_checked_at) : undefined;
   }
 
   lastPrice(assetId: number): number | undefined {
-    const row = db.prepare("SELECT last_price FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { last_price?: number } | undefined;
+    const row = db.prepare("SELECT last_price FROM asset_quote_snapshot WHERE asset_id = ?").get(assetId) as { last_price?: number } | undefined;
     const price = Number(row?.last_price);
     return Number.isFinite(price) && price > 0 ? price : undefined;
   }
 
   previousClose(assetId: number): number | undefined {
-    const row = db.prepare("SELECT previous_close FROM asset_market_snapshots WHERE asset_id = ?").get(assetId) as { previous_close?: number } | undefined;
+    const row = db.prepare("SELECT previous_close FROM asset_quote_snapshot WHERE asset_id = ?").get(assetId) as { previous_close?: number } | undefined;
     const price = Number(row?.previous_close);
     return Number.isFinite(price) && price > 0 ? price : undefined;
   }
 
+  /**
+   * Upsert complet (snapshot Yahoo brut). Distribue les colonnes vers les 3 tables et fait
+   * 3 INSERT/ON CONFLICT distincts. Chaque table indépendante met à jour son `updated_at`.
+   */
   upsertSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
+    this.upsertQuoteCore(assetId, snapshot);
+    this.upsertRangeData(assetId, snapshot);
+    this.upsertDividendData(assetId, snapshot);
+  }
+
+  /** Upsert "marketInfo" (subset issu de quoteSummary). Pareil mais avec moins de champs. */
+  upsertMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
+    this.upsertQuoteCoreFromMarketInfo(assetId, marketInfo);
+    this.upsertRangeDataFromMarketInfo(assetId, marketInfo);
+    this.upsertDividendDataFromMarketInfo(assetId, marketInfo);
+  }
+
+  updateAssetFromSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
     db.prepare(
-      `INSERT INTO asset_market_snapshots (
+      `UPDATE assets SET
+        name = COALESCE(?, ?, name),
+        exchange = COALESCE(?, exchange),
+        currency = COALESCE(?, currency),
+        quote_type = COALESCE(?, quote_type),
+        type_disp = COALESCE(?, type_disp),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).run(
+      snapshot.longName,
+      snapshot.shortName,
+      snapshot.exchange ?? snapshot.fullExchangeName,
+      snapshot.currency,
+      snapshot.quoteType,
+      snapshot.typeDisp,
+      assetId
+    );
+  }
+
+  private upsertQuoteCore(assetId: number, snapshot: YahooSnapshotPayload) {
+    db.prepare(
+      `INSERT INTO asset_quote_snapshot (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
-        day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, average_volume_3m,
-        average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date,
-        dividend_rate, dividend_yield,
-        trailing_annual_dividend_rate, trailing_annual_dividend_yield, currency, exchange,
-        full_exchange_name, quote_type, regular_market_time, source, last_checked_at,
-        market_core_updated_at, liquidity_updated_at, range_52w_updated_at, dividend_info_updated_at, market_profile_updated_at,
-        updated_at
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP)
-       ON CONFLICT(asset_id) DO UPDATE SET
-        market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
-        last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
-        day_change = COALESCE(excluded.day_change, asset_market_snapshots.day_change),
-        day_change_percent = COALESCE(excluded.day_change_percent, asset_market_snapshots.day_change_percent),
-        previous_close = COALESCE(excluded.previous_close, asset_market_snapshots.previous_close),
-        open_price = COALESCE(excluded.open_price, asset_market_snapshots.open_price),
-        day_high = COALESCE(excluded.day_high, asset_market_snapshots.day_high),
-        day_low = COALESCE(excluded.day_low, asset_market_snapshots.day_low),
-        volume = COALESCE(excluded.volume, asset_market_snapshots.volume),
-        bid_price = COALESCE(excluded.bid_price, asset_market_snapshots.bid_price),
-        ask_price = COALESCE(excluded.ask_price, asset_market_snapshots.ask_price),
-        bid_size = COALESCE(excluded.bid_size, asset_market_snapshots.bid_size),
-        ask_size = COALESCE(excluded.ask_size, asset_market_snapshots.ask_size),
-        average_volume_3m = COALESCE(excluded.average_volume_3m, asset_market_snapshots.average_volume_3m),
-        average_volume_10d = COALESCE(excluded.average_volume_10d, asset_market_snapshots.average_volume_10d),
-        fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_market_snapshots.fifty_two_week_low),
-        fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_market_snapshots.fifty_two_week_high),
-        fifty_two_week_change_percent = COALESCE(excluded.fifty_two_week_change_percent, asset_market_snapshots.fifty_two_week_change_percent),
-        ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_market_snapshots.ex_dividend_date),
-        dividend_rate = COALESCE(excluded.dividend_rate, asset_market_snapshots.dividend_rate),
-        dividend_yield = COALESCE(excluded.dividend_yield, asset_market_snapshots.dividend_yield),
-        trailing_annual_dividend_rate = COALESCE(excluded.trailing_annual_dividend_rate, asset_market_snapshots.trailing_annual_dividend_rate),
-        trailing_annual_dividend_yield = COALESCE(excluded.trailing_annual_dividend_yield, asset_market_snapshots.trailing_annual_dividend_yield),
-        currency = COALESCE(excluded.currency, asset_market_snapshots.currency),
-        exchange = COALESCE(excluded.exchange, asset_market_snapshots.exchange),
-        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_market_snapshots.full_exchange_name),
-        quote_type = COALESCE(excluded.quote_type, asset_market_snapshots.quote_type),
-        regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
+        day_high, day_low, volume, bid_price, ask_price, bid_size, ask_size, regular_market_time,
+        currency, exchange, full_exchange_name, quote_type, source, last_checked_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(asset_id) DO UPDATE SET
+        market_state = COALESCE(excluded.market_state, asset_quote_snapshot.market_state),
+        last_price = COALESCE(excluded.last_price, asset_quote_snapshot.last_price),
+        day_change = COALESCE(excluded.day_change, asset_quote_snapshot.day_change),
+        day_change_percent = COALESCE(excluded.day_change_percent, asset_quote_snapshot.day_change_percent),
+        previous_close = COALESCE(excluded.previous_close, asset_quote_snapshot.previous_close),
+        open_price = COALESCE(excluded.open_price, asset_quote_snapshot.open_price),
+        day_high = COALESCE(excluded.day_high, asset_quote_snapshot.day_high),
+        day_low = COALESCE(excluded.day_low, asset_quote_snapshot.day_low),
+        volume = COALESCE(excluded.volume, asset_quote_snapshot.volume),
+        bid_price = COALESCE(excluded.bid_price, asset_quote_snapshot.bid_price),
+        ask_price = COALESCE(excluded.ask_price, asset_quote_snapshot.ask_price),
+        bid_size = COALESCE(excluded.bid_size, asset_quote_snapshot.bid_size),
+        ask_size = COALESCE(excluded.ask_size, asset_quote_snapshot.ask_size),
+        regular_market_time = COALESCE(excluded.regular_market_time, asset_quote_snapshot.regular_market_time),
+        currency = COALESCE(excluded.currency, asset_quote_snapshot.currency),
+        exchange = COALESCE(excluded.exchange, asset_quote_snapshot.exchange),
+        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_quote_snapshot.full_exchange_name),
+        quote_type = COALESCE(excluded.quote_type, asset_quote_snapshot.quote_type),
         source = excluded.source,
         last_checked_at = excluded.last_checked_at,
-        market_core_updated_at = CASE
-          WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
-            OR excluded.last_price IS NOT NULL
-            OR excluded.day_change IS NOT NULL
-            OR excluded.day_change_percent IS NOT NULL
-            OR excluded.previous_close IS NOT NULL
-            OR excluded.open_price IS NOT NULL
-            OR excluded.day_high IS NOT NULL
-            OR excluded.day_low IS NOT NULL
-            OR excluded.regular_market_time IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.market_core_updated_at
-        END,
-        liquidity_updated_at = CASE
-          WHEN excluded.volume IS NOT NULL
-            OR excluded.bid_price IS NOT NULL
-            OR excluded.ask_price IS NOT NULL
-            OR excluded.bid_size IS NOT NULL
-            OR excluded.ask_size IS NOT NULL
-            OR excluded.average_volume_3m IS NOT NULL
-            OR excluded.average_volume_10d IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.liquidity_updated_at
-        END,
-        range_52w_updated_at = CASE
-          WHEN excluded.fifty_two_week_low IS NOT NULL
-            OR excluded.fifty_two_week_high IS NOT NULL
-            OR excluded.fifty_two_week_change_percent IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.range_52w_updated_at
-        END,
-        dividend_info_updated_at = CASE
-          WHEN excluded.ex_dividend_date IS NOT NULL
-            OR excluded.dividend_rate IS NOT NULL
-            OR excluded.dividend_yield IS NOT NULL
-            OR excluded.trailing_annual_dividend_rate IS NOT NULL
-            OR excluded.trailing_annual_dividend_yield IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.dividend_info_updated_at
-        END,
-        market_profile_updated_at = CASE
-          WHEN excluded.currency IS NOT NULL
-            OR excluded.exchange IS NOT NULL
-            OR excluded.full_exchange_name IS NOT NULL
-            OR excluded.quote_type IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.market_profile_updated_at
-        END,
         updated_at = CASE
-          WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
+          WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_quote_snapshot.market_state)
             OR excluded.last_price IS NOT NULL
             OR excluded.day_change IS NOT NULL
             OR excluded.day_change_percent IS NOT NULL
@@ -174,23 +213,13 @@ export class MarketSnapshotRepository {
             OR excluded.ask_price IS NOT NULL
             OR excluded.bid_size IS NOT NULL
             OR excluded.ask_size IS NOT NULL
-            OR excluded.average_volume_3m IS NOT NULL
-            OR excluded.average_volume_10d IS NOT NULL
-            OR excluded.fifty_two_week_low IS NOT NULL
-            OR excluded.fifty_two_week_high IS NOT NULL
-            OR excluded.fifty_two_week_change_percent IS NOT NULL
-            OR excluded.ex_dividend_date IS NOT NULL
-            OR excluded.dividend_rate IS NOT NULL
-            OR excluded.dividend_yield IS NOT NULL
-            OR excluded.trailing_annual_dividend_rate IS NOT NULL
-            OR excluded.trailing_annual_dividend_yield IS NOT NULL
+            OR excluded.regular_market_time IS NOT NULL
             OR excluded.currency IS NOT NULL
             OR excluded.exchange IS NOT NULL
             OR excluded.full_exchange_name IS NOT NULL
             OR excluded.quote_type IS NOT NULL
-            OR excluded.regular_market_time IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.updated_at
+          THEN CURRENT_TIMESTAMP
+          ELSE asset_quote_snapshot.updated_at
         END`
     ).run(
       assetId,
@@ -207,134 +236,103 @@ export class MarketSnapshotRepository {
       snapshot.ask,
       snapshot.bidSize,
       snapshot.askSize,
-      snapshot.averageDailyVolume3Month,
-      snapshot.averageDailyVolume10Day,
+      snapshot.regularMarketTime,
+      snapshot.currency,
+      snapshot.exchange,
+      snapshot.fullExchangeName,
+      snapshot.quoteType
+    );
+  }
+
+  private upsertRangeData(assetId: number, snapshot: YahooSnapshotPayload) {
+    if (
+      snapshot.fiftyTwoWeekLow == null &&
+      snapshot.fiftyTwoWeekHigh == null &&
+      snapshot.fiftyTwoWeekChangePercent == null &&
+      snapshot.averageDailyVolume3Month == null &&
+      snapshot.averageDailyVolume10Day == null
+    ) return;
+    db.prepare(
+      `INSERT INTO asset_quote_range (
+        asset_id, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent,
+        average_volume_3m, average_volume_10d, source, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+      ON CONFLICT(asset_id) DO UPDATE SET
+        fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_quote_range.fifty_two_week_low),
+        fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_quote_range.fifty_two_week_high),
+        fifty_two_week_change_percent = COALESCE(excluded.fifty_two_week_change_percent, asset_quote_range.fifty_two_week_change_percent),
+        average_volume_3m = COALESCE(excluded.average_volume_3m, asset_quote_range.average_volume_3m),
+        average_volume_10d = COALESCE(excluded.average_volume_10d, asset_quote_range.average_volume_10d),
+        source = excluded.source,
+        updated_at = CURRENT_TIMESTAMP`
+    ).run(
+      assetId,
       snapshot.fiftyTwoWeekLow,
       snapshot.fiftyTwoWeekHigh,
       snapshot.fiftyTwoWeekChangePercent,
+      snapshot.averageDailyVolume3Month,
+      snapshot.averageDailyVolume10Day
+    );
+  }
+
+  private upsertDividendData(assetId: number, snapshot: YahooSnapshotPayload) {
+    if (
+      snapshot.exDividendDate == null &&
+      snapshot.dividendRate == null &&
+      snapshot.dividendYield == null &&
+      snapshot.trailingAnnualDividendRate == null &&
+      snapshot.trailingAnnualDividendYield == null
+    ) return;
+    db.prepare(
+      `INSERT INTO asset_dividend_snapshot (
+        asset_id, ex_dividend_date, dividend_rate, dividend_yield,
+        trailing_annual_dividend_rate, trailing_annual_dividend_yield, source, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+      ON CONFLICT(asset_id) DO UPDATE SET
+        ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_dividend_snapshot.ex_dividend_date),
+        dividend_rate = COALESCE(excluded.dividend_rate, asset_dividend_snapshot.dividend_rate),
+        dividend_yield = COALESCE(excluded.dividend_yield, asset_dividend_snapshot.dividend_yield),
+        trailing_annual_dividend_rate = COALESCE(excluded.trailing_annual_dividend_rate, asset_dividend_snapshot.trailing_annual_dividend_rate),
+        trailing_annual_dividend_yield = COALESCE(excluded.trailing_annual_dividend_yield, asset_dividend_snapshot.trailing_annual_dividend_yield),
+        source = excluded.source,
+        updated_at = CURRENT_TIMESTAMP`
+    ).run(
+      assetId,
       snapshot.exDividendDate,
       snapshot.dividendRate,
       snapshot.dividendYield,
       snapshot.trailingAnnualDividendRate,
-      snapshot.trailingAnnualDividendYield,
-      snapshot.currency,
-      snapshot.exchange,
-      snapshot.fullExchangeName,
-      snapshot.quoteType,
-      snapshot.regularMarketTime
+      snapshot.trailingAnnualDividendYield
     );
   }
 
-  updateAssetFromSnapshot(assetId: number, snapshot: YahooSnapshotPayload) {
+  private upsertQuoteCoreFromMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
     db.prepare(
-      `UPDATE assets SET
-        name = COALESCE(?, ?, name),
-        exchange = COALESCE(?, exchange),
-        currency = COALESCE(?, currency),
-        quote_type = COALESCE(?, quote_type),
-        type_disp = COALESCE(?, type_disp),
-        updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(snapshot.longName, snapshot.shortName, snapshot.exchange ?? snapshot.fullExchangeName, snapshot.currency, snapshot.quoteType, snapshot.typeDisp, assetId);
-  }
-
-  upsertMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
-    db.prepare(
-      `INSERT INTO asset_market_snapshots (
+      `INSERT INTO asset_quote_snapshot (
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
-        day_high, day_low, volume, average_volume_3m, fifty_two_week_low, fifty_two_week_high,
-        dividend_rate, dividend_yield, ex_dividend_date, currency, exchange, full_exchange_name,
-        regular_market_time, source, last_checked_at,
-        market_core_updated_at, liquidity_updated_at, range_52w_updated_at, dividend_info_updated_at, market_profile_updated_at,
-        updated_at
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP)
-       ON CONFLICT(asset_id) DO UPDATE SET
-        market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
-        last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
-        day_change = COALESCE(excluded.day_change, asset_market_snapshots.day_change),
-        day_change_percent = COALESCE(excluded.day_change_percent, asset_market_snapshots.day_change_percent),
-        previous_close = COALESCE(excluded.previous_close, asset_market_snapshots.previous_close),
-        open_price = COALESCE(excluded.open_price, asset_market_snapshots.open_price),
-        day_high = COALESCE(excluded.day_high, asset_market_snapshots.day_high),
-        day_low = COALESCE(excluded.day_low, asset_market_snapshots.day_low),
-        volume = COALESCE(excluded.volume, asset_market_snapshots.volume),
-        average_volume_3m = COALESCE(excluded.average_volume_3m, asset_market_snapshots.average_volume_3m),
-        fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_market_snapshots.fifty_two_week_low),
-        fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_market_snapshots.fifty_two_week_high),
-        dividend_rate = COALESCE(excluded.dividend_rate, asset_market_snapshots.dividend_rate),
-        dividend_yield = COALESCE(excluded.dividend_yield, asset_market_snapshots.dividend_yield),
-        ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_market_snapshots.ex_dividend_date),
-        currency = COALESCE(excluded.currency, asset_market_snapshots.currency),
-        exchange = COALESCE(excluded.exchange, asset_market_snapshots.exchange),
-        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_market_snapshots.full_exchange_name),
-        regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
+        day_high, day_low, volume, regular_market_time, currency, exchange, full_exchange_name,
+        source, last_checked_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT(asset_id) DO UPDATE SET
+        market_state = COALESCE(excluded.market_state, asset_quote_snapshot.market_state),
+        last_price = COALESCE(excluded.last_price, asset_quote_snapshot.last_price),
+        day_change = COALESCE(excluded.day_change, asset_quote_snapshot.day_change),
+        day_change_percent = COALESCE(excluded.day_change_percent, asset_quote_snapshot.day_change_percent),
+        previous_close = COALESCE(excluded.previous_close, asset_quote_snapshot.previous_close),
+        open_price = COALESCE(excluded.open_price, asset_quote_snapshot.open_price),
+        day_high = COALESCE(excluded.day_high, asset_quote_snapshot.day_high),
+        day_low = COALESCE(excluded.day_low, asset_quote_snapshot.day_low),
+        volume = COALESCE(excluded.volume, asset_quote_snapshot.volume),
+        regular_market_time = COALESCE(excluded.regular_market_time, asset_quote_snapshot.regular_market_time),
+        currency = COALESCE(excluded.currency, asset_quote_snapshot.currency),
+        exchange = COALESCE(excluded.exchange, asset_quote_snapshot.exchange),
+        full_exchange_name = COALESCE(excluded.full_exchange_name, asset_quote_snapshot.full_exchange_name),
         source = excluded.source,
         last_checked_at = excluded.last_checked_at,
-        market_core_updated_at = CASE
-          WHEN excluded.market_state IS NOT NULL
-            OR excluded.last_price IS NOT NULL
-            OR excluded.day_change IS NOT NULL
-            OR excluded.day_change_percent IS NOT NULL
-            OR excluded.previous_close IS NOT NULL
-            OR excluded.open_price IS NOT NULL
-            OR excluded.day_high IS NOT NULL
-            OR excluded.day_low IS NOT NULL
-            OR excluded.regular_market_time IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.market_core_updated_at
-        END,
-        liquidity_updated_at = CASE
-          WHEN excluded.volume IS NOT NULL
-            OR excluded.average_volume_3m IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.liquidity_updated_at
-        END,
-        range_52w_updated_at = CASE
-          WHEN excluded.fifty_two_week_low IS NOT NULL
-            OR excluded.fifty_two_week_high IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.range_52w_updated_at
-        END,
-        dividend_info_updated_at = CASE
-          WHEN excluded.dividend_rate IS NOT NULL
-            OR excluded.dividend_yield IS NOT NULL
-            OR excluded.ex_dividend_date IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.dividend_info_updated_at
-        END,
-        market_profile_updated_at = CASE
-          WHEN excluded.currency IS NOT NULL
-            OR excluded.exchange IS NOT NULL
-            OR excluded.full_exchange_name IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.market_profile_updated_at
-        END,
-        updated_at = CASE
-          WHEN excluded.market_state IS NOT NULL
-            OR excluded.last_price IS NOT NULL
-            OR excluded.day_change IS NOT NULL
-            OR excluded.day_change_percent IS NOT NULL
-            OR excluded.previous_close IS NOT NULL
-            OR excluded.open_price IS NOT NULL
-            OR excluded.day_high IS NOT NULL
-            OR excluded.day_low IS NOT NULL
-            OR excluded.volume IS NOT NULL
-            OR excluded.average_volume_3m IS NOT NULL
-            OR excluded.fifty_two_week_low IS NOT NULL
-            OR excluded.fifty_two_week_high IS NOT NULL
-            OR excluded.dividend_rate IS NOT NULL
-            OR excluded.dividend_yield IS NOT NULL
-            OR excluded.ex_dividend_date IS NOT NULL
-            OR excluded.currency IS NOT NULL
-            OR excluded.exchange IS NOT NULL
-            OR excluded.full_exchange_name IS NOT NULL
-            OR excluded.regular_market_time IS NOT NULL
-          THEN excluded.updated_at
-          ELSE asset_market_snapshots.updated_at
-        END`
+        updated_at = CURRENT_TIMESTAMP`
     ).run(
       assetId,
       marketInfo.marketState,
@@ -346,17 +344,43 @@ export class MarketSnapshotRepository {
       marketInfo.regularMarketDayHigh,
       marketInfo.regularMarketDayLow,
       marketInfo.regularMarketVolume,
-      marketInfo.averageDailyVolume3Month,
-      marketInfo.fiftyTwoWeekLow,
-      marketInfo.fiftyTwoWeekHigh,
-      marketInfo.dividendRate,
-      marketInfo.dividendYield,
-      marketInfo.exDividendDate,
+      marketInfo.regularMarketTime,
       marketInfo.currency,
       marketInfo.exchangeName,
-      marketInfo.exchangeName,
-      marketInfo.regularMarketTime
+      marketInfo.exchangeName
     );
+  }
+
+  private upsertRangeDataFromMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
+    if (
+      marketInfo.fiftyTwoWeekLow == null &&
+      marketInfo.fiftyTwoWeekHigh == null &&
+      marketInfo.averageDailyVolume3Month == null
+    ) return;
+    db.prepare(
+      `INSERT INTO asset_quote_range (asset_id, fifty_two_week_low, fifty_two_week_high, average_volume_3m, source, updated_at)
+       VALUES (?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+       ON CONFLICT(asset_id) DO UPDATE SET
+         fifty_two_week_low = COALESCE(excluded.fifty_two_week_low, asset_quote_range.fifty_two_week_low),
+         fifty_two_week_high = COALESCE(excluded.fifty_two_week_high, asset_quote_range.fifty_two_week_high),
+         average_volume_3m = COALESCE(excluded.average_volume_3m, asset_quote_range.average_volume_3m),
+         source = excluded.source,
+         updated_at = CURRENT_TIMESTAMP`
+    ).run(assetId, marketInfo.fiftyTwoWeekLow, marketInfo.fiftyTwoWeekHigh, marketInfo.averageDailyVolume3Month);
+  }
+
+  private upsertDividendDataFromMarketInfo(assetId: number, marketInfo: AssetMarketInfo) {
+    if (marketInfo.exDividendDate == null && marketInfo.dividendRate == null && marketInfo.dividendYield == null) return;
+    db.prepare(
+      `INSERT INTO asset_dividend_snapshot (asset_id, ex_dividend_date, dividend_rate, dividend_yield, source, updated_at)
+       VALUES (?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP)
+       ON CONFLICT(asset_id) DO UPDATE SET
+         ex_dividend_date = COALESCE(excluded.ex_dividend_date, asset_dividend_snapshot.ex_dividend_date),
+         dividend_rate = COALESCE(excluded.dividend_rate, asset_dividend_snapshot.dividend_rate),
+         dividend_yield = COALESCE(excluded.dividend_yield, asset_dividend_snapshot.dividend_yield),
+         source = excluded.source,
+         updated_at = CURRENT_TIMESTAMP`
+    ).run(assetId, marketInfo.exDividendDate, marketInfo.dividendRate, marketInfo.dividendYield);
   }
 }
 

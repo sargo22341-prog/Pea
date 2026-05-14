@@ -285,7 +285,7 @@ test("live refresh prewarms intraday charts only for portfolio assets", () => {
     const task = new LiveMarketRefreshTask();
     await task.run(groups.values(), new Date("2026-05-06T12:00:00.000Z"));
     await task.run(groups.values(), new Date("2026-05-06T12:06:00.000Z"));
-    const candles = db.prepare("SELECT a.symbol, COUNT(*) AS count FROM chart_candles_1d c JOIN assets a ON a.id = c.asset_id GROUP BY a.symbol ORDER BY a.symbol").all();
+    const candles = db.prepare("SELECT a.symbol, COUNT(*) AS count FROM chart_candles c JOIN assets a ON a.id = c.asset_id WHERE c.range_key = '1d' GROUP BY a.symbol ORDER BY a.symbol").all();
     console.log("__RESULT__" + JSON.stringify({ quoteCalls, chartCalls, candles }));
   `);
 

@@ -116,9 +116,8 @@ export class PortfolioPerformanceCacheService {
 
     const snapshotStats = portfolioPerformanceCacheRepository.snapshotStats(assetIds);
     const storedRange = normalizeStoredRange(range);
-    const table = `chart_candles_${storedRange}`;
     const interval = chartConfigService.getIntervalForRange(storedRange);
-    const candleStats = portfolioPerformanceCacheRepository.candleStats({ table, assetIds, interval });
+    const candleStats = portfolioPerformanceCacheRepository.candleStats({ rangeKey: storedRange, assetIds, interval });
 
     return {
       portfolioVersion,

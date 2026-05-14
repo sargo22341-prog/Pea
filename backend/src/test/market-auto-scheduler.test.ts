@@ -246,7 +246,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
 
         addTracked("AAA.PA", "AAA", "Paris");
         const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
-        db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, last_price, currency, exchange, source, updated_at) VALUES (?, 'POSTPOST', 1187, 'EUR', 'Paris', 'seed', CURRENT_TIMESTAMP)").run(asset.id);
+        db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, currency, exchange, source, updated_at) VALUES (?, 'POSTPOST', 1187, 'EUR', 'Paris', 'seed', CURRENT_TIMESTAMP)").run(asset.id);
 
         let batchCalls = 0;
         let singleQuoteCalls = 0;
@@ -340,7 +340,9 @@ test("snapshot upsert keeps useful existing values when Yahoo returns null field
     addTracked("AAA.PA", "AAA", "Paris");
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
     marketSnapshotService.upsertSnapshot(asset.id, pricedQuoteRow("AAA.PA", "POSTPOST", 1305).snapshot);
-    db.prepare("UPDATE asset_market_snapshots SET updated_at = '2026-05-06T15:45:00.000Z' WHERE asset_id = ?").run(asset.id);
+    db.prepare("UPDATE asset_quote_snapshot SET updated_at = '2026-05-06T15:45:00.000Z' WHERE asset_id = ?").run(asset.id);
+    db.prepare("UPDATE asset_quote_range SET updated_at = '2026-05-06T15:45:00.000Z' WHERE asset_id = ?").run(asset.id);
+    db.prepare("UPDATE asset_dividend_snapshot SET updated_at = '2026-05-06T15:45:00.000Z' WHERE asset_id = ?").run(asset.id);
     marketSnapshotService.upsertSnapshot(asset.id, {
       symbol: "AAA.PA",
       marketState: "POSTPOST",
@@ -401,7 +403,7 @@ test("marketInfo from quoteSummary replaces missing slow snapshot fields and pre
     ${helpers}
     addTracked("TTE.PA", "TotalEnergies", "Paris");
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'TTE.PA'").get();
-    db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, source, updated_at) VALUES (?, 'POSTPOST', 'seed', '2026-05-06T15:45:00.000Z')").run(asset.id);
+    db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, source, updated_at) VALUES (?, 'POSTPOST', 'seed', '2026-05-06T15:45:00.000Z')").run(asset.id);
     marketSnapshotService.upsertMarketInfo(asset.id, {
       fiftyTwoWeekLow: 49.24,
       fiftyTwoWeekHigh: 81.34,
@@ -441,7 +443,7 @@ test("market snapshot dto does not convert missing numeric fields to zero", () =
     ${helpers}
     addTracked("AAA.PA", "AAA", "Paris");
     const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
-    db.prepare("INSERT INTO asset_market_snapshots (asset_id, market_state, source, updated_at) VALUES (?, 'POSTPOST', 'seed', '2026-05-06T15:45:00.000Z')").run(asset.id);
+    db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, source, updated_at) VALUES (?, 'POSTPOST', 'seed', '2026-05-06T15:45:00.000Z')").run(asset.id);
     const dto = marketSnapshotService.readMarketDto("AAA.PA");
     console.log("__RESULT__" + JSON.stringify({
       dayChange: dto.dayChange,

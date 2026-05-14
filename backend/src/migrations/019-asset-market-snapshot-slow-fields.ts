@@ -4,6 +4,9 @@ export const assetMarketSnapshotSlowFieldsMigration: Migration = {
   version: 19,
   description: "Champs fondamentaux lents persistants sur asset_market_snapshots",
   appliquer: (db) => {
+    // No-op après la migration 028 (table splittée).
+    const tableExists = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'asset_market_snapshots'").get());
+    if (!tableExists) return;
     const colonnes = db.prepare("PRAGMA table_info(asset_market_snapshots)").all() as ColonneDb[];
     const noms = new Set(colonnes.map((c) => c.name));
     if (!noms.has("average_volume_10d")) db.exec("ALTER TABLE asset_market_snapshots ADD COLUMN average_volume_10d REAL");
