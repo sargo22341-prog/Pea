@@ -1,7 +1,8 @@
 import type { PositionRangePerformance } from "@pea/shared";
+import { memo } from "react";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../../lib/timezone";
 
-export function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerformance["miniChart"]; tone: "positive" | "negative" | "neutral" }) {
+export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerformance["miniChart"]; tone: "positive" | "negative" | "neutral" }) {
   const points = miniChart?.points ?? [];
   const colorClass = tone === "positive" ? "text-mint" : tone === "negative" ? "text-coral" : "text-slate-400";
 
@@ -44,7 +45,7 @@ export function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePe
       <path d={path} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
-}
+});
 
 function miniChartSessionDomain(firstTimestamp: number, marketSession?: PositionRangePerformance["miniChart"]["marketSession"]) {
   if (!marketSession) return undefined;

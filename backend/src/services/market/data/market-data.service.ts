@@ -3,6 +3,7 @@ import { candleRepository } from "../../../repositories/candles/candle.repositor
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
 import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
+import { symbolLockService } from "../../shared/symbol-lock.service.js";
 import { pruneIntradayCache } from "../../yahoo/cache/history.cache.js";
 import {
   getLastAvailableTradingDayFromYahoo,
@@ -62,6 +63,12 @@ export class MarketDataService {
   }
 
   async refreshCandlesForAsset(asset: AssetRow, ranges: StoredChartRange[] = storedConstructionRanges) {
+    return symbolLockService.withLock(`candles:${asset.symbol.toUpperCase()}`, () =>
+      this.refreshCandlesForAssetLocked(asset, ranges)
+    );
+  }
+
+  private async refreshCandlesForAssetLocked(asset: AssetRow, ranges: StoredChartRange[]) {
     let updated = 0;
     let latestYahooTradingDay: YahooTradingDay | undefined;
     for (const range of ranges) {
@@ -167,7 +174,13 @@ export class MarketDataService {
     return { updated };
   }
 
-  async finalizePostCloseForAsset(asset: AssetRow, now = new Date()) {
+  finalizePostCloseForAsset(asset: AssetRow, now = new Date()) {
+    return symbolLockService.withLock(`candles:${asset.symbol.toUpperCase()}`, () =>
+      this.finalizePostCloseForAssetLocked(asset, now)
+    );
+  }
+
+  private async finalizePostCloseForAssetLocked(asset: AssetRow, now: Date) {
     const persistedQuote = marketSnapshotService.readSnapshot(asset.id);
     const quote = persistedQuote && !isMarketOpen(persistedQuote.marketState)
       ? persistedQuote
@@ -216,7 +229,9 @@ export class MarketDataService {
     ranges: StoredChartRange[] = ["1w", "1m", "all"],
     options: { tradingDate?: string; closeIso?: string; closePrice?: number } = {}
   ) {
-    return storedRangeRebuilderService.rebuildFromFinalData(asset, ranges, options);
+    return symbolLockService.withLock(`candles:${asset.symbol.toUpperCase()}`, async () =>
+      storedRangeRebuilderService.rebuildFromFinalData(asset, ranges, options)
+    );
   }
 
   async refreshAllTrackedCandles() {

@@ -11,6 +11,7 @@ export interface DataConstructionTaskInput {
   tradingDate?: string;
   phase?: string;
   message: string;
+  priority: number;
 }
 
 export interface DataConstructionTaskRow {
@@ -63,8 +64,8 @@ export const dataConstructionRepository = {
 
       const insertTask = db.prepare(
         `INSERT INTO data_construction_tasks
-          (job_id, task_key, type, symbol, range, market_key, trading_date, phase, message, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`
+          (job_id, task_key, type, symbol, range, market_key, trading_date, phase, message, status, priority, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)`
       );
 
       for (const task of tasks) {
@@ -79,6 +80,7 @@ export const dataConstructionRepository = {
           task.tradingDate ?? null,
           task.phase ?? null,
           task.message,
+          task.priority,
           timestamp,
           timestamp
         );
@@ -123,8 +125,25 @@ export const dataConstructionRepository = {
       .get() as DataConstructionJobSummary | undefined;
   },
 
-  claimNextQueuedTask(): DataConstructionTaskRow | undefined {
-    const row = db.prepare("SELECT * FROM data_construction_tasks WHERE status = 'queued' ORDER BY id ASC LIMIT 1").get() as DataConstructionTaskRow | undefined;
+  /**
+   * Réclame la prochaine tâche en attente.
+   *
+   * Tri : `priority ASC` (plus petit = plus prioritaire) puis `id ASC` (FIFO à priorité égale).
+   * Le `excludeSymbols` permet à un worker de ne pas voler une tâche dont le symbole est déjà
+   * traité par un autre worker concurrent (évite les races sur les écritures candles).
+   */
+  claimNextQueuedTask(excludeSymbols: string[] = []): DataConstructionTaskRow | undefined {
+    const baseSql = "SELECT * FROM data_construction_tasks WHERE status = 'queued'";
+    const orderClause = "ORDER BY priority ASC, id ASC LIMIT 1";
+    let row: DataConstructionTaskRow | undefined;
+    if (excludeSymbols.length) {
+      const placeholders = excludeSymbols.map(() => "?").join(",");
+      row = db
+        .prepare(`${baseSql} AND (symbol IS NULL OR symbol NOT IN (${placeholders})) ${orderClause}`)
+        .get(...excludeSymbols) as DataConstructionTaskRow | undefined;
+    } else {
+      row = db.prepare(`${baseSql} ${orderClause}`).get() as DataConstructionTaskRow | undefined;
+    }
     if (!row) return undefined;
     const timestamp = nowIso();
     const changed = db

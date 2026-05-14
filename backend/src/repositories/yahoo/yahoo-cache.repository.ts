@@ -1,26 +1,49 @@
 import { db } from "../../db.js";
+import { unifiedCacheRepository, type CacheScope } from "../cache/unified-cache.repository.js";
 
+/**
+ * Compatibilité historique : `YahooCacheTable` était l'enum des 4 anciennes tables Yahoo.
+ * On le mappe désormais vers les scopes équivalents de `cache_entries`. Le type est conservé
+ * comme alias pour limiter l'impact des refactos en cours dans le reste du code.
+ */
 export type YahooCacheTable = "cached_quotes" | "cached_dividends" | "cached_news" | "cached_fundamentals";
+
+const TABLE_TO_SCOPE: Record<YahooCacheTable, CacheScope> = {
+  cached_quotes: "quote",
+  cached_dividends: "dividends",
+  cached_news: "news",
+  cached_fundamentals: "fundamentals"
+};
 
 export class YahooCacheRepository {
   readSymbol(table: YahooCacheTable, symbol: string) {
-    return db.prepare(`SELECT payload, fetched_at FROM ${table} WHERE symbol = ?`).get(symbol.toUpperCase()) as
-      | { payload: string; fetched_at: number }
-      | undefined;
+    const row = unifiedCacheRepository.read(TABLE_TO_SCOPE[table], symbol.toUpperCase());
+    if (!row) return undefined;
+    return { payload: row.payload, fetched_at: row.fetched_at };
   }
 
   writeSymbol(table: YahooCacheTable, symbol: string, payload: unknown, fetchedAt: number) {
-    db.prepare(
-      `INSERT INTO ${table} (symbol, payload, fetched_at)
-       VALUES (?, ?, ?)
-       ON CONFLICT(symbol) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
-    ).run(symbol.toUpperCase(), JSON.stringify(payload), fetchedAt);
+    unifiedCacheRepository.write({
+      scope: TABLE_TO_SCOPE[table],
+      key: symbol.toUpperCase(),
+      payload,
+      fetchedAt
+    });
   }
 
   readHistory(cacheKey: string) {
-    return db.prepare("SELECT payload, fetched_at FROM cached_history WHERE cache_key = ?").get(cacheKey) as
-      | { payload: string; fetched_at: number }
-      | undefined;
+    const row = unifiedCacheRepository.read("history", cacheKey);
+    if (!row) return undefined;
+    return { payload: row.payload, fetched_at: row.fetched_at };
+  }
+
+  writeHistory(input: { cacheKey: string; symbol: string; range: string; payload: unknown; fetchedAt: number }) {
+    unifiedCacheRepository.write({
+      scope: "history",
+      key: input.cacheKey,
+      payload: input.payload,
+      fetchedAt: input.fetchedAt
+    });
   }
 
   readIntraday(cacheKey: string) {
@@ -39,14 +62,6 @@ export class YahooCacheRepository {
     return db.prepare(
       "SELECT payload, trading_day, last_updated_at FROM cached_intraday_history WHERE symbol = ? AND range = '1d' AND interval = '5m' ORDER BY trading_day DESC, last_updated_at DESC LIMIT 1"
     ).get(symbol.toUpperCase()) as { payload: string; trading_day: string; last_updated_at: number } | undefined;
-  }
-
-  writeHistory(input: { cacheKey: string; symbol: string; range: string; payload: unknown; fetchedAt: number }) {
-    db.prepare(
-      `INSERT INTO cached_history (cache_key, symbol, range, payload, fetched_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at`
-    ).run(input.cacheKey, input.symbol.toUpperCase(), input.range, JSON.stringify(input.payload), input.fetchedAt);
   }
 
   pruneIntraday(symbol: string, keepTradingDays: number) {

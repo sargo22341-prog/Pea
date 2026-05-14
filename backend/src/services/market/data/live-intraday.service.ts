@@ -2,6 +2,7 @@ import { candleRepository } from "../../../repositories/candles/candle.repositor
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
 import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
+import { symbolLockService } from "../../shared/symbol-lock.service.js";
 import { getLastTradingDay, getMarketSessionInfo } from "../calendars/marketCalendar.service.js";
 import { chartConfigService } from "../charts/chart-config.service.js";
 import {
@@ -37,9 +38,12 @@ export class LiveIntradayService {
     const existing = intradayRefreshInFlight.get(key);
     if (existing) return existing;
 
-    const promise = this.refreshForAssetNow(asset, now).finally(() => {
-      intradayRefreshInFlight.delete(key);
-    });
+    // Sérialise par symbole avec les autres écritures candles (refreshCandles, finalize, rebuild).
+    const promise = symbolLockService
+      .withLock(`candles:${asset.symbol.toUpperCase()}`, () => this.refreshForAssetNow(asset, now))
+      .finally(() => {
+        intradayRefreshInFlight.delete(key);
+      });
     intradayRefreshInFlight.set(key, promise);
     return promise;
   }

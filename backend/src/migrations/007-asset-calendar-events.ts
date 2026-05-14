@@ -17,6 +17,12 @@ export const assetCalendarEventsMigration: Migration = {
     `);
     db.exec("CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_symbol ON asset_calendar_events(symbol)");
     db.exec("CREATE INDEX IF NOT EXISTS idx_asset_calendar_events_date ON asset_calendar_events(event_date)");
-    db.exec("DELETE FROM cached_fundamentals WHERE symbol NOT LIKE '%:annual-financials' AND json_type(payload, '$.calendarEvents') IS NULL");
+    // La purge ne s'applique qu'aux installations existantes : sur une base neuve, la table
+    // historique `cached_fundamentals` n'existe plus (consolidée dans `cache_entries` par
+    // la migration 025) — on la skippe gracieusement.
+    const tableExists = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cached_fundamentals'").get());
+    if (tableExists) {
+      db.exec("DELETE FROM cached_fundamentals WHERE symbol NOT LIKE '%:annual-financials' AND json_type(payload, '$.calendarEvents') IS NULL");
+    }
   }
 };

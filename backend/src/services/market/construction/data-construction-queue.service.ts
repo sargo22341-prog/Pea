@@ -7,6 +7,22 @@ import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
 
 type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
+/**
+ * Priorité par type de tâche (plus petit = plus prioritaire).
+ * Les `finalize` post-close passent avant les `candles` pour ne pas bloquer la fraîcheur des
+ * dashboards le matin suivant. `calendar-events` et `dividends` finissent en queue car peu
+ * critiques pour la consultation immédiate.
+ */
+const PRIORITY_BY_TYPE: Record<TaskType, number> = {
+  finalize: 10,
+  snapshot: 20,
+  candles: 30,
+  "rebuild-stored": 40,
+  financials: 50,
+  dividends: 60,
+  "calendar-events": 70
+};
+
 interface ConstructionTask {
   key: string;
   type: TaskType;
@@ -18,7 +34,12 @@ interface ConstructionTask {
   message: string;
 }
 
-const maxConcurrentTasks = 1;
+/**
+ * Concurrence maximale : 4 workers simultanés. Couplé au lock par symbole côté
+ * `marketDataService`, deux tâches sur le même symbole restent sérialisées tandis que
+ * différents symboles avancent en parallèle.
+ */
+const MAX_CONCURRENT_TASKS = 4;
 
 function nowIso() {
   return new Date().toISOString();
@@ -37,6 +58,9 @@ export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
   private started = false;
+  // Symboles actuellement traités par un worker — utilisé pour empêcher deux workers de
+  // claimer simultanément des tâches sur le même symbole (anti-race candles).
+  private busySymbols = new Set<string>();
 
   start() {
     if (this.started) return;
@@ -58,6 +82,7 @@ export class DataConstructionQueueService {
         market: task.marketKey,
         tradingDate: task.tradingDate,
         phase: task.phase,
+        priority: PRIORITY_BY_TYPE[task.type],
         reason: active ? "already-active" : options.force ? "forced" : "queued"
       });
       return !active;
@@ -77,7 +102,8 @@ export class DataConstructionQueueService {
         marketKey: task.marketKey,
         tradingDate: task.tradingDate,
         phase: task.phase,
-        message: task.message
+        message: task.message,
+        priority: PRIORITY_BY_TYPE[task.type] ?? 100
       })),
       options
     );
@@ -178,12 +204,15 @@ export class DataConstructionQueueService {
   }
 
   private pump() {
-    while (this.running < maxConcurrentTasks) {
-      const next = dataConstructionRepository.claimNextQueuedTask();
+    while (this.running < MAX_CONCURRENT_TASKS) {
+      const next = dataConstructionRepository.claimNextQueuedTask([...this.busySymbols]);
       if (!next) break;
       this.running += 1;
+      const symbol = next.symbol ? String(next.symbol).toUpperCase() : undefined;
+      if (symbol) this.busySymbols.add(symbol);
       void this.run(next).finally(() => {
         this.running -= 1;
+        if (symbol) this.busySymbols.delete(symbol);
         this.pump();
       });
     }

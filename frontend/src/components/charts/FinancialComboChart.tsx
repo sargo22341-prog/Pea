@@ -1,4 +1,5 @@
 import type { FinancialYearItem } from "@pea/shared";
+import { memo } from "react";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { ChartEmpty } from "./ChartEmpty";
@@ -15,7 +16,7 @@ function MarginLabel({ x, y, value }: LabelProps) {
   );
 }
 
-export function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
+export const FinancialComboChart = memo(function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
   if (!data.length) return <ChartEmpty label="Aucune donnée financière annuelle disponible." />;
 
   return (
@@ -49,4 +50,4 @@ export function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
       </SafeResponsiveContainer>
     </div>
   );
-}
+});

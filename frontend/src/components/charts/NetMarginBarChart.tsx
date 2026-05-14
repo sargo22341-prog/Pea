@@ -1,5 +1,5 @@
 import type { NetMarginItem } from "@pea/shared";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
@@ -60,7 +60,7 @@ function MarginAssetTick({ y, payload, data, compact }: MarginAssetTickProps) {
   );
 }
 
-export function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
+export const NetMarginBarChart = memo(function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
   const compactAxis = useCompactAxis();
 
   if (!data.length) return <ChartEmpty label="Aucune marge nette disponible." />;
@@ -84,4 +84,4 @@ export function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
       </SafeResponsiveContainer>
     </div>
   );
-}
+});

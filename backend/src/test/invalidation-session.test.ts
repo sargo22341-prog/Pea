@@ -219,7 +219,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_method_created_at"), "index yahoo usage method/date absent");
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_ticker_created_at"), "index yahoo usage ticker/date absent");
   assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_active_key"), "index queue construction active absent");
-  assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_status_id"), "index queue construction status absent");
+  assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_status_priority_id"), "index queue construction status priority absent");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_low"), "colonne fifty_two_week_low absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
@@ -231,8 +231,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
-    "les 24 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
+    "les 26 migrations doivent etre enregistrees"
   );
 });
 
@@ -243,9 +243,9 @@ test("cache registry applique les regles d'invalidation metier", () => {
 
     const now = Date.now();
     const expiresAt = now + 60_000;
-    db.prepare("INSERT INTO cached_quotes (symbol, payload, fetched_at) VALUES ('AAA.PA', '{}', ?)").run(now);
-    db.prepare("INSERT INTO cached_dividends (symbol, payload, fetched_at) VALUES ('AAA.PA', '{}', ?)").run(now);
-    db.prepare("INSERT INTO asset_article_cache (symbol, payload, cached_at, expires_at) VALUES ('AAA.PA', '{}', ?, ?)").run(now, expiresAt);
+    db.prepare("INSERT INTO cache_entries (scope, key, payload, fetched_at) VALUES ('quote', 'AAA.PA', '{}', ?)").run(now);
+    db.prepare("INSERT INTO cache_entries (scope, key, payload, fetched_at) VALUES ('dividends', 'AAA.PA', '{}', ?)").run(now);
+    db.prepare("INSERT INTO cache_entries (scope, key, payload, fetched_at, expires_at) VALUES ('asset_article', 'AAA.PA', '{}', ?, ?)").run(now, expiresAt);
     db.prepare("INSERT INTO user_assets (user_id, symbol, quantity, average_price, transaction_count, total_fees, invested_amount, updated_at) VALUES (1, 'AAA.PA', 1, 10, 1, 0, 10, ?)").run(now);
     db.prepare("INSERT INTO portfolio_chart_cache (cache_key, user_id, range, payload, cached_at, expires_at) VALUES ('1:1d', '1', '1d', '{}', ?, ?)").run(now, expiresAt);
     db.prepare("INSERT INTO portfolio_positions_performance_cache (cache_key, user_id, range, portfolio_version, market_data_version, payload, cached_at, expires_at) VALUES ('1:p:1d', '1', '1d', 'p', 'm', '{}', ?, ?)").run(now, expiresAt);
@@ -254,20 +254,20 @@ test("cache registry applique les regles d'invalidation metier", () => {
 
     cacheRegistry.invalidate({ type: "MarketSnapshotUpdated", symbol: "AAA.PA" });
     const afterMarket = {
-      quotes: db.prepare("SELECT COUNT(*) AS count FROM cached_quotes").get().count,
+      quotes: db.prepare("SELECT COUNT(*) AS count FROM cache_entries WHERE scope = 'quote' AND key = 'AAA.PA'").get().count,
       portfolioCharts: db.prepare("SELECT COUNT(*) AS count FROM portfolio_chart_cache").get().count,
       userAssets: db.prepare("SELECT COUNT(*) AS count FROM user_assets").get().count
     };
 
     cacheRegistry.invalidate({ type: "DividendDataUpdated", symbol: "AAA.PA" });
     const afterDividends = {
-      dividendCache: db.prepare("SELECT COUNT(*) AS count FROM cached_dividends").get().count,
+      dividendCache: db.prepare("SELECT COUNT(*) AS count FROM cache_entries WHERE scope = 'dividends' AND key = 'AAA.PA'").get().count,
       frontendBlocks: db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache").get().count
     };
 
     cacheRegistry.invalidate({ type: "AssetStaticDataUpdated", symbol: "AAA.PA" });
     const afterStatic = {
-      articles: db.prepare("SELECT COUNT(*) AS count FROM asset_article_cache").get().count
+      articles: db.prepare("SELECT COUNT(*) AS count FROM cache_entries WHERE scope = 'asset_article' AND key = 'AAA.PA'").get().count
     };
 
     console.log("__RESULT__" + JSON.stringify({ afterMarket, afterDividends, afterStatic }));

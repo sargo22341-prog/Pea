@@ -30,25 +30,55 @@ export function formatRangeLabel(range: ChartRange | string, options: { compact?
   return (options.compact ? compactRangeLabels[normalized] : rangeLabels[normalized]) ?? String(range);
 }
 
+/**
+ * Cache mémoïsé pour les `Intl.DateTimeFormat` et `Intl.NumberFormat`.
+ *
+ * Recharts appelle `tickFormatter` pour 50+ ticks × 60+ frames d'animation/seconde, ce qui
+ * créait jusqu'à 3000 nouvelles instances `Intl.DateTimeFormat` par seconde. On les construit
+ * désormais une seule fois par couple (locale, options) et on réutilise.
+ */
+const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+
+function dateTimeFormatter(timeZone: string | undefined, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const resolvedTimeZone = normalizeTimeZone(timeZone);
+  const key = `${resolvedTimeZone}|${JSON.stringify(options)}`;
+  let formatter = dateTimeFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("fr-FR", { timeZone: resolvedTimeZone, ...options });
+    dateTimeFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+function numberFormatter(options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = JSON.stringify(options);
+  let formatter = numberFormatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("fr-FR", options);
+    numberFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
 export function money(value: number, currency = "EUR") {
-  return new Intl.NumberFormat("fr-FR", {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return numberFormatter({
     style: "currency",
     currency,
-    maximumFractionDigits: value > 1000 ? 0 : 2
-  }).format(Number.isFinite(value) ? value : 0);
+    maximumFractionDigits: safeValue > 1000 ? 0 : 2
+  }).format(safeValue);
 }
 
 export function percent(value: number) {
-  return `${value >= 0 ? "+" : ""}${new Intl.NumberFormat("fr-FR", {
-    maximumFractionDigits: 2
-  }).format(Number.isFinite(value) ? value : 0)} %`;
+  const safeValue = Number.isFinite(value) ? value : 0;
+  return `${safeValue >= 0 ? "+" : ""}${numberFormatter({ maximumFractionDigits: 2 }).format(safeValue)} %`;
 }
 
 export function formatChartDate(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: normalizeTimeZone(timeZone),
+  return dateTimeFormatter(timeZone, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric"
@@ -60,8 +90,7 @@ export function formatChartDate(value: string, timeZone?: string) {
 export function formatChartTime(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: normalizeTimeZone(timeZone),
+  return dateTimeFormatter(timeZone, {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
@@ -70,8 +99,7 @@ export function formatChartTime(value: string, timeZone?: string) {
 export function formatChartWeekTick(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: normalizeTimeZone(timeZone),
+  return dateTimeFormatter(timeZone, {
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit"
@@ -81,8 +109,7 @@ export function formatChartWeekTick(value: string, timeZone?: string) {
 export function formatChartDateTime(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: normalizeTimeZone(timeZone),
+  return dateTimeFormatter(timeZone, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -98,23 +125,23 @@ export function formatSignedMoney(value: number, currency: string) {
 }
 
 export function formatNumber(value: number) {
-  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 6 }).format(value);
+  return numberFormatter({ maximumFractionDigits: 6 }).format(value);
 }
 
 export function formatPlainPercent(value?: number) {
   if (value == null || !Number.isFinite(value)) return "n/a";
-  return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} %`;
+  return `${numberFormatter({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} %`;
 }
 
 export function formatMonthYear(value: string, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), month: "short", year: "2-digit" }).format(date);
+  return dateTimeFormatter(timeZone, { month: "short", year: "2-digit" }).format(date);
 }
 
 export function formatMaybeInteger(value?: number) {
   if (value == null || !Number.isFinite(value)) return "n/a";
-  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
+  return numberFormatter({ maximumFractionDigits: 0 }).format(value);
 }
 
 export function formatMaybeMoney(value: number | undefined, currency: string) {
@@ -138,12 +165,12 @@ export function formatMaybeDate(value?: string, timeZone?: string) {
   if (!value) return "n/a";
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "n/a";
-  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return dateTimeFormatter(timeZone, { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }
 
 export function formatArticleDate(value?: string, timeZone?: string) {
   if (!value) return "";
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
-  return new Intl.DateTimeFormat("fr-FR", { timeZone: normalizeTimeZone(timeZone), day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  return dateTimeFormatter(timeZone, { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
 }

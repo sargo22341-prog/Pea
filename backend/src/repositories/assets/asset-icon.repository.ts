@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { unifiedCacheRepository } from "../cache/unified-cache.repository.js";
 
 export interface AssetIconRow {
   symbol: string;
@@ -18,7 +19,8 @@ export interface KnownAssetRow {
 
 export class AssetIconRepository {
   readCachedQuote(symbol: string) {
-    return db.prepare("SELECT payload FROM cached_quotes WHERE symbol = ?").get(symbol) as { payload?: string } | undefined;
+    const row = unifiedCacheRepository.read("quote", symbol.toUpperCase());
+    return row ? { payload: row.payload } : undefined;
   }
 
   find(symbol: string): AssetIconRow | undefined {

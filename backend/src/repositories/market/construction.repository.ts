@@ -1,5 +1,6 @@
 import { db } from "../../db.js";
 import type { StoredChartRange } from "../../services/market/charts/chart-config.service.js";
+import { unifiedCacheRepository, type CacheScope } from "../cache/unified-cache.repository.js";
 
 export interface DeleteResult {
   table: string;
@@ -21,7 +22,10 @@ function runDelete(sql: string, ...params: unknown[]) {
 
 export class MarketDataConstructionRepository {
   clearCachedFundamentals(symbol: string) {
-    db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(symbol.toUpperCase());
+    const key = symbol.toUpperCase();
+    unifiedCacheRepository.deleteEntry("fundamentals", key);
+    // Les sous-clés dérivées (`${key}:annual-financials`) tombent aussi.
+    unifiedCacheRepository.deleteKeysWithPrefix("fundamentals", `${key}:`);
   }
 
   unlinkedAssets(): UnlinkedAssetRow[] {
@@ -49,9 +53,21 @@ export class MarketDataConstructionRepository {
       deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN (${idPlaceholders})`, ...ids) });
     }
 
-    for (const table of ["cached_history", "cached_intraday_history", "asset_article_cache", "asset_icons"]) {
-      deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
+    // cached_intraday_history reste séparé (logique sliding window par trading_day).
+    deleted.push({ table: "cached_intraday_history", rows: runDelete(`DELETE FROM cached_intraday_history WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
+    deleted.push({ table: "asset_icons", rows: runDelete(`DELETE FROM asset_icons WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
+
+    // cache_entries : purger toutes les clés qui matchent le symbole (quote/dividends/news/fundamentals/asset_article)
+    // ainsi que les clés history qui commencent par `${symbol}:`.
+    const directScopes: CacheScope[] = ["quote", "dividends", "news", "fundamentals", "asset_article"];
+    const directlyDeleted = unifiedCacheRepository.deleteKeysInScopes(directScopes, symbols);
+    let prefixedDeleted = 0;
+    for (const symbol of symbols) {
+      const prefix = `${symbol}:`;
+      prefixedDeleted += unifiedCacheRepository.deleteKeysWithPrefix("history", prefix);
+      prefixedDeleted += unifiedCacheRepository.deleteKeysWithPrefix("fundamentals", prefix);
     }
+    deleted.push({ table: "cache_entries", rows: directlyDeleted + prefixedDeleted });
 
     deleted.push({ table: "assets", rows: runDelete(`DELETE FROM assets WHERE id IN (${idPlaceholders})`, ...ids) });
     return deleted;
@@ -71,11 +87,15 @@ export class MarketDataConstructionRepository {
     }
 
     if (input.historicalCacheRanges.length) {
+      // Purge ciblée des clés `cache_entries` scope=history dont la clé contient `:${range}:`.
+      // Format des clés : `${SYMBOL}:${range}:${interval}`.
+      let historyDeleted = 0;
+      for (const range of input.historicalCacheRanges) {
+        historyDeleted += db.prepare("DELETE FROM cache_entries WHERE scope = 'history' AND key LIKE ?").run(`%:${range}:%`);
+      }
+      deleted.push({ table: "cache_entries:history", rows: historyDeleted });
+
       const rangePlaceholders = placeholders(input.historicalCacheRanges);
-      deleted.push({
-        table: "cached_history",
-        rows: runDelete(`DELETE FROM cached_history WHERE range IN (${rangePlaceholders})`, ...input.historicalCacheRanges)
-      });
       deleted.push({
         table: "cached_intraday_history",
         rows: runDelete(`DELETE FROM cached_intraday_history WHERE range IN (${rangePlaceholders})`, ...input.historicalCacheRanges)

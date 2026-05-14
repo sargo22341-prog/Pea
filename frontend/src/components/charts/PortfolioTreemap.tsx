@@ -1,4 +1,5 @@
 import type { PortfolioTreemapItem } from "@pea/shared";
+import { memo } from "react";
 import { Tooltip, Treemap } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
@@ -57,7 +58,7 @@ function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
   );
 }
 
-export function PortfolioTreemap({ data }: { data: PortfolioTreemapItem[] }) {
+export const PortfolioTreemap = memo(function PortfolioTreemap({ data }: { data: PortfolioTreemapItem[] }) {
   if (!data.length) return <ChartEmpty />;
   const treemapData = data as unknown as Array<Record<string, unknown>>;
 
@@ -70,4 +71,4 @@ export function PortfolioTreemap({ data }: { data: PortfolioTreemapItem[] }) {
       </SafeResponsiveContainer>
     </div>
   );
-}
+});

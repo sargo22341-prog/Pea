@@ -36,37 +36,17 @@ export function initializeSchema(db: DatabaseAdapter): void {
     FOREIGN KEY(position_id) REFERENCES positions(id) ON DELETE CASCADE
   );
 
-  CREATE TABLE IF NOT EXISTS cached_quotes (
-    symbol TEXT PRIMARY KEY,
+  CREATE TABLE IF NOT EXISTS cache_entries (
+    scope TEXT NOT NULL,
+    key TEXT NOT NULL,
     payload TEXT NOT NULL,
-    fetched_at INTEGER NOT NULL
+    fetched_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    PRIMARY KEY (scope, key)
   );
 
-  CREATE TABLE IF NOT EXISTS cached_dividends (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    fetched_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS cached_news (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    fetched_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS cached_fundamentals (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    fetched_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS cached_history (
-    cache_key TEXT PRIMARY KEY,
-    symbol TEXT NOT NULL,
-    range TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    fetched_at INTEGER NOT NULL
-  );
+  CREATE INDEX IF NOT EXISTS idx_cache_entries_scope ON cache_entries(scope);
+  CREATE INDEX IF NOT EXISTS idx_cache_entries_expires_at ON cache_entries(expires_at);
 
   CREATE TABLE IF NOT EXISTS cached_intraday_history (
     cache_key TEXT PRIMARY KEY,
@@ -360,13 +340,6 @@ export function initializeSchema(db: DatabaseAdapter): void {
     PRIMARY KEY(user_id, symbol)
   );
 
-  CREATE TABLE IF NOT EXISTS asset_article_cache (
-    symbol TEXT PRIMARY KEY,
-    payload TEXT NOT NULL,
-    cached_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS portfolio_chart_cache (
     cache_key TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -411,7 +384,6 @@ export function initializeSchema(db: DatabaseAdapter): void {
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);
   CREATE INDEX IF NOT EXISTS idx_watchlist_user_symbol ON watchlist(user_id, symbol);
-  CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_chart_cache_expires_at ON portfolio_chart_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_portfolio_positions_performance_cache_user_range ON portfolio_positions_performance_cache(user_id, range);
   CREATE INDEX IF NOT EXISTS idx_portfolio_positions_performance_cache_expires_at ON portfolio_positions_performance_cache(expires_at);
@@ -528,6 +500,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
     phase TEXT,
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'queued',
+    priority INTEGER NOT NULL DEFAULT 100,
     attempts INTEGER NOT NULL DEFAULT 0,
     error_message TEXT,
     started_at TEXT,
@@ -542,7 +515,9 @@ export function initializeSchema(db: DatabaseAdapter): void {
   CREATE INDEX IF NOT EXISTS idx_scheduler_locks_expires_at ON scheduler_locks(expires_at);
   CREATE INDEX IF NOT EXISTS idx_data_construction_jobs_updated_at ON data_construction_jobs(updated_at);
   CREATE INDEX IF NOT EXISTS idx_data_construction_tasks_job_status ON data_construction_tasks(job_id, status);
-  CREATE INDEX IF NOT EXISTS idx_data_construction_tasks_status_id ON data_construction_tasks(status, id);
+  -- L'index (status, priority, id) est créé par la migration 026 après l'ALTER ADD COLUMN
+  -- priority. Sur une base existante migrant depuis < v26, la colonne n'existe pas avant
+  -- l'ALTER, donc l'index ne peut pas être créé dans le schéma initial.
   CREATE UNIQUE INDEX IF NOT EXISTS idx_data_construction_tasks_active_key
     ON data_construction_tasks(task_key)
     WHERE status IN ('queued', 'running');

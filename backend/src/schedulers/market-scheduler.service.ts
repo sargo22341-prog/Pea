@@ -57,9 +57,21 @@ export class MarketSchedulerService {
     schedulerHealthRepository.markTick(schedulerName, now);
     try {
       const groups = trackedMarketRepository.syncFromTrackedAssets();
-      for (const group of groups.values()) {
-        await runWithYahooUsageSource(`tache scheduler: market-open:${group.marketKey}`, () => marketOpenTask.run(group, now));
-        await runWithYahooUsageSource(`tache scheduler: market-close:${group.marketKey}`, () => marketCloseTask.run(group, now));
+      // Parallélise par marché : un fetch Yahoo bloquant sur NYSE n'empêche plus Euronext de
+      // tourner. `allSettled` garantit qu'une erreur isolée n'avorte pas les autres marchés ;
+      // les erreurs sont déjà loguées et persistées dans `marketRunRepository` par chaque task.
+      const marketResults = await Promise.allSettled(
+        [...groups.values()].map(async (group) => {
+          await runWithYahooUsageSource(`tache scheduler: market-open:${group.marketKey}`, () => marketOpenTask.run(group, now));
+          await runWithYahooUsageSource(`tache scheduler: market-close:${group.marketKey}`, () => marketCloseTask.run(group, now));
+        })
+      );
+      for (const result of marketResults) {
+        if (result.status === "rejected") {
+          logger.warn("market-data", "market group task failed", {
+            error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+          });
+        }
       }
       await runWithYahooUsageSource("tache scheduler: live-market-refresh", () => liveMarketRefreshTask.run(groups.values(), now));
       await runWithYahooUsageSource("tache scheduler: weekly-refresh", () => weeklyRefreshTask.run(now));

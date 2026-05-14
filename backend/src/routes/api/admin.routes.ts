@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
+import { unifiedCacheRepository } from "../../repositories/cache/unified-cache.repository.js";
 import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
 import { marketDataCleaner } from "../../services/market/construction/market-data-cleaner.js";
 import { invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
@@ -78,14 +79,10 @@ adminRouter.post("/admin/market-data/cleanup-unlinked-assets", asyncRoute(async 
 adminRouter.post("/admin/market-data/refresh-annex", asyncRoute(async (_req, res) => {
   // Purge tous les caches non-chart pour forcer un refetch complet.
   // calendarEvents, financialData, fundProfile, consensus, marketInfo...
-  db.exec("DELETE FROM cached_fundamentals WHERE symbol NOT LIKE '%:annual-financials'");
-  // Quotes Yahoo (prix live)
-  db.exec("DELETE FROM cached_quotes");
-  // Dividendes bruts Yahoo
-  db.exec("DELETE FROM cached_dividends");
-  // News
-  db.exec("DELETE FROM cached_news");
-  db.exec("DELETE FROM asset_article_cache");
+  // Garder les '%:annual-financials' fundamentals (sous-clés derivées) — moins volatiles.
+  db.prepare("DELETE FROM cache_entries WHERE scope = 'fundamentals' AND key NOT LIKE '%:annual-financials'").run();
+  // Quotes / Dividendes / News / asset_article : purge complète des scopes correspondants.
+  unifiedCacheRepository.deleteScopes(["quote", "dividends", "news", "asset_article"]);
   // Blocs frontend et agregats dependants des snapshots/dividendes/fundamentals.
   invalidateUserAssetCaches("*");
 

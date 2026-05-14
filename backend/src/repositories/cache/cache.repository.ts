@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { unifiedCacheRepository, type CacheScope } from "./unified-cache.repository.js";
 
 export type StaticCacheTarget = { table: string; keyColumn: string };
 
@@ -27,35 +28,45 @@ export class CacheRepository {
   }
 
   invalidateAssetMarket(symbol: string) {
-    db.prepare("DELETE FROM cached_quotes WHERE symbol = ?").run(symbol.toUpperCase());
+    unifiedCacheRepository.deleteEntry("quote", symbol.toUpperCase());
   }
 
   invalidateAssetStatic(symbol: string) {
     const key = symbol.toUpperCase();
-    db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(key);
-    db.prepare("DELETE FROM asset_article_cache WHERE symbol = ?").run(key);
+    unifiedCacheRepository.deleteEntry("fundamentals", key);
+    unifiedCacheRepository.deleteEntry("asset_article", key);
+    // Les fundamentals dérivés (clé `${symbol}:annual-financials`) doivent aussi sauter.
+    unifiedCacheRepository.deleteKeysWithPrefix("fundamentals", `${key}:`);
   }
 
   invalidateAssetDividends(symbol: string) {
-    db.prepare("DELETE FROM cached_dividends WHERE symbol = ?").run(symbol.toUpperCase());
+    unifiedCacheRepository.deleteEntry("dividends", symbol.toUpperCase());
   }
 
   invalidateAssetArticles(symbol: string) {
-    db.prepare("DELETE FROM asset_article_cache WHERE symbol = ?").run(symbol.toUpperCase());
+    unifiedCacheRepository.deleteEntry("asset_article", symbol.toUpperCase());
   }
 
+  /** Lecture cache statique : aujourd'hui ne sert plus que pour `asset_article` (autre cache JSON). */
   readStatic(target: StaticCacheTarget, key: string) {
-    return db.prepare(`SELECT payload, cached_at, expires_at FROM ${target.table} WHERE ${target.keyColumn} = ?`).get(key) as
-      | { payload: string; cached_at: number; expires_at: number }
-      | undefined;
+    if (target.table !== "asset_article_cache") {
+      throw new Error(`readStatic ne supporte plus que asset_article_cache (rec=${target.table})`);
+    }
+    const row = unifiedCacheRepository.read("asset_article", key);
+    if (!row) return undefined;
+    return {
+      payload: row.payload,
+      cached_at: row.fetched_at,
+      expires_at: row.expires_at ?? Number.MAX_SAFE_INTEGER
+    };
   }
 
   writeStatic(target: StaticCacheTarget, key: string, payload: unknown, cachedAt: number, expiresAt: number) {
-    db.prepare(
-      `INSERT INTO ${target.table} (${target.keyColumn}, payload, cached_at, expires_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(${target.keyColumn}) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at, expires_at = excluded.expires_at`
-    ).run(key, JSON.stringify(payload), cachedAt, expiresAt);
+    if (target.table !== "asset_article_cache") {
+      throw new Error(`writeStatic ne supporte plus que asset_article_cache (rec=${target.table})`);
+    }
+    const scope: CacheScope = "asset_article";
+    unifiedCacheRepository.write({ scope, key, payload, fetchedAt: cachedAt, expiresAt });
   }
 
   readFrontendBlock(cacheKey: string, nowMs: number) {

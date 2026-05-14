@@ -1,5 +1,5 @@
 import type { AssetMarketInfo, DividendEvent } from "@pea/shared";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { formatMaybeDate, formatMonthYear, formatPlainPercent, money } from "../../lib/format";
@@ -12,7 +12,7 @@ type DividendChartPoint = {
   status: DividendEvent["status"];
 };
 
-export function DividendLineChartSection({
+export const DividendLineChartSection = memo(function DividendLineChartSection({
   dividends,
   marketInfo,
   currentPrice,
@@ -134,7 +134,7 @@ export function DividendLineChartSection({
       </div>
     </section>
   );
-}
+});
 
 function mergeMarketDividend(dividends: DividendEvent[], marketInfo: AssetMarketInfo | undefined, currentYear: number): DividendEvent[] {
   const marketDividend = marketDividendEvent(dividends, marketInfo, currentYear);

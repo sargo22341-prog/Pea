@@ -22,6 +22,8 @@ import { dedupeDividendsMigration } from "./021-dedupe-dividends.js";
 import { dataConstructionQueueMigration } from "./022-data-construction-queue.js";
 import { snapshotFreshnessAndCandleOrderIndexesMigration } from "./023-snapshot-freshness-and-candle-order-indexes.js";
 import { positionsWatchlistNoDefaultUserIdMigration } from "./024-positions-watchlist-no-default-user-id.js";
+import { unifiedCacheEntriesMigration } from "./025-unified-cache-entries.js";
+import { dataConstructionPriorityMigration } from "./026-data-construction-priority.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -48,5 +50,7 @@ export const migrations: Migration[] = [
   dedupeDividendsMigration,
   dataConstructionQueueMigration,
   snapshotFreshnessAndCandleOrderIndexesMigration,
-  positionsWatchlistNoDefaultUserIdMigration
+  positionsWatchlistNoDefaultUserIdMigration,
+  unifiedCacheEntriesMigration,
+  dataConstructionPriorityMigration
 ];

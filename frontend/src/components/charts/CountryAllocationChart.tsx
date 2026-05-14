@@ -1,4 +1,5 @@
 import type { AllocationChartItem } from "@pea/shared";
+import { memo } from "react";
 import { Cell, Pie, PieChart, Tooltip } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
@@ -31,7 +32,7 @@ function AllocationTooltip({ active, payload }: AllocationTooltipProps) {
   );
 }
 
-export function CountryAllocationChart({ data }: { data: AllocationChartItem[] }) {
+export const CountryAllocationChart = memo(function CountryAllocationChart({ data }: { data: AllocationChartItem[] }) {
   const { containerRef, onPointerDownCapture, tooltipResetKey, tooltipTrigger } = useResponsivePieTooltip();
 
   if (!data.length) return <ChartEmpty />;
@@ -63,4 +64,4 @@ export function CountryAllocationChart({ data }: { data: AllocationChartItem[] }
       </div>
     </div>
   );
-}
+});
