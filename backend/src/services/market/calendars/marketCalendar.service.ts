@@ -183,6 +183,10 @@ function trimPreviousOpenMarketDaysCache() {
   }
 }
 
+export function previousOpenMarketDaysCacheStats() {
+  return { previousOpenMarketDaysCacheEntries: previousOpenMarketDaysCache.size };
+}
+
 /**
  * Decide si une donnee de marche doit etre rafraichie selon la range demandee.
  *

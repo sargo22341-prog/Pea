@@ -9,6 +9,7 @@ import { invalidateUserAssetCaches } from "../../services/shared/cache.service.j
 import { marketScheduler } from "../../schedulers/market-scheduler.service.js";
 import { trackedMarketRepository } from "../../repositories/market/tracked-market.repository.js";
 import { yahooUsageService } from "../../services/yahoo/yahoo-usage.service.js";
+import { runtimeHealthService } from "../../services/admin/runtime-health.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
 
@@ -60,6 +61,10 @@ adminRouter.get("/admin/yahoo-usage/stats", asyncRoute(async (req, res) => {
 adminRouter.get("/admin/yahoo-usage/calls", asyncRoute(async (req, res) => {
   const query = yahooUsageQuerySchema.parse(req.query);
   res.json(yahooUsageService.list(query));
+}));
+
+adminRouter.get("/admin/runtime-health", asyncRoute(async (_req, res) => {
+  res.json(runtimeHealthService.snapshot());
 }));
 
 adminRouter.post("/admin/market-data/rebuild", asyncRoute(async (req, res) => {

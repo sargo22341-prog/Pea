@@ -19,10 +19,13 @@ const schedulerName = "market-scheduler";
 const tickIntervalMs = 5 * 60 * 1000;
 const tickLockTtlMs = 4 * 60 * 1000;
 const processOwnerId = `${schedulerName}:${process.pid}:${randomUUID()}`;
+const tickLockKey = `${schedulerName}:tick`;
 
 export class MarketSchedulerService {
   private timer?: NodeJS.Timeout;
   private running = false;
+  private lastTickDurationMs?: number;
+  private lastTickFinishedAt?: string;
 
   start() {
     if (this.timer) return;
@@ -44,7 +47,8 @@ export class MarketSchedulerService {
 
   async tick(now = new Date()) {
     if (this.running) return;
-    const lease = schedulerLockRepository.acquire(`${schedulerName}:tick`, tickLockTtlMs, now.getTime(), processOwnerId);
+    const startedAt = performance.now();
+    const lease = schedulerLockRepository.acquire(tickLockKey, tickLockTtlMs, now.getTime(), processOwnerId);
     if (!lease) {
       logger.debug("market-data", "market scheduler tick skipped because lock is held");
       return;
@@ -83,6 +87,8 @@ export class MarketSchedulerService {
     } finally {
       clearInterval(heartbeat);
       this.running = false;
+      this.lastTickDurationMs = Math.round(performance.now() - startedAt);
+      this.lastTickFinishedAt = new Date().toISOString();
       schedulerLockRepository.release(lease);
     }
   }
@@ -221,6 +227,34 @@ export class MarketSchedulerService {
 
   async runWeeklyRefresh(now = new Date()) {
     return weeklyRefreshTask.run(now);
+  }
+
+  runtimeStats(now = new Date()) {
+    const health = schedulerHealthRepository.get(schedulerName);
+    const markets = trackedMarketRepository.listAll();
+    const lock = schedulerLockRepository.get(tickLockKey);
+    const lastTickTime = health?.last_tick_at ? new Date(health.last_tick_at).getTime() : undefined;
+    const lastSuccessTime = health?.last_successful_tick_at ? new Date(health.last_successful_tick_at).getTime() : undefined;
+    const lastTickAge = lastTickTime ? now.getTime() - lastTickTime : Number.POSITIVE_INFINITY;
+    const status: "healthy" | "warning" | "error" = health?.last_error
+      ? "error"
+      : lastTickAge > tickIntervalMs * 3
+        ? "warning"
+        : "healthy";
+    return {
+      lastTickAt: health?.last_tick_at ?? null,
+      lastTickDurationMs: this.lastTickDurationMs,
+      lastTickFinishedAt: this.lastTickFinishedAt,
+      lastSuccessAt: health?.last_successful_tick_at ?? null,
+      lastSuccessAgeMs: lastSuccessTime ? now.getTime() - lastSuccessTime : undefined,
+      lastError: health?.last_error ?? null,
+      lockOwner: lock?.owner ?? null,
+      heartbeatAgeMs: lock ? Math.max(0, tickLockTtlMs - (lock.expires_at - now.getTime())) : undefined,
+      trackedMarkets: markets.length,
+      nextTickAt: this.timer ? new Date(now.getTime() + tickIntervalMs).toISOString() : null,
+      running: this.running,
+      status
+    };
   }
 }
 

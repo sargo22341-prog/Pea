@@ -203,6 +203,16 @@ export class DataConstructionQueueService {
     };
   }
 
+  runtimeStats() {
+    const stats = dataConstructionRepository.runtimeStats();
+    return {
+      ...stats,
+      activeWorkers: this.running,
+      maxConcurrentTasks: MAX_CONCURRENT_TASKS,
+      busySymbols: this.busySymbols.size
+    };
+  }
+
   private pump() {
     while (this.running < MAX_CONCURRENT_TASKS) {
       const next = dataConstructionRepository.claimNextQueuedTask([...this.busySymbols]);

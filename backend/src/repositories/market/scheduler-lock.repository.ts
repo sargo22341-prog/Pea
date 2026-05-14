@@ -6,6 +6,13 @@ export interface SchedulerLockLease {
   owner: string;
 }
 
+export interface SchedulerLockRow {
+  lock_key: string;
+  owner: string;
+  expires_at: number;
+  acquired_at: string;
+}
+
 export class SchedulerLockRepository {
   acquire(key: string, ttlMs: number, now = Date.now(), owner: string = randomUUID()): SchedulerLockLease | undefined {
     const expiresAt = now + ttlMs;
@@ -25,6 +32,10 @@ export class SchedulerLockRepository {
 
   release(lease: SchedulerLockLease) {
     db.prepare("DELETE FROM scheduler_locks WHERE lock_key = ? AND owner = ?").run(lease.key, lease.owner);
+  }
+
+  get(key: string): SchedulerLockRow | undefined {
+    return db.prepare("SELECT * FROM scheduler_locks WHERE lock_key = ?").get(key) as SchedulerLockRow | undefined;
   }
 }
 

@@ -235,3 +235,10 @@ function writeTimedMemoryCache<T extends { fetchedAt: number }>(
     cache.delete(oldestKey);
   }
 }
+
+export function yahooQuoteMemoryStats() {
+  return {
+    searchCacheEntries: searchCache.size,
+    quoteCombineCacheEntries: quoteCombineCache.size
+  };
+}

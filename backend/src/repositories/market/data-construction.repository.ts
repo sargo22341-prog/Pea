@@ -50,6 +50,16 @@ export interface DataConstructionJobSummary extends DataConstructionJobRow {
   errors_json?: string | null;
 }
 
+export interface DataConstructionRuntimeStats {
+  pending: number;
+  running: number;
+  failed: number;
+  completed: number;
+  oldest_pending_at?: string | null;
+  oldest_running_at?: string | null;
+  by_type_priority: Array<{ type: string; priority: number; pending: number; running: number; failed: number; completed: number }>;
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -193,5 +203,55 @@ export const dataConstructionRepository = {
          GROUP BY j.id`
       )
       .get(jobId) as DataConstructionJobSummary | undefined;
+  },
+
+  runtimeStats(): DataConstructionRuntimeStats {
+    const totals = db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS running,
+           SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS failed,
+           SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS completed,
+           MIN(CASE WHEN status = 'queued' THEN created_at ELSE NULL END) AS oldest_pending_at,
+           MIN(CASE WHEN status = 'running' THEN started_at ELSE NULL END) AS oldest_running_at
+         FROM data_construction_tasks`
+      )
+      .get() as {
+        pending?: number | null;
+        running?: number | null;
+        failed?: number | null;
+        completed?: number | null;
+        oldest_pending_at?: string | null;
+        oldest_running_at?: string | null;
+      };
+    const byTypePriority = db
+      .prepare(
+        `SELECT type, priority,
+                SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS running,
+                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS failed,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS completed
+         FROM data_construction_tasks
+         GROUP BY type, priority
+         ORDER BY priority ASC, type ASC`
+      )
+      .all() as DataConstructionRuntimeStats["by_type_priority"];
+    return {
+      pending: Number(totals.pending ?? 0),
+      running: Number(totals.running ?? 0),
+      failed: Number(totals.failed ?? 0),
+      completed: Number(totals.completed ?? 0),
+      oldest_pending_at: totals.oldest_pending_at ?? null,
+      oldest_running_at: totals.oldest_running_at ?? null,
+      by_type_priority: byTypePriority.map((row) => ({
+        type: row.type,
+        priority: Number(row.priority),
+        pending: Number(row.pending ?? 0),
+        running: Number(row.running ?? 0),
+        failed: Number(row.failed ?? 0),
+        completed: Number(row.completed ?? 0)
+      }))
+    };
   }
 };

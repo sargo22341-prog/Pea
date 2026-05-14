@@ -117,6 +117,10 @@ export class MarketSnapshotService {
     writeCache("cached_quotes", key, quote);
   }
 
+  stats() {
+    return { snapshotQuoteCacheEntries: this.snapshotQuoteCache.size };
+  }
+
   storeBatchSnapshot(asset: AssetRow, quote: Quote, snapshot: YahooSnapshotPayload, ttlMs = 30_000): void {
     this.upsertSnapshot(asset.id, snapshot);
     this.primeQuoteCache(asset.symbol, quote, ttlMs);

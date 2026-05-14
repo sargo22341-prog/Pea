@@ -28,6 +28,7 @@ export class CircuitBreaker {
   private consecutiveFailures = 0;
   private consecutiveSuccesses = 0;
   private nextAttemptAt = 0;
+  private openedAt = 0;
 
   constructor(
     private readonly name: string,
@@ -64,7 +65,8 @@ export class CircuitBreaker {
       state: this.state,
       consecutiveFailures: this.consecutiveFailures,
       consecutiveSuccesses: this.consecutiveSuccesses,
-      nextAttemptAt: this.nextAttemptAt
+      nextAttemptAt: this.nextAttemptAt,
+      openedAt: this.openedAt
     };
   }
 
@@ -74,6 +76,7 @@ export class CircuitBreaker {
     this.consecutiveFailures = 0;
     this.consecutiveSuccesses = 0;
     this.nextAttemptAt = 0;
+    this.openedAt = 0;
   }
 
   private onSuccess() {
@@ -103,7 +106,8 @@ export class CircuitBreaker {
     const previous = this.state;
     this.state = state;
     if (state === "open") {
-      this.nextAttemptAt = Date.now() + this.options.cooldownMs;
+      this.openedAt = Date.now();
+      this.nextAttemptAt = this.openedAt + this.options.cooldownMs;
       logger.warn("market-data", "Yahoo circuit breaker opened", {
         breaker: this.name,
         previous,
@@ -116,6 +120,8 @@ export class CircuitBreaker {
     } else if (state === "closed") {
       this.consecutiveFailures = 0;
       this.consecutiveSuccesses = 0;
+      this.openedAt = 0;
+      this.nextAttemptAt = 0;
       logger.info("market-data", "Yahoo circuit breaker closed", { breaker: this.name, previous });
     }
   }

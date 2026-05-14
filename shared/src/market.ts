@@ -235,6 +235,79 @@ export interface YahooUsageStatsDto {
   recentErrors: YahooUsageRecentErrorDto[];
 }
 
+export interface RuntimeHealthDto {
+  generatedAt: string;
+  cache: {
+    cacheEntries: {
+      totalRows: number;
+      expiredRows: number;
+      byScope: Array<{ scope: string; rows: number; expiredRows: number }>;
+    };
+    derivedCaches: {
+      portfolioChartCacheRows: number;
+      portfolioPositionsPerformanceCacheRows: number;
+      frontendBlockCacheRows: number;
+    };
+    cleanup: {
+      lastRunAt?: string;
+      durationMs?: number;
+      deletedRows?: Record<string, number>;
+      totalDeletedRows?: number;
+      lastError?: string;
+      lastErrorAt?: string;
+    };
+  };
+  memory: {
+    intradayChartCacheEntries: number;
+    intradayRefreshInFlight: number;
+    snapshotQuoteCacheEntries: number;
+    previousOpenMarketDaysCacheEntries: number;
+    backendInFlightRequests: number;
+    yahooSearchCacheEntries: number;
+    yahooQuoteCombineCacheEntries: number;
+    rateLimitBuckets: number;
+    authFailureEntries: number;
+    sseClients: number;
+  };
+  queue: {
+    pending: number;
+    running: number;
+    failed: number;
+    completed: number;
+    oldestPendingAgeMs?: number;
+    oldestRunningAgeMs?: number;
+    activeWorkers: number;
+    maxConcurrentTasks: number;
+    busySymbols: number;
+    byTypePriority: Array<{ type: string; priority: number; pending: number; running: number; failed: number; completed: number }>;
+  };
+  scheduler: {
+    lastTickAt?: string | null;
+    lastTickDurationMs?: number;
+    lastSuccessAt?: string | null;
+    lastError?: string | null;
+    lockOwner?: string | null;
+    heartbeatAgeMs?: number;
+    trackedMarkets: number;
+    nextTickAt?: string | null;
+    running: boolean;
+    status: "healthy" | "warning" | "error";
+  };
+  yahoo: {
+    circuitBreaker: {
+      state: "closed" | "open" | "half-open";
+      failureCount: number;
+      openedAt?: string | null;
+      nextAttemptAt?: string | null;
+    };
+    recentCalls24h: number;
+    recentErrors: YahooUsageRecentErrorDto[];
+    backendInFlightRequests: number;
+    searchCacheEntries: number;
+    quoteCombineCacheEntries: number;
+  };
+}
+
 export interface AssetMarketDto {
   symbol: string;
   marketState: MarketState;

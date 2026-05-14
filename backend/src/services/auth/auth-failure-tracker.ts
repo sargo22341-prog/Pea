@@ -130,6 +130,10 @@ export class AuthFailureTracker {
     return [...this.byKey.entries()].map(([key, entry]) => ({ key, ...entry }));
   }
 
+  stats() {
+    return { entries: this.byKey.size };
+  }
+
   cleanup(now = this.now()) {
     for (const [key, entry] of this.byKey) {
       if (now - entry.lastFailureAt > this.resetAfterMs) this.byKey.delete(key);

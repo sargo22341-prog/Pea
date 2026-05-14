@@ -7,6 +7,15 @@ export interface CacheCleanupResult {
   totalDeleted: number;
 }
 
+export interface CacheCleanupStats {
+  lastRunAt?: string;
+  durationMs?: number;
+  deletedRows?: Record<string, number>;
+  totalDeletedRows?: number;
+  lastError?: string;
+  lastErrorAt?: string;
+}
+
 const defaultIntervalMs = 60 * 60 * 1000;
 const defaultBatchSize = 500;
 const expirableTables = [
@@ -18,6 +27,7 @@ const expirableTables = [
 
 export class CacheCleanupService {
   private timer?: NodeJS.Timeout;
+  private lastStats: CacheCleanupStats = {};
 
   start(intervalMs = defaultIntervalMs) {
     if (this.timer) return;
@@ -56,15 +66,27 @@ export class CacheCleanupService {
 
     const durationMs = Math.round(performance.now() - startedAt);
     const totalDeleted = Object.values(deleted).reduce((sum, count) => sum + count, 0);
+    this.lastStats = {
+      lastRunAt: new Date().toISOString(),
+      durationMs,
+      deletedRows: deleted,
+      totalDeletedRows: totalDeleted
+    };
     logger.info("cache", "expired cache cleanup completed", { deleted, totalDeleted, durationMs });
     return { deleted, durationMs, totalDeleted };
+  }
+
+  stats(): CacheCleanupStats {
+    return { ...this.lastStats, deletedRows: this.lastStats.deletedRows ? { ...this.lastStats.deletedRows } : undefined };
   }
 
   private safePurgeExpired() {
     try {
       this.purgeExpired();
     } catch (error) {
-      logger.warn("cache", "cache cleanup failed", { error: error instanceof Error ? error.message : String(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      this.lastStats = { ...this.lastStats, lastError: message, lastErrorAt: new Date().toISOString() };
+      logger.warn("cache", "cache cleanup failed", { error: message });
     }
   }
 }

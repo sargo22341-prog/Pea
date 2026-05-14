@@ -5,6 +5,8 @@ interface Bucket {
   resetAt: number;
 }
 
+const rateLimitRegistries = new Set<Map<string, Bucket>>();
+
 export function createRateLimit({
   windowMs,
   max,
@@ -17,6 +19,7 @@ export function createRateLimit({
   maxBuckets?: number;
 }): RequestHandler {
   const buckets = new Map<string, Bucket>();
+  rateLimitRegistries.add(buckets);
   let nextCleanupAt = Date.now() + cleanupIntervalMs;
 
   function cleanup(now: number, force = false) {
@@ -53,4 +56,10 @@ export function createRateLimit({
 
     next();
   };
+}
+
+export function rateLimitStats() {
+  let buckets = 0;
+  for (const registry of rateLimitRegistries) buckets += registry.size;
+  return { buckets };
 }

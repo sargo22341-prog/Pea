@@ -231,6 +231,13 @@ export function pruneIntradayChartCache(now = Date.now()) {
   }
 }
 
+export function intradayChartMemoryStats() {
+  return {
+    intradayChartCacheEntries: intradayChartCache.size,
+    intradayRefreshInFlight: intradayRefreshInFlight.size
+  };
+}
+
 function trimCacheByExpiry<T extends { expiresAt: number }>(cache: Map<string, T>, maxEntries: number) {
   if (cache.size <= maxEntries) return;
   const overflow = cache.size - maxEntries;

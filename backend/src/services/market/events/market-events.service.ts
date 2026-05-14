@@ -84,6 +84,10 @@ export class MarketEventsService {
     }
   }
 
+  stats() {
+    return { clients: this.clients.size, maxClients: this.maxClients };
+  }
+
   private usersForSymbols(symbols: string[]) {
     const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
     const result = new Map<string, { portfolio: boolean; watchlist: boolean }>();
