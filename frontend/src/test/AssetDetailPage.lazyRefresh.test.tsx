@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssetDetailPage } from "../pages/AssetDetailPage";
+import { AssetDetailPage } from "../pages/asset-detail/AssetDetailPage";
 import { api } from "../lib/api";
 
 vi.mock("../components/charts/PriceHistoryChart", () => ({

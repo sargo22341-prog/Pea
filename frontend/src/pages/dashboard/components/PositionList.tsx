@@ -1,4 +1,4 @@
-import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
+import type { DashboardSortKey, MarketEventType, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
@@ -17,7 +17,7 @@ const sortOptions: Array<SortOption<DashboardSortKey>> = [
   { label: "Variation % decroissante", key: "intervalPerformancePercent", direction: "desc" }
 ];
 
-const performanceReloadEvents = ["portfolio-performance-updated", "portfolio-chart-updated", "portfolio-assets-updated"];
+const performanceReloadEvents: MarketEventType[] = ["portfolio-performance-updated", "portfolio-chart-updated", "portfolio-assets-updated"];
 
 export function PositionList({
   positions,

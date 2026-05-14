@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import type { User } from "@pea/shared";
-import { NewsArticleList } from "../components/common/NewsArticleList";
-import { NewsHeader } from "./news/components/NewsHeader";
-import { NewsPagination } from "./news/components/NewsPagination";
-import { NewsSkeleton } from "./news/components/NewsSkeleton";
-import { useNewsPageData } from "./news/hooks/useNewsPageData";
+import { NewsArticleList } from "../../components/common/NewsArticleList";
+import { NewsHeader } from "./components/NewsHeader";
+import { NewsPagination } from "./components/NewsPagination";
+import { NewsSkeleton } from "./components/NewsSkeleton";
+import { useNewsPageData } from "./hooks/useNewsPageData";
 
 export function NewsPage({ user }: { user: User }) {
   const {

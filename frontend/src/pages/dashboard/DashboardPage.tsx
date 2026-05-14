@@ -1,16 +1,16 @@
-import type { RangeKey, User } from "@pea/shared";
+import type { MarketEventType, RangeKey, User } from "@pea/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EmptyState } from "../components/common/EmptyState";
-import { PortfolioEvolutionSection } from "./dashboard/components/PortfolioEvolutionSection";
-import { PortfolioEvolutionSkeleton } from "./dashboard/components/DashboardSkeletons";
-import { TopMetrics } from "./dashboard/components/TopMetrics";
-import { useAsync } from "../hooks/useAsync";
-import { useMarketEventReload, type MarketEventPayload } from "../hooks/useMarketEventReload";
-import { api } from "../lib/api";
+import { EmptyState } from "../../components/common/EmptyState";
+import { PortfolioEvolutionSection } from "./components/PortfolioEvolutionSection";
+import { PortfolioEvolutionSkeleton } from "./components/DashboardSkeletons";
+import { TopMetrics } from "./components/TopMetrics";
+import { useAsync } from "../../hooks/useAsync";
+import { useMarketEventReload, type MarketEventPayload } from "../../hooks/useMarketEventReload";
+import { api } from "../../lib/api";
 
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
-const portfolioReloadEvents = [
+const portfolioReloadEvents: MarketEventType[] = [
   "market-snapshot-updated",
   "portfolio-market-updated",
   "portfolio-assets-updated",
@@ -134,7 +134,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         range={selectedRange}
         summary={summary}
       />
-      
+
       {summary ? (
         <PortfolioEvolutionSection
           defaultSortDirection={user.dashboardDefaultSortDirection}
@@ -153,7 +153,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         <PortfolioEvolutionSkeleton range={selectedRange} setRange={setSelectedRange} />
       )}
 
-      
+
     </div>
   );
 }

@@ -1,35 +1,11 @@
 import type { Response } from "express";
+import type { MarketEventPayload, MarketEventType } from "@pea/shared";
 import { db } from "../../../db.js";
 import { logger } from "../../shared/logger.service.js";
 
-export type MarketEventType =
-  | "market-snapshot-updated"
-  | "portfolio-market-updated"
-  | "watchlist-market-updated"
-  | "portfolio-assets-updated"
-  | "watchlist-assets-updated"
-  | "portfolio-chart-refresh-started"
-  | "asset-chart-refresh-started"
-  | "watchlist-chart-refresh-started"
-  | "portfolio-performance-refresh-started"
-  | "portfolio-chart-updated"
-  | "asset-chart-updated"
-  | "watchlist-chart-updated"
-  | "portfolio-performance-updated"
-  | "dashboard-chart-updated"
-  | "analysis-updated"
-  | "dividends-updated"
-  | "scheduler-health-updated";
-
-export interface MarketEventPayload {
-  type: MarketEventType;
-  markets?: string[];
-  symbols?: string[];
-  symbol?: string;
-  range?: string;
-  updatedAt?: string;
-  startedAt?: string;
-}
+// Types partagés via @pea/shared : `MarketEventType` et `MarketEventPayload` sont définis
+// dans shared/src/market.ts pour empêcher toute divergence avec le frontend.
+export type { MarketEventPayload, MarketEventType } from "@pea/shared";
 
 interface Client {
   id: number;

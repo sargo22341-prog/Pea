@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { DividendAnnualEstimate } from "./dividends/components/DividendAnnualEstimate";
-import { DividendGroupedList } from "./dividends/components/DividendGroupedList";
-import { StaleBadge } from "../components/common/StaleBadge";
-import { useAsync } from "../hooks/useAsync";
-import { useMarketEventReload } from "../hooks/useMarketEventReload";
-import { getCurrentDividendYear, useDividendOverview } from "./dividends/hooks/useDividendOverview";
-import { api } from "../lib/api";
+import { DividendAnnualEstimate } from "./components/DividendAnnualEstimate";
+import { DividendGroupedList } from "./components/DividendGroupedList";
+import { StaleBadge } from "../../components/common/StaleBadge";
+import { useAsync } from "../../hooks/useAsync";
+import { useMarketEventReload } from "../../hooks/useMarketEventReload";
+import { getCurrentDividendYear, useDividendOverview } from "./hooks/useDividendOverview";
+import { api } from "../../lib/api";
 
 const currentYear = getCurrentDividendYear();
 

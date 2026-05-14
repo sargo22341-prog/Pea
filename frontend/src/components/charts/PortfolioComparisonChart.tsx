@@ -4,6 +4,7 @@ import { ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } fro
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick } from "../../lib/format";
 import { normalizeSeriesByPoints } from "../../lib/seriesNormalization";
 import { COMPARE_COLORS } from "./compareColors";
+import { asChartTooltipPayload, tooltipLabel, tooltipNumberValue, type ChartTooltipPayload } from "./rechartsTypes";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 export interface PortfolioComparisonSerie {
@@ -100,7 +101,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
                 label={props.label}
                 labelFormatter={(value) => formatComparisonTooltipLabel(resolveXDate(value), range, userTimezone)}
                 maskValues={maskValues}
-                payload={props.payload}
+                payload={asChartTooltipPayload(props.payload)}
               />
             )}
             contentStyle={{
@@ -158,11 +159,6 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   );
 });
 
-type TooltipPayloadItem = {
-  dataKey?: string | number | ((obj: unknown) => unknown);
-  value?: unknown;
-};
-
 function ComparisonTooltip({
   active,
   payload,
@@ -172,7 +168,7 @@ function ComparisonTooltip({
   maskValues
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<TooltipPayloadItem>;
+  payload?: ChartTooltipPayload;
   label?: unknown;
   labelFormatter: (value: string | number) => string;
   comparisons: ComparisonEntry[];
@@ -181,24 +177,26 @@ function ComparisonTooltip({
   if (!active || !payload?.length) return null;
 
   const portfolioItem = payload.find((item) => item.dataKey === "portfolio");
-  const labelStr = typeof label === "number" || typeof label === "string" ? label : "";
+  const portfolioValue = tooltipNumberValue(portfolioItem?.value);
+  const labelStr = tooltipLabel(label);
 
   return (
     <div className="rounded-lg border-0 bg-ink/80 p-3 text-xs text-slate-200 shadow-lg backdrop-blur">
       <p className="mb-2 font-medium text-slate-300">{labelFormatter(labelStr)}</p>
-      {portfolioItem?.value != null && (
+      {portfolioValue !== undefined && (
         <p className="mb-1 text-slate-100">
           Portefeuille&ensp;
-          {maskValues ? "...." : formatBase100Value(Number(portfolioItem.value))}
+          {maskValues ? "...." : formatBase100Value(portfolioValue)}
         </p>
       )}
       {comparisons.map((comparison) => {
         const item = payload.find((payloadItem) => payloadItem.dataKey === comparison.key);
-        if (item?.value == null) return null;
+        const value = tooltipNumberValue(item?.value);
+        if (value === undefined) return null;
         return (
           <p key={comparison.key} style={{ color: comparison.color }}>
             {comparison.label}&ensp;
-            {formatBase100Value(Number(item.value))}
+            {formatBase100Value(value)}
           </p>
         );
       })}

@@ -1,39 +1,20 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { MARKET_EVENT_TYPES } from "@pea/shared";
 import { Suspense, lazy, useEffect, useRef } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/common/Shell";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
-import { AuthPage } from "./pages/AuthPage";
+import { AuthPage } from "./pages/auth/AuthPage";
 
-const AssetDetailPage = lazy(() => import("./pages/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
-const DashboardPage = lazy(() => import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
-const DividendsPage = lazy(() => import("./pages/DividendsPage").then((module) => ({ default: module.DividendsPage })));
-const AnalysisPage = lazy(() => import("./pages/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
-const NewsPage = lazy(() => import("./pages/NewsPage").then((module) => ({ default: module.NewsPage })));
-const SearchPage = lazy(() => import("./pages/SearchPage").then((module) => ({ default: module.SearchPage })));
-const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
-const AdminPage = lazy(() => import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })));
-
-const marketEventNames = [
-  "market-snapshot-updated",
-  "portfolio-market-updated",
-  "portfolio-assets-updated",
-  "portfolio-chart-refresh-started",
-  "portfolio-performance-refresh-started",
-  "portfolio-chart-updated",
-  "portfolio-performance-updated",
-  "dashboard-chart-updated",
-  "asset-chart-refresh-started",
-  "asset-chart-updated",
-  "watchlist-market-updated",
-  "watchlist-assets-updated",
-  "watchlist-chart-refresh-started",
-  "watchlist-chart-updated",
-  "analysis-updated",
-  "dividends-updated",
-  "scheduler-health-updated"
-];
+const AssetDetailPage = lazy(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
+const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })));
+const DividendsPage = lazy(() => import("./pages/dividends/DividendsPage").then((module) => ({ default: module.DividendsPage })));
+const AnalysisPage = lazy(() => import("./pages/analysis/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
+const NewsPage = lazy(() => import("./pages/news/NewsPage").then((module) => ({ default: module.NewsPage })));
+const SearchPage = lazy(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
+const AdminPage = lazy(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 function LoadingPage() {
   return <div className="p-6 text-slate-400">Chargement...</div>;
@@ -51,7 +32,7 @@ export function App() {
       if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) return;
       const eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
       eventSourceRef.current = eventSource;
-      for (const eventName of marketEventNames) {
+      for (const eventName of MARKET_EVENT_TYPES) {
         eventSource.addEventListener(eventName, (event) => {
           const payload = JSON.parse((event as MessageEvent).data);
           window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));

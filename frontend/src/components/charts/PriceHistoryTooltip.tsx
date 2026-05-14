@@ -1,12 +1,8 @@
 import { money } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
+import { tooltipLabel, tooltipNumberValue, type ChartTooltipPayload } from "./rechartsTypes";
 
-export type ChartTooltipPayload = ReadonlyArray<{
-  dataKey?: string | number | ((obj: unknown) => unknown);
-  name?: string | number;
-  payload?: unknown;
-  value?: unknown;
-}>;
+export type { ChartTooltipPayload } from "./rechartsTypes";
 
 export function HistoryTooltip({
   active,
@@ -25,12 +21,13 @@ export function HistoryTooltip({
 }) {
   if (!active) return null;
   const valuePayload = payload?.find((item) => item.dataKey === "value");
+  const valueNumber = tooltipNumberValue(valuePayload?.value);
 
   return (
     <div className="rounded-lg border-0 bg-ink/80 p-3 text-xs text-slate-200 shadow-lg backdrop-blur">
-      <p className="mb-2 font-medium text-slate-300">{labelFormatter(typeof label === "number" || typeof label === "string" ? label : "")}</p>
-      {valuePayload?.value != null && (
-        <p className="mb-2 text-slate-100">{masquerValeur(money(Number(valuePayload.value), currency), maskValues)}</p>
+      <p className="mb-2 font-medium text-slate-300">{labelFormatter(tooltipLabel(label))}</p>
+      {valueNumber !== undefined && (
+        <p className="mb-2 text-slate-100">{masquerValeur(money(valueNumber, currency), maskValues)}</p>
       )}
     </div>
   );

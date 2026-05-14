@@ -16,32 +16,7 @@ import type {
 } from "@pea/shared";
 import { baseUrl, dedupedRequest, request } from "./api-core";
 
-export type MarketEventPayload = {
-  type:
-    | "market-snapshot-updated"
-    | "portfolio-market-updated"
-    | "watchlist-market-updated"
-    | "portfolio-assets-updated"
-    | "watchlist-assets-updated"
-    | "portfolio-chart-refresh-started"
-    | "portfolio-performance-refresh-started"
-    | "asset-chart-refresh-started"
-    | "watchlist-chart-refresh-started"
-    | "portfolio-chart-updated"
-    | "portfolio-performance-updated"
-    | "asset-chart-updated"
-    | "watchlist-chart-updated"
-    | "dashboard-chart-updated"
-    | "analysis-updated"
-    | "dividends-updated"
-    | "scheduler-health-updated";
-  markets: string[];
-  symbols?: string[];
-  symbol?: string;
-  range?: string;
-  updatedAt?: string;
-  startedAt?: string;
-};
+export type { MarketEventPayload } from "@pea/shared";
 
 export const marketApi = {
   search: (q: string) => request<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),

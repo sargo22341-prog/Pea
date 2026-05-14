@@ -1,22 +1,22 @@
 import type { RangeKey, User } from "@pea/shared";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AssetCalendarEvents } from "../components/common/AssetCalendarEvents";
-import { CompareModal } from "../components/common/CompareModal";
-import { NewsArticleList } from "../components/common/NewsArticleList";
-import { useAsync } from "../hooks/useAsync";
-import { useAssetComparisonSeries } from "../hooks/useAssetComparisonSeries";
-import { api } from "../lib/api";
-import { normalizeTimeZone } from "../lib/timezone";
-import { AddAssetPositionModal } from "./asset-detail/components/AddAssetPositionModal";
-import { AssetAnalystConsensus } from "./asset-detail/components/AssetAnalystConsensus";
-import { AssetDetailHeader } from "./asset-detail/components/AssetDetailHeader";
-import { AssetEtfFundDetails } from "./asset-detail/components/AssetEtfFundDetails";
-import { AssetHistorySection } from "./asset-detail/components/AssetHistorySection";
-import { AssetOverviewSections } from "./asset-detail/components/AssetOverviewSections";
-import { EditPositionModal } from "./asset-detail/components/EditPositionModal";
-import { useAssetChartLifecycle } from "./asset-detail/hooks/useAssetChartLifecycle";
-import { useAssetWatchlist } from "./asset-detail/hooks/useAssetWatchlist";
+import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents";
+import { CompareModal } from "../../components/common/CompareModal";
+import { NewsArticleList } from "../../components/common/NewsArticleList";
+import { useAsync } from "../../hooks/useAsync";
+import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
+import { api } from "../../lib/api";
+import { normalizeTimeZone } from "../../lib/timezone";
+import { AddAssetPositionModal } from "./components/AddAssetPositionModal";
+import { AssetAnalystConsensus } from "./components/AssetAnalystConsensus";
+import { AssetDetailHeader } from "./components/AssetDetailHeader";
+import { AssetEtfFundDetails } from "./components/AssetEtfFundDetails";
+import { AssetHistorySection } from "./components/AssetHistorySection";
+import { AssetOverviewSections } from "./components/AssetOverviewSections";
+import { EditPositionModal } from "./components/EditPositionModal";
+import { useAssetChartLifecycle } from "./hooks/useAssetChartLifecycle";
+import { useAssetWatchlist } from "./hooks/useAssetWatchlist";
 
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();

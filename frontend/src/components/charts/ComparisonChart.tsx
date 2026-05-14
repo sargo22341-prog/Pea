@@ -5,7 +5,7 @@ import type { PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { COMPARE_COLORS } from "./compareColors";
 import { buildComparisonData, shouldNormalizeComparisonByPoints } from "./comparisonData";
 import { formatHistoryTick, formatHistoryTooltipLabel } from "./chartAxis";
-import type { ChartTooltipPayload } from "./PriceHistoryTooltip";
+import { asChartTooltipPayload, tooltipNumberValue, type ChartTooltipPayload } from "./rechartsTypes";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 
 export interface ComparisonSerie {
@@ -54,8 +54,8 @@ function ComparisonTooltip({
       <p className="mb-2 text-xs text-slate-400">{dateStr}</p>
       {series.map((s) => {
         const entry = payload.find((p) => p.dataKey === s.key);
-        const val = Number(entry?.value);
-        if (!Number.isFinite(val)) return null;
+        const val = tooltipNumberValue(entry?.value);
+        if (val === undefined) return null;
         return (
           <div key={s.key} className="flex items-center gap-2 text-sm">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
@@ -139,7 +139,7 @@ export const ComparisonChart = memo(function ComparisonChart({
                 active={props.active}
                 label={usePointAxis && (typeof props.label === "number" || typeof props.label === "string") ? resolveXDate(props.label) : props.label}
                 marketSession={marketSession}
-                payload={props.payload as ChartTooltipPayload}
+                payload={asChartTooltipPayload(props.payload)}
                 range={range}
                 series={allSeries}
                 userTimezone={userTimezone}

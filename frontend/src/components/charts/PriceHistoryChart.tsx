@@ -7,6 +7,7 @@ import { formatHistoryTick, formatHistoryTooltipLabel } from "./chartAxis";
 import { useChartMarkerModel } from "./chart-markers.helpers";
 import { ComparisonChart } from "./ComparisonChart";
 import { HistoryTooltip } from "./PriceHistoryTooltip";
+import { asChartTooltipPayload } from "./rechartsTypes";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 import { TransactionMarkerOverlay } from "./TransactionMarkers";
 import { useChartDataModel } from "./useChartDataModel";
@@ -120,7 +121,7 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
                   formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat, userTimezone, marketSession)
                 }
                 maskValues={maskValues}
-                payload={props.payload}
+                payload={asChartTooltipPayload(props.payload)}
               />
             )}
           />

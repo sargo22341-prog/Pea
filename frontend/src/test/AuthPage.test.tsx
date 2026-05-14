@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { AuthPage } from "../pages/AuthPage";
+import { AuthPage } from "../pages/auth/AuthPage";
 
 describe("AuthPage – login mode", () => {
   it("renders the Connexion title", () => {

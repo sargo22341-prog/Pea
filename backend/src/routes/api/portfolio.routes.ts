@@ -8,6 +8,7 @@ import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
+import { deprecated } from "../shared/deprecation.js";
 
 export const portfolioRouter = express.Router();
 
@@ -119,15 +120,28 @@ portfolioRouter.delete("/portfolio/positions/:id", asyncRoute(async (req, res) =
   res.status(204).send();
 }));
 
-// Compat: Dashboard now uses /portfolio/full and /portfolio/positions/performance.
-portfolioRouter.get("/portfolio/performance", asyncRoute(async (req, res) => {
+// Routes compat — remplacées par /portfolio/full et /portfolio/positions/performance.
+// Le middleware `deprecated` ajoute les headers HTTP standards (Deprecation, Sunset, Link) et
+// logue chaque appel pour identifier les callers résiduels avant le retrait planifié.
+const portfolioPerformanceCompatDeprecation = deprecated({
+  sunsetDate: "Wed, 31 Dec 2026 00:00:00 GMT",
+  replacement: "/api/portfolio/positions/performance",
+  reason: "Use /portfolio/positions/performance for per-position performance data"
+});
+
+const portfolioChartCompatDeprecation = deprecated({
+  sunsetDate: "Wed, 31 Dec 2026 00:00:00 GMT",
+  replacement: "/api/portfolio/full",
+  reason: "Use /portfolio/full for summary + chart in one call"
+});
+
+portfolioRouter.get("/portfolio/performance", portfolioPerformanceCompatDeprecation, asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "performance requested", { range, userId: req.user!.id });
   res.json(await portfolioService.performance(range));
 }));
 
-// Compat: Dashboard now uses /portfolio/full, but external/admin callers may still request chart only.
-portfolioRouter.get("/portfolio/chart", asyncRoute(async (req, res) => {
+portfolioRouter.get("/portfolio/chart", portfolioChartCompatDeprecation, asyncRoute(async (req, res) => {
   const range = parseRange(req.query.range);
   logger.debug("portfolio", "chart requested", { range, userId: req.user!.id });
   res.json(await portfolioService.chart(range, req.user!.id, dashboardIntradayDebugClock(range)));

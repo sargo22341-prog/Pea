@@ -85,5 +85,42 @@ export const unifiedCacheEntriesMigration: Migration = {
       db.exec("DROP TABLE asset_article_cache");
       // L'index lié à la table dropée meurt avec elle ; rien à faire.
     }
+  },
+  defaire: (db) => {
+    // Recrée les 6 anciennes tables et copie les données depuis cache_entries par scope.
+    // Les TTL `expires_at` propres à `asset_article_cache` sont préservés (sinon NULL).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS cached_quotes (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS cached_dividends (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS cached_news (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS cached_fundamentals (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS cached_history (cache_key TEXT PRIMARY KEY, symbol TEXT NOT NULL, range TEXT NOT NULL, payload TEXT NOT NULL, fetched_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS asset_article_cache (symbol TEXT PRIMARY KEY, payload TEXT NOT NULL, cached_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS idx_asset_article_cache_expires_at ON asset_article_cache(expires_at);
+
+      INSERT OR REPLACE INTO cached_quotes (symbol, payload, fetched_at) SELECT key, payload, fetched_at FROM cache_entries WHERE scope = 'quote';
+      INSERT OR REPLACE INTO cached_dividends (symbol, payload, fetched_at) SELECT key, payload, fetched_at FROM cache_entries WHERE scope = 'dividends';
+      INSERT OR REPLACE INTO cached_news (symbol, payload, fetched_at) SELECT key, payload, fetched_at FROM cache_entries WHERE scope = 'news';
+      INSERT OR REPLACE INTO cached_fundamentals (symbol, payload, fetched_at) SELECT key, payload, fetched_at FROM cache_entries WHERE scope = 'fundamentals';
+      -- Pour cached_history, le range est encodé dans la clé (SYMBOL:range:interval). On
+      -- l'extrait au mieux ; les entrées qui ne respectent pas ce format sont copiées avec
+      -- range = '' (rare, ces clés viennent toutes du repository).
+      INSERT OR REPLACE INTO cached_history (cache_key, symbol, range, payload, fetched_at)
+      SELECT key,
+             COALESCE(substr(key, 1, instr(key, ':') - 1), key),
+             COALESCE(
+               substr(key, instr(key, ':') + 1, instr(substr(key, instr(key, ':') + 1), ':') - 1),
+               ''
+             ),
+             payload, fetched_at
+      FROM cache_entries WHERE scope = 'history';
+      INSERT OR REPLACE INTO asset_article_cache (symbol, payload, cached_at, expires_at)
+      SELECT key, payload, fetched_at, COALESCE(expires_at, fetched_at + 86400000) FROM cache_entries WHERE scope = 'asset_article';
+
+      DROP INDEX IF EXISTS idx_cache_entries_scope;
+      DROP INDEX IF EXISTS idx_cache_entries_expires_at;
+      DROP TABLE cache_entries;
+    `);
   }
 };
+

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { SearchPanel } from "./search/components/SearchPanel";
-import { TopMoversSection } from "./search/components/TopMoversSection";
-import { useAsync } from "../hooks/useAsync";
-import { useEnrichedSearch } from "../hooks/useEnrichedSearch";
-import { api } from "../lib/api";
+import { SearchPanel } from "./components/SearchPanel";
+import { TopMoversSection } from "./components/TopMoversSection";
+import { useAsync } from "../../hooks/useAsync";
+import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
+import { api } from "../../lib/api";
 
 /** Page de recherche principale, protegee par les appels API authentifies. */
 export function SearchPage() {

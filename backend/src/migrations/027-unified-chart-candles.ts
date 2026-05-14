@@ -55,5 +55,43 @@ export const unifiedChartCandlesMigration: Migration = {
       );
       db.exec(`DROP TABLE ${legacyTable}`);
     }
+  },
+  defaire: (db) => {
+    // Recrée les 4 tables `chart_candles_${range}` et copie les données depuis chart_candles
+    // en filtrant sur range_key. Permet une revert d'urgence sans perte de données.
+    for (const range of ["1d", "1w", "1m", "all"] as const) {
+      const table = `chart_candles_${range}`;
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ${table} (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          asset_id INTEGER NOT NULL,
+          interval TEXT NOT NULL,
+          datetime_start TEXT NOT NULL,
+          datetime_end TEXT NOT NULL,
+          open REAL,
+          high REAL,
+          low REAL,
+          close REAL NOT NULL,
+          volume REAL,
+          source TEXT NOT NULL DEFAULT 'yahoo-finance2',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(asset_id, interval, datetime_start),
+          FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_${table}_asset_interval ON ${table}(asset_id, interval);
+        CREATE INDEX IF NOT EXISTS idx_${table}_asset_interval_start ON ${table}(asset_id, interval, datetime_start);
+      `);
+      db.exec(
+        `INSERT OR IGNORE INTO ${table} (asset_id, interval, datetime_start, datetime_end, open, high, low, close, volume, source, created_at, updated_at)
+         SELECT asset_id, interval, datetime_start, datetime_end, open, high, low, close, volume, source, created_at, updated_at
+         FROM chart_candles WHERE range_key = '${range}'`
+      );
+    }
+    db.exec(`
+      DROP INDEX IF EXISTS idx_chart_candles_asset_range_interval;
+      DROP INDEX IF EXISTS idx_chart_candles_asset_range_interval_start;
+      DROP TABLE chart_candles;
+    `);
   }
 };

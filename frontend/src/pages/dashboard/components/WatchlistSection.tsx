@@ -1,4 +1,4 @@
-import type { RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
+import type { MarketEventType, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -23,7 +23,7 @@ const watchlistSortOptions: Array<SortOption<WatchlistSortKey>> = [
   { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
 ];
 
-const watchlistReloadEvents = [
+const watchlistReloadEvents: MarketEventType[] = [
   "market-snapshot-updated",
   "watchlist-market-updated",
   "watchlist-assets-updated",

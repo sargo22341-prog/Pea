@@ -1,17 +1,14 @@
+import type { MarketEventPayload, MarketEventType } from "@pea/shared";
 import { useCallback, useEffect, useRef } from "react";
 import { useLatestRef } from "./useLatestRef";
 
-export type MarketEventPayload = {
-  type?: string;
-  range?: string;
-  symbol?: string;
-  [key: string]: unknown;
-};
+// Type partagé via @pea/shared pour synchroniser avec le backend SSE.
+export type { MarketEventPayload, MarketEventType } from "@pea/shared";
 
 export type UseMarketEventReloadOptions = {
   debounceMs?: number;
   enabled?: boolean;
-  eventTypes?: string[];
+  eventTypes?: ReadonlyArray<MarketEventType>;
   filterEvent?: (payload: MarketEventPayload) => boolean;
   intervalMs?: number;
   minReloadIntervalMs?: number;
@@ -85,7 +82,7 @@ export function useMarketEventReload({
       const payload = ((event as CustomEvent<MarketEventPayload>).detail ?? {}) as MarketEventPayload;
       onEventRef.current?.(payload);
       const type = payload.type;
-      if (!type || !eventTypesRef.current.includes(type)) return;
+      if (!type || !eventTypesRef.current.includes(type as MarketEventType)) return;
       if (filterEventRef.current && !filterEventRef.current(payload)) return;
       scheduleReload();
     }
