@@ -15,17 +15,40 @@ import { assetApi } from "./asset-api";
 import { marketApi } from "./market-api";
 import { portfolioApi } from "./portfolio-api";
 import { request } from "./api-core";
+import { clearNativeAuthToken, isNativeApp, setNativeAuthToken } from "./native-auth";
 
 export type { MarketDataRebuildRange, YahooUsageStatsFilters } from "./admin-api";
 export type { MarketEventPayload } from "./market-api";
 
+type NativeAuthResponse = {
+  user: User;
+  token: string;
+};
+
+function isNativeAuthResponse(value: User | NativeAuthResponse): value is NativeAuthResponse {
+  return typeof (value as NativeAuthResponse).token === "string" && typeof (value as NativeAuthResponse).user === "object";
+}
+
+async function persistNativeAuthResponse(response: User | NativeAuthResponse) {
+  if (!isNativeApp()) return response as User;
+  if (!isNativeAuthResponse(response)) throw new Error("Reponse d'authentification mobile invalide.");
+  await setNativeAuthToken(response.token);
+  return response.user;
+}
+
 const authApi = {
   me: () => request<AuthMe>("/api/auth/me"),
   setup: (input: { username: string; password: string; confirmPassword: string }) =>
-    request<User>("/api/auth/setup", { method: "POST", body: JSON.stringify(input) }),
+    request<User | NativeAuthResponse>("/api/auth/setup", { method: "POST", body: JSON.stringify(input) }).then(persistNativeAuthResponse),
   login: (input: { username: string; password: string }) =>
-    request<User>("/api/auth/login", { method: "POST", body: JSON.stringify(input) }),
-  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+    request<User | NativeAuthResponse>("/api/auth/login", { method: "POST", body: JSON.stringify(input) }).then(persistNativeAuthResponse),
+  logout: async () => {
+    try {
+      await request<void>("/api/auth/logout", { method: "POST" });
+    } finally {
+      await clearNativeAuthToken();
+    }
+  },
   updateMe: (input: {
     username?: string;
     password?: string;

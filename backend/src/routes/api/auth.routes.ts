@@ -3,8 +3,8 @@ import type { RequestHandler } from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { createRateLimit } from "../../middleware/rate-limit.js";
-import { requireAuth, clearAuthCookie, readCookie, setAuthCookie } from "../../middleware/auth.js";
-import { authCookieName, authService } from "../../services/auth/auth.service.js";
+import { requireAuth, clearAuthCookie, readSessionToken, setAuthCookie } from "../../middleware/auth.js";
+import { authService } from "../../services/auth/auth.service.js";
 import { authFailureTracker, clientIpFrom, sleep } from "../../services/auth/auth-failure-tracker.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -23,6 +23,19 @@ const passwordChangeRateLimit: RequestHandler = (req, res, next) => {
   next();
 };
 
+function wantsBearerSession(req: express.Request) {
+  return req.header("X-PEA-Auth-Mode")?.toLowerCase() === "bearer";
+}
+
+function sendSessionResult(res: express.Response, req: express.Request, result: Awaited<ReturnType<typeof authService.login>>, status = 200) {
+  if (wantsBearerSession(req)) {
+    res.status(status).json({ user: result.user, token: result.token });
+    return;
+  }
+  setAuthCookie(res, result.token);
+  res.status(status).json(result.user);
+}
+
 authRouter.get("/me", asyncRoute(async (req, res) => {
   res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers(), appTimezone: config.appTimezone });
 }));
@@ -37,8 +50,7 @@ authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) =>
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
   logger.info("auth", "setup success", { username: result.user.username, userId: result.user.id, ip: clientIpFrom(req) });
-  setAuthCookie(res, result.token);
-  res.status(201).json(result.user);
+  sendSessionResult(res, req, result, 201);
 }));
 
 authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) => {
@@ -60,12 +72,11 @@ authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) =>
     authFailureTracker.recordFailure({ ip, username: body.username, reason });
     throw error;
   }
-  setAuthCookie(res, result.token);
-  res.json(result.user);
+  sendSessionResult(res, req, result);
 }));
 
 authRouter.post("/logout", asyncRoute(async (req, res) => {
-  authService.logout(readCookie(req, authCookieName));
+  authService.logout(readSessionToken(req));
   logger.debug("auth", "logout", { userId: req.user?.id, username: req.user?.username });
   clearAuthCookie(res);
   res.status(204).send();

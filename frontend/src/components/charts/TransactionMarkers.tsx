@@ -1,5 +1,6 @@
 import type { PortfolioTransactionMarker } from "@pea/shared";
 import { useState } from "react";
+import { useApiUrl } from "../../hooks/useApiUrl";
 import { formatChartDateTime, formatNumber, money } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
 import type { MarkerGroupPoint, MarkerOverlayPoint } from "./transactionMarkerUtils";
@@ -61,7 +62,7 @@ function TransactionMarkerBadge({ group }: { group: MarkerGroupPoint }) {
             key={marker.id}
             style={{ marginLeft: index === 0 ? 0 : -7 }}
           >
-            <img alt="" className="h-4 w-4 rounded-sm object-contain" src={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`} />
+            <MarkerIcon className="h-4 w-4 rounded-sm object-contain" marker={marker} />
           </span>
         );
       })}
@@ -94,7 +95,7 @@ function TransactionMarkerTooltip({
         const isBuy = marker.type === "buy";
         return (
           <div className="flex gap-2" key={marker.id}>
-            <img alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded-md object-contain p-0.5" src={marker.logoUrl ?? `/api/assets/${encodeURIComponent(marker.symbol)}/icon`} />
+            <MarkerIcon className="mt-0.5 h-7 w-7 shrink-0 rounded-md object-contain p-0.5" marker={marker} />
             <div>
               <p className="font-medium text-slate-100">{marker.name}</p>
               <p className={isBuy ? "text-emerald-400" : "text-red-400"}>
@@ -109,4 +110,9 @@ function TransactionMarkerTooltip({
       })}
     </div>
   );
+}
+
+function MarkerIcon({ className, marker }: { className: string; marker: PortfolioTransactionMarker }) {
+  const fallbackUrl = useApiUrl(`/api/assets/${encodeURIComponent(marker.symbol)}/icon`, marker.symbol);
+  return <img alt="" className={className} src={marker.logoUrl ?? fallbackUrl} />;
 }

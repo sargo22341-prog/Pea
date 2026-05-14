@@ -1,3 +1,5 @@
+import { getNativeAuthToken, getNativeServerUrl, isNativeApp } from "./native-auth";
+
 export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
@@ -65,12 +67,15 @@ export function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = init?.body instanceof FormData ? init?.headers : { "Content-Type": "application/json", ...init?.headers };
-  const response = await fetch(`${baseUrl}${path}`, {
+  const headers = await requestHeaders(init);
+  const url = await resolveApiUrl(path);
+  logNativeRequest(path, url);
+  const response = await fetch(url, {
+    ...init,
     headers,
-    credentials: "include",
-    ...init
+    credentials: "include"
   });
+  logNativeResponse(path, response);
 
   if (!response.ok) {
     const rawText = await response.text().catch(() => "");
@@ -92,4 +97,65 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const headers = await requestHeaders(init);
+  const url = await resolveApiUrl(path);
+  logNativeRequest(path, url);
+  const response = await fetch(url, {
+    ...init,
+    headers,
+    credentials: "include"
+  });
+  logNativeResponse(path, response);
+
+  if (!response.ok) {
+    const message = response.status === 401 ? "Authentification requise." : `Erreur API ${response.status}`;
+    throw new ApiError(response.status, message);
+  }
+
+  return response.blob();
+}
+
+export function apiUrl(path: string) {
+  return `${baseUrl}${path}`;
+}
+
+export async function resolveApiUrl(path: string) {
+  if (!isNativeApp()) return apiUrl(path);
+  const serverUrl = await getNativeServerUrl();
+  if (!serverUrl) throw new ApiError(0, "URL serveur non configuree.");
+  return `${serverUrl}${path}`;
+}
+
+function logNativeRequest(path: string, url: string) {
+  if (!isNativeApp()) return;
+  console.info("[pea:api] request", { path, url });
+}
+
+function logNativeResponse(path: string, response: Response) {
+  if (!isNativeApp()) return;
+  console.info("[pea:api] response", { path, status: response.status, ok: response.ok, url: response.url });
+}
+
+export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | undefined> {
+  const headers = new Headers(init?.headers);
+  let hasHeaders = Boolean(init?.headers);
+
+  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+    hasHeaders = true;
+  }
+
+  if (isNativeApp()) {
+    headers.set("X-PEA-Auth-Mode", "bearer");
+    hasHeaders = true;
+    const token = await getNativeAuthToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  return hasHeaders ? headers : undefined;
 }

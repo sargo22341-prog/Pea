@@ -44,6 +44,13 @@ function parsePublicUrl(value: string | undefined) {
   }
 }
 
+function parseOriginList(value: string | undefined) {
+  return (value ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
@@ -56,5 +63,6 @@ export const config = {
   chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
   enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
   publicUrl: parsePublicUrl(process.env.PUBLIC_URL),
-  trustProxy: parseBoolean(process.env.TRUST_PROXY, false)
+  trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
+  corsOrigins: parseOriginList(process.env.CORS_ORIGINS)
 };

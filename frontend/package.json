@@ -1,16 +1,21 @@
 {
   "name": "@pea/frontend",
   "private": true,
-  "version": "0.1.38",
+  "version": "0.1.39",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -p tsconfig.json && vite build",
+    "build:android": "tsc -p tsconfig.json && vite build --mode android && cap sync android",
+    "android": "cap open android",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@pea/shared": "file:../shared",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
@@ -19,6 +24,7 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
     "@tailwindcss/postcss": "^4.2.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

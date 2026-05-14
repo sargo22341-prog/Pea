@@ -40,11 +40,38 @@ test("CORS is enabled for the Vite dev origin outside production", () => {
   assert.equal(headers.allowCredentials, "true");
 });
 
+test("API health is available under /api for reverse proxies and mobile setup", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/health\`);
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+});
+
 test("CORS is enabled for the loopback Vite dev origin outside production", () => {
   const headers = requestHealthWithOrigin("development", "http://127.0.0.1:5173");
 
   assert.equal(headers.status, 200);
   assert.equal(headers.allowOrigin, "http://127.0.0.1:5173");
+  assert.equal(headers.allowCredentials, "true");
+});
+
+test("CORS is enabled for the Capacitor Android origin outside production", () => {
+  const headers = requestHealthWithOrigin("development", "https://localhost");
+
+  assert.equal(headers.status, 200);
+  assert.equal(headers.allowOrigin, "https://localhost");
   assert.equal(headers.allowCredentials, "true");
 });
 
@@ -62,6 +89,32 @@ test("CORS is not installed in production", () => {
   assert.equal(headers.status, 200);
   assert.equal(headers.allowOrigin, null);
   assert.equal(headers.allowCredentials, null);
+});
+
+test("CORS allows configured production origins for the Android wrapper", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/health\`, {
+          headers: { Origin: "https://localhost" }
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          allowCredentials: response.headers.get("access-control-allow-credentials"),
+          allowOrigin: response.headers.get("access-control-allow-origin"),
+          status: response.status
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } }) as CorsHeaders;
+
+  assert.equal(result.status, 200);
+  assert.equal(result.allowOrigin, "https://localhost");
+  assert.equal(result.allowCredentials, "true");
 });
 
 test("auth setup, login and logout use secure local session flow", () => {
@@ -160,5 +213,44 @@ test("auth rate limit is stricter than the global API limit", () => {
 
   assert.equal(result.statuses.at(-1), 429);
   assert.equal(result.statuses.filter((status: number) => status === 429).length, 1);
+});
+
+test("auth supports bearer sessions for native mobile clients", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        const setupBody = await setup.json();
+        const me = await fetch(\`\${baseUrl}/api/auth/me\`, { headers: { Authorization: \`Bearer \${setupBody.token}\` } });
+        const logout = await fetch(\`\${baseUrl}/api/auth/logout\`, { method: "POST", headers: { Authorization: \`Bearer \${setupBody.token}\` } });
+        const meAfterLogout = await fetch(\`\${baseUrl}/api/auth/me\`, { headers: { Authorization: \`Bearer \${setupBody.token}\` } });
+        console.log("__RESULT__" + JSON.stringify({
+          setupStatus: setup.status,
+          tokenPresent: typeof setupBody.token === "string" && setupBody.token.length > 20,
+          username: setupBody.user.username,
+          meBody: await me.json(),
+          logoutStatus: logout.status,
+          meAfterLogoutBody: await meAfterLogout.json()
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.setupStatus, 201);
+  assert.equal(result.tokenPresent, true);
+  assert.equal(result.username, "alice");
+  assert.equal(result.meBody.user.username, "alice");
+  assert.equal(result.logoutStatus, 204);
+  assert.equal(result.meAfterLogoutBody.user, null);
 });
 

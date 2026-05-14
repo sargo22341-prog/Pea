@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { useAccountSettings } from "../hooks/useAccountSettings";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { Collapsible, Toast } from "../../../components/common/feedback";
+import { useAuthenticatedImageUrl } from "../../../hooks/useAuthenticatedImageUrl";
 
 export function AccountSettingsSection() {
   const {
@@ -24,6 +25,7 @@ export function AccountSettingsSection() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust);
 
   if (me.loading)
     return (
@@ -119,7 +121,7 @@ export function AccountSettingsSection() {
                   alt=""
                   className="h-full w-full object-cover"
                   onError={() => setProfileFailed(true)}
-                  src={`/api/auth/me/profile-icon?v=${profileCacheBust}`}
+                  src={profileIconUrl}
                 />
               )}
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">

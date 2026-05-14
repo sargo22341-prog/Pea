@@ -7,6 +7,7 @@ import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSectio
 import { CsvImportSection } from "./components/CsvImportSection";
 import { ImportAvisOperesPdf } from "./components/ImportAvisOperesPdf";
 import { Collapsible } from "../../components/common/feedback";
+import { ServerSettingsSection } from "../../components/common/ServerSettings";
 import { UserPreferencesSection } from "./components/UserPreferencesSection";
 import { api } from "../../lib/api";
 
@@ -24,6 +25,7 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
         <h1 className="text-2xl font-bold">Parametres</h1>
         <p className="muted">Compte, preferences, icones et import Boursorama.</p>
       </div>
+      <ServerSettingsSection />
       <AccountSettingsSection />
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
       <AssetIconsSettingsSection />

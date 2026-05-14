@@ -3,6 +3,7 @@ import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
+import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {
   return isActive ? "btn bg-panel2 text-mint" : "btn-ghost";
@@ -16,6 +17,7 @@ export function Shell({ user }: { user: User }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
+  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust);
   const links = [
     { to: "/", label: "Dashboard", icon: Home },
     ...(user.assetNewsEnabled ? [{ to: "/news", label: "Actualite", icon: Newspaper }] : []),
@@ -62,7 +64,7 @@ export function Shell({ user }: { user: User }) {
                 alt=""
                 className="h-6 w-6 rounded-full object-cover"
                 onError={() => setProfileFailed(true)}
-                src={`/api/auth/me/profile-icon?v=${profileCacheBust}`}
+                src={profileIconUrl}
               />
             )}
           </NavLink>
@@ -87,7 +89,7 @@ export function Shell({ user }: { user: User }) {
                   alt=""
                   className="h-6 w-6 rounded-full object-cover"
                   onError={() => setProfileFailed(true)}
-                  src={`/api/auth/me/profile-icon?v=${profileCacheBust}`}
+                  src={profileIconUrl}
                 />
               )}
               {user.username}

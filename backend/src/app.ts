@@ -13,7 +13,8 @@ import { logger } from "./services/shared/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const devCorsOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
+const devCorsOrigins = new Set(["http://localhost", "https://localhost", "capacitor://localhost", "http://localhost:5173", "http://127.0.0.1:5173"]);
+const configuredCorsOrigins = new Set(config.corsOrigins);
 
 export const app = express();
 
@@ -41,11 +42,17 @@ app.use(
     }
   })
 );
-if (config.nodeEnv !== "production") {
+if (config.nodeEnv !== "production" || configuredCorsOrigins.size > 0) {
   app.use(
     cors({
       credentials: true,
-      origin: (origin, callback) => callback(null, origin && devCorsOrigins.has(origin) ? origin : false)
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, false);
+          return;
+        }
+        callback(null, devCorsOrigins.has(origin) || configuredCorsOrigins.has(origin) ? origin : false);
+      }
     })
   );
 }
@@ -66,6 +73,7 @@ app.use("/api", (_req, res, next) => {
   res.setHeader("Surrogate-Control", "no-store");
   next();
 });
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api", createRateLimit({ windowMs: 60_000, max: 120 }));
 app.use("/api", apiRouter);
 

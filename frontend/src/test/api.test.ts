@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
 import { ApiError, isApiError } from "../lib/api-core";
+import { isInsecureServerUrl, normalizeServerUrl } from "../lib/native-auth";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -75,5 +76,17 @@ describe("api client", () => {
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(FormData);
     expect(init.headers).toBeUndefined();
+  });
+
+  it("normalizes configurable native server URLs", () => {
+    expect(normalizeServerUrl(" https://pea.nas.home/ ")).toBe("https://pea.nas.home");
+    expect(normalizeServerUrl(" http://192.168.1.42:4000/ ")).toBe("http://192.168.1.42:4000");
+    expect(() => normalizeServerUrl("ftp://pea.nas.home")).toThrow(/http/);
+    expect(() => normalizeServerUrl("not a url")).toThrow(/invalide/);
+  });
+
+  it("detects insecure local server URLs for Android debug warnings", () => {
+    expect(isInsecureServerUrl("http://192.168.1.42:4000")).toBe(true);
+    expect(isInsecureServerUrl("https://pea.nas.home")).toBe(false);
   });
 });

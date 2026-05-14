@@ -14,9 +14,100 @@ import type {
   TopAndLosersResponse,
   WatchlistItem
 } from "@pea/shared";
-import { baseUrl, dedupedRequest, request } from "./api-core";
+import { apiUrl, dedupedRequest, request, requestHeaders, resolveApiUrl } from "./api-core";
+import { isNativeApp } from "./native-auth";
 
 export type { MarketEventPayload } from "@pea/shared";
+
+export function subscribeMarketEvents(onEvent: (eventName: string, payload: unknown) => void) {
+  if (!isNativeApp()) {
+    const eventSource = new EventSource(apiUrl("/api/market/events"), { withCredentials: true });
+    return {
+      close: () => eventSource.close(),
+      addEventListener: (eventName: string) => {
+        eventSource.addEventListener(eventName, (event) => {
+          onEvent(eventName, JSON.parse((event as MessageEvent).data));
+        });
+      }
+    };
+  }
+
+  let closed = false;
+  let controller: AbortController | undefined;
+  const registeredEvents = new Set<string>();
+
+  async function connectLoop() {
+    while (!closed) {
+      controller = new AbortController();
+      try {
+        const url = await resolveApiUrl("/api/market/events");
+        const response = await fetch(url, {
+          headers: await requestHeaders({ headers: { Accept: "text/event-stream" } }),
+          credentials: "include",
+          signal: controller.signal
+        });
+        if (!response.ok || !response.body) throw new Error(`Flux marche indisponible (${response.status}).`);
+        await readEventStream(response.body, (eventName, data) => {
+          if (!registeredEvents.has(eventName)) return;
+          onEvent(eventName, JSON.parse(data));
+        });
+      } catch (error) {
+        if (closed || controller.signal.aborted) return;
+        console.warn("Reconnexion au flux marche apres erreur.", error);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+  }
+
+  void connectLoop();
+
+  return {
+    close: () => {
+      closed = true;
+      controller?.abort();
+    },
+    addEventListener: (eventName: string) => {
+      registeredEvents.add(eventName);
+    }
+  };
+}
+
+async function readEventStream(stream: ReadableStream<Uint8Array>, onEvent: (eventName: string, data: string) => void) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let eventName = "message";
+  const dataLines: string[] = [];
+
+  function flushEvent() {
+    if (!dataLines.length) return;
+    onEvent(eventName, dataLines.join("\n"));
+    eventName = "message";
+    dataLines.length = 0;
+  }
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += value ? decoder.decode(value, { stream: !done }) : decoder.decode();
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line) {
+        flushEvent();
+      } else if (line.startsWith("event:")) {
+        eventName = line.slice("event:".length).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice("data:".length).trimStart());
+      }
+    }
+
+    if (done) {
+      flushEvent();
+      break;
+    }
+  }
+}
 
 export const marketApi = {
   search: (q: string) => request<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
@@ -24,7 +115,8 @@ export const marketApi = {
     request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
   marketFeatures: () => request<{ liveRefreshEnabled: boolean }>("/api/market/features"),
-  marketEventsUrl: () => `${baseUrl}/api/market/events`,
+  marketEventsUrl: () => apiUrl("/api/market/events"),
+  subscribeMarketEvents,
   requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
     request<{ status: string }>("/api/market/chart-refresh", { method: "POST", body: JSON.stringify(input) }),
   history: (symbol: string, range: RangeKey) =>

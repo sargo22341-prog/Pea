@@ -70,9 +70,9 @@ PEA Portfolio est une application web full-stack destinée aux investisseurs par
 | Backend | Node.js, Express 5, TypeScript |
 | Base de données | SQLite via `better-sqlite3` |
 | Données de marché | `yahoo-finance2` (rate-limité, cache-first) |
-| Authentification | Cookie de session (`httpOnly`), hachage bcryptjs |
+| Authentification | Cookie de session (`httpOnly`) pour le web, Bearer token pour l'APK, hachage bcryptjs |
 | Validation | Zod |
-| Déploiement | Build Docker multi-étapes, docker-compose |
+| Déploiement | Build Docker multi-étapes, docker-compose, APK Android via Capacitor |
 
 ---
 
@@ -122,11 +122,33 @@ npm run build          # compile tous les workspaces (shared → backend → fro
 npm run typecheck      # vérification des types sans émission de fichiers
 npm run lint           # ESLint sur backend, frontend et shared
 npm run test           # lance toutes les suites de tests
+npm run build:android -w frontend  # build frontend puis sync Capacitor Android
+npm run android -w frontend        # ouvre le projet Android dans Android Studio
 ```
 
 Les caches de marché sont entretenus par le service runtime de cleanup, les invalidations métier et le monitoring admin. Il n'existe plus de script local qui supprime manuellement toutes les tables de cache.
 
 ---
+
+## APK Android
+
+L'APK est construit avec Capacitor depuis le frontend React existant. Le domaine backend n'est pas hardcode dans le build Android : au premier lancement, l'app demande l'URL du serveur PEA existant, par exemple `https://pea.nas.home`, puis construit automatiquement les appels vers `https://pea.nas.home/api`.
+
+Cette URL doit deja exposer l'application web sur `/` et l'API sur `/api`, comme le fait le backend de production. Aucun container proxy supplementaire n'est requis. Si votre API est volontairement publiee sur un sous-domaine dedie, vous pouvez saisir `https://api.pea.nas.home`, a condition que ce domaine expose aussi l'API sous `/api`.
+
+Le backend accepte les sessions mobiles en `Authorization: Bearer ...`. Le token est stocke dans le stockage securise natif Android via le KeyStore, tandis que la version web continue d'utiliser le cookie `httpOnly`.
+
+Pour autoriser l'origine de la WebView Capacitor en production, ajoutez `https://localhost` dans `CORS_ORIGINS` cote backend. Plusieurs origines peuvent etre separees par des virgules.
+
+```bash
+npm run build:android -w frontend
+cd frontend/android
+./gradlew assembleDebug
+```
+
+L'APK debug est genere dans `frontend/android/app/build/outputs/apk/debug/`.
+
+Pour tester l'APK debug contre le backend Windows local en HTTP, consultez [docs/android-dev.md](docs/android-dev.md). Ce mode accepte par exemple `http://192.168.1.42:4000` uniquement en debug Android ; les builds release restent HTTPS-only.
 
 ## Production (Docker)
 
@@ -136,6 +158,8 @@ docker compose up --build
 
 L'application est accessible sur **http://localhost:4000**.  
 La base de données SQLite et les icônes téléversées sont persistées dans le volume `./data`.
+
+En production, ce container unique sert le frontend sur `/` et l'API sur `/api`. Pour l'APK, publiez simplement cette meme application derriere votre URL habituelle, par exemple `https://pea.nas.home`, puis saisissez cette URL dans l'app Android.
 
 ### Extrait docker-compose.yml
 
@@ -167,7 +191,8 @@ Copiez `.env.example` vers `.env` et ajustez selon vos besoins.
 | `FRONTEND_DIST` | `../frontend/dist` | Chemin vers le build frontend (production) |
 | `PUBLIC_URL` | *(vide)* | Origine publique autorisée en production, par exemple `https://pea.nas.meme`. Si vide, l'origine du `Host` courant est acceptée pour l'usage Docker local. |
 | `TRUST_PROXY` | `false` | Active la confiance dans les headers `X-Forwarded-*` uniquement quand Express est derrière un reverse proxy fiable. |
-| `VITE_API_BASE_URL` | `http://localhost:4000` | URL de base de l'API utilisée par le proxy Vite |
+| `CORS_ORIGINS` | `https://localhost` | Origines cross-origin autorisees, notamment la WebView Capacitor Android. Separez plusieurs valeurs par des virgules. |
+| `VITE_API_BASE_URL` | `http://localhost:4000` | URL de base optionnelle pour le frontend web en dev. L'APK utilise l'URL serveur configuree dans l'app. |
 | `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script de vérification de santé en développement |
 | `LOGO_DEV_API_KEY` | *(optionnel)* | Clé API pour la récupération automatique des logos d'actifs |
 | `DEBUG` | `false` | Active les logs détaillés du backend |

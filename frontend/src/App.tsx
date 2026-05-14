@@ -1,10 +1,12 @@
 import { MARKET_EVENT_TYPES } from "@pea/shared";
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/common/Shell";
+import { ServerSetupPage } from "./components/common/ServerSettings";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
+import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { AuthPage } from "./pages/auth/AuthPage";
 
 const AssetDetailPage = lazy(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
@@ -21,22 +23,46 @@ function LoadingPage() {
 }
 
 export function App() {
+  const [nativeServerState, setNativeServerState] = useState<{ loading: boolean; configured: boolean }>({
+    loading: isNativeApp(),
+    configured: !isNativeApp()
+  });
+
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    let active = true;
+    void getNativeServerUrl().then((url) => {
+      if (active) setNativeServerState({ loading: false, configured: Boolean(url) });
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (nativeServerState.loading) return <div className="p-6 text-slate-400">Chargement...</div>;
+  if (!nativeServerState.configured) {
+    return <ServerSetupPage onConfigured={() => setNativeServerState({ loading: false, configured: true })} />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function AuthenticatedApp() {
   const me = useAsync(() => api.me());
   const userId = me.data?.user?.id;
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const marketEventsRef = useRef<ReturnType<typeof api.subscribeMarketEvents> | null>(null);
 
   useEffect(() => {
     if (!userId) return undefined;
 
     function connect() {
-      if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) return;
-      const eventSource = new EventSource(api.marketEventsUrl(), { withCredentials: true });
-      eventSourceRef.current = eventSource;
+      if (marketEventsRef.current) return;
+      const marketEvents = api.subscribeMarketEvents((_eventName, payload) => {
+        window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
+      });
+      marketEventsRef.current = marketEvents;
       for (const eventName of MARKET_EVENT_TYPES) {
-        eventSource.addEventListener(eventName, (event) => {
-          const payload = JSON.parse((event as MessageEvent).data);
-          window.dispatchEvent(new CustomEvent("pea:market-event", { detail: payload }));
-        });
+        marketEvents.addEventListener(eventName);
       }
     }
 
@@ -52,12 +78,20 @@ export function App() {
     return () => {
       document.removeEventListener("visibilitychange", reconnectWhenForegrounded);
       window.removeEventListener("focus", reconnectWhenForegrounded);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+      marketEventsRef.current?.close();
+      marketEventsRef.current = null;
     };
   }, [userId]);
 
   if (me.loading) return <div className="p-6 text-slate-400">Chargement...</div>;
+  if (me.error && isNativeApp()) {
+    return (
+      <ServerSetupPage
+        message={`Serveur inaccessible ou invalide. Detail : ${me.error}`}
+        onConfigured={() => window.location.assign("/")}
+      />
+    );
+  }
   if (me.data?.setupRequired) {
     return <AuthPage mode="setup" onLogin={async (input) => {
       await api.setup({ username: input.username, password: input.password, confirmPassword: input.confirmPassword ?? "" });

@@ -1,6 +1,8 @@
 import type { RequestHandler } from "express";
 import { config } from "../config.js";
 import { HttpError } from "../utils/http-error.js";
+import { logger } from "../services/shared/logger.service.js";
+
 
 const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const devOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -17,11 +19,18 @@ function requestOrigin(value?: string) {
 function allowedOrigins(req: Parameters<RequestHandler>[0]) {
   const host = req.headers.host;
   const origins = new Set<string>(config.nodeEnv === "production" ? [] : devOrigins);
+
+  for (const origin of config.corsOrigins) {
+    origins.add(origin);
+  }
+
   if (config.publicUrl) origins.add(config.publicUrl);
+
   if (host && !config.publicUrl) {
     const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
     origins.add(`${protocol}://${host}`);
   }
+
   return origins;
 }
 
@@ -43,10 +52,18 @@ export function verifyMutatingRequestOrigin(): RequestHandler {
     }
 
     if (origin && !allowedOrigins(req).has(origin)) {
+      logger.warn("api", "mutating origin rejected", {
+        method: req.method,
+        path: req.path,
+        origin,
+        allowedOrigins: Array.from(allowedOrigins(req)),
+        referer: req.headers.referer,
+        host: req.headers.host,
+      });
+
       next(new HttpError(403, "Origine de requete non autorisee."));
       return;
     }
-
     next();
   };
 }

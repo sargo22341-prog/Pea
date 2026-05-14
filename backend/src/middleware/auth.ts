@@ -21,6 +21,18 @@ export function readCookie(req: Request, name: string) {
     ?.slice(name.length + 1);
 }
 
+export function readBearerToken(req: Request) {
+  const authorization = req.headers.authorization;
+  if (!authorization) return undefined;
+  const [scheme, token, extra] = authorization.trim().split(/\s+/);
+  if (extra || scheme?.toLowerCase() !== "bearer" || !token) return undefined;
+  return token;
+}
+
+export function readSessionToken(req: Request) {
+  return readBearerToken(req) ?? readCookie(req, authCookieName);
+}
+
 export function setAuthCookie(res: Response, token: string) {
   res.cookie(authCookieName, token, {
     httpOnly: true,
@@ -38,7 +50,7 @@ export function clearAuthCookie(res: Response) {
 }
 
 export function attachUser(req: Request, _res: Response, next: NextFunction) {
-  req.user = authService.getUserBySession(readCookie(req, authCookieName));
+  req.user = authService.getUserBySession(readSessionToken(req));
   next();
 }
 

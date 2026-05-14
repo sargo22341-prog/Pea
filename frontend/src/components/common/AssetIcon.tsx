@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useApiUrl } from "../../hooks/useApiUrl";
 
 export function AssetIcon({ symbol, className = "h-10 w-10", cacheBust }: { symbol: string; className?: string; cacheBust?: number }) {
   const [failed, setFailed] = useState(false);
   const [globalCacheBust, setGlobalCacheBust] = useState(0);
+  const version = cacheBust ?? globalCacheBust;
+  const iconUrl = useApiUrl(`/api/assets/${encodeURIComponent(symbol)}/icon?v=${version}`, version);
 
   useEffect(() => {
     setFailed(false);
@@ -34,7 +37,7 @@ export function AssetIcon({ symbol, className = "h-10 w-10", cacheBust }: { symb
       className={`${className} shrink-0 rounded-md object-contain p-1`}
       loading="lazy"
       onError={() => setFailed(true)}
-      src={`/api/assets/${encodeURIComponent(symbol)}/icon?v=${cacheBust ?? globalCacheBust}`}
+      src={iconUrl}
     />
   );
 }
