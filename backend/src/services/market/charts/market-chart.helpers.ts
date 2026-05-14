@@ -22,6 +22,7 @@ export interface ChartDataOptions {
 }
 export const intradayChartCache = new Map<string, { chart: AssetChartDto; expiresAt: number }>();
 export const intradayRefreshInFlight = new Map<string, Promise<{ updated: number; yahooCalls: number }>>();
+const maxIntradayChartCacheEntries = 500;
 
 export function intradayCacheKey(symbol: string, interval: ChartInterval, options: ChartDataOptions) {
   const forcedAt = options.forceIntradayOpen ? options.intradayNow?.toISOString() ?? "forced-open" : "live";
@@ -206,6 +207,38 @@ export function fallbackClosePoint(tradingDay: YahooTradingDay): HistoryPoint {
 
 export function snapshotLastPrice(assetId: number) {
   return marketSnapshotRepository.lastPrice(assetId);
+}
+
+export function readIntradayChartCache(key: string): AssetChartDto | undefined {
+  const cached = intradayChartCache.get(key);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    intradayChartCache.delete(key);
+    return undefined;
+  }
+  return cloneChartDto(cached.chart);
+}
+
+export function writeIntradayChartCache(key: string, chart: AssetChartDto, expiresAt: number) {
+  pruneIntradayChartCache();
+  intradayChartCache.set(key, { chart: cloneChartDto(chart), expiresAt });
+  trimCacheByExpiry(intradayChartCache, maxIntradayChartCacheEntries);
+}
+
+export function pruneIntradayChartCache(now = Date.now()) {
+  for (const [key, value] of intradayChartCache) {
+    if (value.expiresAt <= now) intradayChartCache.delete(key);
+  }
+}
+
+function trimCacheByExpiry<T extends { expiresAt: number }>(cache: Map<string, T>, maxEntries: number) {
+  if (cache.size <= maxEntries) return;
+  const overflow = cache.size - maxEntries;
+  const keys = [...cache.entries()]
+    .sort((a, b) => a[1].expiresAt - b[1].expiresAt)
+    .slice(0, overflow)
+    .map(([key]) => key);
+  for (const key of keys) cache.delete(key);
 }
 
 export function snapshotPreviousClose(assetId: number) {

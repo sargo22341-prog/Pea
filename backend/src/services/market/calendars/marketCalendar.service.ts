@@ -128,6 +128,7 @@ function resolveMarketInput(market: string | { symbol?: string; exchange?: strin
 }
 
 const previousOpenMarketDaysCache = new Map<string, OpenMarketDay[]>();
+const maxPreviousOpenMarketDaysCacheEntries = 512;
 
 export function getPreviousOpenMarketDays(
   market: string | { symbol?: string; exchange?: string },
@@ -170,7 +171,16 @@ export function getPreviousOpenMarketDays(
     ignoredDays: ignored
   });
   previousOpenMarketDaysCache.set(cacheKey, days);
+  trimPreviousOpenMarketDaysCache();
   return days;
+}
+
+function trimPreviousOpenMarketDaysCache() {
+  while (previousOpenMarketDaysCache.size > maxPreviousOpenMarketDaysCacheEntries) {
+    const oldestKey = previousOpenMarketDaysCache.keys().next().value as string | undefined;
+    if (!oldestKey) return;
+    previousOpenMarketDaysCache.delete(oldestKey);
+  }
 }
 
 /**

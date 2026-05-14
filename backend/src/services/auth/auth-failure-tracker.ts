@@ -44,6 +44,7 @@ export interface AuthFailureTrackerOptions {
   backoffMaxMs?: number;
   warnThreshold?: number;
   errorThreshold?: number;
+  maxEntries?: number;
   now?: () => number;
 }
 
@@ -55,6 +56,7 @@ export class AuthFailureTracker {
   private readonly backoffMaxMs: number;
   private readonly warnThreshold: number;
   private readonly errorThreshold: number;
+  private readonly maxEntries: number;
   private readonly now: () => number;
 
   constructor(options: AuthFailureTrackerOptions = {}) {
@@ -64,6 +66,7 @@ export class AuthFailureTracker {
     this.backoffMaxMs = options.backoffMaxMs ?? readPositiveIntEnv("PEA_AUTH_BACKOFF_MAX_MS", 30 * 1000);
     this.warnThreshold = options.warnThreshold ?? WARN_THRESHOLD;
     this.errorThreshold = options.errorThreshold ?? ERROR_THRESHOLD;
+    this.maxEntries = options.maxEntries ?? 10_000;
     this.now = options.now ?? Date.now;
   }
 
@@ -88,6 +91,7 @@ export class AuthFailureTracker {
 
   recordFailure(input: { ip: string; username: string; reason?: string }) {
     const now = this.now();
+    this.cleanup(now);
     const ipKey = `ip:${input.ip}`;
     const userKey = `user:${input.username.toLowerCase()}`;
     let highestCount = 0;
@@ -99,6 +103,7 @@ export class AuthFailureTracker {
       this.byKey.set(key, next);
       if (next.count > highestCount) highestCount = next.count;
     }
+    this.trimToMaxEntries();
 
     const meta = { ip: input.ip, username: input.username, reason: input.reason ?? "invalid-credentials", failureCount: highestCount };
     if (highestCount >= this.errorThreshold) {
@@ -123,6 +128,20 @@ export class AuthFailureTracker {
   /** Snapshot lecture seule pour debug/admin. */
   snapshot() {
     return [...this.byKey.entries()].map(([key, entry]) => ({ key, ...entry }));
+  }
+
+  cleanup(now = this.now()) {
+    for (const [key, entry] of this.byKey) {
+      if (now - entry.lastFailureAt > this.resetAfterMs) this.byKey.delete(key);
+    }
+  }
+
+  private trimToMaxEntries() {
+    while (this.byKey.size > this.maxEntries) {
+      const oldestKey = [...this.byKey.entries()].sort((a, b) => a[1].lastFailureAt - b[1].lastFailureAt)[0]?.[0];
+      if (!oldestKey) return;
+      this.byKey.delete(oldestKey);
+    }
   }
 }
 

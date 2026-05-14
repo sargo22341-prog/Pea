@@ -6,15 +6,15 @@ import { symbolLockService } from "../../shared/symbol-lock.service.js";
 import { getLastTradingDay, getMarketSessionInfo } from "../calendars/marketCalendar.service.js";
 import { chartConfigService } from "../charts/chart-config.service.js";
 import {
-  cloneChartDto,
   compactHistory,
   intradayCacheKey,
-  intradayChartCache,
   intradayRefreshInFlight,
   intervalDurationMs,
   latestIntradayUpdatedAt,
+  readIntradayChartCache,
   snapshotPreviousClose,
   validateChartPoints,
+  writeIntradayChartCache,
   yahooInterval
 } from "../charts/market-chart.helpers.js";
 import { marketDataGateway } from "./market-data-gateway.service.js";
@@ -62,8 +62,7 @@ export class LiveChartService {
   isChartCacheFresh(symbol: string) {
     const interval = chartConfigService.getIntervalForRange("1d");
     const cacheKey = intradayCacheKey(symbol, interval, {});
-    const cached = intradayChartCache.get(cacheKey);
-    return Boolean(cached && cached.expiresAt > Date.now());
+    return Boolean(readIntradayChartCache(cacheKey));
   }
 
   chartNeedsRefresh(asset: AssetRow, minAgeMs = chartConfigService.getIntradayRefreshIntervalMs(), now = new Date()) {
@@ -76,8 +75,7 @@ export class LiveChartService {
   private refreshForAssetNow = async (asset: AssetRow, now = new Date()) => {
     const interval = chartConfigService.getIntervalForRange("1d");
     const cacheKey = intradayCacheKey(asset.symbol, interval, {});
-    const cached = intradayChartCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) return { updated: 0, yahooCalls: 0 };
+    if (readIntradayChartCache(cacheKey)) return { updated: 0, yahooCalls: 0 };
 
     const session = getLastTradingDay(asset.symbol, asset.exchange, now);
     const period2 = new Date(Math.min(now.getTime(), session.period2.getTime()) + intervalDurationMs(interval));
@@ -98,7 +96,7 @@ export class LiveChartService {
     const updated = candleRepository.upsertCandles(candles);
     const baseline = this.getStoredPreviousClosePrice(asset);
     const payload = compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
-    intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + intervalDurationMs(interval) });
+    writeIntradayChartCache(cacheKey, payload, Date.now() + intervalDurationMs(interval));
     return { updated, yahooCalls: 1 };
   };
 

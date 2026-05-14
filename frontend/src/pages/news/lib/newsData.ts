@@ -13,6 +13,9 @@ const assetNewsInFlight = new Map<string, Promise<NewsAssetsPage>>();
 const assetNewsBackgroundInFlight = new Map<string, Promise<void>>();
 const globalNewsInFlight = new Map<string, Promise<NewsFeedPage>>();
 const newsDebugEnabled = __APP_DEBUG__;
+const maxAssetNewsCacheEntries = 10;
+const maxGlobalNewsCacheEntries = 50;
+const maxNewsInFlightRequests = 50;
 
 export function readInitialPortfolioMode() {
   const stored = window.localStorage.getItem(portfolioOnlyStorageKey);
@@ -185,6 +188,7 @@ function fetchAssetNewsPage(user: User, offset: number) {
   if (entry.loadedOffsets.has(offset)) return Promise.resolve(entry.articles);
   const existing = assetNewsInFlight.get(pageKey);
   if (existing) return existing.then(() => getAssetNewsCacheEntry(user).articles);
+  if (assetNewsInFlight.size >= maxNewsInFlightRequests) return Promise.reject(new Error("Trop de requetes d'actualites en cours."));
 
   // Le cache in-flight ne recoit pas le signal React : un rendu annule ne doit
   // pas contaminer la promesse partagee par le rendu suivant ou par le prechargement.
@@ -214,6 +218,7 @@ function getAssetNewsCacheEntry(user: User) {
   if (existing) return existing;
   const created: AssetNewsCacheEntry = { articles: [], loadedOffsets: new Set<number>(), totalAssets: null, fullyLoaded: false };
   assetNewsCache.set(key, created);
+  trimMapByInsertion(assetNewsCache, maxAssetNewsCacheEntries);
   return created;
 }
 
@@ -274,15 +279,25 @@ function fetchGlobalNews(user: User, page: number) {
   if (cached) return Promise.resolve(cached);
   const existing = globalNewsInFlight.get(key);
   if (existing) return existing;
+  if (globalNewsInFlight.size >= maxNewsInFlightRequests) return Promise.reject(new Error("Trop de requetes d'actualites en cours."));
 
   // Le cache in-flight reste independant des AbortSignal pour eviter d'afficher
   // une erreur d'annulation lors d'un remount React ou d'un changement rapide de mode.
   const request = api.globalNews(page).then((pageData) => {
     globalNewsCache.set(key, pageData);
+    trimMapByInsertion(globalNewsCache, maxGlobalNewsCacheEntries);
     return pageData;
   }).finally(() => {
     globalNewsInFlight.delete(key);
   });
   globalNewsInFlight.set(key, request);
   return request;
+}
+
+function trimMapByInsertion<TKey, TValue>(cache: Map<TKey, TValue>, maxEntries: number) {
+  while (cache.size > maxEntries) {
+    const oldestKey = cache.keys().next().value as TKey | undefined;
+    if (oldestKey === undefined) return;
+    cache.delete(oldestKey);
+  }
 }

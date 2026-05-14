@@ -39,6 +39,7 @@ export function formatRangeLabel(range: ChartRange | string, options: { compact?
  */
 const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
 const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+const maxFormatterCacheEntries = 128;
 
 function dateTimeFormatter(timeZone: string | undefined, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
   const resolvedTimeZone = normalizeTimeZone(timeZone);
@@ -47,6 +48,7 @@ function dateTimeFormatter(timeZone: string | undefined, options: Intl.DateTimeF
   if (!formatter) {
     formatter = new Intl.DateTimeFormat("fr-FR", { timeZone: resolvedTimeZone, ...options });
     dateTimeFormatterCache.set(key, formatter);
+    trimFormatterCache(dateTimeFormatterCache);
   }
   return formatter;
 }
@@ -57,8 +59,17 @@ function numberFormatter(options: Intl.NumberFormatOptions): Intl.NumberFormat {
   if (!formatter) {
     formatter = new Intl.NumberFormat("fr-FR", options);
     numberFormatterCache.set(key, formatter);
+    trimFormatterCache(numberFormatterCache);
   }
   return formatter;
+}
+
+function trimFormatterCache<T>(cache: Map<string, T>) {
+  while (cache.size > maxFormatterCacheEntries) {
+    const oldestKey = cache.keys().next().value;
+    if (!oldestKey) return;
+    cache.delete(oldestKey);
+  }
 }
 
 export function money(value: number, currency = "EUR") {

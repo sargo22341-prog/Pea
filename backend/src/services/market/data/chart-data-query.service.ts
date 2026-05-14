@@ -7,17 +7,17 @@ import { getLastAvailableTradingDayFromYahoo } from "../calendars/marketCalendar
 import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, isMarketOpen } from "../calendars/marketCalendar.service.js";
 import { chartConfigService, normalizeStoredRange } from "../charts/chart-config.service.js";
 import {
-  cloneChartDto,
   compactHistory,
   filterRangePoints,
   intradayAvailabilityStatus,
   intradayCacheKey,
-  intradayChartCache,
   intervalDurationMs,
   latestStoredMarketDatePoints,
   pointLabel,
+  readIntradayChartCache,
   snapshotPreviousClose,
   validateChartPoints,
+  writeIntradayChartCache,
   yahooInterval,
   type ChartDataOptions
 } from "../charts/market-chart.helpers.js";
@@ -40,10 +40,10 @@ export class ChartDataQueryService {
 
     const intradayInterval = range === "1d" ? chartConfigService.getIntervalForRange("1d") : undefined;
     const cacheKey = intradayInterval ? intradayCacheKey(asset.symbol, intradayInterval, options) : undefined;
-    const cached = cacheKey ? intradayChartCache.get(cacheKey) : undefined;
-    if (cached && cached.expiresAt > Date.now()) {
+    const cached = cacheKey ? readIntradayChartCache(cacheKey) : undefined;
+    if (cached) {
       logger.debug("chart", "intraday chart cache hit", { symbol: asset.symbol, cacheKey, ttlMs: cached.expiresAt - Date.now() });
-      return cloneChartDto(cached.chart);
+      return cached;
     }
 
     const quote = range === "1d" ? await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined) : undefined;
@@ -73,7 +73,7 @@ export class ChartDataQueryService {
         baselineDatetime: baseline?.datetime
       });
       const payload = compactHistory(asset.symbol, "1d", interval, points, baseline, getMarketSessionInfo(asset.symbol, asset.exchange));
-      if (cacheKey) intradayChartCache.set(cacheKey, { chart: cloneChartDto(payload), expiresAt: Date.now() + intervalDurationMs(interval) });
+      if (cacheKey) writeIntradayChartCache(cacheKey, payload, Date.now() + intervalDurationMs(interval));
       return payload;
     }
 

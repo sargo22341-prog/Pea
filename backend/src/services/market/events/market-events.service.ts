@@ -16,8 +16,14 @@ interface Client {
 export class MarketEventsService {
   private clients = new Map<number, Client>();
   private nextClientId = 1;
+  private readonly maxClients = 100;
 
   connect(userId: string | number, res: Response) {
+    if (this.clients.size >= this.maxClients) {
+      logger.warn("market-data", "market SSE rejected because client limit is reached", { userId, clients: this.clients.size, maxClients: this.maxClients });
+      res.status(503).end();
+      return;
+    }
     const id = this.nextClientId++;
     const client: Client = { id, userId: String(userId), res };
     this.clients.set(id, client);

@@ -1,6 +1,7 @@
 import { logger } from "./logger.service.js";
 
 const inFlight = new Map<string, Promise<unknown>>();
+const maxInFlightRequests = 1000;
 
 function logDebug(message: string, key: string) {
   logger.debug("cache", `dedupe ${message.toLowerCase()}`, { key });
@@ -23,6 +24,10 @@ export async function dedupeInFlight<T>(key: string, fn: () => Promise<T>): Prom
   if (existing) {
     logDebug("WAIT", key);
     return existing as Promise<T>;
+  }
+  if (inFlight.size >= maxInFlightRequests) {
+    logger.warn("cache", "dedupe registry is full", { key, size: inFlight.size, max: maxInFlightRequests });
+    throw new Error("Too many in-flight requests");
   }
 
   logDebug("START", key);

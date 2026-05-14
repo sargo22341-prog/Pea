@@ -5,15 +5,30 @@ interface Bucket {
   resetAt: number;
 }
 
-export function createRateLimit({ windowMs, max, cleanupIntervalMs = windowMs }: { windowMs: number; max: number; cleanupIntervalMs?: number }): RequestHandler {
+export function createRateLimit({
+  windowMs,
+  max,
+  cleanupIntervalMs = windowMs,
+  maxBuckets = 10_000
+}: {
+  windowMs: number;
+  max: number;
+  cleanupIntervalMs?: number;
+  maxBuckets?: number;
+}): RequestHandler {
   const buckets = new Map<string, Bucket>();
   let nextCleanupAt = Date.now() + cleanupIntervalMs;
 
-  function cleanup(now: number) {
-    if (now < nextCleanupAt) return;
+  function cleanup(now: number, force = false) {
+    if (!force && now < nextCleanupAt) return;
     nextCleanupAt = now + cleanupIntervalMs;
     for (const [key, bucket] of buckets) {
       if (bucket.resetAt <= now) buckets.delete(key);
+    }
+    while (buckets.size > maxBuckets) {
+      const oldestKey = buckets.keys().next().value as string | undefined;
+      if (!oldestKey) return;
+      buckets.delete(oldestKey);
     }
   }
 
@@ -25,6 +40,7 @@ export function createRateLimit({ windowMs, max, cleanupIntervalMs = windowMs }:
 
     if (!bucket || bucket.resetAt <= now) {
       buckets.set(key, { count: 1, resetAt: now + windowMs });
+      if (buckets.size > maxBuckets) cleanup(now, true);
       next();
       return;
     }

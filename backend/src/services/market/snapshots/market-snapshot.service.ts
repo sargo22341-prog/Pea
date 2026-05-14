@@ -18,13 +18,14 @@ function optionalNumber(value: unknown): number | undefined {
 
 export class MarketSnapshotService {
   private snapshotQuoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
+  private readonly maxSnapshotQuoteCacheEntries = 500;
 
   async refreshMarketSnapshot(asset: AssetRow | string): Promise<Quote> {
     const symbol = typeof asset === "string" ? asset.toUpperCase() : asset.symbol;
     const result = await marketDataGateway.fetchFreshQuote(symbol);
     const assetRow = assetRepository.upsertFromQuote(result.snapshot);
     this.upsertSnapshot(assetRow.id, result.snapshot);
-    this.snapshotQuoteCache.set(assetRow.symbol, { quote: result.quote, expiresAt: Date.now() + 30_000 });
+    this.writeSnapshotQuoteCache(assetRow.symbol, result.quote, Date.now() + 30_000);
     return result.quote;
   }
 
@@ -37,21 +38,22 @@ export class MarketSnapshotService {
 
     const memoized = this.snapshotQuoteCache.get(key);
     if (memoized && memoized.expiresAt > Date.now()) return memoized.quote;
+    if (memoized) this.snapshotQuoteCache.delete(key);
 
     const snapshot = this.readSnapshot(knownAsset.id);
     if (snapshot && config.enableMarketLiveRefresh && this.snapshotWasCheckedRecently(knownAsset.id)) {
-      this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+      this.writeSnapshotQuoteCache(key, snapshot, Date.now() + 30_000);
       return snapshot;
     }
     const latestFinalizedTradingDate = candleRepository.latestFinalizedTradingDate(knownAsset.id, "1d");
     if (snapshot && latestFinalizedTradingDate && !isMarketOpen(snapshot.marketState)) {
-      this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+      this.writeSnapshotQuoteCache(key, snapshot, Date.now() + 30_000);
       return snapshot;
     }
     if (snapshot && !isMarketOpen(snapshot.marketState)) {
       const session = getLastTradingDay(knownAsset.symbol, knownAsset.exchange);
       if (Date.now() >= session.period2.getTime()) {
-        this.snapshotQuoteCache.set(key, { quote: snapshot, expiresAt: Date.now() + 30_000 });
+        this.writeSnapshotQuoteCache(key, snapshot, Date.now() + 30_000);
         return snapshot;
       }
     }
@@ -111,7 +113,7 @@ export class MarketSnapshotService {
 
   primeQuoteCache(symbol: string, quote: Quote, ttlMs = 30_000): void {
     const key = symbol.toUpperCase();
-    this.snapshotQuoteCache.set(key, { quote: { ...quote, symbol: key }, expiresAt: Date.now() + ttlMs });
+    this.writeSnapshotQuoteCache(key, { ...quote, symbol: key }, Date.now() + ttlMs);
     writeCache("cached_quotes", key, quote);
   }
 
@@ -164,6 +166,22 @@ export class MarketSnapshotService {
     if (!lastCheckedAt) return false;
     const checkedAt = new Date(lastCheckedAt).getTime();
     return Number.isFinite(checkedAt) && Date.now() - checkedAt < chartConfigService.getSnapshotRefreshIntervalMs();
+  }
+
+  private writeSnapshotQuoteCache(symbol: string, quote: Quote, expiresAt: number) {
+    this.pruneSnapshotQuoteCache();
+    this.snapshotQuoteCache.set(symbol.toUpperCase(), { quote, expiresAt });
+    while (this.snapshotQuoteCache.size > this.maxSnapshotQuoteCacheEntries) {
+      const oldestKey = [...this.snapshotQuoteCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0]?.[0];
+      if (!oldestKey) return;
+      this.snapshotQuoteCache.delete(oldestKey);
+    }
+  }
+
+  private pruneSnapshotQuoteCache(now = Date.now()) {
+    for (const [key, value] of this.snapshotQuoteCache) {
+      if (value.expiresAt <= now) this.snapshotQuoteCache.delete(key);
+    }
   }
 }
 

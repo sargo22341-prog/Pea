@@ -21,6 +21,8 @@ import { normalizeQuote } from "./quote.mapper.js";
 
 const searchCache = new Map<string, { payload: SearchResult[]; fetchedAt: number }>();
 const quoteCombineCache = new Map<string, { payload: Quote[]; fetchedAt: number }>();
+const maxSearchCacheEntries = 500;
+const maxQuoteCombineCacheEntries = 500;
 
 /** Recherche des symboles Yahoo, avec cache memoire 24h. */
 export async function searchYahoo(query: string): Promise<MarketDataResult<SearchResult[]>> {
@@ -60,7 +62,7 @@ export async function searchYahoo(query: string): Promise<MarketDataResult<Searc
       }))
       .filter((item) => Boolean(item.symbol));
 
-    searchCache.set(normalizedQuery, { payload, fetchedAt: nowSeconds() });
+    writeTimedMemoryCache(searchCache, normalizedQuery, { payload, fetchedAt: nowSeconds() }, maxSearchCacheEntries, SEARCH_STALE_REJECT_S);
     return { data: payload, stale: false };
   } catch (error) {
     logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "search", symbol: normalizedQuery, durationMs: roundMs(yahooStartedAt) });
@@ -202,7 +204,7 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
     const payload: Quote[] = rows
       .filter((item) => item?.symbol)
       .map((item) => normalizeQuote(item, String(item.symbol)));
-    quoteCombineCache.set(cacheKey, { payload, fetchedAt: nowSeconds() });
+    writeTimedMemoryCache(quoteCombineCache, cacheKey, { payload, fetchedAt: nowSeconds() }, maxQuoteCombineCacheEntries, QUOTE_COMBINE_STALE_REJECT_S);
     return { data: payload, stale: false };
   } catch (error) {
     logMarketData("external-fetch-error", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
@@ -212,5 +214,24 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
       return { data: usableCache.payload, stale: true };
     }
     throw toYahooHttpError(error);
+  }
+}
+
+function writeTimedMemoryCache<T extends { fetchedAt: number }>(
+  cache: Map<string, T>,
+  key: string,
+  value: T,
+  maxEntries: number,
+  staleRejectSeconds: number
+) {
+  const now = nowSeconds();
+  for (const [cacheKey, cached] of cache) {
+    if (now - cached.fetchedAt > staleRejectSeconds) cache.delete(cacheKey);
+  }
+  cache.set(key, value);
+  while (cache.size > maxEntries) {
+    const oldestKey = [...cache.entries()].sort((a, b) => a[1].fetchedAt - b[1].fetchedAt)[0]?.[0];
+    if (!oldestKey) return;
+    cache.delete(oldestKey);
   }
 }

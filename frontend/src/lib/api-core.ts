@@ -1,6 +1,7 @@
 export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
+const maxInFlightRequests = 500;
 
 function abortError() {
   return new DOMException("Requete annulee", "AbortError");
@@ -33,6 +34,9 @@ function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 export function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
   let existing = inFlightRequests.get(path) as Promise<T> | undefined;
   if (!existing) {
+    if (inFlightRequests.size >= maxInFlightRequests) {
+      return Promise.reject(new Error("Trop de requetes en cours."));
+    }
     existing = request<T>(path).finally(() => {
       inFlightRequests.delete(path);
     });
