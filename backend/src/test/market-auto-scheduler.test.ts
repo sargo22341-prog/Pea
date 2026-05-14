@@ -149,14 +149,20 @@ test("close confirmation refreshes snapshots before one unique post-close finali
     await marketCloseTask.run(group, new Date("2026-05-06T15:55:00.000Z"));
     await new Promise((resolve) => setTimeout(resolve, 50));
     const run = db.prepare("SELECT close_status, close_job_id, close_attempts FROM market_daily_runs").get();
+    const tasks = db.prepare("SELECT task_key, market_key, trading_date, phase FROM data_construction_tasks ORDER BY task_key").all();
     const snapshots = db.prepare("SELECT COUNT(*) AS count FROM asset_market_snapshots").get();
     const logs = db.prepare("SELECT COUNT(*) AS count FROM market_check_logs WHERE phase = 'close'").get();
-    console.log("__RESULT__" + JSON.stringify({ calls, run, snapshots, logs }));
+    console.log("__RESULT__" + JSON.stringify({ calls, run, snapshots, logs, tasks }));
   `);
 
   assert.equal(result.calls, 1);
   assert.equal(result.run.close_status, "confirmed_closed");
   assert.ok(result.run.close_job_id);
+  assert.equal(result.tasks.length, 8);
+  assert.ok(result.tasks.every((task: any) => task.market_key === "euronextParis"));
+  assert.ok(result.tasks.every((task: any) => task.trading_date === "2026-05-06"));
+  assert.ok(result.tasks.every((task: any) => task.phase === "close"));
+  assert.ok(result.tasks.every((task: any) => task.task_key.startsWith("EURONEXTPARIS:2026-05-06:CLOSE:")));
   assert.equal(result.snapshots.count, 2);
   assert.equal(result.logs.count, 1);
 });

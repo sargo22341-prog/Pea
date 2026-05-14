@@ -19,6 +19,7 @@ import { marketDataFinalizationsIndexMigration } from "./018-market-data-finaliz
 import { assetMarketSnapshotSlowFieldsMigration } from "./019-asset-market-snapshot-slow-fields.js";
 import { yahooUsageLogsMigration } from "./020-yahoo-usage-logs.js";
 import { dedupeDividendsMigration } from "./021-dedupe-dividends.js";
+import { dataConstructionQueueMigration } from "./022-data-construction-queue.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -42,5 +43,6 @@ export const migrations: Migration[] = [
   marketDataFinalizationsIndexMigration,
   assetMarketSnapshotSlowFieldsMigration,
   yahooUsageLogsMigration,
-  dedupeDividendsMigration
+  dedupeDividendsMigration,
+  dataConstructionQueueMigration
 ];

@@ -1,0 +1,178 @@
+import { db } from "../../db.js";
+
+export type DataConstructionTaskStatus = "queued" | "running" | "success" | "error";
+
+export interface DataConstructionTaskInput {
+  taskKey: string;
+  type: string;
+  symbol?: string;
+  range?: string;
+  marketKey?: string;
+  tradingDate?: string;
+  phase?: string;
+  message: string;
+}
+
+export interface DataConstructionTaskRow {
+  id: number;
+  job_id: string;
+  task_key: string;
+  type: string;
+  symbol?: string | null;
+  range?: string | null;
+  market_key?: string | null;
+  trading_date?: string | null;
+  phase?: string | null;
+  message: string;
+  status: DataConstructionTaskStatus;
+  attempts: number;
+  error_message?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataConstructionJobRow {
+  id: string;
+  message: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataConstructionJobSummary extends DataConstructionJobRow {
+  total_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+  running_tasks: number;
+  current_task_label?: string | null;
+  errors_json?: string | null;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+export const dataConstructionRepository = {
+  createJob(jobId: string, message: string, tasks: DataConstructionTaskInput[], options: { force?: boolean } = {}) {
+    const timestamp = nowIso();
+    const inserted: DataConstructionTaskRow[] = [];
+
+    db.transaction(() => {
+      db.prepare("INSERT INTO data_construction_jobs (id, message, created_at, updated_at) VALUES (?, ?, ?, ?)").run(jobId, message, timestamp, timestamp);
+
+      const insertTask = db.prepare(
+        `INSERT INTO data_construction_tasks
+          (job_id, task_key, type, symbol, range, market_key, trading_date, phase, message, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`
+      );
+
+      for (const task of tasks) {
+        const taskKey = options.force ? `${task.taskKey}:FORCE:${jobId}` : task.taskKey;
+        const changes = insertTask.run(
+          jobId,
+          taskKey,
+          task.type,
+          task.symbol ?? null,
+          task.range ?? null,
+          task.marketKey ?? null,
+          task.tradingDate ?? null,
+          task.phase ?? null,
+          task.message,
+          timestamp,
+          timestamp
+        );
+        if (changes > 0) {
+          const row = db.prepare("SELECT * FROM data_construction_tasks WHERE rowid = last_insert_rowid()").get() as DataConstructionTaskRow;
+          inserted.push(row);
+        }
+      }
+    });
+
+    if (!inserted.length) {
+      db.prepare("DELETE FROM data_construction_jobs WHERE id = ?").run(jobId);
+    }
+    return inserted;
+  },
+
+  activeTaskKeys(keys: string[]) {
+    if (!keys.length) return new Set<string>();
+    const placeholders = keys.map(() => "?").join(",");
+    const rows = db
+      .prepare(`SELECT task_key FROM data_construction_tasks WHERE status IN ('queued', 'running') AND task_key IN (${placeholders})`)
+      .all(...keys) as Array<{ task_key: string }>;
+    return new Set(rows.map((row) => row.task_key));
+  },
+
+  latestJob(): DataConstructionJobSummary | undefined {
+    return db
+      .prepare(
+        `SELECT j.*,
+                COUNT(t.id) AS total_tasks,
+                SUM(CASE WHEN t.status = 'success' THEN 1 ELSE 0 END) AS completed_tasks,
+                SUM(CASE WHEN t.status = 'error' THEN 1 ELSE 0 END) AS failed_tasks,
+                SUM(CASE WHEN t.status = 'running' THEN 1 ELSE 0 END) AS running_tasks,
+                (SELECT message FROM data_construction_tasks rt WHERE rt.job_id = j.id AND rt.status = 'running' ORDER BY rt.started_at DESC, rt.id DESC LIMIT 1) AS current_task_label,
+                (SELECT json_group_array(task_key || ': ' || error_message) FROM data_construction_tasks et WHERE et.job_id = j.id AND et.status = 'error') AS errors_json
+         FROM data_construction_jobs j
+         LEFT JOIN data_construction_tasks t ON t.job_id = j.id
+         GROUP BY j.id
+         ORDER BY j.updated_at DESC
+         LIMIT 1`
+      )
+      .get() as DataConstructionJobSummary | undefined;
+  },
+
+  claimNextQueuedTask(): DataConstructionTaskRow | undefined {
+    const row = db.prepare("SELECT * FROM data_construction_tasks WHERE status = 'queued' ORDER BY id ASC LIMIT 1").get() as DataConstructionTaskRow | undefined;
+    if (!row) return undefined;
+    const timestamp = nowIso();
+    const changed = db
+      .prepare(
+        `UPDATE data_construction_tasks
+         SET status = 'running', attempts = attempts + 1, started_at = ?, updated_at = ?
+         WHERE id = ? AND status = 'queued'`
+      )
+      .run(timestamp, timestamp, row.id);
+    if (!changed) return undefined;
+    db.prepare("UPDATE data_construction_jobs SET updated_at = ? WHERE id = ?").run(timestamp, row.job_id);
+    return db.prepare("SELECT * FROM data_construction_tasks WHERE id = ?").get(row.id) as DataConstructionTaskRow;
+  },
+
+  markTaskSuccess(taskId: number) {
+    const timestamp = nowIso();
+    const row = db.prepare("SELECT job_id FROM data_construction_tasks WHERE id = ?").get(taskId) as { job_id: string } | undefined;
+    db.prepare("UPDATE data_construction_tasks SET status = 'success', error_message = NULL, finished_at = ?, updated_at = ? WHERE id = ?").run(timestamp, timestamp, taskId);
+    if (row) db.prepare("UPDATE data_construction_jobs SET updated_at = ? WHERE id = ?").run(timestamp, row.job_id);
+  },
+
+  markTaskError(taskId: number, message: string) {
+    const timestamp = nowIso();
+    const row = db.prepare("SELECT job_id FROM data_construction_tasks WHERE id = ?").get(taskId) as { job_id: string } | undefined;
+    db.prepare("UPDATE data_construction_tasks SET status = 'error', error_message = ?, finished_at = ?, updated_at = ? WHERE id = ?").run(message, timestamp, timestamp, taskId);
+    if (row) db.prepare("UPDATE data_construction_jobs SET updated_at = ? WHERE id = ?").run(timestamp, row.job_id);
+  },
+
+  resetInterruptedTasks() {
+    const timestamp = nowIso();
+    return db.prepare("UPDATE data_construction_tasks SET status = 'queued', updated_at = ? WHERE status = 'running'").run(timestamp);
+  },
+
+  getJob(jobId: string) {
+    return db
+      .prepare(
+        `SELECT j.*,
+                COUNT(t.id) AS total_tasks,
+                SUM(CASE WHEN t.status = 'success' THEN 1 ELSE 0 END) AS completed_tasks,
+                SUM(CASE WHEN t.status = 'error' THEN 1 ELSE 0 END) AS failed_tasks,
+                SUM(CASE WHEN t.status = 'running' THEN 1 ELSE 0 END) AS running_tasks,
+                (SELECT message FROM data_construction_tasks rt WHERE rt.job_id = j.id AND rt.status = 'running' ORDER BY rt.started_at DESC, rt.id DESC LIMIT 1) AS current_task_label,
+                (SELECT json_group_array(task_key || ': ' || error_message) FROM data_construction_tasks et WHERE et.job_id = j.id AND et.status = 'error') AS errors_json
+         FROM data_construction_jobs j
+         LEFT JOIN data_construction_tasks t ON t.job_id = j.id
+         WHERE j.id = ?
+         GROUP BY j.id`
+      )
+      .get(jobId) as DataConstructionJobSummary | undefined;
+  }
+};

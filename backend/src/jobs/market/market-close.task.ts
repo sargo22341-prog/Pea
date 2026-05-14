@@ -108,7 +108,11 @@ export class MarketCloseTask {
     if (analysis.valid.length > 0 && !analysis.anyOpen) {
       const job = run.close_job_id
         ? undefined
-        : dataConstructionQueue.enqueuePostCloseFinalization(group.assets.map((asset) => asset.symbol));
+        : dataConstructionQueue.enqueuePostCloseFinalization(group.assets.map((asset) => asset.symbol), {
+          marketKey: group.marketKey,
+          tradingDate: run.trading_date,
+          phase: "close"
+        });
       marketRunRepository.updateClose(run.id, {
         close_status: partial ? "confirmed_closed_partial" : "confirmed_closed",
         close_confirmed_at: checkedAt,

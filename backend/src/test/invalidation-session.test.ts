@@ -214,11 +214,13 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_created_at"), "index yahoo usage created_at absent");
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_method_created_at"), "index yahoo usage method/date absent");
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_ticker_created_at"), "index yahoo usage ticker/date absent");
+  assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_active_key"), "index queue construction active absent");
+  assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_status_id"), "index queue construction status absent");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_low"), "colonne fifty_two_week_low absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("ex_dividend_date"), "colonne ex_dividend_date absente");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], "les 21 migrations doivent etre enregistrees");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], "les 22 migrations doivent etre enregistrees");
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

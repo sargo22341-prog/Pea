@@ -1,5 +1,6 @@
 import type { DataConstructionJobDto } from "@pea/shared";
 import { marketDataConstructionRepository } from "../../../repositories/market/construction.repository.js";
+import { dataConstructionRepository, type DataConstructionJobSummary, type DataConstructionTaskRow } from "../../../repositories/market/data-construction.repository.js";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
@@ -11,21 +12,10 @@ interface ConstructionTask {
   type: TaskType;
   symbol?: string;
   range?: string;
+  marketKey?: string;
+  tradingDate?: string;
+  phase?: string;
   message: string;
-}
-
-interface ConstructionJobState {
-  id: string;
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  status: DataConstructionJobDto["status"];
-  currentMessage: string;
-  currentTaskLabel?: string;
-  errors: string[];
-  createdAt: string;
-  updatedAt: string;
-  tasks: ConstructionTask[];
 }
 
 const maxConcurrentTasks = 1;
@@ -35,27 +25,36 @@ function nowIso() {
 }
 
 function taskKey(task: Omit<ConstructionTask, "key">) {
+  if (task.marketKey && task.tradingDate && task.phase) {
+    return `${task.marketKey}:${task.tradingDate}:${task.phase}:${task.type}:${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase();
+  }
   return task.type === "candles" || task.type === "finalize" || task.type === "rebuild-stored"
     ? `${task.type}:${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase()
     : `${task.symbol ?? "all"}:${task.type}`.toUpperCase();
 }
 
 export class DataConstructionQueueService {
-  private jobs = new Map<string, ConstructionJobState>();
-  private pending: Array<{ jobId: string; task: ConstructionTask }> = [];
-  private activeTaskKeys = new Set<string>();
   private running = 0;
   private sequence = 0;
 
+  constructor() {
+    dataConstructionRepository.resetInterruptedTasks();
+    this.pump();
+  }
+
   enqueue(tasks: Array<Omit<ConstructionTask, "key">>, message = "Construction des donnees en attente", options: { force?: boolean } = {}): DataConstructionJobDto {
     const preparedTasks = tasks.map((task) => ({ ...task, key: taskKey(task) }));
+    const activeTaskKeys = options.force ? new Set<string>() : dataConstructionRepository.activeTaskKeys(preparedTasks.map((task) => task.key));
     const uniqueTasks = preparedTasks.filter((task) => {
-      const active = !options.force && this.activeTaskKeys.has(task.key);
+      const active = activeTaskKeys.has(task.key);
       logger.debug("market-data", active ? "construction task skipped" : "construction task created", {
         task: task.key,
         type: task.type,
         symbol: task.symbol,
         range: task.range,
+        market: task.marketKey,
+        tradingDate: task.tradingDate,
+        phase: task.phase,
         reason: active ? "already-active" : options.force ? "forced" : "queued"
       });
       return !active;
@@ -63,26 +62,27 @@ export class DataConstructionQueueService {
 
     if (!uniqueTasks.length) return this.latest();
 
-    const job: ConstructionJobState = {
-      id: `job-${Date.now()}-${++this.sequence}`,
-      totalTasks: uniqueTasks.length,
-      completedTasks: 0,
-      failedTasks: 0,
-      status: "queued",
-      currentMessage: message,
-      errors: [],
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      tasks: uniqueTasks
-    };
-    this.jobs.set(job.id, job);
+    const jobId = `job-${Date.now()}-${++this.sequence}`;
+    const insertedTasks = dataConstructionRepository.createJob(
+      jobId,
+      message,
+      uniqueTasks.map((task) => ({
+        taskKey: task.key,
+        type: task.type,
+        symbol: task.symbol,
+        range: task.range,
+        marketKey: task.marketKey,
+        tradingDate: task.tradingDate,
+        phase: task.phase,
+        message: task.message
+      })),
+      options
+    );
+    if (!insertedTasks.length) return this.latest();
 
-    for (const task of uniqueTasks) {
-      this.activeTaskKeys.add(task.key);
-      this.pending.push({ jobId: job.id, task });
-    }
     this.pump();
-    return this.toDto(job);
+    const job = dataConstructionRepository.getJob(jobId);
+    return job ? this.toDto(job) : this.latest();
   }
 
   enqueueAssetConstruction(symbol: string) {
@@ -120,13 +120,13 @@ export class DataConstructionQueueService {
     return this.enqueue(tasks, `Reconstruction marche ${rangeLabel} de ${uniqueSymbols.length} asset(s) planifiee`, options);
   }
 
-  enqueuePostCloseFinalization(symbols: string[]) {
+  enqueuePostCloseFinalization(symbols: string[], context?: { marketKey: string; tradingDate: string; phase: "close" }) {
     const uniqueSymbols = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
     const tasks = uniqueSymbols.flatMap((symbol) => [
-      { type: "finalize" as const, symbol, range: "1d", message: `${symbol} - finalisation 1d` },
-      { type: "rebuild-stored" as const, symbol, range: "1w", message: `${symbol} - mise a jour 1w` },
-      { type: "rebuild-stored" as const, symbol, range: "1m", message: `${symbol} - mise a jour 1m` },
-      { type: "rebuild-stored" as const, symbol, range: "all", message: `${symbol} - mise a jour all` }
+      { ...context, type: "finalize" as const, symbol, range: "1d", message: `${symbol} - finalisation 1d` },
+      { ...context, type: "rebuild-stored" as const, symbol, range: "1w", message: `${symbol} - mise a jour 1w` },
+      { ...context, type: "rebuild-stored" as const, symbol, range: "1m", message: `${symbol} - mise a jour 1m` },
+      { ...context, type: "rebuild-stored" as const, symbol, range: "all", message: `${symbol} - mise a jour all` }
     ]);
     return this.enqueue(tasks, `Finalisation post-cloture de ${uniqueSymbols.length} asset(s) planifiee`);
   }
@@ -157,7 +157,7 @@ export class DataConstructionQueueService {
   }
 
   latest(): DataConstructionJobDto {
-    const latest = [...this.jobs.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    const latest = dataConstructionRepository.latestJob();
     if (latest) return this.toDto(latest);
     return {
       id: "idle",
@@ -175,24 +175,20 @@ export class DataConstructionQueueService {
   }
 
   private pump() {
-    while (this.running < maxConcurrentTasks && this.pending.length) {
-      const next = this.pending.shift()!;
+    while (this.running < maxConcurrentTasks) {
+      const next = dataConstructionRepository.claimNextQueuedTask();
+      if (!next) break;
       this.running += 1;
-      void this.run(next.jobId, next.task).finally(() => {
+      void this.run(next).finally(() => {
         this.running -= 1;
         this.pump();
       });
     }
   }
 
-  private async run(jobId: string, task: ConstructionTask) {
-    const job = this.jobs.get(jobId);
-    if (!job) return;
+  private async run(taskRow: DataConstructionTaskRow) {
+    const task = rowToTask(taskRow);
     const startedAt = performance.now();
-    job.status = "running";
-    job.currentMessage = task.message;
-    job.currentTaskLabel = task.message;
-    job.updatedAt = nowIso();
 
     try {
       logger.debug("market-data", "construction task started", {
@@ -202,46 +198,36 @@ export class DataConstructionQueueService {
         range: task.range
       });
       await runWithYahooUsageSource(`tache construction: ${task.key}`, () => this.execute(task));
-      job.completedTasks += 1;
+      dataConstructionRepository.markTaskSuccess(taskRow.id);
       logger.debug("market-data", "construction task success", {
         task: task.key,
         type: task.type,
         symbol: task.symbol,
         range: task.range,
-        durationMs: Math.round(performance.now() - startedAt),
-        completedTasks: job.completedTasks,
-        failedTasks: job.failedTasks,
-        totalTasks: job.totalTasks
+        durationMs: Math.round(performance.now() - startedAt)
       });
     } catch (error) {
-      job.failedTasks += 1;
       const message = error instanceof Error ? error.message : String(error);
-      job.errors.push(`${task.key}: ${message}`);
+      dataConstructionRepository.markTaskError(taskRow.id, message);
       logger.warn("market-data", "construction task failed", {
         task: task.key,
         type: task.type,
         symbol: task.symbol,
         range: task.range,
         reason: message,
-        durationMs: Math.round(performance.now() - startedAt),
-        completedTasks: job.completedTasks,
-        failedTasks: job.failedTasks,
-        totalTasks: job.totalTasks
+        durationMs: Math.round(performance.now() - startedAt)
       });
     } finally {
-      job.updatedAt = nowIso();
-      if (job.completedTasks + job.failedTasks >= job.totalTasks) {
-        job.status = job.failedTasks > 0 ? "error" : "success";
-        job.currentMessage = job.status === "success" ? "Construction terminee" : "Construction terminee avec erreurs";
-        job.currentTaskLabel = undefined;
-        for (const completedTask of job.tasks) this.activeTaskKeys.delete(completedTask.key);
+      const job = dataConstructionRepository.getJob(taskRow.job_id);
+      if (job && Number(job.completed_tasks ?? 0) + Number(job.failed_tasks ?? 0) >= Number(job.total_tasks ?? 0)) {
+        const failedTasks = Number(job.failed_tasks ?? 0);
         logger.info("market-data", "construction job finished", {
-          jobId,
-          status: job.status,
-          totalTasks: job.totalTasks,
-          completedTasks: job.completedTasks,
-          failedTasks: job.failedTasks,
-          durationMs: Date.now() - new Date(job.createdAt).getTime()
+          jobId: job.id,
+          status: failedTasks > 0 ? "error" : "success",
+          totalTasks: Number(job.total_tasks ?? 0),
+          completedTasks: Number(job.completed_tasks ?? 0),
+          failedTasks,
+          durationMs: Date.now() - new Date(job.created_at).getTime()
         });
       }
     }
@@ -276,22 +262,63 @@ export class DataConstructionQueueService {
     }
   }
 
-  private toDto(job: ConstructionJobState): DataConstructionJobDto {
-    const done = job.completedTasks + job.failedTasks;
+  private toDto(job: DataConstructionJobSummary): DataConstructionJobDto {
+    const totalTasks = Number(job.total_tasks ?? 0);
+    const completedTasks = Number(job.completed_tasks ?? 0);
+    const failedTasks = Number(job.failed_tasks ?? 0);
+    const runningTasks = Number(job.running_tasks ?? 0);
+    const done = completedTasks + failedTasks;
+    const status = jobStatus(totalTasks, completedTasks, failedTasks, runningTasks);
     return {
       id: job.id,
-      totalTasks: job.totalTasks,
-      completedTasks: job.completedTasks,
-      failedTasks: job.failedTasks,
-      pendingTasks: Math.max(0, job.totalTasks - job.completedTasks - job.failedTasks),
-      status: job.status,
-      progressPercent: job.totalTasks ? Math.round((done / job.totalTasks) * 100) : 100,
-      currentMessage: job.currentMessage,
-      currentTaskLabel: job.currentTaskLabel,
-      errors: job.errors,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt
+      totalTasks,
+      completedTasks,
+      failedTasks,
+      pendingTasks: Math.max(0, totalTasks - done - runningTasks),
+      status,
+      progressPercent: totalTasks ? Math.round((done / totalTasks) * 100) : 100,
+      currentMessage: currentMessage(status, job.message, job.current_task_label ?? undefined),
+      currentTaskLabel: job.current_task_label ?? undefined,
+      errors: parseErrors(job.errors_json),
+      createdAt: job.created_at,
+      updatedAt: job.updated_at
     };
+  }
+}
+
+function rowToTask(row: DataConstructionTaskRow): ConstructionTask {
+  return {
+    key: row.task_key,
+    type: row.type as TaskType,
+    symbol: row.symbol ?? undefined,
+    range: row.range ?? undefined,
+    marketKey: row.market_key ?? undefined,
+    tradingDate: row.trading_date ?? undefined,
+    phase: row.phase ?? undefined,
+    message: row.message
+  };
+}
+
+function jobStatus(totalTasks: number, completedTasks: number, failedTasks: number, runningTasks: number): DataConstructionJobDto["status"] {
+  if (totalTasks === 0) return "idle";
+  if (completedTasks + failedTasks >= totalTasks) return failedTasks > 0 ? "error" : "success";
+  if (runningTasks > 0) return "running";
+  return "queued";
+}
+
+function currentMessage(status: DataConstructionJobDto["status"], message: string, currentTaskLabel?: string) {
+  if (status === "success") return "Construction terminee";
+  if (status === "error") return "Construction terminee avec erreurs";
+  return currentTaskLabel ?? message;
+}
+
+function parseErrors(value?: string | null) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
   }
 }
 

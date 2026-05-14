@@ -125,3 +125,57 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
   assert.equal(result.snapshot.ex_dividend_date, "2026-06-30T00:00:00.000Z");
   assert.equal(result.frontendCacheCount, 0);
 });
+
+test("queue construction persiste, dedupe les taches actives et reprend une tache interrompue", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { dataConstructionQueue, DataConstructionQueueService } = await import("./services/market/construction/data-construction-queue.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+
+    db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('AAA.PA', 'AAA', 'Paris', 'EUR')").run();
+    let resolveSnapshot;
+    let snapshotCalls = 0;
+    marketSnapshotService.refreshMarketSnapshot = async () => {
+      snapshotCalls += 1;
+      await new Promise((resolve) => { resolveSnapshot = resolve; });
+      return { symbol: "AAA.PA", name: "AAA", price: 1, currency: "EUR" };
+    };
+
+    const first = dataConstructionQueue.enqueueForSymbols("snapshot", ["AAA.PA"]);
+    const second = dataConstructionQueue.enqueueForSymbols("snapshot", ["AAA.PA"]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const activeTaskCount = db.prepare("SELECT COUNT(*) AS count FROM data_construction_tasks WHERE status IN ('queued', 'running')").get().count;
+    resolveSnapshot();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const timestamp = new Date().toISOString();
+    db.prepare("INSERT INTO data_construction_jobs (id, message, created_at, updated_at) VALUES ('restart-job', 'Reprise', ?, ?)").run(timestamp, timestamp);
+    db.prepare(\`
+      INSERT INTO data_construction_tasks
+        (job_id, task_key, type, symbol, message, status, attempts, started_at, created_at, updated_at)
+      VALUES ('restart-job', 'RESTART:AAA.PA:SNAPSHOT', 'snapshot', 'AAA.PA', 'AAA.PA - reprise snapshot', 'running', 1, ?, ?, ?)
+    \`).run(timestamp, timestamp, timestamp);
+
+    let resumed = 0;
+    marketSnapshotService.refreshMarketSnapshot = async () => {
+      resumed += 1;
+      return { symbol: "AAA.PA", name: "AAA", price: 1, currency: "EUR" };
+    };
+    new DataConstructionQueueService();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const statuses = db.prepare("SELECT task_key, status, attempts FROM data_construction_tasks ORDER BY id").all();
+    const latest = dataConstructionQueue.latest();
+    console.log("__RESULT__" + JSON.stringify({ first, second, activeTaskCount, snapshotCalls, resumed, statuses, latest }));
+  `);
+
+  assert.equal(result.first.totalTasks, 1);
+  assert.equal(result.second.totalTasks, 1);
+  assert.equal(result.activeTaskCount, 1);
+  assert.equal(result.snapshotCalls, 1);
+  assert.equal(result.resumed, 1);
+  assert.equal(result.statuses.length, 2);
+  assert.ok(result.statuses.every((row: any) => row.status === "success"));
+  assert.equal(result.statuses.find((row: any) => row.task_key === "RESTART:AAA.PA:SNAPSHOT")?.attempts, 2);
+  assert.equal(result.latest.status, "success");
+});
