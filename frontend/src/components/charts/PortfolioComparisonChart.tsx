@@ -25,6 +25,11 @@ interface ComparisonEntry {
   color: string;
 }
 
+interface ComparisonPricePoint {
+  timestamp: number;
+  price: number;
+}
+
 export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   chart,
   comparisons,
@@ -210,15 +215,16 @@ function formatBase100Value(value: number): string {
   return `${sign}${Math.abs(delta).toFixed(2)}%`;
 }
 
-function buildComparisonData(chart: PortfolioChartDto, comparisons: PortfolioComparisonSerie[], range: RangeKey): ComparisonPoint[] {
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildComparisonData(chart: PortfolioChartDto, comparisons: PortfolioComparisonSerie[], range: RangeKey): ComparisonPoint[] {
   if (chart.timestamps.length === 0 || comparisons.length === 0) return [];
 
   if (shouldNormalizeComparisonByPoints(range)) {
     const portfolioBase100 = buildPortfolioTwrSeries(chart);
     const comparisonPrices = comparisons.map((comparison) =>
-      comparison.timestamps.map((timestamp, index) => ({
-        date: timestamp,
-        value: comparison.prices[index] ?? null
+      comparisonPricePoints(comparison).map((point) => ({
+        date: point.timestamp,
+        value: point.price
       }))
     );
     const [portfolio, ...comparisonPerformances] = normalizeSeriesByPoints([portfolioBase100, ...comparisonPrices]);
@@ -244,9 +250,9 @@ function buildComparisonData(chart: PortfolioChartDto, comparisons: PortfolioCom
   const firstTimestamp = chart.timestamps[firstValidIndex];
   const portfolioNorms = buildPortfolioTwrValues(chart, firstValidIndex);
   const preparedComparisons = comparisons.map((comparison) => {
-    const sortedTimestamps = [...comparison.timestamps].sort((a, b) => a - b);
-    const refPrice = findClosestPrice(sortedTimestamps, comparison.prices, firstTimestamp, maxGapMs);
-    return { comparison, refPrice, sortedTimestamps };
+    const sortedPoints = comparisonPricePoints(comparison);
+    const refPrice = findClosestPrice(sortedPoints, firstTimestamp, maxGapMs);
+    return { refPrice, sortedPoints };
   });
 
   return chart.timestamps.map((timestamp, index) => {
@@ -255,8 +261,8 @@ function buildComparisonData(chart: PortfolioChartDto, comparisons: PortfolioCom
       portfolio: portfolioNorms[index]
     };
 
-    preparedComparisons.forEach(({ comparison, refPrice, sortedTimestamps }, comparisonIndex) => {
-      const price = refPrice ? findClosestPrice(sortedTimestamps, comparison.prices, timestamp, maxGapMs) : null;
+    preparedComparisons.forEach(({ refPrice, sortedPoints }, comparisonIndex) => {
+      const price = refPrice ? findClosestPrice(sortedPoints, timestamp, maxGapMs) : null;
       row[comparisonDataKey(comparisonIndex)] = price != null && refPrice ? (price / refPrice) * 100 : null;
     });
 
@@ -268,24 +274,30 @@ function comparisonDataKey(index: number) {
   return `comparison_${index}`;
 }
 
-function findClosestPrice(sortedTimestamps: number[], prices: number[], target: number, maxGapMs: number): number | null {
-  if (sortedTimestamps.length === 0) return null;
+function comparisonPricePoints(comparison: PortfolioComparisonSerie): ComparisonPricePoint[] {
+  return comparison.timestamps
+    .map((timestamp, index) => ({ timestamp, price: comparison.prices[index] }))
+    .filter((point): point is ComparisonPricePoint => Number.isFinite(point.timestamp) && point.price != null && Number.isFinite(point.price))
+    .sort((a, b) => a.timestamp - b.timestamp);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function findClosestPrice(sortedPoints: ComparisonPricePoint[], target: number, maxGapMs: number): number | null {
+  if (sortedPoints.length === 0) return null;
 
   let lo = 0;
-  let hi = sortedTimestamps.length - 1;
+  let hi = sortedPoints.length - 1;
 
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (sortedTimestamps[mid] < target) lo = mid + 1;
+    if (sortedPoints[mid].timestamp < target) lo = mid + 1;
     else hi = mid;
   }
 
   const candidates = lo > 0 ? [lo - 1, lo] : [lo];
-  const best = candidates.reduce((a, b) => (Math.abs(sortedTimestamps[a] - target) <= Math.abs(sortedTimestamps[b] - target) ? a : b));
-  if (Math.abs(sortedTimestamps[best] - target) > maxGapMs) return null;
-
-  const price = prices[best];
-  return price != null && Number.isFinite(price) ? price : null;
+  const best = candidates.reduce((a, b) => (Math.abs(sortedPoints[a].timestamp - target) <= Math.abs(sortedPoints[b].timestamp - target) ? a : b));
+  if (Math.abs(sortedPoints[best].timestamp - target) > maxGapMs) return null;
+  return sortedPoints[best].price;
 }
 
 function shouldNormalizeComparisonByPoints(range: RangeKey) {

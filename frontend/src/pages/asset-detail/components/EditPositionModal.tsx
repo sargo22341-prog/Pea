@@ -5,6 +5,30 @@ import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../../../lib/da
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 
+type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "quantity" | "price" | "executedPrice" | "totalFees"> & {
+  quantity: string;
+  price: string;
+  executedPrice: string;
+  totalFees: string;
+};
+
+function toFormRow(row: EditablePortfolioTransaction): EditableTransactionFormRow {
+  return {
+    ...row,
+    quantity: String(row.quantity),
+    price: String(row.price),
+    executedPrice: String(row.executedPrice ?? row.price),
+    totalFees: String(row.totalFees ?? 0)
+  };
+}
+
+function parseNonNegativeNumber(value: string, label: string) {
+  if (!value.trim()) throw new Error(`${label} requis.`);
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue < 0) throw new Error(`${label} invalide.`);
+  return numberValue;
+}
+
 export function EditPositionModal({
   position,
   onClose,
@@ -16,17 +40,17 @@ export function EditPositionModal({
   onSaved: () => void;
   onDeleted: () => void;
 }) {
-  const [rows, setRows] = useState<EditablePortfolioTransaction[]>([]);
+  const [rows, setRows] = useState<EditableTransactionFormRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<EditablePortfolioTransaction | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<EditableTransactionFormRow | null>(null);
   const [confirmPositionDelete, setConfirmPositionDelete] = useState(false);
 
   useEffect(() => {
     let alive = true;
     api.positionTransactions(position.id)
       .then((transactions) => {
-        if (alive) setRows(transactions);
+        if (alive) setRows(transactions.map(toFormRow));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Chargement impossible."))
       .finally(() => {
@@ -37,7 +61,7 @@ export function EditPositionModal({
     };
   }, [position.id]);
 
-  function patchRow(index: number, patch: Partial<EditablePortfolioTransaction>) {
+  function patchRow(index: number, patch: Partial<EditableTransactionFormRow>) {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   }
 
@@ -45,7 +69,8 @@ export function EditPositionModal({
     setRows((current) =>
       current.map((row, rowIndex) => {
         if (rowIndex !== index) return row;
-        const quantity = type === "sell" ? Math.min(Number(row.quantity) || 0, position.quantity) : row.quantity;
+        const numericQuantity = Number(row.quantity);
+        const quantity = type === "sell" && Number.isFinite(numericQuantity) ? String(Math.min(numericQuantity, position.quantity)) : row.quantity;
         return { ...row, type, quantity };
       })
     );
@@ -53,7 +78,7 @@ export function EditPositionModal({
 
   function patchTransactionQuantity(index: number, rawValue: string, type: EditablePortfolioTransaction["type"]) {
     const value = Number(rawValue);
-    const quantity = type === "sell" ? Math.min(value, position.quantity) : value;
+    const quantity = rawValue.trim() && Number.isFinite(value) && type === "sell" ? String(Math.min(value, position.quantity)) : rawValue;
     patchRow(index, { quantity });
   }
 
@@ -70,10 +95,10 @@ export function EditPositionModal({
         assetName: position.name,
         ticker: position.symbol,
         type: "buy",
-        quantity: 0,
-        executedPrice: 0,
-        price: 0,
-        totalFees: 0,
+        quantity: "",
+        executedPrice: "",
+        price: "",
+        totalFees: "0",
         currency: position.currency,
         createdAt: now
       },
@@ -81,12 +106,27 @@ export function EditPositionModal({
     ]);
   }
 
-  async function save(row: EditablePortfolioTransaction) {
+  async function save(row: EditableTransactionFormRow) {
     if (row.id.startsWith("legacy-")) {
       setError("Cette ligne legacy vient de la position CSV. Ajoute une transaction datee pour l'editer finement.");
       return;
     }
-    if (row.type === "sell" && row.quantity > position.quantity) {
+    let quantity: number;
+    let price: number;
+    let totalFees: number;
+    try {
+      quantity = parseNonNegativeNumber(row.quantity, "Quantite");
+      price = parseNonNegativeNumber(row.price, "Prix");
+      totalFees = parseNonNegativeNumber(row.totalFees, "Frais");
+    } catch (parseError) {
+      setError(parseError instanceof Error ? parseError.message : "Valeur numerique invalide.");
+      return;
+    }
+    if (quantity <= 0) {
+      setError("La quantite doit etre strictement positive.");
+      return;
+    }
+    if (row.type === "sell" && quantity > position.quantity) {
       setError(`La quantite vendue ne peut pas depasser ${position.quantity}.`);
       return;
     }
@@ -94,19 +134,19 @@ export function EditPositionModal({
     const payload = {
       tradedAt: row.tradedAt,
       type: row.type === "sell" ? "sell" : "buy",
-      quantity: row.quantity,
-      price: row.price,
-      totalFees: row.totalFees ?? 0,
+      quantity,
+      price,
+      totalFees,
       currency: row.currency
     } as const;
     const nextRows = row.id.startsWith("draft-")
       ? await api.createPositionTransaction(position.id, payload)
       : await api.updatePositionTransaction(position.id, row.id, payload);
-    setRows(nextRows);
+    setRows(nextRows.map(toFormRow));
     onSaved();
   }
 
-  async function remove(row: EditablePortfolioTransaction) {
+  async function remove(row: EditableTransactionFormRow) {
     if (row.id.startsWith("legacy-")) return setPendingDelete(null);
     if (row.id.startsWith("draft-")) {
       setRows((current) => current.filter((item) => item.id !== row.id));
@@ -174,11 +214,11 @@ export function EditPositionModal({
                       </label>
                       <label>
                         <span className="muted mb-1 block">Prix</span>
-                        <input className="input" min="0" onChange={(event) => patchRow(index, { price: Number(event.target.value), executedPrice: Number(event.target.value) })} step="any" type="number" value={row.price} />
+                        <input className="input" min="0" onChange={(event) => patchRow(index, { price: event.target.value, executedPrice: event.target.value })} step="any" type="number" value={row.price} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">Frais</span>
-                        <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: Number(event.target.value) })} step="any" type="number" value={row.totalFees ?? 0} />
+                        <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: event.target.value })} step="any" type="number" value={row.totalFees} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">Devise</span>

@@ -3,6 +3,24 @@ export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const maxInFlightRequests = 500;
 
+export class ApiError extends Error {
+  readonly status: number;
+  readonly details?: unknown;
+  readonly raw?: unknown;
+
+  constructor(status: number, message: string, options: { details?: unknown; raw?: unknown } = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = options.details;
+    this.raw = options.raw;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 function abortError() {
   return new DOMException("Requete annulee", "AbortError");
 }
@@ -55,8 +73,18 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.message ?? `Erreur API ${response.status}`);
+    const rawText = await response.text().catch(() => "");
+    let body: unknown;
+    try {
+      body = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      body = rawText;
+    }
+    const payload = body && typeof body === "object" ? body as { message?: unknown; details?: unknown } : {};
+    const message = typeof payload.message === "string" && payload.message.trim()
+      ? payload.message
+      : `Erreur API ${response.status}`;
+    throw new ApiError(response.status, message, { details: payload.details, raw: body });
   }
 
   if (response.status === 204) {

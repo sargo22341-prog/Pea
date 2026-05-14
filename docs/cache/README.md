@@ -4,9 +4,9 @@ Phase 4 keeps the application cache-first, but makes the cache ownership explici
 
 ## Unified cache_entries
 
-`cache_entries` is the shared table for Yahoo and frontend block caches that are simple key/value payloads:
+`cache_entries` is the shared table for Yahoo-style simple key/value payloads:
 
-- `scope`: cache family (`quote`, `dividends`, `news`, `fundamentals`, `history`, `asset_article`, frontend blocks, etc.).
+- `scope`: cache family (`quote`, `dividends`, `news`, `fundamentals`, `history`, `asset_article`, etc.).
 - `key`: stable cache key inside the scope.
 - `payload`: serialized JSON.
 - `fetched_at`: source fetch time in milliseconds.
@@ -20,6 +20,7 @@ Some caches stay outside `cache_entries` because they are derived from user stat
 
 - `portfolio_chart_cache`: keyed by user/range and invalidated by portfolio transactions or market events.
 - `portfolio_positions_performance_cache`: keyed by user/range and guarded by position versions plus market freshness.
+- `frontend_block_cache`: keyed by user/block/range for dashboard blocks and cleared by typed business invalidations.
 - In-memory intraday chart cache: short-lived process-local protection against repeated live chart calls.
 
 These caches are derived from persisted source data and can be rebuilt.
@@ -55,3 +56,5 @@ The source-of-truth market tables are not caches:
 - `asset_dividends`
 
 They are persistent market data and are invalidated/rebuilt through dedicated repositories and construction tasks, not by deleting generic cache entries only.
+
+Expired rows are removed by the backend cache cleanup service and surfaced through `/api/admin/runtime-health`; there is no local "clear all market caches" development script.

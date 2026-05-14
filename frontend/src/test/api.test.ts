@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
+import { ApiError, isApiError } from "../lib/api-core";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -32,10 +33,29 @@ describe("api client", () => {
     expect(fetchSpy).toHaveBeenCalledWith("/api/portfolio?range=1d", expect.objectContaining({ credentials: "include" }));
   });
 
-  it("turns non-ok JSON responses into the backend message", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ message: "Session expiree" }, { status: 401 })));
+  it("turns non-ok JSON responses into typed API errors", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ message: "Session expiree", details: { reason: "expired" } }, { status: 401 })));
 
-    await expect(api.me()).rejects.toThrow("Session expiree");
+    await expect(api.me()).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+      message: "Session expiree",
+      details: { reason: "expired" }
+    });
+  });
+
+  it("keeps ApiError compatible with Error checks", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ message: "Trop de requetes" }, { status: 429 })));
+
+    try {
+      await api.me();
+      throw new Error("expected failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(ApiError);
+      expect(isApiError(error)).toBe(true);
+      expect((error as ApiError).status).toBe(429);
+    }
   });
 
   it("returns undefined for 204 responses", async () => {
@@ -57,4 +77,3 @@ describe("api client", () => {
     expect(init.headers).toBeUndefined();
   });
 });
-

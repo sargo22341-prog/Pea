@@ -122,9 +122,9 @@ npm run build          # compile tous les workspaces (shared → backend → fro
 npm run typecheck      # vérification des types sans émission de fichiers
 npm run lint           # ESLint sur backend, frontend et shared
 npm run test           # lance toutes les suites de tests
-npm run cache:clear    # vide le cache des données de marché Yahoo Finance
-npm run dev:clear      # vide le cache puis démarre les serveurs de développement
 ```
+
+Les caches de marché sont entretenus par le service runtime de cleanup, les invalidations métier et le monitoring admin. Il n'existe plus de script local qui supprime manuellement toutes les tables de cache.
 
 ---
 
