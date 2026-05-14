@@ -1,4 +1,4 @@
-import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "./yahoo-usage.repository.js";
+import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "../../repositories/yahoo/yahoo-usage.repository.js";
 import { currentYahooUsageSource } from "./yahoo-usage-context.js";
 
 const quoteSummaryModules = ["summaryProfile", "assetProfile", "price", "summaryDetail"];

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { db } from "../db.js";
 import { scheduleYahooCall } from "../services/yahoo/yahoo.client.js";
-import { yahooUsageRepository } from "../services/yahoo/yahoo-usage.repository.js";
+import { yahooUsageRepository } from "../repositories/yahoo/yahoo-usage.repository.js";
 import { inferYahooUsageMetadata, recordYahooUsage } from "../services/yahoo/yahoo-usage.service.js";
 
 function clearUsageLogs() {

@@ -1,6 +1,6 @@
 import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { db } from "../../db.js";
-import { logger } from "../shared/logger.service.js";
+import { logger } from "../../services/shared/logger.service.js";
 
 export interface YahooUsageLogInput {
   method: string;
