@@ -1,7 +1,7 @@
 import type { RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../../timezone/date-time.service.js";
 import { logger } from "../../shared/logger.service.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
+import { marketDataGateway } from "../data/market-data-gateway.service.js";
 import { getFinalCloseTime, getFirstOpenTime, getMarketCalendar, getSessionsForDate, type MarketCalendar } from "./getMarketCalendar.js";
 
 
@@ -107,7 +107,7 @@ export function getLastTradingDay(symbol?: string, exchange?: string, date = new
 export async function getLastAvailableTradingDayFromYahoo(symbol: string, now = new Date(), exchange?: string): Promise<YahooTradingDay | undefined> {
   const period1 = new Date(now);
   period1.setDate(period1.getDate() - 15);
-  const chart = await yahooApi.chart(symbol, { period1, period2: now, interval: "1d" });
+  const chart = await marketDataGateway.fetchFreshChart(symbol, { period1, period2: now, interval: "1d" });
   const valid = [...chart.quotes].reverse().find((point) => Number.isFinite(point.close) && point.close > 0);
   if (!valid) return undefined;
   const date = getMarketDateKey(symbol, exchange, new Date(valid.date));

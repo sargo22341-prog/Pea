@@ -2,7 +2,6 @@ import { candleRepository } from "../../../repositories/candles/candle.repositor
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
 import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { getLastTradingDay, getMarketSessionInfo } from "../calendars/marketCalendar.service.js";
 import { chartConfigService } from "../charts/chart-config.service.js";
 import {
@@ -17,6 +16,7 @@ import {
   validateChartPoints,
   yahooInterval
 } from "../charts/market-chart.helpers.js";
+import { marketDataGateway } from "./market-data-gateway.service.js";
 
 export class LiveIntradayService {
   async refreshForAssets(assets: AssetRow[], now = new Date(), options: { minAgeMs?: number; force?: boolean } = {}) {
@@ -70,7 +70,7 @@ export class LiveIntradayService {
 
     const session = getLastTradingDay(asset.symbol, asset.exchange, now);
     const period2 = new Date(Math.min(now.getTime(), session.period2.getTime()) + intervalDurationMs(interval));
-    const chart = await yahooApi.chart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
+    const chart = await marketDataGateway.fetchFreshChart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
     const points = validateChartPoints({ symbol: asset.symbol, range: "1d", points: chart.quotes, marketCloseTime: session.period2 });
     if (points.length === 0) {
       logger.warn("market-data", "live intraday refresh returned no points; keeping stored chart", { symbol: asset.symbol });

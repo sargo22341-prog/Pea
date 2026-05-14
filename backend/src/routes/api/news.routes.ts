@@ -1,8 +1,8 @@
 import express from "express";
 import { z } from "zod";
 import type { NewsArticle } from "@pea/shared";
+import { marketDataGateway } from "../../services/market/data/market-data-gateway.service.js";
 import { logger } from "../../services/shared/logger.service.js";
-import { yahooService } from "../../services/yahoo/index.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { sortArticlesByDateDesc, userNewsLanguages } from "../shared/news.helpers.js";
 import { routeParam } from "../shared/params.js";
@@ -27,7 +27,7 @@ newsRouter.get("/news-global", asyncRoute(async (req, res) => {
     return;
   }
   const page = Math.max(1, z.coerce.number().int().optional().default(1).parse(req.query.page));
-  res.json(await yahooService.globalNews(page, userNewsLanguages(req)));
+  res.json(await marketDataGateway.readGlobalNewsWithCache(page, userNewsLanguages(req)));
 }));
 
 newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
@@ -102,7 +102,7 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
 
   const results = await Promise.all(
     stockPositions.map((candidate) => {
-      return yahooService.companyNews(candidate.position.symbol, candidate.query, languages).catch((error) => {
+      return marketDataGateway.readCompanyNewsWithCache(candidate.position.symbol, candidate.query, languages).catch((error) => {
         logger.warn("news", "asset company feed fallback", { symbol: candidate.position.symbol, query: candidate.query, error: error instanceof Error ? error.message : String(error) });
         return { data: [] as NewsArticle[] };
       });
@@ -142,6 +142,6 @@ newsRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
     res.json([]);
     return;
   }
-  const result = await yahooService.news(routeParam(req.params.symbol, "symbol"), userNewsLanguages(req));
+  const result = await marketDataGateway.readNewsWithCache(routeParam(req.params.symbol, "symbol"), userNewsLanguages(req));
   res.json(result.data);
 }));

@@ -234,13 +234,13 @@ export class DataConstructionQueueService {
   }
 
   private async execute(task: ConstructionTask) {
-    const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }, { yahooService }] = await Promise.all([
+    const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }, { marketDataGateway }] = await Promise.all([
       import("../data/market-data.service.js"),
       import("../snapshots/market-snapshot.service.js"),
       import("../financials/financials.service.js"),
       import("../dividends/dividends.service.js"),
       import("../../../repositories/market/asset.repository.js"),
-      import("../../yahoo/index.js")
+      import("../data/market-data-gateway.service.js")
     ]);
 
     if (!task.symbol) return;
@@ -255,9 +255,9 @@ export class DataConstructionQueueService {
     if (task.type === "dividends") await dividendsService.refreshDividends(asset);
     if (task.type === "calendar-events") {
       marketDataConstructionRepository.clearCachedFundamentals(asset.symbol);
-      const marketInfo = await yahooService.marketInfo(asset.symbol);
+      const marketInfo = await marketDataGateway.readMarketInfoWithCache(asset.symbol);
       marketSnapshotService.upsertMarketInfo(asset.id, marketInfo.data);
-      await yahooService.extraData(asset.symbol);        // quoteSummary (9 modules) → upsert calendar events
+      await marketDataGateway.readExtraDataWithCache(asset.symbol); // quoteSummary (9 modules) -> upsert calendar events
       await financialsService.refreshFinancials(asset);  // fundamentalsTimeSeries → upsert asset_financials
     }
   }

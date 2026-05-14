@@ -14,9 +14,9 @@ import { portfolioAnalysisService } from "../../services/portfolio/portfolio-ana
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { invalidateFrontendBlockCache, invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { logger } from "../../services/shared/logger.service.js";
-import { yahooApi } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
 import { getSessionsForDate } from "../../services/market/calendars/getMarketCalendar.js";
+import { marketDataGateway } from "../../services/market/data/market-data-gateway.service.js";
 import { zonedTimeToUtc } from "../../services/timezone/date-time.service.js";
 import { marketRunRepository, type MarketDailyRunRow } from "../../repositories/market/market-run.repository.js";
 import { localTradingDate, type MarketAssetGroup } from "../../schedulers/market-task.utils.js";
@@ -60,7 +60,7 @@ export class LiveMarketRefreshTask {
     try {
       const chunks = this.chunks(allSymbols);
       yahooCalls += chunks.length;
-      rows = (await Promise.all(chunks.map((symbols) => yahooApi.quoteBatchRaw(symbols)))).flat();
+      rows = (await Promise.all(chunks.map((symbols) => marketDataGateway.fetchFreshQuoteBatchRaw(symbols)))).flat();
     } catch (error) {
       logger.warn("market-data", "global live market refresh failed, falling back by market", {
         symbols: allSymbols.length,
@@ -192,7 +192,7 @@ export class LiveMarketRefreshTask {
     for (const market of markets) {
       for (const symbols of this.chunks(market.symbols)) {
         yahooCalls += 1;
-        rows.push(...await yahooApi.quoteBatchRaw(symbols));
+        rows.push(...await marketDataGateway.fetchFreshQuoteBatchRaw(symbols));
       }
     }
     return { rows, yahooCalls };

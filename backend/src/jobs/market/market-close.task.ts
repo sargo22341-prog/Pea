@@ -1,8 +1,8 @@
 import type { Quote } from "@pea/shared";
-import { yahooApi } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
 import { assetRepository, type AssetRow } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
+import { marketDataGateway } from "../../services/market/data/market-data-gateway.service.js";
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
 import { isMarketOpen } from "../../services/market/calendars/marketCalendar.service.js";
 import { logger } from "../../services/shared/logger.service.js";
@@ -70,7 +70,7 @@ export class MarketCloseTask {
 
     let rows: { quote: Quote; snapshot: YahooSnapshotPayload }[];
     try {
-      rows = await yahooApi.quoteBatchRaw(symbols);
+      rows = await marketDataGateway.fetchFreshQuoteBatchRaw(symbols);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       marketRunRepository.updateClose(run.id, {

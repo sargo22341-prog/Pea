@@ -3,7 +3,6 @@ import { config } from "../../../config.js";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
 import { logger } from "../../shared/logger.service.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { getLastAvailableTradingDayFromYahoo } from "../calendars/marketCalendar.service.js";
 import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, isMarketOpen } from "../calendars/marketCalendar.service.js";
 import { chartConfigService, normalizeStoredRange } from "../charts/chart-config.service.js";
@@ -24,6 +23,7 @@ import {
 } from "../charts/market-chart.helpers.js";
 import { dataConstructionQueue } from "../construction/data-construction-queue.service.js";
 import { marketSnapshotService } from "../snapshots/market-snapshot.service.js";
+import { marketDataGateway } from "./market-data-gateway.service.js";
 import { postCloseFinalizationService } from "./post-close-finalization.service.js";
 import { storedRangeRebuilderService } from "./stored-range-rebuilder.service.js";
 
@@ -56,7 +56,7 @@ export class ChartDataQueryService {
       const session = getLastTradingDay(asset.symbol, quote?.exchange ?? asset.exchange, now);
       const interval = intradayInterval ?? chartConfigService.getIntervalForRange("1d");
       const period2 = new Date(Math.min(now.getTime(), session.period2.getTime()) + intervalDurationMs(interval));
-      const chart = await yahooApi.chart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
+      const chart = await marketDataGateway.fetchFreshChart(asset.symbol, { period1: session.period1, period2, interval: yahooInterval(interval) });
       const points = validateChartPoints({ symbol: asset.symbol, range: "1d", points: chart.quotes, marketCloseTime: session.period2 });
       const baseline = await this.getPreviousClosePrice(asset);
       logger.debug("chart", "intraday chart resolved", {

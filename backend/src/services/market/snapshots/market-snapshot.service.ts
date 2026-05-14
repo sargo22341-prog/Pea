@@ -1,7 +1,6 @@
 import type { AssetMarketDto, AssetMarketInfo, Quote } from "@pea/shared";
 import { config } from "../../../config.js";
 import { normalizeMarketState } from "../../shared/cache.service.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { normalizeDividendYield, type YahooSnapshotPayload } from "../../yahoo/yahoo.mapper.js";
 import { writeCache } from "../../yahoo/cache/yahoo.cache.js";
 import { chartConfigService } from "../charts/chart-config.service.js";
@@ -9,6 +8,7 @@ import { assetRepository, type AssetRow } from "../../../repositories/market/ass
 import { marketSnapshotRepository } from "../../../repositories/market/market-snapshot.repository.js";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { getLastTradingDay, isMarketOpen } from "../calendars/marketCalendar.service.js";
+import { marketDataGateway } from "../data/market-data-gateway.service.js";
 
 function optionalNumber(value: unknown): number | undefined {
   if (value == null) return undefined;
@@ -21,7 +21,7 @@ export class MarketSnapshotService {
 
   async refreshMarketSnapshot(asset: AssetRow | string): Promise<Quote> {
     const symbol = typeof asset === "string" ? asset.toUpperCase() : asset.symbol;
-    const result = await yahooApi.quote(symbol);
+    const result = await marketDataGateway.fetchFreshQuote(symbol);
     const assetRow = assetRepository.upsertFromQuote(result.snapshot);
     this.upsertSnapshot(assetRow.id, result.snapshot);
     this.snapshotQuoteCache.set(assetRow.symbol, { quote: result.quote, expiresAt: Date.now() + 30_000 });

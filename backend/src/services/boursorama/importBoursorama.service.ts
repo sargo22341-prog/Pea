@@ -5,7 +5,7 @@ import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
-import { yahooService } from "../yahoo/index.js";
+import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 
 export interface BoursoramaRow {
   line: number;
@@ -102,7 +102,7 @@ export async function resolveYahooSymbolFromIsin(isin: string, name: string) {
 }
 
 async function findBestCandidate(query: string): Promise<{ symbol: string | null; asset?: SearchResult; needsReview: boolean }> {
-  const result = await yahooService.search(query);
+  const result = await marketDataGateway.search(query);
   const candidates = sortAssetsForPea(result.data.map((item) => ({ ...item, peaEligibility: item.peaEligibility ?? evaluatePeaEligibility(item) })));
   const best = candidates[0];
   if (!best) return { symbol: null, needsReview: true };
@@ -115,7 +115,7 @@ async function findBestCandidate(query: string): Promise<{ symbol: string | null
 
 async function assertYahooSymbolExists(symbol: string) {
   const key = symbol.trim().toUpperCase();
-  const result = await yahooService.quote(key);
+  const result = await marketDataGateway.readQuoteWithCache(key);
   const foundSymbol = result.data.symbol?.toUpperCase();
   if (!foundSymbol || foundSymbol !== key) {
     throw new Error(`Ticker Yahoo introuvable: ${key}.`);

@@ -13,10 +13,10 @@ import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataService, type ChartDataOptions } from "../market/data/market-data.service.js";
+import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { expiresIn, nowMs, readStaticJsonCache, writeStaticJsonCache } from "../shared/cache.service.js";
-import { yahooService } from "../yahoo/index.js";
 
 const articlesTtlMs = 6 * 60 * 60 * 1000;
 
@@ -88,7 +88,7 @@ export class AssetDataService {
     const cached = readStaticJsonCache<AssetArticlesDto>("asset_article_cache", "symbol", key);
     if (cached) return cached.payload;
 
-    const articles = (await yahooService.news(key, languages)).data;
+    const articles = (await marketDataGateway.readNewsWithCache(key, languages)).data;
     const cachedAt = nowMs();
     const payload: AssetArticlesDto = {
       symbol: key,

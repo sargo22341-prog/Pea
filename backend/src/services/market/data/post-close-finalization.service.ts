@@ -3,7 +3,6 @@ import { candleRepository } from "../../../repositories/candles/candle.repositor
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
 import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { chartConfigService } from "../charts/chart-config.service.js";
 import {
   fallbackClosePoint,
@@ -17,6 +16,7 @@ import {
   type ClosePointSource
 } from "../charts/market-chart.helpers.js";
 import { isMarketOpen, type OpenMarketDay, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
+import { marketDataGateway } from "./market-data-gateway.service.js";
 
 export class PostCloseFinalizationService {
   closePriceForFinalization(asset: AssetRow, quote?: Quote, yahooTradingDay?: YahooTradingDay): { price?: number; source?: ClosePointSource } {
@@ -119,7 +119,7 @@ export class PostCloseFinalizationService {
     const { asset, tradingDay, quote, persist = false } = input;
     const interval = chartConfigService.getIntervalForRange("1d");
     const period2 = new Date(tradingDay.period2.getTime() + intervalDurationMs(interval));
-    const chart = await yahooApi.chart(asset.symbol, {
+    const chart = await marketDataGateway.fetchFreshChart(asset.symbol, {
       period1: tradingDay.period1,
       period2,
       interval: yahooInterval(interval)

@@ -1,7 +1,7 @@
 import type { DividendEvent } from "@pea/shared";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
 import { dividendsRepository } from "../../../repositories/market/dividends.repository.js";
+import { marketDataGateway } from "../data/market-data-gateway.service.js";
 
 export class DividendsService {
   async refreshDividends(asset: AssetRow | string) {
@@ -9,7 +9,7 @@ export class DividendsService {
     if (!assetRow) return { updated: 0 };
     const period1 = new Date();
     period1.setFullYear(period1.getFullYear() - 10);
-    const chart = await yahooApi.chart(assetRow.symbol, { period1, period2: new Date(), interval: "1d", events: "div|split" });
+    const chart = await marketDataGateway.fetchFreshChart(assetRow.symbol, { period1, period2: new Date(), interval: "1d", events: "div|split" });
     for (const dividend of chart.dividends) {
       dividendsRepository.upsert(assetRow.id, { date: dividend.date, amount: dividend.amount, currency: assetRow.currency ?? null });
     }
@@ -20,7 +20,7 @@ export class DividendsService {
     let updated = 0;
     for (const symbol of assetRepository.listTrackedSymbols()) {
       let asset = assetRepository.findBySymbol(symbol);
-      if (!asset) asset = assetRepository.upsertFromQuote((await yahooApi.quote(symbol)).snapshot);
+      if (!asset) asset = assetRepository.upsertFromQuote((await marketDataGateway.fetchFreshQuote(symbol)).snapshot);
       updated += (await this.refreshDividends(asset)).updated;
     }
     return { updated };

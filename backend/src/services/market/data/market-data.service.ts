@@ -4,7 +4,6 @@ import { assetRepository, type AssetRow } from "../../../repositories/market/ass
 import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
 import { pruneIntradayCache } from "../../yahoo/cache/history.cache.js";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import {
   getLastAvailableTradingDayFromYahoo,
   getLastTradingDay,
@@ -34,6 +33,7 @@ import { financialsService } from "../financials/financials.service.js";
 import { marketSnapshotService } from "../snapshots/market-snapshot.service.js";
 import { chartDataQueryService } from "./chart-data-query.service.js";
 import { liveIntradayService } from "./live-intraday.service.js";
+import { marketDataGateway } from "./market-data-gateway.service.js";
 import { postCloseFinalizationService } from "./post-close-finalization.service.js";
 import { storedRangeRebuilderService } from "./stored-range-rebuilder.service.js";
 
@@ -41,9 +41,9 @@ export type { ChartDataOptions } from "../charts/market-chart.helpers.js";
 
 export class MarketDataService {
   async ensureAssetInitialized(symbol: string): Promise<AssetRow> {
-    const quote = await yahooApi.quote(symbol);
+    const quote = await marketDataGateway.fetchFreshQuote(symbol);
     const asset = assetRepository.upsertFromQuote(quote.snapshot);
-    const summary = await yahooApi.quoteSummary(asset.symbol).catch(() => undefined);
+    const summary = await marketDataGateway.fetchFreshQuoteSummary(asset.symbol).catch(() => undefined);
     if (summary) assetRepository.upsertProfile(asset.id, summary.profile);
     await marketSnapshotService.refreshMarketSnapshot(asset);
     return asset;
@@ -91,7 +91,7 @@ export class MarketDataService {
         returnedOpenDays: window?.days.length,
         requestedOpenDays: openMarketDayCountByRange[range]
       });
-      const chart = await yahooApi.chart(asset.symbol, { ...periodWithInclusiveClose, interval: yahooInterval(interval) });
+      const chart = await marketDataGateway.fetchFreshChart(asset.symbol, { ...periodWithInclusiveClose, interval: yahooInterval(interval) });
       let validatedPoints = validateChartPoints({
         symbol: asset.symbol,
         range,
@@ -184,7 +184,7 @@ export class MarketDataService {
     logger.info("market-data", "post-close rebuild started", { symbol: asset.symbol, tradingDate: session.date });
 
     const interval = chartConfigService.getIntervalForRange("1d");
-    const chart = await yahooApi.chart(asset.symbol, {
+    const chart = await marketDataGateway.fetchFreshChart(asset.symbol, {
       period1: session.period1,
       period2: new Date(session.period2.getTime() + intervalDurationMs(interval)),
       interval: yahooInterval(interval)

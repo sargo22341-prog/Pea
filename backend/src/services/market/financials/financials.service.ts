@@ -1,8 +1,8 @@
 import type { FinancialYearItem } from "@pea/shared";
-import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { logger } from "../../shared/logger.service.js";
 import { assetRepository, type AssetRow } from "../../../repositories/market/asset.repository.js";
 import { financialsRepository } from "../../../repositories/market/financials.repository.js";
+import { marketDataGateway } from "../data/market-data-gateway.service.js";
 
 type RawRecord = Record<string, unknown>;
 
@@ -64,7 +64,7 @@ export class FinancialsService {
 
     let raw: unknown;
     try {
-      raw = await yahooApi.fundamentalsTimeSeries(assetRow.symbol);
+      raw = await marketDataGateway.fetchFreshFundamentalsTimeSeries(assetRow.symbol);
     } catch (error) {
       logger.warn("market-data", "Yahoo fundamentalsTimeSeries failed", { symbol: assetRow.symbol, error: error instanceof Error ? error.message : String(error) });
       return { updated: 0 };
@@ -104,7 +104,7 @@ export class FinancialsService {
     let updated = 0;
     for (const symbol of assetRepository.listTrackedSymbols()) {
       let asset = assetRepository.findBySymbol(symbol);
-      if (!asset) asset = assetRepository.upsertFromQuote((await yahooApi.quote(symbol)).snapshot);
+      if (!asset) asset = assetRepository.upsertFromQuote((await marketDataGateway.fetchFreshQuote(symbol)).snapshot);
       updated += (await this.refreshFinancials(asset)).updated;
     }
     return { updated };

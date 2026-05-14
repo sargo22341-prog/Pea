@@ -10,14 +10,15 @@ import type {
 import { config } from "../../config.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { currentUserId } from "../auth/user-context.js";
+import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { financialsService } from "../market/financials/financials.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
-import { isMarketDataUnavailable, yahooService } from "../yahoo/index.js";
+import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { portfolioService } from "./portfolio.service.js";
 
-type Fundamentals = Awaited<ReturnType<typeof yahooService.fundamentals>>["data"];
+type Fundamentals = Awaited<ReturnType<typeof marketDataGateway.readFundamentalsWithCache>>["data"];
 type FinancialStatementRow = {
   totalRevenue?: unknown;
   netIncome?: unknown;
@@ -190,7 +191,7 @@ export class PortfolioAnalysisService {
   }
 
   async assetFinancials(symbol: string, name?: string): Promise<AssetFinancials> {
-    const result = await yahooService.fundamentals(symbol);
+    const result = await marketDataGateway.readFundamentalsWithCache(symbol);
     const quote = {
       quote: {
         symbol: symbol.toUpperCase(),
@@ -231,7 +232,7 @@ export class PortfolioAnalysisService {
           return { position, result: { data: persistedFundamentals(position.symbol), stale: false } };
         }
         try {
-          return { position, result: await yahooService.fundamentals(position.symbol) };
+          return { position, result: await marketDataGateway.readFundamentalsWithCache(position.symbol) };
         } catch (error) {
           if (!isMarketDataUnavailable(error)) {
             logger.warn("portfolio", "fundamentals fallback", {

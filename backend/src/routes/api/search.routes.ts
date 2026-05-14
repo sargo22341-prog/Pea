@@ -3,8 +3,8 @@ import type { EnrichedSearchResult } from "@pea/shared";
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { localPeaSearchService } from "../../services/assets/local-pea-search.service.js";
+import { marketDataGateway } from "../../services/market/data/market-data-gateway.service.js";
 import { logger } from "../../services/shared/logger.service.js";
-import { yahooService } from "../../services/yahoo/index.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
 
@@ -24,13 +24,13 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   }
 
   const searchStartedAt = performance.now();
-  const result = await yahooService.search(q);
+  const result = await marketDataGateway.search(q);
   const searchMs = performance.now() - searchStartedAt;
   const items = result.data.filter((item) => typeof item.symbol === "string" && item.symbol.trim());
   const symbols = items.map((item) => item.symbol.trim().toUpperCase());
 
   const quoteStartedAt = performance.now();
-  const quotes = await yahooService.quoteCombine(symbols);
+  const quotes = await marketDataGateway.readCombinedQuotesWithCache(symbols);
   const quoteMs = performance.now() - quoteStartedAt;
   const quoteBySymbol = new Map(quotes.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
 
@@ -68,6 +68,6 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
 }));
 
 searchRouter.get("/search", asyncRoute(async (req, res) => {
-  const result = await yahooService.search(String(req.query.q ?? ""));
+  const result = await marketDataGateway.search(String(req.query.q ?? ""));
   res.json(result.data.map((item) => ({ ...item, stale: result.stale })));
 }));

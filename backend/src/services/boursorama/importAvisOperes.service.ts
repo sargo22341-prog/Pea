@@ -6,7 +6,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
-import { yahooService } from "../yahoo/index.js";
+import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 
 function normalizeNumericInput(value: unknown) {
@@ -63,7 +63,7 @@ function formatValidationError(error: z.ZodError) {
 
 async function assertYahooSymbolExists(symbol: string) {
   const key = symbol.trim().toUpperCase();
-  const result = await yahooService.quote(key);
+  const result = await marketDataGateway.readQuoteWithCache(key);
   const foundSymbol = result.data.symbol?.toUpperCase();
   if (!foundSymbol || foundSymbol !== key) {
     throw new Error(`Ticker Yahoo introuvable: ${key}.`);
@@ -211,7 +211,7 @@ export async function resolveAssetFromOperation(
 
   for (const query of queries) {
     try {
-      const result = await yahooService.search(query);
+      const result = await marketDataGateway.search(query);
       const best = bestCandidate(result.data);
 
       if (best) {

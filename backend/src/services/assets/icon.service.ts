@@ -4,8 +4,8 @@ import { config } from "../../config.js";
 import { assetIconRepository, type AssetIconRow, type KnownAssetRow } from "../../repositories/assets/asset-icon.repository.js";
 import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 import { currentUserId } from "../auth/user-context.js";
+import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { logger } from "../shared/logger.service.js";
-import { yahooApi } from "../yahoo/yahoo.api.js";
 
 export interface AssetIcon {
   symbol: string;
@@ -267,7 +267,7 @@ export class IconService {
 
   private async getWebsiteFromYahooAssetProfile(symbol: string): Promise<string | undefined> {
     const key = symbol.toUpperCase();
-    const profile = await yahooApi.assetProfile(key);
+    const profile = await marketDataGateway.fetchFreshAssetProfile(key);
     return normalizeWebsite(profile.website ?? undefined);
   }
 
