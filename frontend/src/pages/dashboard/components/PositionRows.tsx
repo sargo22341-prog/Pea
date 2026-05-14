@@ -159,7 +159,9 @@ function DesktopPositionRow({ position, positive, prive, rangeLabel }: { positio
 
       <div className="text-right">
         <p className="text-sm text-slate-400">Valeur | Perf {rangeLabel}</p>
-        <p className="font-semibold">{masquerValeur(money(position.currentMarketValue, position.currency), prive)}</p>
+        <p className="font-semibold">
+          {masquerValeur(`${money(position.currentPrice, position.currency)} / ${money(position.currentMarketValue, position.currency)}`, prive)}
+        </p>
         <p className={`mt-1 flex items-center justify-end gap-1 text-sm font-semibold ${positive ? "text-mint" : "text-coral"}`}>
           <Icon size={16} />
           {masquerValeur(`${money(position.intervalPerformanceValue, position.currency)} | ${percent(position.intervalPerformancePercent)}`, prive)}
