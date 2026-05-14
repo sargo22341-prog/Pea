@@ -7,6 +7,7 @@ import { PortfolioTreemap } from "../components/charts/PortfolioTreemap";
 import { SectorAllocationChart } from "../components/charts/SectorAllocationChart";
 import { EmptyState } from "../components/common/EmptyState";
 import { useAsync } from "../hooks/useAsync";
+import { useMarketEventReload } from "../hooks/useMarketEventReload";
 import { api } from "../lib/api";
 
 type ChartKey = "country" | "sector" | "treemap" | "netMargin" | "financials";
@@ -39,30 +40,10 @@ export function AnalysisPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let lastReloadAt = 0;
-    function reloadVisibleAnalysis() {
-      const now = Date.now();
-      if (now - lastReloadAt < 1500) return;
-      lastReloadAt = now;
-      void analysisReload();
-    }
-    function onMarketEvent(event: Event) {
-      const payload = (event as CustomEvent<{ type?: string }>).detail;
-      if (payload?.type === "analysis-updated") window.setTimeout(reloadVisibleAnalysis, 400);
-    }
-    function onForeground() {
-      if (document.visibilityState === "visible") reloadVisibleAnalysis();
-    }
-    window.addEventListener("pea:market-event", onMarketEvent);
-    document.addEventListener("visibilitychange", onForeground);
-    window.addEventListener("focus", onForeground);
-    return () => {
-      window.removeEventListener("pea:market-event", onMarketEvent);
-      document.removeEventListener("visibilitychange", onForeground);
-      window.removeEventListener("focus", onForeground);
-    };
-  }, [analysisReload]);
+  useMarketEventReload({
+    eventTypes: ["analysis-updated"],
+    reload: analysisReload
+  });
 
   useEffect(() => {
     if (!selectedFinancialSymbol && analysis.data?.financialsByAsset[0]) {

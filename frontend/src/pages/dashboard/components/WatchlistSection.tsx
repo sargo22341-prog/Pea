@@ -1,17 +1,20 @@
-import type { RangeKey, SortDirection, WatchlistItem, WatchlistSortKey } from "@pea/shared";
-import { ArrowDownNarrowWide, ArrowDownRight, ArrowUpNarrowWide, ArrowUpRight, Star } from "lucide-react";
+import type { RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
+import { ArrowDownRight, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAsync } from "../../../hooks/useAsync";
-import { api } from "../../../lib/api";
-import { money, percent } from "../../../lib/format";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { StaleBadge } from "../../../components/common/StaleBadge";
+import { useAsync } from "../../../hooks/useAsync";
+import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
+import { api } from "../../../lib/api";
+import { money, percent } from "../../../lib/format";
+import { SortableSection, type SortOption } from "./SortableSection";
+import { sortWatchlistItems, watchlistCacheVersion } from "./dashboardSort.helpers";
 
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
 
-const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
+const watchlistSortOptions: Array<SortOption<WatchlistSortKey>> = [
   { label: "Nom A -> Z", key: "name", direction: "asc" },
   { label: "Nom Z -> A", key: "name", direction: "desc" },
   { label: "Prix croissant", key: "price", direction: "asc" },
@@ -20,15 +23,19 @@ const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direct
   { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
 ];
 
+const watchlistReloadEvents = [
+  "market-snapshot-updated",
+  "watchlist-market-updated",
+  "watchlist-assets-updated",
+  "watchlist-chart-updated"
+];
+
 export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaultSortDirection = "asc" }: { range?: RangeKey; defaultSortKey?: WatchlistSortKey; defaultSortDirection?: SortDirection }) {
   const navigate = useNavigate();
   const watchlist = useAsync((signal) => api.watchlist(range, signal), range);
   const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
-  const [sortOpen, setSortOpen] = useState(false);
   const [chartRefreshing, setChartRefreshing] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
-  const lastAutoReloadAt = useRef(0);
   const lazyChartGuard = useRef({
     requestedForCacheVersion: "",
     lastRefreshRequestedAt: 0,
@@ -38,34 +45,15 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   });
   const watchlistReload = watchlist.reload;
 
-  useEffect(() => {
-    if (!sortOpen) return undefined;
-
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (!sortMenuRef.current?.contains(event.target as Node)) {
-        setSortOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, [sortOpen]);
-
-  useEffect(() => {
-    function reloadVisibleWatchlist() {
-      const now = Date.now();
-      if (now - lastAutoReloadAt.current < 1500) return;
-      lastAutoReloadAt.current = now;
-      void watchlistReload();
-    }
-
-    function onMarketEvent(event: Event) {
-      const payload = (event as CustomEvent<{ type?: string }>).detail;
-      if (payload?.type === "watchlist-chart-refresh-started") {
+  useMarketEventReload({
+    debounceMs: 400,
+    eventTypes: watchlistReloadEvents,
+    onEvent: (payload: MarketEventPayload) => {
+      if (payload.type === "watchlist-chart-refresh-started") {
         lazyChartGuard.current.refreshInProgress = true;
         setChartRefreshing(true);
       }
-      if (payload?.type === "watchlist-chart-updated") {
+      if (payload.type === "watchlist-chart-updated") {
         const guard = lazyChartGuard.current;
         guard.refreshInProgress = false;
         guard.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
@@ -73,24 +61,9 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
         guard.timeout = undefined;
         setChartRefreshing(false);
       }
-      if (payload?.type === "market-snapshot-updated" || payload?.type === "watchlist-market-updated" || payload?.type === "watchlist-assets-updated" || payload?.type === "watchlist-chart-updated") {
-        window.setTimeout(reloadVisibleWatchlist, 400);
-      }
-    }
-
-    function onForeground() {
-      if (document.visibilityState === "visible") reloadVisibleWatchlist();
-    }
-
-    window.addEventListener("pea:market-event", onMarketEvent);
-    document.addEventListener("visibilitychange", onForeground);
-    window.addEventListener("focus", onForeground);
-    return () => {
-      window.removeEventListener("pea:market-event", onMarketEvent);
-      document.removeEventListener("visibilitychange", onForeground);
-      window.removeEventListener("focus", onForeground);
-    };
-  }, [watchlistReload]);
+    },
+    reload: watchlistReload
+  });
 
   useEffect(() => {
     if (!watchlist.data?.length || range !== "1d") return;
@@ -139,17 +112,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   }, []);
 
   const sortedItems = useMemo(() => {
-    return (watchlist.data ?? [])
-      .map((item) => ({ item, metrics: watchlistMetrics(item) }))
-      .sort((a, b) => {
-        const direction = sortDirection === "asc" ? 1 : -1;
-
-        if (sortKey === "name") {
-          return a.item.name.localeCompare(b.item.name, "fr") * direction;
-        }
-
-        return (metricValue(a.metrics[sortKey]) - metricValue(b.metrics[sortKey])) * direction;
-      });
+    return sortWatchlistItems(watchlist.data ?? [], sortKey, sortDirection);
   }, [sortDirection, sortKey, watchlist.data]);
 
   if (watchlist.loading) {
@@ -165,66 +128,22 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
     await watchlist.reload();
   }
 
-  function updateSort(value: string) {
-    const [key, direction] = value.split(":") as [WatchlistSortKey, SortDirection];
+  function updateSort(key: WatchlistSortKey, direction: SortDirection) {
     setSortKey(key);
     setSortDirection(direction);
-    setSortOpen(false);
   }
 
-  const activeSort =
-    watchlistSortOptions.find((option) => option.key === sortKey && option.direction === sortDirection) ??
-    watchlistSortOptions[0];
-
-  const SortIcon = sortDirection === "asc" ? ArrowUpNarrowWide : ArrowDownNarrowWide;
-
   return (
-    <section className={`card overflow-hidden ${chartRefreshing ? "stale-refreshing" : ""}`}>
-      <div className="flex items-center justify-between gap-3 border-b border-line p-4">
-        <div className="min-w-0">
-          <h2 className="truncate font-semibold">Liste de suivi</h2>
-          <p className="mt-1 truncate text-xs text-slate-400">Tri actif: {activeSort.label}</p>
-        </div>
-
-        <div className="relative shrink-0" ref={sortMenuRef}>
-          <button
-            aria-expanded={sortOpen}
-            aria-haspopup="menu"
-            className="btn-ghost px-2.5 sm:px-3"
-            onClick={() => setSortOpen((current) => !current)}
-            title={sortDirection === "asc" ? "Trier vers le haut" : "Trier vers le bas"}
-            type="button"
-          >
-            <SortIcon size={17} />
-            <span className="hidden sm:inline">Trier</span>
-          </button>
-
-          {sortOpen && (
-            <div
-              className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-md border border-line bg-panel shadow-glow"
-              role="menu"
-            >
-              {watchlistSortOptions.map((option) => {
-                const active = option.key === sortKey && option.direction === sortDirection;
-
-                return (
-                  <button
-                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-panel2 ${active ? "bg-sky/15 text-sky" : "text-slate-100"}`}
-                    key={`${option.key}:${option.direction}`}
-                    onClick={() => updateSort(`${option.key}:${option.direction}`)}
-                    role="menuitemradio"
-                    type="button"
-                  >
-                    <span>{option.label}</span>
-                    {active && <span className="text-xs font-semibold">actif</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
+    <SortableSection
+      activeDirection={sortDirection}
+      activeKey={sortKey}
+      as="section"
+      className={`card overflow-hidden ${chartRefreshing ? "stale-refreshing" : ""}`}
+      onSortChange={updateSort}
+      options={watchlistSortOptions}
+      title={<h2 className="truncate font-semibold">Liste de suivi</h2>}
+      titleClassName="min-w-0"
+    >
       <div className="divide-y divide-line">
         {sortedItems.map(({ item, metrics }) => {
           const { performanceValue, performancePercent } = metrics;
@@ -293,44 +212,6 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
           );
         })}
       </div>
-    </section>
+    </SortableSection>
   );
-}
-
-/**
- * Calcule les valeurs de tri et de performance a partir de l'historique charge.
- */
-function watchlistMetrics(item: WatchlistItem) {
-  const first = item.history[0]?.close;
-  const last = item.history[item.history.length - 1]?.close ?? item.quote?.price;
-
-  const performanceValue =
-    Number.isFinite(first) && Number.isFinite(last)
-      ? Number(last) - Number(first)
-      : item.quote?.change;
-
-  const performancePercent =
-    Number.isFinite(first) && first
-      ? ((Number(last) - Number(first)) / Number(first)) * 100
-      : item.quote?.changePercent;
-
-  return {
-    price: item.quote?.price,
-    performanceValue,
-    performancePercent
-  };
-}
-
-function metricValue(value: number | undefined) {
-  return Number.isFinite(value) ? Number(value) : Number.NEGATIVE_INFINITY;
-}
-
-function watchlistCacheVersion(items: WatchlistItem[]) {
-  return items
-    .map((item) => {
-      const lastPoint = item.history[item.history.length - 1];
-      return `${item.symbol}:${item.history.length}:${lastPoint?.date ?? "none"}`;
-    })
-    .sort()
-    .join("|");
 }

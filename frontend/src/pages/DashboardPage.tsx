@@ -5,10 +5,18 @@ import { PortfolioEvolutionSection } from "./dashboard/components/PortfolioEvolu
 import { PortfolioEvolutionSkeleton } from "./dashboard/components/DashboardSkeletons";
 import { TopMetrics } from "./dashboard/components/TopMetrics";
 import { useAsync } from "../hooks/useAsync";
+import { useMarketEventReload, type MarketEventPayload } from "../hooks/useMarketEventReload";
 import { api } from "../lib/api";
 
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
+const portfolioReloadEvents = [
+  "market-snapshot-updated",
+  "portfolio-market-updated",
+  "portfolio-assets-updated",
+  "portfolio-chart-updated",
+  "dashboard-chart-updated"
+];
 
 export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: string }) {
   const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
@@ -21,7 +29,6 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   const summary = portfolioFull.data?.summary ?? null;
   const chart = portfolioFull.data?.chart ?? null;
   const portfolioReload = portfolioFull.reload;
-  const lastAutoReloadAt = useRef(0);
   const [portfolioChartRefreshing, setPortfolioChartRefreshing] = useState(false);
   const lazyChartGuard = useRef({
     requestedForCacheVersion: "",
@@ -49,27 +56,10 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
 
   const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
 
-  useEffect(() => {
-    let debounceTimer: number | undefined;
-
-    function reloadVisiblePortfolio() {
-      const now = Date.now();
-      if (now - lastAutoReloadAt.current < 1500) return;
-      lastAutoReloadAt.current = now;
-      void portfolioReload();
-    }
-
-    function scheduleReload() {
-      if (debounceTimer) window.clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(reloadVisiblePortfolio, 400);
-    }
-
-    function onForeground() {
-      if (document.visibilityState === "visible") reloadVisiblePortfolio();
-    }
-
-    function onMarketEvent(event: Event) {
-      const payload = (event as CustomEvent<{ type?: string }>).detail;
+  useMarketEventReload({
+    debounceMs: 400,
+    eventTypes: portfolioReloadEvents,
+    onEvent: (payload: MarketEventPayload) => {
       if (payload.type === "portfolio-chart-refresh-started") {
         lazyChartGuard.current.refreshInProgress = true;
         setPortfolioChartRefreshing(true);
@@ -82,20 +72,9 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         guard.timeout = undefined;
         setPortfolioChartRefreshing(false);
       }
-      if (payload.type === "market-snapshot-updated" || payload.type === "portfolio-market-updated" || payload.type === "portfolio-assets-updated" || payload.type === "portfolio-chart-updated" || payload.type === "dashboard-chart-updated") scheduleReload();
-    }
-
-    window.addEventListener("pea:market-event", onMarketEvent);
-    document.addEventListener("visibilitychange", onForeground);
-    window.addEventListener("focus", onForeground);
-
-    return () => {
-      if (debounceTimer) window.clearTimeout(debounceTimer);
-      window.removeEventListener("pea:market-event", onMarketEvent);
-      document.removeEventListener("visibilitychange", onForeground);
-      window.removeEventListener("focus", onForeground);
-    };
-  }, [portfolioReload]);
+    },
+    reload: portfolioReload
+  });
 
   useEffect(() => {
     if (selectedRange !== "1d" || !portfolioFull.data || !chart) return;

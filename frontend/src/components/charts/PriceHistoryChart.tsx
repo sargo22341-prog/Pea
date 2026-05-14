@@ -1,14 +1,15 @@
 import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
-import { memo, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useId, useRef } from "react";
 import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
-import { usePriceHistoryChart, type PriceHistoryChartPoint, type PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
-import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timezone";
+import { useElementSize } from "../../hooks/useElementSize";
+import type { PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatHistoryTick, formatHistoryTooltipLabel } from "./chartAxis";
+import { useChartMarkerModel } from "./chart-markers.helpers";
 import { ComparisonChart } from "./ComparisonChart";
 import { HistoryTooltip } from "./PriceHistoryTooltip";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
 import { TransactionMarkerOverlay } from "./TransactionMarkers";
-import { groupTransactionMarkers, positionMarkerGroups } from "./transactionMarkerUtils";
+import { useChartDataModel } from "./useChartDataModel";
 
 export { ComparisonChart };
 export type { ComparisonSerie } from "./ComparisonChart";
@@ -50,43 +51,27 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
   hideXAxisTicks = false,
   maskValues = false
 }: PriceHistoryChartProps) {
-  const { chartData, trend } = usePriceHistoryChart(data, range, baselinePrice);
-  const compressTimeAxis = range === "1w" || range === "1m";
-  const timeChartData = range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData;
-  const renderData = compressTimeAxis ? timeChartData.map((point, index) => ({ ...point, x: index })) : timeChartData;
-  const xDataKey = compressTimeAxis ? "x" : "date";
-  const xDomain = useMemo(
-    () =>
-      compressTimeAxis
-        ? ([0, Math.max(renderData.length - 1, 0)] as [number, number])
-        : range === "1d"
-          ? getIntradayDomain(timeChartData, marketSession) ?? chartDataDomain(timeChartData)
-          : chartDataDomain(timeChartData),
-    [compressTimeAxis, renderData.length, range, timeChartData, marketSession]
-  );
-  const xTicks = useMemo(
-    () => (compressTimeAxis ? compressedTicks(renderData.length, range) : undefined),
-    [compressTimeAxis, renderData.length, range]
-  );
+  const { chartData, compressTimeAxis, renderData, resolveXDate, trend, xDataKey, xDomain, xTicks } = useChartDataModel({
+    baselinePrice,
+    data,
+    marketSession,
+    range
+  });
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
   const gradientId = `${id}-${trend}-gradient`;
   const showBaseline = range === "1d" && Number.isFinite(baselinePrice);
-  const markerGroups = useMemo(
-    () => (range === "1d" ? [] : groupTransactionMarkers(transactionMarkers, chartData, compressTimeAxis)),
-    [range, transactionMarkers, chartData, compressTimeAxis]
-  );
-  const resolveXDate = (value: string | number) => {
-    if (!compressTimeAxis) return value;
-    const index = Math.round(Number(value));
-    return chartData[index]?.date ?? value;
-  };
   const containerRef = useRef<HTMLDivElement>(null);
   const containerSize = useElementSize(containerRef);
-  const markerOverlayPoints = useMemo(
-    () => positionMarkerGroups(markerGroups, xDomain, compressTimeAxis, containerSize.width, margin),
-    [compressTimeAxis, containerSize.width, margin, markerGroups, xDomain]
-  );
+  const { markerGroups, markerOverlayPoints } = useChartMarkerModel({
+    chartData,
+    compressTimeAxis,
+    containerWidth: containerSize.width,
+    margin,
+    range,
+    transactionMarkers,
+    xDomain
+  });
 
   return (
     <div className={`chart-fade overflow-visible ${heightClassName}`} ref={containerRef}>
@@ -171,71 +156,3 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
     </div>
   );
 });
-
-function useElementSize(ref: RefObject<HTMLElement | null>) {
-  const [size, setSize] = useState({ height: 0, width: 0 });
-
-  useLayoutEffect(() => {
-    const node = ref.current;
-    if (!node) return undefined;
-
-    const updateSize = () => {
-      const rect = node.getBoundingClientRect();
-      setSize({ height: Math.round(rect.height), width: Math.round(rect.width) });
-    };
-
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [ref]);
-
-  return size;
-}
-
-function compressedTicks(length: number, range: RangeKey) {
-  if (length <= 0) return [];
-  if (range === "1w") return Array.from({ length }, (_, index) => index);
-  const targetTickCount = 6;
-  if (length <= targetTickCount) return Array.from({ length }, (_, index) => index);
-  const lastIndex = length - 1;
-  const ticks = new Set<number>();
-  for (let index = 0; index < targetTickCount; index += 1) {
-    ticks.add(Math.round((index * lastIndex) / (targetTickCount - 1)));
-  }
-  return [...ticks].sort((a, b) => a - b);
-}
-
-function chartDataDomain(points: Array<{ date: number; value: number | null }>) {
-  const timestamps = points.map((point) => Number(point.date)).filter(Number.isFinite);
-  if (timestamps.length === 0) return ["dataMin", "dataMax"] as [string, string];
-  return [Math.min(...timestamps), Math.max(...timestamps)] as [number, number];
-}
-
-function withIntradaySessionPlaceholders(points: PriceHistoryChartPoint[], marketSession?: MarketSessionDto) {
-  if (!marketSession || points.length === 0) return points;
-  const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
-  if (!firstTimestamp) return points;
-  const session = marketSessionDomain(new Date(firstTimestamp), marketSession);
-  const byDate = new Map(points.map((point) => [point.date, point]));
-  if (!byDate.has(session.open)) byDate.set(session.open, { date: session.open, value: null });
-  if (!byDate.has(session.close)) byDate.set(session.close, { date: session.close, value: null });
-  return [...byDate.values()].sort((a, b) => a.date - b.date);
-}
-
-function getIntradayDomain(points: PriceHistoryInputPoint[] | Array<{ date: number; value: number | null }>, marketSession?: MarketSessionDto) {
-  if (!marketSession) return undefined;
-  const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
-  if (!firstTimestamp) return undefined;
-  const session = marketSessionDomain(new Date(firstTimestamp), marketSession);
-  return [session.open, session.close] as [number, number];
-}
-
-function marketSessionDomain(date: Date, marketSession: MarketSessionDto) {
-  const timeZone = normalizeTimeZone(marketSession.timezone);
-  const day = localIsoDate(date, timeZone);
-  return {
-    open: zonedTimeToUtc(day, marketSession.open, timeZone).getTime(),
-    close: zonedTimeToUtc(day, marketSession.close, timeZone).getTime()
-  };
-}

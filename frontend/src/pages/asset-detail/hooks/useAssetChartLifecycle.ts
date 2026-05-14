@@ -1,5 +1,6 @@
 import type { AssetChartDto, AssetDetails, RangeKey } from "@pea/shared";
 import { useEffect, useRef, useState } from "react";
+import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 
@@ -124,10 +125,12 @@ export function useAssetChartLifecycle({
       });
   }, [asset?.chart, range, symbol]);
 
-  useEffect(() => {
-    function onMarketEvent(event: Event) {
-      const payload = (event as CustomEvent<{ type?: string; symbol?: string; range?: string }>).detail;
-      if (payload?.symbol?.toUpperCase() !== symbol.toUpperCase() || payload.range !== "1d") return;
+  useMarketEventReload({
+    debounceMs: 0,
+    eventTypes: ["asset-chart-updated"],
+    filterEvent: (payload) => payload.symbol?.toUpperCase() === symbol.toUpperCase() && payload.range === "1d",
+    onEvent: (payload: MarketEventPayload) => {
+      if (payload.symbol?.toUpperCase() !== symbol.toUpperCase() || payload.range !== "1d") return;
       if (payload.type === "asset-chart-refresh-started") setChartRefreshing(true);
       if (payload.type === "asset-chart-updated") {
         const guard = lazyChartGuard.current;
@@ -136,12 +139,12 @@ export function useAssetChartLifecycle({
         if (guard.timeout) window.clearTimeout(guard.timeout);
         guard.timeout = undefined;
         setChartRefreshing(false);
-        void reload();
       }
-    }
-    window.addEventListener("pea:market-event", onMarketEvent);
-    return () => window.removeEventListener("pea:market-event", onMarketEvent);
-  }, [reload, symbol]);
+    },
+    reload,
+    reloadOnFocus: false,
+    reloadOnVisibility: false
+  });
 
   useEffect(() => {
     return () => {

@@ -3,6 +3,7 @@ import { DividendAnnualEstimate } from "./dividends/components/DividendAnnualEst
 import { DividendGroupedList } from "./dividends/components/DividendGroupedList";
 import { StaleBadge } from "../components/common/StaleBadge";
 import { useAsync } from "../hooks/useAsync";
+import { useMarketEventReload } from "../hooks/useMarketEventReload";
 import { getCurrentDividendYear, useDividendOverview } from "./dividends/hooks/useDividendOverview";
 import { api } from "../lib/api";
 
@@ -21,30 +22,10 @@ export function DividendsPage() {
   const dividendsReload = dividends.reload;
   const [year, setYear] = useState(String(currentYear));
 
-  useEffect(() => {
-    let lastReloadAt = 0;
-    function reloadVisibleDividends() {
-      const now = Date.now();
-      if (now - lastReloadAt < 1500) return;
-      lastReloadAt = now;
-      void dividendsReload();
-    }
-    function onMarketEvent(event: Event) {
-      const payload = (event as CustomEvent<{ type?: string }>).detail;
-      if (payload?.type === "dividends-updated") window.setTimeout(reloadVisibleDividends, 400);
-    }
-    function onForeground() {
-      if (document.visibilityState === "visible") reloadVisibleDividends();
-    }
-    window.addEventListener("pea:market-event", onMarketEvent);
-    document.addEventListener("visibilitychange", onForeground);
-    window.addEventListener("focus", onForeground);
-    return () => {
-      window.removeEventListener("pea:market-event", onMarketEvent);
-      document.removeEventListener("visibilitychange", onForeground);
-      window.removeEventListener("focus", onForeground);
-    };
-  }, [dividendsReload]);
+  useMarketEventReload({
+    eventTypes: ["dividends-updated"],
+    reload: dividendsReload
+  });
 
   const data = dividends.data;
   const dividendOverview = useDividendOverview({
