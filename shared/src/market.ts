@@ -262,6 +262,13 @@ export interface AssetMarketDto {
   revenue?: number;
   netIncome?: number;
   netMargin?: number;
+  freshness?: {
+    marketCoreUpdatedAt?: string;
+    liquidityUpdatedAt?: string;
+    range52wUpdatedAt?: string;
+    dividendInfoUpdatedAt?: string;
+    marketProfileUpdatedAt?: string;
+  };
   cachedAt: number;
   expiresAt: number;
 }

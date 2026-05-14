@@ -217,9 +217,10 @@ test("fresh SQLite schema contains transaction metadata and useful indexes", () 
     const transactionColumns = db.prepare("PRAGMA table_info(transactions)").all().map((row) => row.name);
     const positionColumns = db.prepare("PRAGMA table_info(positions)").all().map((row) => row.name);
     const watchlistColumns = db.prepare("PRAGMA table_info(watchlist)").all().map((row) => row.name);
+    const snapshotColumns = db.prepare("PRAGMA table_info(asset_market_snapshots)").all().map((row) => row.name);
     const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((row) => row.name);
 
-    console.log("__RESULT__" + JSON.stringify({ transactionColumns, positionColumns, watchlistColumns, indexes }));
+    console.log("__RESULT__" + JSON.stringify({ transactionColumns, positionColumns, watchlistColumns, snapshotColumns, indexes }));
   `);
 
   for (const column of ["total_fees", "source", "source_file_name", "asset_name", "isin", "ticker", "raw_text_snippet"]) {
@@ -229,6 +230,12 @@ test("fresh SQLite schema contains transaction metadata and useful indexes", () 
   assert.ok(result.watchlistColumns.includes("user_id"));
   assert.ok(result.indexes.includes("idx_transactions_position_traded_at"));
   assert.ok(result.indexes.includes("idx_positions_user_symbol"));
+  assert.ok(result.indexes.includes("idx_chart_candles_1d_asset_interval_start"));
+  assert.ok(result.snapshotColumns.includes("market_core_updated_at"));
+  assert.ok(result.snapshotColumns.includes("liquidity_updated_at"));
+  assert.ok(result.snapshotColumns.includes("range_52w_updated_at"));
+  assert.ok(result.snapshotColumns.includes("dividend_info_updated_at"));
+  assert.ok(result.snapshotColumns.includes("market_profile_updated_at"));
   // Vérifie les index et colonnes créés par les migrations
   assert.ok(result.indexes.includes("idx_user_sessions_expires_at"), "index sessions manquant");
 });

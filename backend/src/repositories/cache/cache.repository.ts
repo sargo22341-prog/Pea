@@ -26,6 +26,24 @@ export class CacheRepository {
     return db.prepare("DELETE FROM frontend_block_cache").run();
   }
 
+  invalidateAssetMarket(symbol: string) {
+    db.prepare("DELETE FROM cached_quotes WHERE symbol = ?").run(symbol.toUpperCase());
+  }
+
+  invalidateAssetStatic(symbol: string) {
+    const key = symbol.toUpperCase();
+    db.prepare("DELETE FROM cached_fundamentals WHERE symbol = ?").run(key);
+    db.prepare("DELETE FROM asset_article_cache WHERE symbol = ?").run(key);
+  }
+
+  invalidateAssetDividends(symbol: string) {
+    db.prepare("DELETE FROM cached_dividends WHERE symbol = ?").run(symbol.toUpperCase());
+  }
+
+  invalidateAssetArticles(symbol: string) {
+    db.prepare("DELETE FROM asset_article_cache WHERE symbol = ?").run(symbol.toUpperCase());
+  }
+
   readStatic(target: StaticCacheTarget, key: string) {
     return db.prepare(`SELECT payload, cached_at, expires_at FROM ${target.table} WHERE ${target.keyColumn} = ?`).get(key) as
       | { payload: string; cached_at: number; expires_at: number }

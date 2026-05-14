@@ -483,3 +483,46 @@ test("scheduler cleanup, health update and anti-overlap guard", () => {
   assert.ok(result.health.last_successful_tick_at);
   assert.equal(result.oldLogs.count, 0);
 });
+
+test("scheduler lock renew and owner-only release semantics", () => {
+  const result = runBackendScript(`
+    import { db } from "./db.ts";
+    import { schedulerLockRepository } from "./repositories/market/scheduler-lock.repository.ts";
+
+    const first = schedulerLockRepository.acquire("test-lock", 1_000, 1_000, "owner-a");
+    const blocked = schedulerLockRepository.acquire("test-lock", 1_000, 1_100, "owner-b");
+    const renewed = first ? schedulerLockRepository.renew(first, 5_000, 1_200) : false;
+    const afterRenew = db.prepare("SELECT owner, expires_at FROM scheduler_locks WHERE lock_key = 'test-lock'").get();
+    schedulerLockRepository.release({ key: "test-lock", owner: "owner-b" });
+    const afterWrongRelease = db.prepare("SELECT COUNT(*) AS count FROM scheduler_locks WHERE lock_key = 'test-lock'").get();
+    if (first) schedulerLockRepository.release(first);
+    const afterRelease = db.prepare("SELECT COUNT(*) AS count FROM scheduler_locks WHERE lock_key = 'test-lock'").get();
+
+    const expired = schedulerLockRepository.acquire("expired-lock", 1_000, 1_000, "old-owner");
+    const blockedBeforeExpiry = schedulerLockRepository.acquire("expired-lock", 1_000, 1_999, "new-owner");
+    const acquiredAfterExpiry = schedulerLockRepository.acquire("expired-lock", 1_000, 2_001, "new-owner");
+
+    console.log("__RESULT__" + JSON.stringify({
+      first: Boolean(first),
+      blocked: Boolean(blocked),
+      renewed,
+      afterRenew,
+      afterWrongRelease: afterWrongRelease.count,
+      afterRelease: afterRelease.count,
+      expired: Boolean(expired),
+      blockedBeforeExpiry: Boolean(blockedBeforeExpiry),
+      acquiredAfterExpiry
+    }));
+  `);
+
+  assert.equal(result.first, true);
+  assert.equal(result.blocked, false);
+  assert.equal(result.renewed, true);
+  assert.equal(result.afterRenew.owner, "owner-a");
+  assert.equal(result.afterRenew.expires_at, 6200);
+  assert.equal(result.afterWrongRelease, 1);
+  assert.equal(result.afterRelease, 0);
+  assert.equal(result.expired, true);
+  assert.equal(result.blockedBeforeExpiry, false);
+  assert.equal(result.acquiredAfterExpiry.owner, "new-owner");
+});

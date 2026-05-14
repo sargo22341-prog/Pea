@@ -204,6 +204,10 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_1d_asset_interval"), "index chart_candles_1d absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1d_asset_interval_start"), "index chart_candles_1d date absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1w_asset_interval_start"), "index chart_candles_1w date absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_1m_asset_interval_start"), "index chart_candles_1m date absent");
+  assert.ok(resultat.indexExistants.includes("idx_chart_candles_all_asset_interval_start"), "index chart_candles_all date absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_1w_asset_interval"), "index chart_candles_1w absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_1m_asset_interval"), "index chart_candles_1m absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_all_asset_interval"), "index chart_candles_all absent");
@@ -220,7 +224,54 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("ex_dividend_date"), "colonne ex_dividend_date absente");
-  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22], "les 22 migrations doivent etre enregistrees");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("market_core_updated_at"), "colonne market_core_updated_at absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("liquidity_updated_at"), "colonne liquidity_updated_at absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("range_52w_updated_at"), "colonne range_52w_updated_at absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("dividend_info_updated_at"), "colonne dividend_info_updated_at absente");
+  assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
+  assert.deepEqual(resultat.versionsMigrations, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], "les 23 migrations doivent etre enregistrees");
+});
+
+test("cache registry applique les regles d'invalidation metier", () => {
+  const resultat = lancerScriptBackend(`
+    import { db } from "./db.ts";
+    import { cacheRegistry } from "./services/shared/cache-registry.service.ts";
+
+    const now = Date.now();
+    const expiresAt = now + 60_000;
+    db.prepare("INSERT INTO cached_quotes (symbol, payload, fetched_at) VALUES ('AAA.PA', '{}', ?)").run(now);
+    db.prepare("INSERT INTO cached_dividends (symbol, payload, fetched_at) VALUES ('AAA.PA', '{}', ?)").run(now);
+    db.prepare("INSERT INTO asset_article_cache (symbol, payload, cached_at, expires_at) VALUES ('AAA.PA', '{}', ?, ?)").run(now, expiresAt);
+    db.prepare("INSERT INTO user_assets (user_id, symbol, quantity, average_price, transaction_count, total_fees, invested_amount, updated_at) VALUES (1, 'AAA.PA', 1, 10, 1, 0, 10, ?)").run(now);
+    db.prepare("INSERT INTO portfolio_chart_cache (cache_key, user_id, range, payload, cached_at, expires_at) VALUES ('1:1d', '1', '1d', '{}', ?, ?)").run(now, expiresAt);
+    db.prepare("INSERT INTO portfolio_positions_performance_cache (cache_key, user_id, range, portfolio_version, market_data_version, payload, cached_at, expires_at) VALUES ('1:p:1d', '1', '1d', 'p', 'm', '{}', ?, ?)").run(now, expiresAt);
+    db.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES ('1:analysis:default', '1', 'analysis', NULL, '{}', ?, ?)").run(now, expiresAt);
+    db.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES ('1:dividends:default', '1', 'dividends', NULL, '{}', ?, ?)").run(now, expiresAt);
+
+    cacheRegistry.invalidate({ type: "MarketSnapshotUpdated", symbol: "AAA.PA" });
+    const afterMarket = {
+      quotes: db.prepare("SELECT COUNT(*) AS count FROM cached_quotes").get().count,
+      portfolioCharts: db.prepare("SELECT COUNT(*) AS count FROM portfolio_chart_cache").get().count,
+      userAssets: db.prepare("SELECT COUNT(*) AS count FROM user_assets").get().count
+    };
+
+    cacheRegistry.invalidate({ type: "DividendDataUpdated", symbol: "AAA.PA" });
+    const afterDividends = {
+      dividendCache: db.prepare("SELECT COUNT(*) AS count FROM cached_dividends").get().count,
+      frontendBlocks: db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache").get().count
+    };
+
+    cacheRegistry.invalidate({ type: "AssetStaticDataUpdated", symbol: "AAA.PA" });
+    const afterStatic = {
+      articles: db.prepare("SELECT COUNT(*) AS count FROM asset_article_cache").get().count
+    };
+
+    console.log("__RESULT__" + JSON.stringify({ afterMarket, afterDividends, afterStatic }));
+  `);
+
+  assert.deepEqual(resultat.afterMarket, { quotes: 0, portfolioCharts: 0, userAssets: 0 });
+  assert.deepEqual(resultat.afterDividends, { dividendCache: 0, frontendBlocks: 0 });
+  assert.deepEqual(resultat.afterStatic, { articles: 0 });
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {

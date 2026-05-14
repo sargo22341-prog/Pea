@@ -36,8 +36,11 @@ function taskKey(task: Omit<ConstructionTask, "key">) {
 export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
+  private started = false;
 
-  constructor() {
+  start() {
+    if (this.started) return;
+    this.started = true;
     dataConstructionRepository.resetInterruptedTasks();
     this.pump();
   }

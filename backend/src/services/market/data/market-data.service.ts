@@ -33,6 +33,7 @@ import { financialsService } from "../financials/financials.service.js";
 import { marketSnapshotService } from "../snapshots/market-snapshot.service.js";
 import { chartDataQueryService } from "./chart-data-query.service.js";
 import { liveIntradayService } from "./live-intraday.service.js";
+import { assetInitializationService } from "./asset-initialization.service.js";
 import { marketDataGateway } from "./market-data-gateway.service.js";
 import { postCloseFinalizationService } from "./post-close-finalization.service.js";
 import { storedRangeRebuilderService } from "./stored-range-rebuilder.service.js";
@@ -41,12 +42,7 @@ export type { ChartDataOptions } from "../charts/market-chart.helpers.js";
 
 export class MarketDataService {
   async ensureAssetInitialized(symbol: string): Promise<AssetRow> {
-    const quote = await marketDataGateway.fetchFreshQuote(symbol);
-    const asset = assetRepository.upsertFromQuote(quote.snapshot);
-    const summary = await marketDataGateway.fetchFreshQuoteSummary(asset.symbol).catch(() => undefined);
-    if (summary) assetRepository.upsertProfile(asset.id, summary.profile);
-    await marketSnapshotService.refreshMarketSnapshot(asset);
-    return asset;
+    return assetInitializationService.ensureAssetInitialized(symbol);
   }
 
   async ensureAssetLoaded(symbol: string): Promise<AssetRow> {

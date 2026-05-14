@@ -161,7 +161,7 @@ test("queue construction persiste, dedupe les taches actives et reprend une tach
       resumed += 1;
       return { symbol: "AAA.PA", name: "AAA", price: 1, currency: "EUR" };
     };
-    new DataConstructionQueueService();
+    new DataConstructionQueueService().start();
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     const statuses = db.prepare("SELECT task_key, status, attempts FROM data_construction_tasks ORDER BY id").all();

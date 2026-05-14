@@ -93,6 +93,13 @@ export class MarketSnapshotService {
       dividendYield: normalizeDividendYield(row.dividend_yield) ?? undefined,
       annualDividend: optionalNumber(row.dividend_rate),
       exDividendDate: row.ex_dividend_date ?? undefined,
+      freshness: {
+        marketCoreUpdatedAt: row.market_core_updated_at ?? undefined,
+        liquidityUpdatedAt: row.liquidity_updated_at ?? undefined,
+        range52wUpdatedAt: row.range_52w_updated_at ?? undefined,
+        dividendInfoUpdatedAt: row.dividend_info_updated_at ?? undefined,
+        marketProfileUpdatedAt: row.market_profile_updated_at ?? undefined
+      },
       cachedAt: new Date(row.updated_at).getTime(),
       expiresAt: new Date(row.updated_at).getTime()
     };

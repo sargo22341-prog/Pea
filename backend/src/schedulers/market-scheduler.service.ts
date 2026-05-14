@@ -1,4 +1,5 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
+import { randomUUID } from "node:crypto";
 import { logger } from "../services/shared/logger.service.js";
 import { config } from "../config.js";
 import { chartConfigService } from "../services/market/charts/chart-config.service.js";
@@ -17,6 +18,7 @@ import { runWithYahooUsageSource } from "../services/yahoo/yahoo-usage-context.j
 const schedulerName = "market-scheduler";
 const tickIntervalMs = 5 * 60 * 1000;
 const tickLockTtlMs = 4 * 60 * 1000;
+const processOwnerId = `${schedulerName}:${process.pid}:${randomUUID()}`;
 
 export class MarketSchedulerService {
   private timer?: NodeJS.Timeout;
@@ -42,11 +44,15 @@ export class MarketSchedulerService {
 
   async tick(now = new Date()) {
     if (this.running) return;
-    const lease = schedulerLockRepository.acquire(`${schedulerName}:tick`, tickLockTtlMs, now.getTime());
+    const lease = schedulerLockRepository.acquire(`${schedulerName}:tick`, tickLockTtlMs, now.getTime(), processOwnerId);
     if (!lease) {
       logger.debug("market-data", "market scheduler tick skipped because lock is held");
       return;
     }
+    const heartbeat = setInterval(() => {
+      const renewed = schedulerLockRepository.renew(lease, tickLockTtlMs);
+      if (!renewed) logger.warn("market-data", "market scheduler lock heartbeat lost", { lock: lease.key });
+    }, Math.max(1_000, Math.floor(tickLockTtlMs / 3)));
     this.running = true;
     schedulerHealthRepository.markTick(schedulerName, now);
     try {
@@ -63,6 +69,7 @@ export class MarketSchedulerService {
       schedulerHealthRepository.markError(schedulerName, error, now);
       logger.error("market-data", "market scheduler tick failed", { error: error instanceof Error ? error.message : String(error) });
     } finally {
+      clearInterval(heartbeat);
       this.running = false;
       schedulerLockRepository.release(lease);
     }

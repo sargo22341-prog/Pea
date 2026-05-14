@@ -1,10 +1,12 @@
 import { app } from "./app.js";
 import { config } from "./config.js";
+import { dataConstructionQueue } from "./services/market/construction/data-construction-queue.service.js";
 import { logger } from "./services/shared/logger.service.js";
 import { marketScheduler } from "./schedulers/market-scheduler.service.js";
 
 const server = app.listen(config.port, () => {
   logger.info("api", "PEA Portfolio API listening", { url: `http://127.0.0.1:${config.port}` });
+  dataConstructionQueue.start();
   marketScheduler.start();
 });
 

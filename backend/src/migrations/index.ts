@@ -20,6 +20,7 @@ import { assetMarketSnapshotSlowFieldsMigration } from "./019-asset-market-snaps
 import { yahooUsageLogsMigration } from "./020-yahoo-usage-logs.js";
 import { dedupeDividendsMigration } from "./021-dedupe-dividends.js";
 import { dataConstructionQueueMigration } from "./022-data-construction-queue.js";
+import { snapshotFreshnessAndCandleOrderIndexesMigration } from "./023-snapshot-freshness-and-candle-order-indexes.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -44,5 +45,6 @@ export const migrations: Migration[] = [
   assetMarketSnapshotSlowFieldsMigration,
   yahooUsageLogsMigration,
   dedupeDividendsMigration,
-  dataConstructionQueueMigration
+  dataConstructionQueueMigration,
+  snapshotFreshnessAndCandleOrderIndexesMigration
 ];

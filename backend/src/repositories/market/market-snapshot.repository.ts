@@ -26,6 +26,11 @@ export interface AssetMarketSnapshotRow {
   dividend_rate?: number | string | null;
   ex_dividend_date?: string | null;
   regular_market_time?: string | null;
+  market_core_updated_at?: string | null;
+  liquidity_updated_at?: string | null;
+  range_52w_updated_at?: string | null;
+  dividend_info_updated_at?: string | null;
+  market_profile_updated_at?: string | null;
   updated_at: string;
   last_checked_at?: string | null;
 }
@@ -69,9 +74,13 @@ export class MarketSnapshotRepository {
         average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date,
         dividend_rate, dividend_yield,
         trailing_annual_dividend_rate, trailing_annual_dividend_yield, currency, exchange,
-        full_exchange_name, quote_type, regular_market_time, source, last_checked_at, updated_at
+        full_exchange_name, quote_type, regular_market_time, source, last_checked_at,
+        market_core_updated_at, liquidity_updated_at, range_52w_updated_at, dividend_info_updated_at, market_profile_updated_at,
+        updated_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP)
        ON CONFLICT(asset_id) DO UPDATE SET
         market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
         last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
@@ -103,6 +112,54 @@ export class MarketSnapshotRepository {
         regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
         source = excluded.source,
         last_checked_at = excluded.last_checked_at,
+        market_core_updated_at = CASE
+          WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
+            OR excluded.last_price IS NOT NULL
+            OR excluded.day_change IS NOT NULL
+            OR excluded.day_change_percent IS NOT NULL
+            OR excluded.previous_close IS NOT NULL
+            OR excluded.open_price IS NOT NULL
+            OR excluded.day_high IS NOT NULL
+            OR excluded.day_low IS NOT NULL
+            OR excluded.regular_market_time IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.market_core_updated_at
+        END,
+        liquidity_updated_at = CASE
+          WHEN excluded.volume IS NOT NULL
+            OR excluded.bid_price IS NOT NULL
+            OR excluded.ask_price IS NOT NULL
+            OR excluded.bid_size IS NOT NULL
+            OR excluded.ask_size IS NOT NULL
+            OR excluded.average_volume_3m IS NOT NULL
+            OR excluded.average_volume_10d IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.liquidity_updated_at
+        END,
+        range_52w_updated_at = CASE
+          WHEN excluded.fifty_two_week_low IS NOT NULL
+            OR excluded.fifty_two_week_high IS NOT NULL
+            OR excluded.fifty_two_week_change_percent IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.range_52w_updated_at
+        END,
+        dividend_info_updated_at = CASE
+          WHEN excluded.ex_dividend_date IS NOT NULL
+            OR excluded.dividend_rate IS NOT NULL
+            OR excluded.dividend_yield IS NOT NULL
+            OR excluded.trailing_annual_dividend_rate IS NOT NULL
+            OR excluded.trailing_annual_dividend_yield IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.dividend_info_updated_at
+        END,
+        market_profile_updated_at = CASE
+          WHEN excluded.currency IS NOT NULL
+            OR excluded.exchange IS NOT NULL
+            OR excluded.full_exchange_name IS NOT NULL
+            OR excluded.quote_type IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.market_profile_updated_at
+        END,
         updated_at = CASE
           WHEN (excluded.market_state IS NOT NULL AND excluded.market_state IS NOT asset_market_snapshots.market_state)
             OR excluded.last_price IS NOT NULL
@@ -187,9 +244,13 @@ export class MarketSnapshotRepository {
         asset_id, market_state, last_price, day_change, day_change_percent, previous_close, open_price,
         day_high, day_low, volume, average_volume_3m, fifty_two_week_low, fifty_two_week_high,
         dividend_rate, dividend_yield, ex_dividend_date, currency, exchange, full_exchange_name,
-        regular_market_time, source, last_checked_at, updated_at
+        regular_market_time, source, last_checked_at,
+        market_core_updated_at, liquidity_updated_at, range_52w_updated_at, dividend_info_updated_at, market_profile_updated_at,
+        updated_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'yahoo-finance2', CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP)
        ON CONFLICT(asset_id) DO UPDATE SET
         market_state = COALESCE(excluded.market_state, asset_market_snapshots.market_state),
         last_price = COALESCE(excluded.last_price, asset_market_snapshots.last_price),
@@ -212,6 +273,45 @@ export class MarketSnapshotRepository {
         regular_market_time = COALESCE(excluded.regular_market_time, asset_market_snapshots.regular_market_time),
         source = excluded.source,
         last_checked_at = excluded.last_checked_at,
+        market_core_updated_at = CASE
+          WHEN excluded.market_state IS NOT NULL
+            OR excluded.last_price IS NOT NULL
+            OR excluded.day_change IS NOT NULL
+            OR excluded.day_change_percent IS NOT NULL
+            OR excluded.previous_close IS NOT NULL
+            OR excluded.open_price IS NOT NULL
+            OR excluded.day_high IS NOT NULL
+            OR excluded.day_low IS NOT NULL
+            OR excluded.regular_market_time IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.market_core_updated_at
+        END,
+        liquidity_updated_at = CASE
+          WHEN excluded.volume IS NOT NULL
+            OR excluded.average_volume_3m IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.liquidity_updated_at
+        END,
+        range_52w_updated_at = CASE
+          WHEN excluded.fifty_two_week_low IS NOT NULL
+            OR excluded.fifty_two_week_high IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.range_52w_updated_at
+        END,
+        dividend_info_updated_at = CASE
+          WHEN excluded.dividend_rate IS NOT NULL
+            OR excluded.dividend_yield IS NOT NULL
+            OR excluded.ex_dividend_date IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.dividend_info_updated_at
+        END,
+        market_profile_updated_at = CASE
+          WHEN excluded.currency IS NOT NULL
+            OR excluded.exchange IS NOT NULL
+            OR excluded.full_exchange_name IS NOT NULL
+          THEN excluded.updated_at
+          ELSE asset_market_snapshots.market_profile_updated_at
+        END,
         updated_at = CASE
           WHEN excluded.market_state IS NOT NULL
             OR excluded.last_price IS NOT NULL

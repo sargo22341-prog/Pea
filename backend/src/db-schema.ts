@@ -307,6 +307,11 @@ export function initializeSchema(db: DatabaseAdapter): void {
     regular_market_time TEXT,
     source TEXT NOT NULL DEFAULT 'yahoo-finance2',
     last_checked_at TEXT,
+    market_core_updated_at TEXT,
+    liquidity_updated_at TEXT,
+    range_52w_updated_at TEXT,
+    dividend_info_updated_at TEXT,
+    market_profile_updated_at TEXT,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(asset_id) REFERENCES assets(id) ON DELETE CASCADE
   );
@@ -398,6 +403,10 @@ export function initializeSchema(db: DatabaseAdapter): void {
   CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval ON chart_candles_1w(asset_id, interval);
   CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval ON chart_candles_1m(asset_id, interval);
   CREATE INDEX IF NOT EXISTS idx_chart_candles_all_asset_interval ON chart_candles_all(asset_id, interval);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1d_asset_interval_start ON chart_candles_1d(asset_id, interval, datetime_start);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1w_asset_interval_start ON chart_candles_1w(asset_id, interval, datetime_start);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_1m_asset_interval_start ON chart_candles_1m(asset_id, interval, datetime_start);
+  CREATE INDEX IF NOT EXISTS idx_chart_candles_all_asset_interval_start ON chart_candles_all(asset_id, interval, datetime_start);
   CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);

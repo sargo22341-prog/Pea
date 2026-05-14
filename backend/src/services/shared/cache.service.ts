@@ -80,7 +80,7 @@ export function invalidateUserAssetCaches(userId: string, symbol?: string) {
     cacheRegistry.invalidate({ type: "portfolio-all-users-changed", symbol });
     return;
   }
-  cacheRegistry.invalidate({ type: "portfolio-user-changed", userId, symbol });
+  cacheRegistry.invalidate({ type: "PositionChanged", userId, symbol });
 }
 
 export function invalidateFrontendBlockCache(input: { userId?: string | number; block?: FrontendBlock }) {
