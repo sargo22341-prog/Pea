@@ -28,39 +28,72 @@ const RESET_AFTER_MS = 30 * 60 * 1000;
 const WARN_THRESHOLD = 5;
 const ERROR_THRESHOLD = 10;
 const BACKOFF_START_THRESHOLD = 3;
-const BACKOFF_BASE_MS = 1000;
-const BACKOFF_MAX_MS = 30 * 1000;
 
-class AuthFailureTracker {
+function readPositiveIntEnv(name: string, fallback: number) {
+  if (process.env.NODE_ENV !== "test") return fallback;
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+export interface AuthFailureTrackerOptions {
+  resetAfterMs?: number;
+  backoffStartThreshold?: number;
+  backoffBaseMs?: number;
+  backoffMaxMs?: number;
+  warnThreshold?: number;
+  errorThreshold?: number;
+  now?: () => number;
+}
+
+export class AuthFailureTracker {
   private byKey = new Map<string, FailureEntry>();
+  private readonly resetAfterMs: number;
+  private readonly backoffStartThreshold: number;
+  private readonly backoffBaseMs: number;
+  private readonly backoffMaxMs: number;
+  private readonly warnThreshold: number;
+  private readonly errorThreshold: number;
+  private readonly now: () => number;
+
+  constructor(options: AuthFailureTrackerOptions = {}) {
+    this.resetAfterMs = options.resetAfterMs ?? RESET_AFTER_MS;
+    this.backoffStartThreshold = options.backoffStartThreshold ?? BACKOFF_START_THRESHOLD;
+    this.backoffBaseMs = options.backoffBaseMs ?? readPositiveIntEnv("PEA_AUTH_BACKOFF_BASE_MS", 1000);
+    this.backoffMaxMs = options.backoffMaxMs ?? readPositiveIntEnv("PEA_AUTH_BACKOFF_MAX_MS", 30 * 1000);
+    this.warnThreshold = options.warnThreshold ?? WARN_THRESHOLD;
+    this.errorThreshold = options.errorThreshold ?? ERROR_THRESHOLD;
+    this.now = options.now ?? Date.now;
+  }
 
   /** Mesure attendue avant prochaine tentative (utiliser pour `await sleep(delayMs)`). */
   delayForKeys(keys: string[]): number {
-    const now = Date.now();
+    const now = this.now();
     let maxDelay = 0;
     for (const key of keys) {
       const entry = this.byKey.get(key);
       if (!entry) continue;
-      if (now - entry.lastFailureAt > RESET_AFTER_MS) {
+      if (now - entry.lastFailureAt > this.resetAfterMs) {
         this.byKey.delete(key);
         continue;
       }
-      if (entry.count < BACKOFF_START_THRESHOLD) continue;
-      const exponent = Math.min(entry.count - BACKOFF_START_THRESHOLD, 6);
-      const delay = Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** exponent);
+      if (entry.count < this.backoffStartThreshold) continue;
+      const exponent = Math.min(entry.count - this.backoffStartThreshold, 6);
+      const delay = Math.min(this.backoffMaxMs, this.backoffBaseMs * 2 ** exponent);
       if (delay > maxDelay) maxDelay = delay;
     }
     return maxDelay;
   }
 
   recordFailure(input: { ip: string; username: string; reason?: string }) {
-    const now = Date.now();
+    const now = this.now();
     const ipKey = `ip:${input.ip}`;
     const userKey = `user:${input.username.toLowerCase()}`;
     let highestCount = 0;
     for (const key of [ipKey, userKey]) {
       const entry = this.byKey.get(key);
-      const next: FailureEntry = entry && now - entry.lastFailureAt <= RESET_AFTER_MS
+      const next: FailureEntry = entry && now - entry.lastFailureAt <= this.resetAfterMs
         ? { count: entry.count + 1, firstFailureAt: entry.firstFailureAt, lastFailureAt: now }
         : { count: 1, firstFailureAt: now, lastFailureAt: now };
       this.byKey.set(key, next);
@@ -68,9 +101,9 @@ class AuthFailureTracker {
     }
 
     const meta = { ip: input.ip, username: input.username, reason: input.reason ?? "invalid-credentials", failureCount: highestCount };
-    if (highestCount >= ERROR_THRESHOLD) {
+    if (highestCount >= this.errorThreshold) {
       logger.error("auth", "auth brute-force suspected (ERROR threshold)", meta);
-    } else if (highestCount >= WARN_THRESHOLD) {
+    } else if (highestCount >= this.warnThreshold) {
       logger.warn("auth", "auth brute-force suspected", meta);
     } else {
       logger.warn("auth", "auth login failed", meta);

@@ -156,7 +156,7 @@ test("auth rate limit is stricter than the global API limit", () => {
         server.close();
       }
     });
-  `);
+  `, { nodeEnv: "test", env: { PEA_AUTH_BACKOFF_BASE_MS: "1", PEA_AUTH_BACKOFF_MAX_MS: "1" } });
 
   assert.equal(result.statuses.at(-1), 429);
   assert.equal(result.statuses.filter((status: number) => status === 429).length, 1);
