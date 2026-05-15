@@ -1,9 +1,10 @@
 import type { User } from "@pea/shared";
-import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
+import { useNativeSwipeNavigation } from "../../hooks/useNativeSwipeNavigation";
+import { getMobileNavItems } from "./mobileNavItems";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {
   return isActive ? "btn bg-panel2 text-mint" : "btn-ghost";
@@ -18,13 +19,8 @@ export function Shell({ user }: { user: User }) {
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
   const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust);
-  const links = [
-    { to: "/", label: "Dashboard", icon: Home },
-    ...(user.assetNewsEnabled ? [{ to: "/news", label: "Actualite", icon: Newspaper }] : []),
-    { to: "/search", label: "Chercher", icon: Search },
-    { to: "/analysis", label: "Analyse", icon: BarChart3 },
-    { to: "/dividends", label: "Dividendes", icon: CalendarDays }
-  ];
+  const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }), [user.assetNewsEnabled]);
+  useNativeSwipeNavigation({ items: links });
 
   useEffect(() => {
     const onProfileIconUpdated = (event: Event) => {
@@ -72,8 +68,8 @@ export function Shell({ user }: { user: User }) {
             {links.map((link) => (
               <NavLink
                 className={navButtonClass}
-                key={link.to}
-                to={link.to}
+                key={link.path}
+                to={link.path}
               >
                 <link.icon size={17} />
                 {link.label}
@@ -106,8 +102,8 @@ export function Shell({ user }: { user: User }) {
         {links.map((link) => (
           <NavLink
             className={mobileNavClass}
-            key={link.to}
-            to={link.to}
+            key={link.path}
+            to={link.path}
           >
             <link.icon size={20} />
             <span className="w-full truncate text-center">{link.label}</span>
