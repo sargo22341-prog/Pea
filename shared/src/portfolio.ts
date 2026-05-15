@@ -205,6 +205,7 @@ export interface PortfolioAnalysis {
   financials: FinancialYearItem[];
   financialsByAsset: AssetFinancials[];
   stale?: boolean;
+  sectorExposureVersion?: number;
 }
 
 export interface CreatePositionInput {

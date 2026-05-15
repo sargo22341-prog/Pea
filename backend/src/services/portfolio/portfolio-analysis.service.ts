@@ -16,6 +16,7 @@ import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { readCachedFundamentalsSummary } from "../yahoo/fundamentals/fundamentals.job.js";
 import { portfolioService } from "./portfolio.service.js";
 
 type Fundamentals = Awaited<ReturnType<typeof marketDataGateway.readFundamentalsWithCache>>["data"];
@@ -27,6 +28,20 @@ type FinancialStatementRow = {
 
 const UNKNOWN = "Unknown";
 const ETF_DIVERSIFIED = "ETF / Diversified";
+const SECTOR_EXPOSURE_VERSION = 2;
+const ETF_SECTOR_LABELS: Record<string, string> = {
+  realestate: "Immobilier",
+  consumer_cyclical: "Consommation cyclique",
+  basic_materials: "Materiaux de base",
+  consumer_defensive: "Consommation defensive",
+  technology: "Technologie",
+  communication_services: "Communication",
+  financial_services: "Services financiers",
+  utilities: "Services publics",
+  industrials: "Industrie",
+  energy: "Energie",
+  healthcare: "Sante"
+};
 
 function safeText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -65,24 +80,57 @@ function getCountry(position: PositionWithMarket, fundamentals?: Fundamentals) {
 }
 
 function getSector(position: PositionWithMarket, fundamentals?: Fundamentals) {
-  if (isEtf(position, fundamentals)) {
-    const sectorWeighting = fundamentals?.topHoldings?.sectorWeightings?.[0];
-    if (sectorWeighting) {
-      const [topSector] = Object.entries(sectorWeighting)
-        .filter(([, value]) => Number.isFinite(Number(value)) && Number(value) > 0)
-        .sort(([, a], [, b]) => Number(b) - Number(a));
-      if (topSector) return formatSectorKey(topSector[0]);
-    }
-    return ETF_DIVERSIFIED;
-  }
-  return safeText(fundamentals?.assetProfile?.sectorDisp) ?? safeText(fundamentals?.assetProfile?.sector) ?? UNKNOWN;
+  const sectorExposure = getPositionSectorExposure(position, fundamentals, 100)[0];
+  if (sectorExposure) return sectorExposure.sector;
+  return UNKNOWN;
+}
+
+function rawSectorWeightings(fundamentals?: Fundamentals): Array<{ sector: string; weight: number }> {
+  const rawSectors = fundamentals?.topHoldings?.sectorWeightings;
+  if (!Array.isArray(rawSectors)) return [];
+
+  const weightings = rawSectors.flatMap((sectorWeighting) => {
+    if (!sectorWeighting || typeof sectorWeighting !== "object") return [];
+    return Object.entries(sectorWeighting as Record<string, unknown>).flatMap(([key, value]) => {
+      const sector = formatSectorKey(key);
+      const numericValue = safeNumber(value);
+      if (!sector || numericValue === undefined || numericValue <= 0) return [];
+      return [{ sector, weight: numericValue }];
+    });
+  });
+
+  const total = weightings.reduce((sum, item) => sum + item.weight, 0);
+  if (!Number.isFinite(total) || total <= 0) return [];
+  const scale = total > 1.5 ? 100 : 1;
+  const scaled = weightings.map((item) => ({ ...item, weight: item.weight / scale }));
+  const scaledTotal = scaled.reduce((sum, item) => sum + item.weight, 0);
+  if (!Number.isFinite(scaledTotal) || scaledTotal <= 0) return [];
+  return scaled.map((item) => ({ ...item, weight: item.weight / scaledTotal }));
 }
 
 function formatSectorKey(value: string) {
-  return value
+  const key = value.trim();
+  if (!key) return "";
+  return ETF_SECTOR_LABELS[key] ?? key
     .split("_")
+    .filter(Boolean)
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function getPositionSectorExposure(position: PositionWithMarket, fundamentals: Fundamentals | undefined, weight: number): Array<{ sector: string; weight: number }> {
+  if (!Number.isFinite(weight) || weight <= 0) return [];
+  if (isEtf(position, fundamentals)) {
+    const sectors = rawSectorWeightings(fundamentals);
+    if (sectors.length) {
+      return sectors
+        .map((item) => ({ sector: item.sector, weight: weight * item.weight }))
+        .filter((item) => item.sector && Number.isFinite(item.weight) && item.weight > 0)
+        .sort((a, b) => b.weight - a.weight);
+    }
+    return [{ sector: ETF_DIVERSIFIED, weight }];
+  }
+  return [{ sector: safeText(fundamentals?.assetProfile?.sectorDisp) ?? safeText(fundamentals?.assetProfile?.sector) ?? UNKNOWN, weight }];
 }
 
 function addAllocation(
@@ -170,12 +218,18 @@ function persistedFundamentals(symbol: string): Fundamentals | undefined {
   const asset = assetRepository.findBySymbol(symbol);
   if (!asset) return undefined;
   const profile = assetRepository.profileByAssetId(asset.id);
+  const cachedSummary = readCachedFundamentalsSummary(symbol);
   return {
-    quoteType: { quoteType: asset.quote_type ?? undefined },
+    ...cachedSummary?.data,
+    quoteType: {
+      ...(cachedSummary?.data?.quoteType && typeof cachedSummary.data.quoteType === "object" ? cachedSummary.data.quoteType : {}),
+      quoteType: asset.quote_type ?? (cachedSummary?.data?.quoteType as { quoteType?: string } | undefined)?.quoteType ?? undefined
+    },
     assetProfile: {
-      country: profile?.country ?? undefined,
-      sector: profile?.sector ?? undefined,
-      sectorDisp: profile?.sector ?? undefined
+      ...(cachedSummary?.data?.assetProfile ?? {}),
+      country: profile?.country ?? cachedSummary?.data?.assetProfile?.country ?? undefined,
+      sector: profile?.sector ?? cachedSummary?.data?.assetProfile?.sector ?? undefined,
+      sectorDisp: profile?.sector ?? cachedSummary?.data?.assetProfile?.sectorDisp ?? undefined
     },
     annualFinancials: financialsService.readFinancialRows(symbol)
   } as Fundamentals;
@@ -217,12 +271,12 @@ export class PortfolioAnalysisService {
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
       const cached = frontendBlockCache.read<PortfolioAnalysis>(cacheUserId, "analysis");
-      if (cached) return cached;
+      if (cached?.sectorExposureVersion === SECTOR_EXPOSURE_VERSION) return cached;
     }
     const portfolio = await portfolioService.summary("1d", resolvedUserId);
     const totalValue = portfolio.totalValue || portfolio.positions.reduce((sum, position) => sum + position.marketValue, 0);
     if (!portfolio.positions.length || !totalValue) {
-      const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [] };
+      const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [], sectorExposureVersion: SECTOR_EXPOSURE_VERSION };
       if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", empty, chartConfigService.getSnapshotRefreshIntervalMs());
       return empty;
     }
@@ -264,7 +318,9 @@ export class PortfolioAnalysisService {
       const sector = getSector(position, fundamentals);
 
       addAllocation(countryAllocation, country, position, weight, logoUrl);
-      addAllocation(sectorAllocation, sector, position, weight, logoUrl);
+      for (const sectorExposure of getPositionSectorExposure(position, fundamentals, weight)) {
+        addAllocation(sectorAllocation, sectorExposure.sector, position, sectorExposure.weight, logoUrl);
+      }
       treemap.push({ symbol: position.symbol, name: position.name, value: weight, percentage: weight, logoUrl, country, sector });
       financialInputs.push({ weight: weight / 100, fundamentals, etf });
 
@@ -292,7 +348,8 @@ export class PortfolioAnalysisService {
       netMargins: netMargins.sort((a, b) => b.netMargin - a.netMargin),
       financialsByAsset: financialsByAsset.sort((a, b) => a.name.localeCompare(b.name)),
       financials: aggregateFinancials(financialInputs),
-      stale
+      stale,
+      sectorExposureVersion: SECTOR_EXPOSURE_VERSION
     };
     if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", payload, chartConfigService.getSnapshotRefreshIntervalMs());
     return payload;

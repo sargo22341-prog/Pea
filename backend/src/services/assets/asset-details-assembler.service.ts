@@ -18,6 +18,7 @@ import { marketSnapshotService } from "../market/snapshots/market-snapshot.servi
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { readCachedExtraData } from "../yahoo/fundamentals/fundamentals.job.js";
 import { assetDataService } from "./asset-data.service.js";
 import { evaluatePeaEligibility, rankAssetForPea } from "./peaEligibility.js";
 import type { AuthUser } from "../auth/auth.service.js";
@@ -213,7 +214,7 @@ class FundamentalsSection {
         isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF")
       }),
       config.enableMarketLiveRefresh
-        ? Promise.resolve({ data: {} as ExtraAssetData })
+        ? Promise.resolve(readCachedExtraData(symbol) ?? { data: {} as ExtraAssetData })
         : marketDataGateway.readExtraDataWithCache(symbol).catch((error) => {
             logger.warn("market-data", "extraData fallback", {
               symbol,

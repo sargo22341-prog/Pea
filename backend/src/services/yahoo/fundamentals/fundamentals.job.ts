@@ -92,6 +92,15 @@ export async function fetchFundamentals(symbol: string): Promise<MarketDataResul
   }
 }
 
+export function readCachedFundamentalsSummary(symbol: string): MarketDataResult<YahooSummaryRaw> | null {
+  return readCache<YahooSummaryRaw>(
+    "cached_fundamentals",
+    symbol.toUpperCase(),
+    FUNDAMENTALS_FRESH_TTL_S,
+    FUNDAMENTALS_STALE_REJECT_S
+  );
+}
+
 /** Produit l'objet marketInfo a partir des fundamentals caches ou frais. */
 export async function fetchMarketInfo(symbol: string): Promise<MarketDataResult<AssetMarketInfo>> {
   const result = await fetchFundamentalsSummary(symbol);
@@ -105,6 +114,23 @@ export async function fetchExtraData(symbol: string): Promise<MarketDataResult<{
   fundDetails?: AssetFundDetails;
 }>> {
   const result = await fetchFundamentalsSummary(symbol);
+  return {
+    data: {
+      calendarEventsData: calendarEventsDataFromSummary(result.data),
+      analystConsensus: analystConsensusFromSummary(result.data),
+      fundDetails: fundDetailsFromSummary(result.data)
+    },
+    stale: result.stale
+  };
+}
+
+export function readCachedExtraData(symbol: string): MarketDataResult<{
+  calendarEventsData?: AssetCalendarEventsData;
+  analystConsensus?: AssetAnalystConsensus;
+  fundDetails?: AssetFundDetails;
+}> | null {
+  const result = readCachedFundamentalsSummary(symbol);
+  if (!result) return null;
   return {
     data: {
       calendarEventsData: calendarEventsDataFromSummary(result.data),
