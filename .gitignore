@@ -11,5 +11,6 @@ backend/data/
 npm-debug.log*
 *.log
 Dockerfile.tmp
+.claude/
 *.keystore
-keystore.base64
+frontend/android/keystore.base64
