@@ -1,6 +1,7 @@
 import { getNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isNativeApp, resolveServerPath } from "./native-auth";
 
-export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+// En production web Docker, l'API doit rester relative au domaine courant.
+export const baseUrl = import.meta.env.PROD ? "" : import.meta.env.VITE_API_BASE_URL ?? "";
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const maxInFlightRequests = 500;

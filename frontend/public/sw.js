@@ -1,6 +1,11 @@
-const CACHE_NAME = "pea-portfolio-v2";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/pea-icon.png"];
+const CACHE_NAME = "pea-portfolio-v3";
+const APP_SHELL = ["/manifest.webmanifest", "/pea-icon.png"];
 const ASSET_PATH_PREFIX = "/assets/";
+
+async function purgeAppCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((key) => key.startsWith("pea-portfolio-")).map((key) => caches.delete(key)));
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -25,13 +30,30 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate" || request.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
       fetch(request)
-        .then((response) => (response.ok ? response : caches.match("/") ?? response))
-        .catch(() => caches.match("/"))
+        .then((response) => response)
+        .catch(() => new Response("Application temporairement indisponible.", {
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          status: 503
+        }))
     );
     return;
   }
 
-  if (!url.pathname.startsWith(ASSET_PATH_PREFIX) && !APP_SHELL.includes(url.pathname)) return;
+  if (url.pathname.startsWith(ASSET_PATH_PREFIX)) {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        // Evite de conserver un graphe de chunks Vite incoherent apres deploiement.
+        await purgeAppCaches();
+        return new Response("Asset indisponible. Rechargez la page.", {
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          status: 503
+        });
+      })
+    );
+    return;
+  }
+
+  if (!APP_SHELL.includes(url.pathname)) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
@@ -42,7 +64,10 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
-      });
+      }).catch(() => new Response("Ressource indisponible.", {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+        status: 503
+      }));
     })
   );
 });

@@ -87,8 +87,25 @@ app.use("/api", apiRouter);
 
 if (config.nodeEnv === "production") {
   const frontendDist = path.resolve(__dirname, config.frontendDist);
-  app.use(express.static(frontendDist));
+  app.use(express.static(frontendDist, {
+    setHeaders: (res, filePath) => {
+      const normalizedPath = filePath.split(path.sep).join("/");
+      if (normalizedPath.endsWith("/index.html")) {
+        res.setHeader("Cache-Control", "no-store");
+        return;
+      }
+      if (normalizedPath.endsWith("/sw.js")) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+        return;
+      }
+      if (normalizedPath.includes("/assets/")) {
+        // Les noms hashes Vite peuvent rester caches longtemps cote HTTP.
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    }
+  }));
   app.get(/.*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     res.sendFile(path.join(frontendDist, "index.html"));
   });
 }
