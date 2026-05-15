@@ -1,7 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import type { MobileNavItem } from "../components/common/mobileNavItems";
+import type { MobileNavItem } from "../../components/common/mobileNavItems";
 
 type SwipeNavigationOptions = {
   disabled?: boolean;

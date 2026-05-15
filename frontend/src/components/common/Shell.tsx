@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
-import { useNativeSwipeNavigation } from "../../hooks/useNativeSwipeNavigation";
+import { useNativeSwipeNavigation } from "../../hooks/android/useNativeSwipeNavigation";
 import { getMobileNavItems } from "./mobileNavItems";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {

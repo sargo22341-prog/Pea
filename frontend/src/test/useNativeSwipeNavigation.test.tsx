@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getMobileNavItems } from "../components/common/mobileNavItems";
-import { useNativeSwipeNavigation } from "../hooks/useNativeSwipeNavigation";
+import { useNativeSwipeNavigation } from "../hooks/android/useNativeSwipeNavigation";
 
 const nativePlatform = vi.hoisted(() => ({ value: true }));
 
