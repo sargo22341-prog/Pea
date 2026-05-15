@@ -98,13 +98,17 @@ test("dividend yield normalization accepts Yahoo fraction and percent units", ()
     console.log("__RESULT__" + JSON.stringify({
       fraction: normalizeDividendYield(0.0475),
       percent: normalizeDividendYield(4.75),
+      basisPointsLow: normalizeDividendYield(79),
+      basisPoints: normalizeDividendYield(450),
       empty: normalizeDividendYield(null),
-      aberrant: normalizeDividendYield(475)
+      aberrant: normalizeDividendYield(10050)
     }));
   `);
 
   assert.equal(result.fraction, 0.0475);
   assert.equal(result.percent, 0.0475);
+  assert.equal(result.basisPointsLow, 0.0079);
+  assert.equal(result.basisPoints, 0.045);
   assert.equal(result.empty, null);
   assert.equal(result.aberrant, null);
 });

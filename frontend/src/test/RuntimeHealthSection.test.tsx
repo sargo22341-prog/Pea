@@ -94,6 +94,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function openRuntimeMonitoring() {
+  fireEvent.click(screen.getByRole("button", { name: /monitoring runtime/i }));
+}
+
 describe("RuntimeHealthSection", () => {
   afterEach(() => {
     cleanup();
@@ -106,6 +110,8 @@ describe("RuntimeHealthSection", () => {
 
     render(<RuntimeHealthSection />);
 
+    expect(screen.queryByText("Chargement...")).not.toBeInTheDocument();
+    openRuntimeMonitoring();
     expect(screen.getByText("Chargement...")).toBeInTheDocument();
     request.resolve(basePayload);
 
@@ -119,6 +125,7 @@ describe("RuntimeHealthSection", () => {
     vi.mocked(api.getRuntimeHealth).mockRejectedValue(new Error("Runtime indisponible"));
 
     render(<RuntimeHealthSection />);
+    openRuntimeMonitoring();
 
     expect(await screen.findByText("Runtime indisponible")).toBeInTheDocument();
   });
@@ -134,6 +141,7 @@ describe("RuntimeHealthSection", () => {
     });
 
     render(<RuntimeHealthSection />);
+    openRuntimeMonitoring();
 
     await waitFor(() => expect(screen.getAllByText("Scheduler warning").length).toBeGreaterThan(0));
     expect(screen.getAllByText("Yahoo open").length).toBeGreaterThan(0);
@@ -145,6 +153,7 @@ describe("RuntimeHealthSection", () => {
     vi.mocked(api.getRuntimeHealth).mockResolvedValue(basePayload);
 
     render(<RuntimeHealthSection />);
+    openRuntimeMonitoring();
 
     await screen.findByText("Scheduler healthy");
     fireEvent.click(screen.getByRole("button", { name: /rafraichir/i }));

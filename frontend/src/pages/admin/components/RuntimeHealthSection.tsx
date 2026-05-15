@@ -102,7 +102,7 @@ export function RuntimeHealthSection() {
   const badges = useMemo(() => warningBadges(data), [data]);
 
   return (
-    <Collapsible title="Monitoring runtime" defaultOpen>
+    <Collapsible title="Monitoring runtime">
       {error ? <Toast tone="error">{error}</Toast> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">

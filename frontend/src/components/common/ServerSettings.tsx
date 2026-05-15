@@ -118,10 +118,12 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
           HTTP est autorise pour les serveurs locaux/self-hosted. Verifiez seulement que le telephone peut joindre ce nom ou cette IP sur le meme reseau.
         </p>
       )}
-      <button className="btn-primary" disabled={saving} type="submit">
-        {saving ? <Wifi size={17} /> : <Save size={17} />}
-        {saving ? "Verification..." : submitLabel}
-      </button>
+      <div className="flex justify-end pt-2">
+        <button className="btn-primary" disabled={saving} type="submit">
+          {saving ? <Wifi size={17} /> : <Save size={17} />}
+          {saving ? "Verification..." : submitLabel}
+        </button>
+      </div>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
     </form>
   );

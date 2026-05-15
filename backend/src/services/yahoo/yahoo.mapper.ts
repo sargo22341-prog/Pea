@@ -20,8 +20,10 @@ export function nullableDateIso(value: unknown): string | null {
 
 export function normalizeDividendYield(value: unknown): number | null {
   const numberValue = nullableNumber(value);
-  if (numberValue == null || numberValue < 0 || numberValue > 100) return null;
-  return numberValue > 1 ? numberValue / 100 : numberValue;
+  if (numberValue == null || numberValue < 0) return null;
+  if (numberValue <= 1) return numberValue;
+  const normalized = numberValue >= 20 ? numberValue / 10_000 : numberValue / 100;
+  return normalized > 1 ? null : normalized;
 }
 
 export interface YahooSnapshotPayload {

@@ -36,6 +36,7 @@ export default tseslint.config(
             globals: {
                 caches: "readonly",
                 fetch: "readonly",
+                Response: "readonly",
                 self: "readonly",
                 URL: "readonly",
             },
