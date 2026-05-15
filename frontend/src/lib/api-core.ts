@@ -1,9 +1,10 @@
-import { getNativeAuthToken, getNativeServerUrl, isNativeApp } from "./native-auth";
+import { getNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isNativeApp, resolveServerPath } from "./native-auth";
 
 export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const maxInFlightRequests = 500;
+const defaultRequestTimeoutMs = 20_000;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -70,11 +71,17 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = await requestHeaders(init);
   const url = await resolveApiUrl(path);
   logNativeRequest(path, url);
-  const response = await fetch(url, {
-    ...init,
-    headers,
-    credentials: "include"
-  });
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(url, {
+      ...init,
+      headers,
+      credentials: "include"
+    });
+  } catch (error) {
+    logNativeNetworkError(path, url, error);
+    throw createNetworkApiError(error, url);
+  }
   logNativeResponse(path, response);
 
   if (!response.ok) {
@@ -103,11 +110,17 @@ export async function requestBlob(path: string, init?: RequestInit): Promise<Blo
   const headers = await requestHeaders(init);
   const url = await resolveApiUrl(path);
   logNativeRequest(path, url);
-  const response = await fetch(url, {
-    ...init,
-    headers,
-    credentials: "include"
-  });
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(url, {
+      ...init,
+      headers,
+      credentials: "include"
+    });
+  } catch (error) {
+    logNativeNetworkError(path, url, error);
+    throw createNetworkApiError(error, url);
+  }
   logNativeResponse(path, response);
 
   if (!response.ok) {
@@ -126,17 +139,86 @@ export async function resolveApiUrl(path: string) {
   if (!isNativeApp()) return apiUrl(path);
   const serverUrl = await getNativeServerUrl();
   if (!serverUrl) throw new ApiError(0, "URL serveur non configuree.");
-  return `${serverUrl}${path}`;
+  return resolveServerPath(serverUrl, path);
 }
 
 function logNativeRequest(path: string, url: string) {
   if (!isNativeApp()) return;
-  console.info("[pea:api] request", { path, url });
+  const details = getServerUrlDetails(url);
+  console.info("[pea:api] request", { path, url, protocol: details.protocol, hostname: details.hostname });
 }
 
 function logNativeResponse(path: string, response: Response) {
   if (!isNativeApp()) return;
   console.info("[pea:api] response", { path, status: response.status, ok: response.ok, url: response.url });
+}
+
+function logNativeNetworkError(path: string, url: string, error: unknown) {
+  if (!isNativeApp()) return;
+  console.error("[pea:api] network error", { path, url, ...describeNetworkError(error) });
+}
+
+export function describeNetworkError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return { name: "UnknownError", message: String(error) };
+  }
+
+  const causeValue = (error as Error & { cause?: unknown }).cause;
+  const cause = causeValue instanceof Error
+    ? { causeName: causeValue.name, causeMessage: causeValue.message }
+    : {};
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    ...cause
+  };
+}
+
+function createNetworkApiError(error: unknown, url: string) {
+  const details = describeNetworkError(error);
+  const causeMessage = "causeMessage" in details ? details.causeMessage : "";
+  const text = `${details.message ?? ""} ${causeMessage}`;
+  const isTimeout = details.name === "AbortError" || /timeout|timed out|aborted/i.test(text);
+  const isSsl = /ssl|cert|certificate|trust|authority|handshake|ERR_CERT/i.test(text);
+  const parsed = getServerUrlDetails(url);
+
+  const message = isTimeout
+    ? `Timeout reseau apres ${defaultRequestTimeoutMs / 1000}s vers ${parsed.hostname}.`
+    : isSsl
+      ? `Erreur SSL/certificat vers ${parsed.hostname}. Verifiez que le certificat racine est installe et autorise pour les apps Android.`
+      : `Serveur inaccessible depuis l'application (${parsed.protocol}//${parsed.hostname}). Detail: ${details.message || "erreur reseau inconnue"}`;
+
+  return new ApiError(0, message, {
+    details: {
+      url,
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      timeoutMs: defaultRequestTimeoutMs,
+      ...details
+    }
+  });
+}
+
+export async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = defaultRequestTimeoutMs) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(new DOMException("Timeout reseau", "AbortError")), timeoutMs);
+  const signal = init.signal;
+
+  if (signal?.aborted) {
+    window.clearTimeout(timeout);
+    throw abortError();
+  }
+
+  const abort = () => controller.abort(signal?.reason ?? abortError());
+  signal?.addEventListener("abort", abort, { once: true });
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
 }
 
 export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | undefined> {
@@ -150,6 +232,7 @@ export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | 
 
   if (isNativeApp()) {
     headers.set("X-PEA-Auth-Mode", "bearer");
+    headers.set("Origin", "https://localhost");
     hasHeaders = true;
     const token = await getNativeAuthToken();
     if (token) {

@@ -229,6 +229,47 @@ test("production mutating requests reject missing Origin", () => {
   assert.equal(result.status, 403);
 });
 
+test("production mutating requests accept native bearer mode without Origin", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const setupBody = await setup.json();
+        const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
+          body: JSON.stringify({ username: "alice", password })
+        });
+        const loginBody = await login.json();
+        console.log("__RESULT__" + JSON.stringify({
+          setupStatus: setup.status,
+          loginStatus: login.status,
+          setupHasToken: typeof setupBody.token === "string",
+          loginHasToken: typeof loginBody.token === "string",
+          username: loginBody.user?.username
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production" });
+
+  assert.equal(result.setupStatus, 201);
+  assert.equal(result.loginStatus, 200);
+  assert.equal(result.setupHasToken, true);
+  assert.equal(result.loginHasToken, true);
+  assert.equal(result.username, "alice");
+});
+
 test("development mutating requests accept Vite localhost origin", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";

@@ -4,6 +4,11 @@ const config: CapacitorConfig = {
   appId: "com.peaportfolio.app",
   appName: "PEA",
   webDir: "dist",
+  plugins: {
+    CapacitorHttp: {
+      enabled: true
+    }
+  },
   server: {
     androidScheme: "https"
   }

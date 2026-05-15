@@ -1,25 +1,34 @@
 import { Save, Server, Wifi } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { clearNativeAuthToken, getNativeServerUrl, isInsecureServerUrl, isNativeApp, normalizeServerUrl, setNativeServerUrl } from "../../lib/native-auth";
+import { describeNetworkError, fetchWithTimeout } from "../../lib/api-core";
+import { clearNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
 import { Collapsible, Toast } from "./feedback";
 
 async function assertServerReachable(serverUrl: string) {
-  let response: Response;
-  const url = `${serverUrl}/api/health`;
-  if (isNativeApp()) console.info("[pea:server] health check", { url });
-  try {
-    response = await fetch(url, { cache: "no-store" });
-    if (isNativeApp()) console.info("[pea:server] health response", { status: response.status, ok: response.ok, url: response.url });
-  } catch {
-    if (isNativeApp()) console.error("[pea:server] health fetch failed", { url });
-    const protocol = new URL(serverUrl).protocol;
-    throw new Error(
-      protocol === "http:"
-        ? "Serveur local inaccessible. Verifiez que le telephone est sur le meme Wi-Fi et que le pare-feu Windows autorise le port."
-        : "Serveur inaccessible. Verifiez l'URL, le reseau et le certificat HTTPS."
-    );
+  const details = getServerUrlDetails(serverUrl);
+  const healthUrls = Array.from(new Set([
+    resolveServerPath(serverUrl, "/api/health"),
+    resolveServerPath(serverUrl, "/health")
+  ]));
+  const failures: string[] = [];
+
+  for (const url of healthUrls) {
+    if (isNativeApp()) console.info("[pea:server] health check", { url, protocol: details.protocol, hostname: details.hostname });
+    try {
+      const response = await fetchWithTimeout(url, { cache: "no-store" }, 12_000);
+      if (isNativeApp()) console.info("[pea:server] health response", { status: response.status, ok: response.ok, url: response.url });
+      if (response.ok) return;
+      failures.push(`${url} -> HTTP ${response.status}`);
+    } catch (error) {
+      const diagnostic = describeNetworkError(error);
+      if (isNativeApp()) console.error("[pea:server] health fetch failed", { url, protocol: details.protocol, hostname: details.hostname, ...diagnostic });
+      failures.push(`${url} -> ${diagnostic.name}: ${diagnostic.message}`);
+    }
   }
-  if (!response.ok) throw new Error(`Serveur injoignable (${response.status}).`);
+
+  const sslHint = details.protocol === "https:" ? " Si c'est un certificat prive, verifiez qu'il est installe comme autorite racine Android et autorise pour les apps." : "";
+  const httpHint = details.protocol === "http:" ? " HTTP est autorise par l'APK, mais le telephone doit joindre directement l'IP/le nom et le port du serveur." : "";
+  throw new Error(`Serveur inaccessible apres tentative reelle vers ${details.protocol}//${details.hostname}.${httpHint}${sslHint} Details: ${failures.join(" ; ")}`);
 }
 
 export function ServerSetupPage({ message, onConfigured }: { message?: string; onConfigured: () => void }) {
@@ -105,7 +114,7 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
       </label>
       {insecureUrl && (
         <p className="rounded-md border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">
-          HTTP est reserve aux APK debug sur le meme Wi-Fi. Les builds release Android restent HTTPS-only.
+          HTTP est autorise pour les serveurs locaux/self-hosted. Verifiez seulement que le telephone peut joindre ce nom ou cette IP sur le meme reseau.
         </p>
       )}
       <button className="btn-primary" disabled={saving} type="submit">

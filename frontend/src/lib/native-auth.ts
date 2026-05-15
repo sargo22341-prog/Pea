@@ -39,7 +39,34 @@ export function normalizeServerUrl(value: string) {
     throw new Error("L'URL serveur doit commencer par http:// ou https://.");
   }
 
-  return parsed.origin;
+  if (!parsed.hostname.trim()) {
+    throw new Error("L'URL serveur doit contenir un hostname valide.");
+  }
+
+  return `${parsed.origin}${parsed.pathname === "/" ? "" : parsed.pathname}`;
+}
+
+export function getServerUrlDetails(value: string) {
+  const parsed = new URL(normalizeServerUrl(value));
+  return {
+    url: parsed.toString().replace(/\/$/, ""),
+    protocol: parsed.protocol,
+    hostname: parsed.hostname,
+    port: parsed.port || undefined,
+    pathname: parsed.pathname === "/" ? "" : parsed.pathname
+  };
+}
+
+export function resolveServerPath(serverUrl: string, path: string) {
+  const details = getServerUrlDetails(serverUrl);
+  const basePath = details.pathname.replace(/\/+$/, "");
+  let nextPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (basePath.toLowerCase().endsWith("/api") && nextPath.toLowerCase().startsWith("/api/")) {
+    nextPath = nextPath.slice(4);
+  }
+
+  return `${details.url}${nextPath}`;
 }
 
 export function isInsecureServerUrl(value: string) {

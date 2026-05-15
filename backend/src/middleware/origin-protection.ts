@@ -1,8 +1,7 @@
 import type { RequestHandler } from "express";
 import { config } from "../config.js";
-import { HttpError } from "../utils/http-error.js";
 import { logger } from "../services/shared/logger.service.js";
-
+import { HttpError } from "../utils/http-error.js";
 
 const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const devOrigins = new Set(["http://localhost", "https://localhost", "capacitor://localhost", "http://localhost:5173", "http://127.0.0.1:5173"]);
@@ -37,6 +36,10 @@ function allowedOrigins(req: Parameters<RequestHandler>[0]) {
   return origins;
 }
 
+function isNativeBearerRequest(req: Parameters<RequestHandler>[0]) {
+  return req.header("X-PEA-Auth-Mode")?.toLowerCase() === "bearer" || req.header("Authorization")?.toLowerCase().startsWith("bearer ");
+}
+
 export function verifyMutatingRequestOrigin(): RequestHandler {
   return (req, _res, next) => {
     if (!mutatingMethods.has(req.method)) {
@@ -46,9 +49,15 @@ export function verifyMutatingRequestOrigin(): RequestHandler {
 
     const origin = requestOrigin(req.headers.origin) ?? requestOrigin(req.headers.referer);
 
-    // En production, toute requête mutante sans header Origin est bloquée :
-    // les navigateurs modernes envoient toujours Origin sur les requêtes cross-site,
-    // et une SPA same-origin l'envoie aussi. L'absence d'Origin est suspecte.
+    // CapacitorHttp is a native client path and may not send Origin/Referer.
+    // Bearer mode does not rely on browser cookies, so this is not the CSRF case
+    // this middleware is meant to block.
+    if (!origin && isNativeBearerRequest(req)) {
+      next();
+      return;
+    }
+
+    // In production, cookie-based mutating requests without Origin remain blocked.
     if (!origin && config.nodeEnv === "production") {
       next(new HttpError(403, "Origine de requete absente."));
       return;
@@ -61,7 +70,7 @@ export function verifyMutatingRequestOrigin(): RequestHandler {
         origin,
         allowedOrigins: Array.from(allowedOrigins(req)),
         referer: req.headers.referer,
-        host: req.headers.host,
+        host: req.headers.host
       });
 
       next(new HttpError(403, "Origine de requete non autorisee."));
