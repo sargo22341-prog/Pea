@@ -1,0 +1,306 @@
+name: Docker build, bump and push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "shared/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  IMAGE_NAME: pea-portfolio
+  REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+  DOCKER_API_VERSION: "1.43"
+
+jobs:
+  version:
+    name: Bump app version
+    runs-on: ubuntu-latest
+    if: |
+      !startsWith(gitea.ref, 'refs/tags/') &&
+      !contains(gitea.event.head_commit.message, 'chore: bump version')
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Node
+        run: |
+          node -v
+          npm -v
+
+      - name: Bump package versions
+        run: |
+          BUMP="${{ inputs.bump }}"
+          if [ -z "$BUMP" ]; then
+            BUMP="patch"
+          fi
+
+          npm version "$BUMP" \
+            --workspaces \
+            --include-workspace-root \
+            --no-git-tag-version
+
+      - name: Sync Android APK version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          VERSION_CODE=$(node -e "const [major, minor, patch] = process.argv[1].split('.').map(Number); if (![major, minor, patch].every(Number.isInteger) || minor > 99 || patch > 99) process.exit(1); console.log(major * 10000 + minor * 100 + patch)" "$VERSION")
+
+          node -e "
+            const fs = require('fs');
+            const file = 'frontend/android/app/build.gradle';
+            const version = process.argv[1];
+            const code = process.argv[2];
+            let text = fs.readFileSync(file, 'utf8');
+            text = text
+              .replace(/def androidVersionName = \"[^\"]+\"/, 'def androidVersionName = \"' + version + '\"')
+              .replace(/def androidVersionCode = \d+/, 'def androidVersionCode = ' + code);
+            fs.writeFileSync(file, text);
+          " "$VERSION" "$VERSION_CODE"
+
+          echo "Android versionName=$VERSION"
+          echo "Android versionCode=$VERSION_CODE"
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag version
+        run: |
+          git config user.name "gitea-actions"
+          git config user.email "gitea-actions@local"
+
+          git add package.json package-lock.json backend/package.json frontend/package.json shared/package.json frontend/android/app/build.gradle
+          git commit -m "chore: bump version to v${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin HEAD:${{ gitea.ref_name }} --tags
+
+  docker:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    needs:
+      - version
+    if: needs.version.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout bumped tag
+        run: |
+          # --force garantit que les tags locaux sont mis à jour même s'ils existent déjà
+          git fetch --tags --force origin
+          git checkout "v${{ needs.version.outputs.version }}"
+
+      - name: Check Node
+        run: |
+          node -v
+          npm -v
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        # --audit-level=high bloque le build sur toute vulnérabilité haute ou critique
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Backend tests
+        run: npm test -w backend
+
+      - name: Frontend tests
+        run: npm test -w frontend
+
+      - name: Build app
+        run: npm run build
+
+      - name: Compute Docker tags
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          IMAGE="${REGISTRY}/${IMAGE_NAME}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tags=${IMAGE}:${VERSION},${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+          driver-opts: network=host
+
+      - name: Login to local Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=PEA Portfolio
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.source=${{ gitea.server_url }}/${{ gitea.repository }}
+
+  android-release:
+    name: Build signed APK and create Gitea release
+    runs-on: ubuntu-latest
+    needs:
+      - version
+      - docker
+    if: needs.version.result == 'success' && needs.docker.result == 'success'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout bumped tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: v${{ needs.version.outputs.version }}
+          
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Check Java and Android
+        run: |
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build -w shared
+
+      - name: Build Android web assets
+        run: npm run build:android -w frontend
+
+      - name: Restore Android keystore
+        working-directory: frontend/android
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > pea-release.keystore
+
+      - name: Make Gradle wrapper executable
+        working-directory: frontend/android
+        run: chmod +x ./gradlew
+
+      - name: Build signed release APK
+        working-directory: frontend/android
+        run: ./gradlew assembleRelease
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ gitea.workspace }}/frontend/android/pea-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Verify signed APK version
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          VERSION_CODE=$(node -e "const [major, minor, patch] = process.argv[1].split('.').map(Number); if (![major, minor, patch].every(Number.isInteger) || minor > 99 || patch > 99) process.exit(1); console.log(major * 10000 + minor * 100 + patch)" "$VERSION")
+          APK_SOURCE="frontend/android/app/build/outputs/apk/release/app-release.apk"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)
+          BADGING=$("$AAPT" dump badging "$APK_SOURCE")
+
+          echo "$BADGING" | grep "versionName='$VERSION'"
+          echo "$BADGING" | grep "versionCode='$VERSION_CODE'"
+          echo "APK versionName=$VERSION"
+          echo "APK versionCode=$VERSION_CODE"
+
+      - name: Rename APK
+        id: apk
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          APK_SOURCE="frontend/android/app/build/outputs/apk/release/app-release.apk"
+          APK_TARGET="pea-portfolio-${VERSION}.apk"
+
+          cp "$APK_SOURCE" "$APK_TARGET"
+
+          echo "apk_name=$APK_TARGET" >> "$GITHUB_OUTPUT"
+          echo "apk_path=$APK_TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Create Gitea release
+        id: release
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          TAG="v${VERSION}"
+          API="${{ gitea.server_url }}/api/v1"
+          REPO="${{ gitea.repository }}"
+
+          RESPONSE=$(curl -sS -X POST \
+            "$API/repos/$REPO/releases" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tag_name\": \"$TAG\",
+              \"target_commitish\": \"$TAG\",
+              \"name\": \"PEA Portfolio $TAG\",
+              \"body\": \"Release $TAG\\n\\n- Image Docker: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}\\n- APK Android signé attaché à cette release.\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+
+          echo "$RESPONSE" > release.json
+          RELEASE_ID=$(node -e "console.log(require('./release.json').id)")
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK to Gitea release
+        run: |
+          API="${{ gitea.server_url }}/api/v1"
+          REPO="${{ gitea.repository }}"
+          RELEASE_ID="${{ steps.release.outputs.release_id }}"
+          APK_NAME="${{ steps.apk.outputs.apk_name }}"
+          APK_PATH="${{ steps.apk.outputs.apk_path }}"
+
+          curl -sS -X POST \
+            "$API/repos/$REPO/releases/$RELEASE_ID/assets?name=$APK_NAME" \
+            -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "attachment=@$APK_PATH"

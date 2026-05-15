@@ -1,0 +1,19 @@
+services:
+  pea-portfolio:
+    image: ${DOCKER_REGISTRY:-}/pea-portfolio:${IMAGE_TAG:-latest}
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      SQLITE_PATH: /app/data/pea.sqlite
+      FRONTEND_DIST: /app/frontend-dist
+      DEBUG: "false" # Optional
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
+      TZ: Europe/Paris
+    volumes:
+      - /data:/app/data
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
