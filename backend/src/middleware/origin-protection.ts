@@ -5,12 +5,15 @@ import { logger } from "../services/shared/logger.service.js";
 
 
 const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const devOrigins = new Set(["http://localhost:5173", "http://127.0.0.1:5173"]);
+const devOrigins = new Set(["http://localhost", "https://localhost", "capacitor://localhost", "http://localhost:5173", "http://127.0.0.1:5173"]);
 
 function requestOrigin(value?: string) {
   if (!value) return undefined;
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+    if (url.origin !== "null") return url.origin;
+    if (url.protocol === "capacitor:" && url.host) return `${url.protocol}//${url.host}`;
+    return undefined;
   } catch {
     return undefined;
   }

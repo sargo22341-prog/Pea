@@ -148,7 +148,7 @@ cd frontend/android
 
 L'APK debug est genere dans `frontend/android/app/build/outputs/apk/debug/`.
 
-Pour tester l'APK debug contre le backend Windows local en HTTP, consultez [docs/android-dev.md](docs/android-dev.md). Ce mode accepte par exemple `http://192.168.1.42:4000` uniquement en debug Android ; les builds release restent HTTPS-only.
+Pour tester l'APK contre un backend Windows local en HTTP, consultez [docs/android-dev.md](docs/android-dev.md). L'APK accepte les URL self-hosted locales comme `http://192.168.1.42:4000` ou `http://mon-nas.local:4000`. HTTPS avec certificat public valide reste recommande ; avec un certificat auto-signe, installez le certificat racine dans Android pour qu'il soit reconnu comme certificat utilisateur.
 
 ## Production (Docker)
 

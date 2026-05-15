@@ -1,15 +1,23 @@
 apply plugin: 'com.android.application'
 
+def androidVersionName = "0.1.44"
+def androidVersionCode = 144
+def releaseStoreFile = System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("PEA_RELEASE_STORE_FILE") ?: "pea-release.keystore"
+def releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("PEA_RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: project.findProperty("PEA_RELEASE_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: project.findProperty("PEA_RELEASE_KEY_PASSWORD")
+def hasReleaseSigning = releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     namespace = "com.peaportfolio.app"
     compileSdk = rootProject.ext.compileSdkVersion
 
     signingConfigs {
         release {
-            storeFile file(System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("PEA_RELEASE_STORE_FILE") ?: "pea-release.keystore")
-            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("PEA_RELEASE_STORE_PASSWORD")
-            keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: project.findProperty("PEA_RELEASE_KEY_ALIAS")
-            keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: project.findProperty("PEA_RELEASE_KEY_PASSWORD")
+            storeFile file(releaseStoreFile)
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
         }
     }
 
@@ -17,8 +25,8 @@ android {
         applicationId "com.peaportfolio.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode androidVersionCode
+        versionName androidVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -27,7 +35,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

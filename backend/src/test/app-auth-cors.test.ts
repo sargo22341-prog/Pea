@@ -117,6 +117,147 @@ test("CORS allows configured production origins for the Android wrapper", () => 
   assert.equal(result.allowCredentials, "true");
 });
 
+test("production login accepts Android WebView origin when configured", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "https://localhost" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "https://localhost" },
+          body: JSON.stringify({ username: "alice", password })
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          setupStatus: setup.status,
+          loginStatus: login.status,
+          allowOrigin: login.headers.get("access-control-allow-origin"),
+          body: await login.json()
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+
+  assert.equal(result.setupStatus, 201);
+  assert.equal(result.loginStatus, 200);
+  assert.equal(result.allowOrigin, "https://localhost");
+  assert.equal(result.body.username, "alice");
+});
+
+test("production mutating requests accept configured Capacitor origin", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "capacitor://localhost" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          status: response.status,
+          allowOrigin: response.headers.get("access-control-allow-origin"),
+          body: await response.json()
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "capacitor://localhost" } });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.allowOrigin, "capacitor://localhost");
+  assert.equal(result.body.username, "alice");
+});
+
+test("production mutating requests reject unconfigured origins", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "https://evil.example" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+
+  assert.equal(result.status, 403);
+});
+
+test("production mutating requests reject missing Origin", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+
+  assert.equal(result.status, 403);
+});
+
+test("development mutating requests accept Vite localhost origin", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "http://localhost:5173" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          status: response.status,
+          allowOrigin: response.headers.get("access-control-allow-origin"),
+          body: await response.json()
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "development" });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.allowOrigin, "http://localhost:5173");
+  assert.equal(result.body.username, "alice");
+});
+
 test("auth setup, login and logout use secure local session flow", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";

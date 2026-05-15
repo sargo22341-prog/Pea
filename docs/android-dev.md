@@ -5,8 +5,9 @@ Ce mode sert a tester l'APK debug contre le backend lance sur Windows, sans push
 ## Principe
 
 - Le backend local ecoute sur `0.0.0.0`, donc il est accessible depuis le reseau local.
-- L'APK debug Android autorise les URLs `http://...` pour les tests LAN.
-- Les builds release Android restent HTTPS-only : le cleartext HTTP n'est active que dans `frontend/android/app/src/debug`.
+- L'APK Android autorise les URLs `http://...` pour le self-hosting local/LAN, y compris en release.
+- HTTPS avec un certificat public valide reste recommande pour un usage quotidien.
+- Si vous utilisez un certificat auto-signe, installez le certificat racine dans Android : l'APK fait confiance aux certificats systeme et utilisateur Android, sans bypass SSL natif.
 
 ## Trouver l'IP Windows
 
@@ -116,10 +117,14 @@ http://192.168.1.42:4000/api/...
 - Images de profil
 - Changement d'URL serveur dans les parametres
 
-## Limites du mode HTTP debug
+## HTTP local et certificats Android
 
-HTTP est uniquement prevu pour les APK debug sur reseau local. Pour la production et les APK release, utilisez une URL HTTPS, par exemple :
+HTTP est accepte par l'APK pour les serveurs self-hosted locaux, par exemple `http://192.168.1.42:4000` ou `http://mon-nas.local:4000`.
+
+Pour un serveur expose durablement, utilisez HTTPS avec un certificat public valide, par exemple :
 
 ```text
 https://pea.nas.home
 ```
+
+Si votre serveur HTTPS utilise un certificat auto-signe ou une autorite interne, installez le certificat racine correspondant dans les certificats utilisateur Android. L'app acceptera alors ce certificat via la configuration reseau Android, sans option "desactiver SSL".
