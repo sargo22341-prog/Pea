@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def androidVersionName = "0.1.48"
-def androidVersionCode = 148
+def androidVersionName = "0.1.49"
+def androidVersionCode = 149
 def releaseStoreFile = System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("PEA_RELEASE_STORE_FILE") ?: "pea-release.keystore"
 def releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("PEA_RELEASE_STORE_PASSWORD")
 def releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: project.findProperty("PEA_RELEASE_KEY_ALIAS")
