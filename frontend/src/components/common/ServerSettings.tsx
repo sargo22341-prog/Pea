@@ -33,7 +33,7 @@ async function assertServerReachable(serverUrl: string) {
 
 export function ServerSetupPage({ message, onConfigured }: { message?: string; onConfigured: () => void }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink px-4 py-8 text-slate-100">
+    <div className="safe-bottom flex min-h-screen items-center justify-center bg-ink px-4 py-8 text-slate-100" data-system-bars-bottom="#071014" data-system-bars-top="#071014">
       <div className="w-full max-w-md rounded-md border border-line bg-panel p-5 shadow-glow">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-md bg-panel2 text-mint">

@@ -1,12 +1,13 @@
 import { MARKET_EVENT_TYPES } from "@pea/shared";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Shell } from "./components/common/Shell";
 import { ServerSetupPage } from "./components/common/ServerSettings";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
+import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
 import { AuthPage } from "./pages/auth/AuthPage";
 
 const AssetDetailPage = lazy(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
@@ -23,6 +24,7 @@ function LoadingPage() {
 }
 
 export function App() {
+  useSystemBars();
   const [nativeServerState, setNativeServerState] = useState<{ loading: boolean; configured: boolean }>({
     loading: isNativeApp(),
     configured: !isNativeApp()
@@ -45,6 +47,20 @@ export function App() {
   }
 
   return <AuthenticatedApp />;
+}
+
+function useSystemBars() {
+  const location = useLocation();
+
+  useEffect(() => {
+    initSystemBars();
+  }, []);
+
+  useEffect(() => {
+    queueSystemBarsRefresh();
+    const timeout = window.setTimeout(queueSystemBarsRefresh, 120);
+    return () => window.clearTimeout(timeout);
+  }, [location.pathname]);
 }
 
 function AuthenticatedApp() {

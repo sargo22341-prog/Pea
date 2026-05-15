@@ -30,7 +30,7 @@ export function AuthPage({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+    <main className="safe-bottom flex min-h-screen items-center justify-center px-4 py-10" data-system-bars-bottom="#071014" data-system-bars-top="#071014">
       <form className="card w-full max-w-md space-y-4 p-5" onSubmit={submit}>
         <div className="flex items-center gap-3">
           <img alt="" className="h-12 w-12 rounded-md object-cover shadow-glow" src="/pea-icon.png" />

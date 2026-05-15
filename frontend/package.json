@@ -16,6 +16,7 @@
     "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor/android": "^8.3.4",
     "@capacitor/core": "^8.3.4",
+    "@capacitor/status-bar": "^8.0.2",
     "@pea/shared": "file:../shared",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",

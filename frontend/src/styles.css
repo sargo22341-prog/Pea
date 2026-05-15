@@ -8,6 +8,10 @@
     sans-serif;
   background: #071014;
   color: #f5f7fa;
+  --pea-system-bar-top: #071014;
+  --pea-system-bar-bottom: #071014;
+  --pea-safe-area-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --pea-safe-area-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 html,
@@ -28,6 +32,33 @@ body {
   background:
     radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32rem),
     linear-gradient(180deg, #071014 0%, #0a1419 50%, #071014 100%);
+}
+
+.is-native-android body {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 32rem),
+    linear-gradient(180deg, #071014 0%, #0a1419 50%, #071014 100%);
+}
+
+.is-native-android {
+  --pea-safe-area-top: 0px;
+  --pea-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-top {
+  padding-top: var(--pea-safe-area-top);
+}
+
+.safe-header-top {
+  padding-top: calc(var(--pea-safe-area-top) + 1rem);
+}
+
+.safe-bottom {
+  padding-bottom: var(--pea-safe-area-bottom);
+}
+
+.min-h-screen-safe {
+  min-height: calc(100vh - var(--pea-safe-area-top) - var(--pea-safe-area-bottom));
 }
 
 button,

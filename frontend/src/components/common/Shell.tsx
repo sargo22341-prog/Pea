@@ -40,8 +40,8 @@ export function Shell({ user }: { user: User }) {
 
   return (
     <div className="min-h-screen min-w-0 overflow-x-hidden pb-20 lg:pb-0">
-      <header className="sticky top-0 z-20 border-b border-line bg-ink/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-4">
+      <header className="sticky top-0 z-20 border-b border-line bg-ink/85 backdrop-blur" data-system-bars-top="#071014">
+        <div className="safe-header-top mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 pb-4">
           <div className="flex min-w-0 items-center gap-3">
             <img alt="" className="h-11 w-11 rounded-md object-cover shadow-glow" src="/pea-icon.png" />
             <div className="min-w-0">
@@ -97,7 +97,7 @@ export function Shell({ user }: { user: User }) {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-ink/95 lg:hidden" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-ink/95 lg:hidden" data-system-bars-bottom="#071014" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
         {links.map((link) => (
           <NavLink
             className={mobileNavClass}
