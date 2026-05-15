@@ -1,8 +1,9 @@
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 
 const authTokenKey = "pea.auth.sessionToken";
 const serverUrlKey = "pea.server.url";
+const peaNetwork = registerPlugin<{ setBackendUrl(options: { url: string }): Promise<{ ok: boolean }> }>("PEANetwork");
 
 export function isNativeApp() {
   return Capacitor.isNativePlatform();
@@ -80,15 +81,26 @@ export function isInsecureServerUrl(value: string) {
 export async function getNativeServerUrl() {
   if (!isNativeApp()) return undefined;
   const url = await SecureStorage.getItem(serverUrlKey);
-  return url?.trim() || undefined;
+  const normalized = url?.trim() || undefined;
+  if (normalized) await configureNativeBackendUrl(normalized);
+  return normalized;
 }
 
 export async function setNativeServerUrl(url: string) {
   if (!isNativeApp()) return;
-  await SecureStorage.setItem(serverUrlKey, normalizeServerUrl(url));
+  const normalized = normalizeServerUrl(url);
+  await SecureStorage.setItem(serverUrlKey, normalized);
+  await configureNativeBackendUrl(normalized);
 }
 
 export async function clearNativeServerUrl() {
   if (!isNativeApp()) return;
   await SecureStorage.removeItem(serverUrlKey);
+}
+
+export async function configureNativeBackendUrl(url: string) {
+  if (!isNativeApp()) return;
+  await peaNetwork.setBackendUrl({ url: normalizeServerUrl(url) }).catch((error) => {
+    console.error("[pea:network] failed to configure native backend URL", { url, error });
+  });
 }

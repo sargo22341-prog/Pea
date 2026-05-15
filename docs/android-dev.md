@@ -124,7 +124,7 @@ HTTP est accepte par l'APK pour les serveurs self-hosted locaux, par exemple `ht
 Pour un serveur expose durablement, utilisez HTTPS avec un certificat public valide, par exemple :
 
 ```text
-https://pea.nas.home
+https://pea.home
 ```
 
 Si votre serveur HTTPS utilise un certificat auto-signe ou une autorite interne, installez le certificat racine correspondant dans les certificats utilisateur Android. L'app acceptera alors ce certificat via la configuration reseau Android, sans option "desactiver SSL".

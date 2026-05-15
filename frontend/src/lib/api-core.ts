@@ -232,7 +232,6 @@ export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | 
 
   if (isNativeApp()) {
     headers.set("X-PEA-Auth-Mode", "bearer");
-    headers.set("Origin", "https://localhost");
     hasHeaders = true;
     const token = await getNativeAuthToken();
     if (token) {

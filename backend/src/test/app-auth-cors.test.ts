@@ -270,6 +270,58 @@ test("production mutating requests accept native bearer mode without Origin", ()
   assert.equal(result.username, "alice");
 });
 
+test("production authenticated bearer mutations accept missing Origin", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const setupBody = await setup.json();
+        const response = await fetch(\`\${baseUrl}/api/auth/me\`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: \`Bearer \${setupBody.token}\` },
+          body: JSON.stringify({ dashboardDefaultSortKey: "name" })
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production" });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.dashboardDefaultSortKey, "name");
+});
+
+test("production non-auth native marker without Origin is still rejected", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/logout\`, {
+          method: "POST",
+          headers: { "X-PEA-Auth-Mode": "bearer" }
+        });
+        console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.text() }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production" });
+
+  assert.equal(result.status, 403);
+});
+
 test("development mutating requests accept Vite localhost origin", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";

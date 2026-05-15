@@ -1,7 +1,7 @@
 import { Save, Server, Wifi } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { describeNetworkError, fetchWithTimeout } from "../../lib/api-core";
-import { clearNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
+import { clearNativeAuthToken, configureNativeBackendUrl, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
 import { Collapsible, Toast } from "./feedback";
 
 async function assertServerReachable(serverUrl: string) {
@@ -88,6 +88,7 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
     setToast(null);
     try {
       const normalized = normalizeServerUrl(serverUrl);
+      await configureNativeBackendUrl(normalized);
       await assertServerReachable(normalized);
       await setNativeServerUrl(normalized);
       await clearNativeAuthToken();
@@ -108,7 +109,7 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
           className="input"
           inputMode="url"
           onChange={(event) => setServerUrl(event.target.value)}
-          placeholder="https://pea.nas.home"
+          placeholder="https://pea.home"
           value={serverUrl}
         />
       </label>

@@ -127,7 +127,9 @@ function MobilePositionRow({ position, positive, prive }: { position: PositionRa
       </div>
       <MiniSparkline miniChart={position.miniChart} tone={sparklineTone(position)} />
       <div className="min-w-0 text-right leading-tight">
-        <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums">{masquerValeur(money(position.currentMarketValue, position.currency), prive)}</p>
+        <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums">
+          {masquerValeur(`${money(position.currentPrice, position.currency)} / ${money(position.currentMarketValue, position.currency)}`, prive)}
+        </p>
         <p className={`mt-0.5 flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums ${positive ? "text-mint" : "text-coral"}`}>
           <Icon size={12} />
           <span className="min-w-0 truncate">

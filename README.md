@@ -132,9 +132,9 @@ Les caches de marché sont entretenus par le service runtime de cleanup, les inv
 
 ## APK Android
 
-L'APK est construit avec Capacitor depuis le frontend React existant. Le domaine backend n'est pas hardcode dans le build Android : au premier lancement, l'app demande l'URL du serveur PEA existant, par exemple `https://pea.nas.home`, puis construit automatiquement les appels vers `https://pea.nas.home/api`.
+L'APK est construit avec Capacitor depuis le frontend React existant. Le domaine backend n'est pas hardcode dans le build Android : au premier lancement, l'app demande l'URL du serveur PEA existant, par exemple `https://pea.home`, puis construit automatiquement les appels vers `https://pea.home/api`.
 
-Cette URL doit deja exposer l'application web sur `/` et l'API sur `/api`, comme le fait le backend de production. Aucun container proxy supplementaire n'est requis. Si votre API est volontairement publiee sur un sous-domaine dedie, vous pouvez saisir `https://api.pea.nas.home`, a condition que ce domaine expose aussi l'API sous `/api`.
+Cette URL doit deja exposer l'application web sur `/` et l'API sur `/api`, comme le fait le backend de production. Aucun container proxy supplementaire n'est requis. Si votre API est volontairement publiee sur un sous-domaine dedie, vous pouvez saisir `https://api.pea.home`, a condition que ce domaine expose aussi l'API sous `/api`.
 
 Le backend accepte les sessions mobiles en `Authorization: Bearer ...`. Le token est stocke dans le stockage securise natif Android via le KeyStore, tandis que la version web continue d'utiliser le cookie `httpOnly`.
 
@@ -159,7 +159,7 @@ docker compose up --build
 L'application est accessible sur **http://localhost:4000**.  
 La base de données SQLite et les icônes téléversées sont persistées dans le volume `./data`.
 
-En production, ce container unique sert le frontend sur `/` et l'API sur `/api`. Pour l'APK, publiez simplement cette meme application derriere votre URL habituelle, par exemple `https://pea.nas.home`, puis saisissez cette URL dans l'app Android.
+En production, ce container unique sert le frontend sur `/` et l'API sur `/api`. Pour l'APK, publiez simplement cette meme application derriere votre URL habituelle, par exemple `https://pea.home`, puis saisissez cette URL dans l'app Android.
 
 ### Extrait docker-compose.yml
 

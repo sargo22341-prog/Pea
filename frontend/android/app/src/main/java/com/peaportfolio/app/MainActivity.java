@@ -9,58 +9,19 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 public class MainActivity extends BridgeActivity {
   private static final String TAG = "PEA_SSL";
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    registerPlugin(PEANetworkPlugin.class);
     super.onCreate(savedInstanceState);
-    installSelfHostedTrustManager();
+    PEASelfHostedSsl.install();
 
     if (getBridge() != null && getBridge().getWebView() != null) {
       getBridge().getWebView().getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
       getBridge().setWebViewClient(new SelfHostedWebViewClient());
-    }
-  }
-
-  @SuppressLint({ "CustomX509TrustManager", "TrustAllX509TrustManager", "BadHostnameVerifier" })
-  private void installSelfHostedTrustManager() {
-    try {
-      TrustManager[] trustManagers = new TrustManager[] {
-        new X509TrustManager() {
-          @Override
-          public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-
-          @Override
-          public void checkServerTrusted(X509Certificate[] chain, String authType) {
-            Log.w(TAG, "HTTPS certificate accepted for self-hosted backend: authType=" + authType + ", chainLength=" + (chain == null ? 0 : chain.length));
-          }
-
-          @Override
-          public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-          }
-        }
-      };
-
-      SSLContext sslContext = SSLContext.getInstance("TLS");
-      sslContext.init(null, trustManagers, new SecureRandom());
-      HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
-      HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> {
-        Log.w(TAG, "HTTPS hostname accepted for self-hosted backend: " + hostname);
-        return true;
-      });
-      Log.w(TAG, "Self-hosted HTTPS trust manager installed for native HTTP requests.");
-    } catch (Exception error) {
-      Log.e(TAG, "Unable to install self-hosted HTTPS trust manager.", error);
     }
   }
 
@@ -72,8 +33,15 @@ public class MainActivity extends BridgeActivity {
     @Override
     @SuppressLint("WebViewClientOnReceivedSslError")
     public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-      Log.w(TAG, "SSL error ignored for self-hosted backend: " + describeSslError(error));
-      handler.proceed();
+      String hostname = android.net.Uri.parse(error.getUrl()).getHost();
+      if (PEASelfHostedSsl.isAllowedHost(hostname)) {
+        Log.w(TAG, "WebView SSL error accepted for configured backend: " + describeSslError(error));
+        handler.proceed();
+        return;
+      }
+
+      Log.w(TAG, "WebView SSL error refused for unconfigured host: " + describeSslError(error));
+      handler.cancel();
     }
 
     private String describeSslError(SslError error) {

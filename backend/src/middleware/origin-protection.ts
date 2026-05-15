@@ -37,7 +37,16 @@ function allowedOrigins(req: Parameters<RequestHandler>[0]) {
 }
 
 function isNativeBearerRequest(req: Parameters<RequestHandler>[0]) {
-  return req.header("X-PEA-Auth-Mode")?.toLowerCase() === "bearer" || req.header("Authorization")?.toLowerCase().startsWith("bearer ");
+  return hasBearerAuthorization(req) || isNativeBearerAuthBootstrap(req);
+}
+
+function hasBearerAuthorization(req: Parameters<RequestHandler>[0]) {
+  return req.header("Authorization")?.toLowerCase().startsWith("bearer ") === true;
+}
+
+function isNativeBearerAuthBootstrap(req: Parameters<RequestHandler>[0]) {
+  if (req.header("X-PEA-Auth-Mode")?.toLowerCase() !== "bearer") return false;
+  return req.method === "POST" && (req.path === "/auth/setup" || req.path === "/auth/login");
 }
 
 export function verifyMutatingRequestOrigin(): RequestHandler {
