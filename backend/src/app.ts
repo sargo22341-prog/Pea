@@ -26,6 +26,7 @@ if (config.trustProxy) {
 app.set("etag", false);
 app.use(
   helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
@@ -74,7 +75,14 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-app.use("/api", createRateLimit({ windowMs: 60_000, max: 120 }));
+const apiRateLimit = createRateLimit({ windowMs: 60_000, max: 120 });
+app.use("/api", (req, res, next) => {
+  if (req.method === "GET" && /^\/assets\/[^/]+\/icon$/.test(req.path)) {
+    next();
+    return;
+  }
+  apiRateLimit(req, res, next);
+});
 app.use("/api", apiRouter);
 
 if (config.nodeEnv === "production") {

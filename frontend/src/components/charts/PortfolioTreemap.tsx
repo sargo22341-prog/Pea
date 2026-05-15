@@ -1,6 +1,7 @@
 import type { PortfolioTreemapItem } from "@pea/shared";
 import { memo } from "react";
 import { Tooltip, Treemap } from "recharts";
+import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
 import { chartColors, formatPercent } from "./chartFormat";
@@ -20,16 +21,17 @@ type TreemapTooltipProps = {
 };
 
 function TreemapContent(props: TreemapContentProps) {
-  const { x = 0, y = 0, width = 0, height = 0, index = 0, symbol, percentage, logoUrl } = props;
+  const { x = 0, y = 0, width = 0, height = 0, index = 0, symbol, percentage } = props;
   const showDetails = width > 82 && height > 46;
-  const showLogo = logoUrl && width > 120 && height > 74;
+  const showLogo = Boolean(symbol && width > 120 && height > 74);
+  const iconUrl = useAuthenticatedImageUrl(symbol ? `/api/assets/${encodeURIComponent(symbol)}/icon` : "", symbol ?? "", showLogo);
 
   return (
     <g>
       <rect fill={chartColors[index % chartColors.length]} height={height} rx={6} ry={6} stroke="#071014" strokeWidth={3} width={width} x={x} y={y} />
       {showDetails ? (
         <>
-          {showLogo ? <image height={28} href={logoUrl} width={28} x={x + 10} y={y + 10} /> : null}
+          {showLogo && iconUrl ? <image height={28} href={iconUrl} width={28} x={x + 10} y={y + 10} /> : null}
           <text fill="#071014" fontSize={13} fontWeight={800} x={x + 10} y={y + (showLogo ? 54 : 22)}>
             {symbol ?? ""}
           </text>

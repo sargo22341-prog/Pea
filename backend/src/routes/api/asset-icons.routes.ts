@@ -9,10 +9,18 @@ import { routeParam } from "../shared/params.js";
 
 export const assetIconsRouter = express.Router();
 
+function setIconCacheHeaders(res: express.Response) {
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.removeHeader("Pragma");
+  res.removeHeader("Expires");
+  res.removeHeader("Surrogate-Control");
+}
+
 assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
   const symbol = routeParam(req.params.symbol, "symbol");
   let icon = iconService.getIconFile(symbol);
   if (icon?.filePath && icon.mimeType) {
+    setIconCacheHeaders(res);
     res.type(icon.mimeType).sendFile(icon.filePath);
     return;
   }
@@ -20,10 +28,12 @@ assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
   await iconService.fetchAndStoreIcon(symbol);
   icon = iconService.getIconFile(symbol);
   if (icon?.filePath && icon.mimeType) {
+    setIconCacheHeaders(res);
     res.type(icon.mimeType).sendFile(icon.filePath);
     return;
   }
 
+  setIconCacheHeaders(res);
   res.type("image/svg+xml").send(iconService.placeholder(symbol));
 }));
 

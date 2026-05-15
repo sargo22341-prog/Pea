@@ -25,7 +25,9 @@ export function AccountSettingsSection() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust);
+  const user = me.data?.user;
+  const shouldLoadProfileIcon = Boolean(user?.hasProfileIcon && !profileFailed && !profilePreview);
+  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
 
   if (me.loading)
     return (
@@ -34,7 +36,6 @@ export function AccountSettingsSection() {
       </Collapsible>
     );
 
-  const user = me.data?.user;
   const initial = user?.username.slice(0, 1).toUpperCase() ?? "?";
   const hasIcon = !profileFailed && (user?.hasProfileIcon || profilePreview !== "");
 
@@ -114,7 +115,7 @@ export function AccountSettingsSection() {
             >
               {profilePreview ? (
                 <img alt="" className="h-full w-full object-cover" src={profilePreview} />
-              ) : profileFailed || !user?.hasProfileIcon ? (
+              ) : !shouldLoadProfileIcon || !profileIconUrl ? (
                 <span>{initial}</span>
               ) : (
                 <img

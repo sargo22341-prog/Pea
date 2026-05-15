@@ -3,7 +3,7 @@ import { Clock3 } from "lucide-react";
 import type { CalendarEvent } from "@pea/shared";
 import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
-import { useApiUrl } from "../../hooks/useApiUrl";
+import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 
 type VisualTone = "green" | "blue" | "purple";
 
@@ -144,7 +144,7 @@ function CalendarEventCard({
   isPast: boolean;
   isNext: boolean;
 }) {
-  const iconUrl = useApiUrl(`/api/assets/${event.symbol}/icon?v=0`, event.symbol);
+  const iconUrl = useAuthenticatedImageUrl(`/api/assets/${encodeURIComponent(event.symbol)}/icon?v=0`, event.symbol);
   const day = event.date.toLocaleDateString("fr-FR", { day: "2-digit" });
   const month = event.date.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "");
   const year = event.date.getFullYear();
@@ -160,11 +160,15 @@ function CalendarEventCard({
       }`}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-slate-900">
-        <img
-          src={iconUrl}
-          alt={event.symbol}
-          className="h-full w-full object-cover"
-        />
+        {iconUrl ? (
+          <img
+            src={iconUrl}
+            alt={event.symbol}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-xs font-bold text-sky">{event.symbol.slice(0, 3)}</span>
+        )}
       </div>
 
       <div className="shrink-0 text-center leading-tight">

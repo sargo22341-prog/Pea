@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
-import { useNativeSwipeNavigation } from "../../hooks/android/useNativeSwipeNavigation";
 import { getMobileNavItems } from "./mobileNavItems";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {
@@ -18,9 +17,9 @@ export function Shell({ user }: { user: User }) {
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
-  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust);
+  const shouldLoadProfileIcon = hasProfileIcon && !profileFailed;
+  const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }), [user.assetNewsEnabled]);
-  useNativeSwipeNavigation({ items: links });
 
   useEffect(() => {
     const onProfileIconUpdated = (event: Event) => {
@@ -51,7 +50,7 @@ export function Shell({ user }: { user: User }) {
             </div>
           </div>
           <NavLink className="btn-ghost shrink-0 px-2 lg:hidden" title="Parametres" to="/settings">
-            {!hasProfileIcon || profileFailed ? (
+            {!shouldLoadProfileIcon || !profileIconUrl ? (
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                 {user.username.slice(0, 1).toUpperCase()}
               </span>
@@ -76,7 +75,7 @@ export function Shell({ user }: { user: User }) {
               </NavLink>
             ))}
             <NavLink className={navButtonClass} title="Parametres" to="/settings">
-              {!hasProfileIcon || profileFailed ? (
+              {!shouldLoadProfileIcon || !profileIconUrl ? (
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                   {user.username.slice(0, 1).toUpperCase()}
                 </span>

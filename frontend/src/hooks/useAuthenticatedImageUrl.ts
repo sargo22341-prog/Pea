@@ -1,22 +1,49 @@
 import { useEffect, useState } from "react";
-import { apiUrl, requestBlob, resolveApiUrl } from "../lib/api-core";
+import { apiUrl, requestBlob } from "../lib/api-core";
 import { isNativeApp } from "../lib/native-auth";
 
-export function useAuthenticatedImageUrl(path: string, version: number | string) {
-  const [url, setUrl] = useState(() => apiUrl(path));
+const nativeImageUrlCache = new Map<string, string>();
+const nativeImageInFlight = new Map<string, Promise<string>>();
+
+async function loadNativeImageUrl(path: string) {
+  const cached = nativeImageUrlCache.get(path);
+  if (cached) return cached;
+
+  let inFlight = nativeImageInFlight.get(path);
+  if (!inFlight) {
+    inFlight = requestBlob(path)
+      .then((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        nativeImageUrlCache.set(path, objectUrl);
+        return objectUrl;
+      })
+      .finally(() => {
+        nativeImageInFlight.delete(path);
+      });
+    nativeImageInFlight.set(path, inFlight);
+  }
+
+  return inFlight;
+}
+
+export function useAuthenticatedImageUrl(path: string, version: number | string, enabled = true) {
+  const [url, setUrl] = useState(() => enabled && !isNativeApp() ? apiUrl(path) : "");
 
   useEffect(() => {
-    if (!isNativeApp()) {
-      void resolveApiUrl(path).then(setUrl).catch(() => setUrl(apiUrl(path)));
+    if (!enabled || !path) {
+      setUrl("");
       return undefined;
     }
 
-    let objectUrl: string | undefined;
+    if (!isNativeApp()) {
+      setUrl(apiUrl(path));
+      return undefined;
+    }
+
     let active = true;
-    requestBlob(path)
-      .then((blob) => {
+    loadNativeImageUrl(path)
+      .then((objectUrl) => {
         if (!active) return;
-        objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
       })
       .catch(() => {
@@ -25,9 +52,8 @@ export function useAuthenticatedImageUrl(path: string, version: number | string)
 
     return () => {
       active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, version]);
+  }, [enabled, path, version]);
 
   return url;
 }

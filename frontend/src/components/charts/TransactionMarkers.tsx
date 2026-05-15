@@ -1,6 +1,6 @@
 import type { PortfolioTransactionMarker } from "@pea/shared";
 import { useState } from "react";
-import { useApiUrl } from "../../hooks/useApiUrl";
+import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { formatChartDateTime, formatNumber, money } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
 import type { MarkerGroupPoint, MarkerOverlayPoint } from "./transactionMarkerUtils";
@@ -113,6 +113,10 @@ function TransactionMarkerTooltip({
 }
 
 function MarkerIcon({ className, marker }: { className: string; marker: PortfolioTransactionMarker }) {
-  const fallbackUrl = useApiUrl(`/api/assets/${encodeURIComponent(marker.symbol)}/icon`, marker.symbol);
-  return <img alt="" className={className} src={marker.logoUrl ?? fallbackUrl} />;
+  const apiLogoPath = marker.logoUrl?.startsWith("/api/")
+    ? marker.logoUrl
+    : `/api/assets/${encodeURIComponent(marker.symbol)}/icon`;
+  const apiLogoUrl = useAuthenticatedImageUrl(apiLogoPath, marker.logoUrl ?? marker.symbol);
+  const src = marker.logoUrl && !marker.logoUrl.startsWith("/api/") ? marker.logoUrl : apiLogoUrl;
+  return src ? <img alt="" className={className} src={src} /> : null;
 }
