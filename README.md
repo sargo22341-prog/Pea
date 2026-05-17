@@ -57,11 +57,14 @@ services:
   pea-portfolio:
     image: ghcr.io/sargo22341-prog/pea-portfolio:latest
     environment:
-      PORT: 4000
-      LOGO_DEV_API_KEY: # Cle api LOGO DEV public
-      TZ: Europe/Paris
-      PUBLIC_URL: # Url
-      TRUST_PROXY: true
+      TZ: ${TZ:-Europe/Paris}
+      DEBUG: ${DEBUG:-false}
+      DEBUG_DATE: ${DEBUG_DATE:-}
+      ENABLE_MARKET_LIVE_REFRESH: ${ENABLE_MARKET_LIVE_REFRESH:-true}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
     volumes:
       - /data:/app/data
     ports:
@@ -72,38 +75,56 @@ services:
 Lancement :
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 
 Puis ouvrir `http://localhost:4000`.
 
+Chemins Docker persistants :
+
+| Donnee | Chemin |
+|---|---|
+| SQLite | `/app/data/pea.sqlite` |
+| Configuration graphiques | `/app/data/config.json` |
+| Icons et logs | `/app/data/icons`, `/app/data/profile-icons`, `/app/data/log` |
+| Build frontend servi par le backend | `/app/frontend-dist` |
+
+Le build frontend est embarque dans l'image Docker. Il n'est pas stocke dans le
+volume `/app/data`, car ce ne sont pas des donnees utilisateur.
+
 ## Env
 
-Copiez `.env.example` vers `.env` pour le developpement local.
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Defaut | Utilisation |
-|---|---:|---|
-| `NODE_ENV` | `production` | Mode Node. Utilisez `development` pour le serveur local Vite + API. |
-| `PORT` | `4000` | Port du serveur Express. |
-| `TZ` | `Europe/Paris` | Fuseau horaire des calculs de marche. |
-| `DEBUG` | `false` | Active les logs et options de debug. |
-| `DEBUG_DATE` | vide | Force une date pour tester les comportements temporels. |
-| `ENABLE_MARKET_LIVE_REFRESH` | `true` | Active le rafraichissement automatique via Yahoo Finance ; genere plus de requetes Yahoo. |
-| `PUBLIC_URL` | vide | Origine publique attendue, par exemple `https://pea.example.com`. |
-| `TRUST_PROXY` | `false` | Active la confiance dans `X-Forwarded-*` derriere un reverse proxy fiable. |
-| `CORS_ORIGINS` | `https://localhost` | Origines cross-origin autorisees, separees par des virgules. |
-| `VITE_API_BASE_URL` | `http://localhost:4000` | URL du backend utilisee par le frontend en developpement. |
-| `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script local qui attend `/health` avant de lancer Vite. |
-| `LOGO_DEV_API_KEY` | vide | Cle optionnelle pour recuperer automatiquement des logos d'actifs. |
+| Variable | Defaut | Portee | Utilisation |
+|---|---:|---|---|
+| `PORT` | `4000` | Backend | Port du serveur Express. En Docker, gardez `4000` sauf si vous adaptez aussi le mapping de ports et le healthcheck. |
+| `TZ` | `Europe/Paris` | Backend + Docker | Fuseau horaire des calculs de marche. |
+| `DEBUG` | `false` | Backend + frontend build | Active les logs et options de debug. |
+| `DEBUG_DATE` | vide | Backend | Force une date pour tester les comportements temporels. A eviter en production reelle. |
+| `ENABLE_MARKET_LIVE_REFRESH` | `true` | Backend | Active le rafraichissement automatique via Yahoo Finance ; genere plus de requetes Yahoo. |
+| `PUBLIC_URL` | vide | Backend Docker | Origine publique attendue derriere un domaine ou reverse proxy, par exemple `https://pea.example.com`. |
+| `TRUST_PROXY` | `false` | Backend Docker | Active la confiance dans `X-Forwarded-*` derriere un reverse proxy fiable. |
+| `CORS_ORIGINS` | `https://localhost` | Backend | Origines cross-origin autorisees, separees par des virgules. Utile si un client externe n'est pas servi depuis la meme origine que l'API. |
+| `LOGO_DEV_API_KEY` | vide | Backend | Cle optionnelle pour recuperer automatiquement des logos d'actifs. |
 
 
 ## Developpement local
 
 Prerequis : Node.js 20+ et npm 10+.
+
+Copiez `.env.dev.example` vers `.env` :
+
+```bash
+cp .env.dev.example .env
+```
+
+Variables utiles uniquement en developpement local :
+
+| Variable | Defaut | Utilisation |
+|---|---:|---|
+| `NODE_ENV` | `development` | Force le backend local a charger `.env` et a accepter les origines Vite. |
+| `VITE_API_BASE_URL` | `http://localhost:4000` | URL du backend utilisee par Vite en developpement. |
+| `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script local qui attend `/health` avant de lancer Vite. |
 
 ```bash
 npm install

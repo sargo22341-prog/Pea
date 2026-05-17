@@ -56,7 +56,7 @@ function parseOriginList(value: string | undefined) {
 }
 
 function frontendDistPath() {
-  const dockerPath = path.join(appDataDir, "frontend-dist");
+  const dockerPath = path.join(appRoot, "frontend-dist");
   if (fs.existsSync(dockerPath)) return dockerPath;
   return path.join(appRoot, "frontend", "dist");
 }

@@ -2,10 +2,10 @@ services:
   pea-portfolio:
     image: ghcr.io/sargo22341-prog/pea-portfolio:latest
     environment:
-      LOGO_DEV_API_KEY: # Cle api LOGO DEV public
-      TZ: Europe/Paris
-      PUBLIC_URL: # Url
-      TRUST_PROXY: true
+      TZ: ${TZ:-Europe/Paris}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
     volumes:
       - /data:/app/data
     ports:
