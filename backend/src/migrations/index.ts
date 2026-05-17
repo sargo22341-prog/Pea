@@ -26,6 +26,7 @@ import { unifiedCacheEntriesMigration } from "./025-unified-cache-entries.js";
 import { dataConstructionPriorityMigration } from "./026-data-construction-priority.js";
 import { unifiedChartCandlesMigration } from "./027-unified-chart-candles.js";
 import { snapshotSplitMigration } from "./028-snapshot-split.js";
+import { bootstrapAdminMigration } from "./029-bootstrap-admin.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -56,5 +57,6 @@ export const migrations: Migration[] = [
   unifiedCacheEntriesMigration,
   dataConstructionPriorityMigration,
   unifiedChartCandlesMigration,
-  snapshotSplitMigration
+  snapshotSplitMigration,
+  bootstrapAdminMigration
 ];

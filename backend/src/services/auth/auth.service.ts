@@ -26,10 +26,15 @@ export interface AuthUser {
   createdAt: string;
 }
 
+export type AdminManagedUser = Pick<AuthUser, "id" | "username" | "role" | "createdAt"> & {
+  isProtectedAdmin: boolean;
+};
+
 interface UserRow extends AuthUserRow {
   id: number | string;
   username: string;
   role: string;
+  bootstrap_admin: number | null;
   profile_icon_url: string | null;
   profile_icon_path: string | null;
   has_profile_icon: number | null;
@@ -92,7 +97,7 @@ function rowToAuthUser(row: UserRow): AuthUser {
   return {
     id: Number(row.id),
     username: String(row.username),
-    role: row.role === "admin" ? "admin" : "user",
+    role: row.role === "admin" && Boolean(row.bootstrap_admin) ? "admin" : "user",
     profileIconUrl: row.profile_icon_url ? String(row.profile_icon_url) : undefined,
     // `has_profile_icon` est mis à jour par les migrations et les opérations d'écriture pour
     // éviter un fs.existsSync() synchrone à chaque requête authentifiée.
@@ -107,6 +112,17 @@ function rowToAuthUser(row: UserRow): AuthUser {
     newsLanguages: languages.length ? languages : ["fr"],
     privacyModeEnabled: Boolean(row.privacy_mode_enabled),
     createdAt: String(row.created_at)
+  };
+}
+
+function rowToAdminManagedUser(row: UserRow): AdminManagedUser {
+  const user = rowToAuthUser(row);
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    createdAt: user.createdAt,
+    isProtectedAdmin: Boolean(row.bootstrap_admin)
   };
 }
 
@@ -135,6 +151,49 @@ export class AuthService {
   async setup(username: string, password: string, profileIconUrl?: string) {
     if (this.hasUsers()) throw new HttpError(409, "Le premier compte existe deja.");
     return this.createUser(username, password, profileIconUrl);
+  }
+
+  listManagedUsers(): AdminManagedUser[] {
+    return (authRepository.listUsers() as UserRow[]).map((row) => rowToAdminManagedUser(row));
+  }
+
+  async createManagedUser(input: { username: string; password: string }) {
+    const user = await this.createUserRecord(input.username, input.password, { role: "user", bootstrapAdmin: false });
+    return rowToAdminManagedUser(authRepository.findUserById(user.id) as UserRow);
+  }
+
+  deleteManagedUser(userId: number, currentAdminId: number) {
+    const row = authRepository.findUserById(userId) as UserRow | undefined;
+    if (!row) throw new HttpError(404, "Utilisateur introuvable.");
+    if (Number(row.id) === currentAdminId) throw new HttpError(409, "Vous ne pouvez pas supprimer votre propre compte administrateur.");
+    if (row.bootstrap_admin) throw new HttpError(409, "Le compte administrateur bootstrap ne peut pas etre supprime.");
+
+    this.deleteUserAndOwnedData(userId);
+  }
+
+  deleteUserAndOwnedData(userId: number) {
+    const row = authRepository.findUserById(userId) as UserRow | undefined;
+    if (!row) throw new HttpError(404, "Utilisateur introuvable.");
+    if (row.bootstrap_admin) throw new HttpError(409, "Le compte administrateur bootstrap ne peut pas etre supprime.");
+
+    const profileIconPath = row.profile_icon_path ? String(row.profile_icon_path) : undefined;
+    const pendingProfileIconDeletePath = profileIconPath && fs.existsSync(profileIconPath)
+      ? `${profileIconPath}.delete-${process.pid}-${Date.now()}`
+      : undefined;
+
+    if (profileIconPath && pendingProfileIconDeletePath) fs.renameSync(profileIconPath, pendingProfileIconDeletePath);
+
+    try {
+      const result = authRepository.deleteUserAndOwnedData(userId);
+      if (!result) throw new HttpError(404, "Utilisateur introuvable.");
+      if (pendingProfileIconDeletePath && fs.existsSync(pendingProfileIconDeletePath)) fs.rmSync(pendingProfileIconDeletePath, { force: true });
+      return result;
+    } catch (error) {
+      if (profileIconPath && pendingProfileIconDeletePath && fs.existsSync(pendingProfileIconDeletePath) && !fs.existsSync(profileIconPath)) {
+        fs.renameSync(pendingProfileIconDeletePath, profileIconPath);
+      }
+      throw error;
+    }
   }
 
   async login(username: string, password: string) {
@@ -262,15 +321,35 @@ export class AuthService {
   }
 
   private async createUser(username: string, password: string, profileIconUrl?: string) {
+    const user = await this.createUserRecord(username, password, { role: "admin", bootstrapAdmin: true, profileIconUrl });
+    return { user, token: this.createSession(user.id) };
+  }
+
+  private async createUserRecord(
+    username: string,
+    password: string,
+    options: { role: "admin" | "user"; bootstrapAdmin: boolean; profileIconUrl?: string }
+  ) {
     const trimmedUsername = username.trim();
     if (!trimmedUsername) throw new HttpError(400, "Username requis.");
     if (!password) throw new HttpError(400, "Mot de passe requis.");
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const role = this.userCount() === 0 ? "admin" : "user";
-    authRepository.insertUser({ username: trimmedUsername, passwordHash, role, profileIconUrl: profileIconUrl || null });
+    if (options.role === "admin" && !options.bootstrapAdmin) throw new HttpError(403, "Seul le setup initial peut creer le compte administrateur.");
+    if (options.bootstrapAdmin && this.hasUsers()) throw new HttpError(409, "Le compte administrateur bootstrap existe deja.");
+    try {
+      authRepository.insertUser({
+        username: trimmedUsername,
+        passwordHash,
+        role: options.role,
+        bootstrapAdmin: options.bootstrapAdmin,
+        profileIconUrl: options.profileIconUrl || null
+      });
+    } catch {
+      throw new HttpError(409, "Ce username est deja utilise.");
+    }
     const row = authRepository.findUserByUsername(trimmedUsername) as UserRow;
-    return { user: rowToAuthUser(row), token: this.createSession(Number(row.id)) };
+    return rowToAuthUser(row);
   }
 
   private createSession(userId: number) {

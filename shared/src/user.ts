@@ -28,3 +28,11 @@ export interface AuthMe {
   setupRequired: boolean;
   appTimezone: string;
 }
+
+export interface AdminManagedUser {
+  id: number;
+  username: string;
+  role: "admin" | "user";
+  createdAt: string;
+  isProtectedAdmin: boolean;
+}

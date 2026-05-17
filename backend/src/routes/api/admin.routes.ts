@@ -10,6 +10,7 @@ import { marketScheduler } from "../../schedulers/market-scheduler.service.js";
 import { trackedMarketRepository } from "../../repositories/market/tracked-market.repository.js";
 import { yahooUsageService } from "../../services/yahoo/yahoo-usage.service.js";
 import { runtimeHealthService } from "../../services/admin/runtime-health.service.js";
+import { authService } from "../../services/auth/auth.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
 
@@ -17,6 +18,11 @@ export const adminRouter = express.Router();
 
 const rebuildMarketDataSchema = z.object({
   range: z.enum(["1d", "1w", "1m", "all", "all_ranges"])
+});
+
+const adminCreateUserSchema = z.object({
+  username: z.string().trim().min(1),
+  password: z.string().min(10, "Le mot de passe doit contenir au moins 10 caracteres.")
 });
 
 const yahooUsageQuerySchema = z.object({
@@ -65,6 +71,21 @@ adminRouter.get("/admin/yahoo-usage/calls", asyncRoute(async (req, res) => {
 
 adminRouter.get("/admin/runtime-health", asyncRoute(async (_req, res) => {
   res.json(runtimeHealthService.snapshot());
+}));
+
+adminRouter.get("/admin/users", asyncRoute(async (_req, res) => {
+  res.json(authService.listManagedUsers());
+}));
+
+adminRouter.post("/admin/users", asyncRoute(async (req, res) => {
+  const body = adminCreateUserSchema.parse(req.body);
+  res.status(201).json(await authService.createManagedUser({ username: body.username, password: body.password }));
+}));
+
+adminRouter.delete("/admin/users/:userId", asyncRoute(async (req, res) => {
+  const userId = z.coerce.number().int().positive().parse(req.params.userId);
+  authService.deleteManagedUser(userId, req.user!.id);
+  res.status(204).send();
 }));
 
 adminRouter.post("/admin/market-data/rebuild", asyncRoute(async (req, res) => {

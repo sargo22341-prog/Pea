@@ -185,6 +185,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
     import { db } from "./db.ts";
 
     const indexExistants = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((r) => r.name);
+    const triggersExistants = db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all().map((r) => r.name);
     const colonnesUsers = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
     const colonnesUserAssets = db.prepare("PRAGMA table_info(user_assets)").all();
     const colonnesMarketSnapshots = db.prepare("PRAGMA table_info(asset_market_snapshots)").all().map((r) => r.name);
@@ -193,6 +194,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
 
     console.log("__RESULT__" + JSON.stringify({
       indexExistants,
+      triggersExistants,
       colonnesUsers,
       colonnesMarketSnapshots,
       typeUserIdUserAssets: colonneUserId?.type,
@@ -202,6 +204,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
 
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
+  assert.ok(resultat.colonnesUsers.includes("bootstrap_admin"), "colonne bootstrap_admin absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles range/interval absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval_start"), "index chart_candles range/interval/start absent");
@@ -214,6 +217,11 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_ticker_created_at"), "index yahoo usage ticker/date absent");
   assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_active_key"), "index queue construction active absent");
   assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_status_priority_id"), "index queue construction status priority absent");
+  assert.ok(resultat.indexExistants.includes("idx_users_single_bootstrap_admin"), "index bootstrap admin unique absent");
+  assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_insert"), "trigger anti-admin runtime insert absent");
+  assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_update"), "trigger anti-admin runtime update absent");
+  assert.ok(resultat.triggersExistants.includes("users_prevent_bootstrap_admin_demotion"), "trigger immutabilite bootstrap absent");
+  assert.ok(resultat.triggersExistants.includes("users_prevent_runtime_bootstrap_promotion"), "trigger anti-promotion bootstrap absent");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_low"), "colonne fifty_two_week_low absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("fifty_two_week_high"), "colonne fifty_two_week_high absente");
   assert.ok(resultat.colonnesMarketSnapshots.includes("average_volume_10d"), "colonne average_volume_10d absente");
@@ -225,8 +233,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
-    "les 28 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    "les 29 migrations doivent etre enregistrees"
   );
 });
 

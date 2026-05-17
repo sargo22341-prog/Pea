@@ -1,9 +1,11 @@
 import { db } from "../../db.js";
+import { marketDataConstructionRepository } from "../market/construction.repository.js";
 
 export interface AuthUserRow {
   id: number | string;
   username: string;
   role: string;
+  bootstrap_admin: number | null;
   profile_icon_url: string | null;
   profile_icon_path: string | null;
   profile_icon_mime_type?: string | null;
@@ -34,6 +36,10 @@ export class AuthRepository {
   userCount() {
     const row = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
     return Number(row.count);
+  }
+
+  listUsers(): AuthUserRow[] {
+    return db.prepare("SELECT * FROM users ORDER BY id ASC").all() as AuthUserRow[];
   }
 
   findUserByUsername(username: string): AuthUserRow | undefined {
@@ -141,13 +147,51 @@ export class AuthRepository {
     ).run(userId);
   }
 
-  insertUser(input: { username: string; passwordHash: string; role: "admin" | "user"; profileIconUrl?: string | null }) {
-    db.prepare("INSERT INTO users (username, password_hash, role, profile_icon_url) VALUES (?, ?, ?, ?)").run(
+  insertUser(input: { username: string; passwordHash: string; role: "admin" | "user"; bootstrapAdmin: boolean; profileIconUrl?: string | null }) {
+    db.prepare("INSERT INTO users (username, password_hash, role, bootstrap_admin, profile_icon_url) VALUES (?, ?, ?, ?, ?)").run(
       input.username,
       input.passwordHash,
       input.role,
+      input.bootstrapAdmin ? 1 : 0,
       input.profileIconUrl || null
     );
+  }
+
+  deleteUser(userId: number) {
+    return db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  }
+
+  deleteUserAndOwnedData(userId: number) {
+    return db.transaction(() => {
+      const normalizedUserId = String(userId);
+      const user = this.findUserById(userId);
+      if (!user) return undefined;
+
+      const symbolsBeforeDelete = db
+        .prepare(
+          `SELECT symbol FROM positions WHERE user_id = ?
+           UNION
+           SELECT symbol FROM watchlist WHERE user_id = ?`
+        )
+        .all(userId, userId) as Array<{ symbol: string }>;
+
+      const deleted = {
+        userSessions: db.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(userId),
+        userAssets: db.prepare("DELETE FROM user_assets WHERE user_id = ?").run(userId),
+        portfolioChartCache: db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(normalizedUserId),
+        portfolioPositionsPerformanceCache: db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(normalizedUserId),
+        frontendBlockCache: db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(normalizedUserId),
+        watchlist: db.prepare("DELETE FROM watchlist WHERE user_id = ?").run(userId),
+        positions: db.prepare("DELETE FROM positions WHERE user_id = ?").run(userId),
+        users: db.prepare("DELETE FROM users WHERE id = ?").run(userId)
+      };
+
+      const orphanAssets = marketDataConstructionRepository.unlinkedAssets()
+        .filter((row) => symbolsBeforeDelete.some((symbolRow) => String(symbolRow.symbol).toUpperCase() === String(row.symbol).toUpperCase()));
+      const orphanAssetCleanup = marketDataConstructionRepository.cleanupUnlinkedAssets(orphanAssets);
+
+      return { user, deleted, orphanAssetCleanup };
+    });
   }
 
   insertSession(input: { userId: number; tokenHash: string; expiresAt: number }) {

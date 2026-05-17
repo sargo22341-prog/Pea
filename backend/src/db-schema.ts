@@ -94,6 +94,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
+    bootstrap_admin INTEGER NOT NULL DEFAULT 0,
     profile_icon_url TEXT,
     profile_icon_path TEXT,
     profile_icon_mime_type TEXT,
@@ -388,7 +389,6 @@ export function initializeSchema(db: DatabaseAdapter): void {
   CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_created_at ON yahoo_usage_logs(created_at);
   CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_method_created_at ON yahoo_usage_logs(method, created_at);
   CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_ticker_created_at ON yahoo_usage_logs(ticker, created_at);
-
   CREATE TABLE IF NOT EXISTS asset_calendar_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,
