@@ -22,6 +22,27 @@ function toFormRow(row: EditablePortfolioTransaction): EditableTransactionFormRo
   };
 }
 
+function draftTransaction(position: PositionWithMarket): EditableTransactionFormRow {
+  const now = currentDateTimeLocalValue();
+  return {
+    id: `draft-${Date.now()}`,
+    positionId: position.id,
+    assetId: String(position.id),
+    source: "manual",
+    dateExecution: now,
+    tradedAt: now,
+    assetName: position.name,
+    ticker: position.symbol,
+    type: "buy",
+    quantity: "",
+    executedPrice: "",
+    price: "",
+    totalFees: "0",
+    currency: position.currency,
+    createdAt: now
+  };
+}
+
 function parseNonNegativeNumber(value: string, label: string) {
   if (!value.trim()) throw new Error(`${label} requis.`);
   const numberValue = Number(value);
@@ -33,12 +54,14 @@ export function EditPositionModal({
   position,
   onClose,
   onSaved,
-  onDeleted
+  onDeleted,
+  startWithDraft = false
 }: {
   position: PositionWithMarket;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
   onDeleted: () => void;
+  startWithDraft?: boolean;
 }) {
   const [rows, setRows] = useState<EditableTransactionFormRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +73,9 @@ export function EditPositionModal({
     let alive = true;
     api.positionTransactions(position.id)
       .then((transactions) => {
-        if (alive) setRows(transactions.map(toFormRow));
+        if (!alive) return;
+        const nextRows = transactions.map(toFormRow);
+        setRows(nextRows.length || !startWithDraft ? nextRows : [draftTransaction(position)]);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Chargement impossible."))
       .finally(() => {
@@ -59,7 +84,7 @@ export function EditPositionModal({
     return () => {
       alive = false;
     };
-  }, [position.id]);
+  }, [position, position.id, startWithDraft]);
 
   function patchRow(index: number, patch: Partial<EditableTransactionFormRow>) {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
@@ -83,27 +108,7 @@ export function EditPositionModal({
   }
 
   function addDraftTransaction() {
-    const now = currentDateTimeLocalValue();
-    setRows((current) => [
-      {
-        id: `draft-${Date.now()}`,
-        positionId: position.id,
-        assetId: String(position.id),
-        source: "manual",
-        dateExecution: now,
-        tradedAt: now,
-        assetName: position.name,
-        ticker: position.symbol,
-        type: "buy",
-        quantity: "",
-        executedPrice: "",
-        price: "",
-        totalFees: "0",
-        currency: position.currency,
-        createdAt: now
-      },
-      ...current.filter((row) => !row.id.startsWith("legacy-"))
-    ]);
+    setRows((current) => [draftTransaction(position), ...current.filter((row) => !row.id.startsWith("legacy-"))]);
   }
 
   async function save(row: EditableTransactionFormRow) {
@@ -143,7 +148,7 @@ export function EditPositionModal({
       ? await api.createPositionTransaction(position.id, payload)
       : await api.updatePositionTransaction(position.id, row.id, payload);
     setRows(nextRows.map(toFormRow));
-    onSaved();
+    await onSaved();
   }
 
   async function remove(row: EditableTransactionFormRow) {
@@ -156,7 +161,7 @@ export function EditPositionModal({
     await api.deletePositionTransaction(position.id, row.id);
     setRows((current) => current.filter((item) => item.id !== row.id));
     setPendingDelete(null);
-    onSaved();
+    await onSaved();
   }
 
   return (

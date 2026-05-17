@@ -199,10 +199,12 @@ export class PortfolioWriteService {
 
   recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
+    const existing = portfolioRepository.findPositionById(positionId, resolvedUserId);
+    if (!existing) return;
     const rows = portfolioRepository.listTransactionSequence(positionId);
     if (!rows.length) {
-      portfolioRepository.resetPositionValuation(positionId);
-      portfolioReadService.persistUserAssetPosition(resolvedUserId, positionId);
+      this.invalidatePositionCaches(positionId, resolvedUserId, existing.symbol);
+      portfolioRepository.deletePosition(positionId, resolvedUserId);
       return;
     }
 

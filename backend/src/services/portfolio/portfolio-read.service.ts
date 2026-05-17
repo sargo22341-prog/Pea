@@ -38,6 +38,7 @@ export class PortfolioReadService {
     if (!ownedPosition) return [];
     const rows = portfolioRepository.listTransactions(positionId);
     if (!rows.length) {
+      if (Number(ownedPosition.quantity) <= 0 && Number(ownedPosition.average_buy_price) <= 0) return [];
       return [legacyTransactionFromPosition(mapPosition(ownedPosition))];
     }
 

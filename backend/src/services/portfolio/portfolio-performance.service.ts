@@ -47,6 +47,19 @@ function downsampleHistoryForMiniChart(points: HistoryPoint[], maxPoints = 40): 
   return result;
 }
 
+function maxHistoryTime(points: HistoryPoint[]) {
+  return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
+}
+
+function latestTransactionTime(entry?: PositionTransactionCache) {
+  return entry?.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0) ?? 0;
+}
+
+function shouldUseCurrentHoldingForClosedIntraday(range: RangeKey, history: HistoryPoint[], entry?: PositionTransactionCache) {
+  const lastHistoryTime = maxHistoryTime(history);
+  return range === "1d" && lastHistoryTime > 0 && latestTransactionTime(entry) > lastHistoryTime;
+}
+
 export class PortfolioPerformanceService {
   async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PortfolioPerformancePoint[]> {
     const resolvedUserId = requireUserId(userId);
@@ -63,7 +76,40 @@ export class PortfolioPerformanceService {
       }))
     );
     const now = options.intradayNow?.getTime() ?? Date.now();
-    const timeline = [...new Set(histories.flatMap((item) => item.history.map((point) => point.date)))]
+    const latestHistoryTimeByPosition = new Map<number, number>();
+    const latestTransactionTimeByPosition = new Map<number, number>();
+    for (const item of histories) {
+      latestHistoryTimeByPosition.set(item.position.id, maxHistoryTime(item.history));
+      const entry = txCache.get(item.position.id);
+      latestTransactionTimeByPosition.set(item.position.id, latestTransactionTime(entry));
+    }
+    const transactionDates = range === "1d"
+      ? []
+      : [...txCache.values()]
+          .flatMap((entry) => entry.transactions.map((transaction) => transaction.traded_at))
+          .filter((date) => {
+            const time = new Date(date).getTime();
+            return Number.isFinite(time) && time <= now;
+          });
+    const needsCurrentPoint = histories.some((item) => {
+      const entry = txCache.get(item.position.id);
+      if (!entry?.transactions.length) return false;
+      const lastHistoryTime = latestHistoryTimeByPosition.get(item.position.id) ?? 0;
+      const lastTransactionTime = latestTransactionTimeByPosition.get(item.position.id) ?? 0;
+      return lastTransactionTime > lastHistoryTime;
+    });
+    const latestPortfolioHistoryTime = histories.reduce(
+      (latest, item) => Math.max(latest, latestHistoryTimeByPosition.get(item.position.id) ?? 0),
+      0
+    );
+    const currentPointDate = needsCurrentPoint
+      ? new Date(range === "1d" && latestPortfolioHistoryTime > 0 ? latestPortfolioHistoryTime : now).toISOString()
+      : undefined;
+    const timeline = [...new Set([
+      ...histories.flatMap((item) => item.history.map((point) => point.date)),
+      ...transactionDates,
+      ...(currentPointDate ? [currentPointDate] : [])
+    ])]
       .filter((date) => new Date(date).getTime() <= now)
       .sort((a, b) => a.localeCompare(b));
 
@@ -101,6 +147,7 @@ export class PortfolioPerformanceService {
       let value = 0;
       let invested = 0;
       const dateMs = timelineMs[timelineIndex];
+      const isSyntheticCurrentPoint = currentPointDate !== undefined && date === currentPointDate;
 
       for (const item of histories) {
         const symbol = item.position.symbol;
@@ -112,11 +159,23 @@ export class PortfolioPerformanceService {
         cursors.set(symbol, cursor);
 
         const entry = txCache.get(item.position.id);
-        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, dateMs) : item.position.quantity;
-        value += (lastPrices.get(symbol) ?? item.fallbackPrice) * quantity;
-        invested += entry?.hasDated
-          ? getCostBasisAtTime(entry.transactions, dateMs)
-          : item.position.averageBuyPrice * quantity;
+        const useCurrentHoldingForClosedIntraday =
+          range === "1d" &&
+          (latestTransactionTimeByPosition.get(item.position.id) ?? 0) > (latestHistoryTimeByPosition.get(item.position.id) ?? 0) &&
+          (latestHistoryTimeByPosition.get(item.position.id) ?? 0) > 0;
+        const currentPosition = useCurrentHoldingForClosedIntraday && entry?.hasDated
+          ? positionFromTransactionCache(item.position, entry.transactions)
+          : item.position;
+        const quantity = useCurrentHoldingForClosedIntraday
+          ? currentPosition.quantity
+          : entry?.hasDated ? getQuantityAtTime(entry.transactions, dateMs) : item.position.quantity;
+        const price = isSyntheticCurrentPoint ? item.fallbackPrice : lastPrices.get(symbol) ?? item.fallbackPrice;
+        value += price * quantity;
+        invested += useCurrentHoldingForClosedIntraday
+          ? currentPosition.averageBuyPrice * currentPosition.quantity
+          : entry?.hasDated
+            ? getCostBasisAtTime(entry.transactions, dateMs)
+            : item.position.averageBuyPrice * quantity;
       }
 
       const gain = value - invested;
@@ -163,14 +222,14 @@ export class PortfolioPerformanceService {
   ): Promise<PositionRangePerformance> {
     const cache = txCache ?? buildTransactionCache([position.id]);
     const entry = cache.get(position.id);
-    const effectivePosition = entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
-
     const [history, quoteResult] = await Promise.all([
-      this.safeHistory(effectivePosition.symbol, range, options),
-      this.safeQuote(effectivePosition)
+      this.safeHistory(position.symbol, range, options),
+      this.safeQuote(position)
     ]);
-    const quote = quoteResult.quote;
     const validHistory = history.filter((point) => Number.isFinite(point.close)).sort((a, b) => a.date.localeCompare(b.date));
+    const useCurrentHoldingForClosedIntraday = shouldUseCurrentHoldingForClosedIntraday(range, validHistory, entry);
+    const effectivePosition = entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
+    const quote = quoteResult.quote;
     const firstPoint = validHistory[0];
     const lastPoint = validHistory[validHistory.length - 1];
     const fallbackCurrentPrice = quote?.price || effectivePosition.averageBuyPrice;
@@ -186,12 +245,16 @@ export class PortfolioPerformanceService {
 
     const currentMarketValue = effectivePosition.quantity * currentPrice;
     const firstPointTimeMs = firstPoint ? new Date(firstPoint.date).getTime() : undefined;
-    const intervalQuantity = entry?.hasDated && firstPointTimeMs !== undefined
+    const intervalQuantity = useCurrentHoldingForClosedIntraday
+      ? effectivePosition.quantity
+      : entry?.hasDated && firstPointTimeMs !== undefined
       ? getQuantityAtTime(entry.transactions, firstPointTimeMs)
       : effectivePosition.quantity;
     const totalCost = effectivePosition.quantity * effectivePosition.averageBuyPrice;
     const intervalStartMarketValue = intervalQuantity * intervalStartPrice;
-    const intervalStartCost = entry?.hasDated && firstPointTimeMs !== undefined
+    const intervalStartCost = useCurrentHoldingForClosedIntraday
+      ? totalCost
+      : entry?.hasDated && firstPointTimeMs !== undefined
       ? getCostBasisAtTime(entry.transactions, firstPointTimeMs)
       : effectivePosition.averageBuyPrice * intervalQuantity;
     const intervalStartGain = intervalStartMarketValue - intervalStartCost;
@@ -210,6 +273,7 @@ export class PortfolioPerformanceService {
       range,
       history: validHistory,
       txEntry: entry,
+      useCurrentHoldingForClosedIntraday,
       stale: incompleteData
     });
 
@@ -234,6 +298,7 @@ export class PortfolioPerformanceService {
     range: RangeKey;
     history: HistoryPoint[];
     txEntry?: PositionTransactionCache;
+    useCurrentHoldingForClosedIntraday?: boolean;
     stale: boolean;
   }): PositionMiniChart {
     const sampledHistory = downsampleHistoryForMiniChart(input.history, 40);
@@ -242,7 +307,9 @@ export class PortfolioPerformanceService {
         const timestamp = new Date(point.date).getTime();
         const close = Number(point.close);
         if (!Number.isFinite(timestamp) || !Number.isFinite(close)) return undefined;
-        const quantity = input.txEntry?.hasDated
+        const quantity = input.useCurrentHoldingForClosedIntraday
+          ? input.position.quantity
+          : input.txEntry?.hasDated
           ? getQuantityAtTime(input.txEntry.transactions, timestamp)
           : input.position.quantity;
         return { t: timestamp, v: close * quantity };

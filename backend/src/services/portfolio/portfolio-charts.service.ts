@@ -6,7 +6,7 @@ import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service
 import { marketDataService } from "../market/data/market-data.service.js";
 import { nowMs, toDisplayRange } from "../shared/cache.service.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
-import { buildTransactionCache, getQuantityAtTime } from "./portfolio-calculations.js";
+import { buildTransactionCache, getQuantityAtTime, positionFromTransactionCache } from "./portfolio-calculations.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
@@ -181,7 +181,11 @@ export class PortfolioChartsService {
       let quantity: number;
       const entry = txCache.get(position.id);
       if (chart.baselineDatetime && entry?.hasDated) {
-        quantity = getQuantityAtTime(entry.transactions, new Date(chart.baselineDatetime).getTime());
+        const latestChartTime = chart.timestamps.reduce((latest, timestamp) => Math.max(latest, Number(timestamp)), 0);
+        const latestTransactionTime = entry.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0);
+        quantity = latestChartTime > 0 && latestTransactionTime > latestChartTime
+          ? positionFromTransactionCache(position, entry.transactions).quantity
+          : getQuantityAtTime(entry.transactions, new Date(chart.baselineDatetime).getTime());
       } else {
         quantity = position.quantity;
       }

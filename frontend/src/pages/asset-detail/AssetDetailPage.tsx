@@ -1,6 +1,6 @@
-import type { RangeKey, User } from "@pea/shared";
+import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents";
 import { CompareModal } from "../../components/common/CompareModal";
 import { NewsArticleList } from "../../components/common/NewsArticleList";
@@ -8,7 +8,6 @@ import { useAsync } from "../../hooks/useAsync";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
 import { api } from "../../lib/api";
 import { normalizeTimeZone } from "../../lib/timezone";
-import { AddAssetPositionModal } from "./components/AddAssetPositionModal";
 import { AssetAnalystConsensus } from "./components/AssetAnalystConsensus";
 import { AssetDetailHeader } from "./components/AssetDetailHeader";
 import { AssetEtfFundDetails } from "./components/AssetEtfFundDetails";
@@ -20,10 +19,10 @@ import { useAssetWatchlist } from "./hooks/useAssetWatchlist";
 
 export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
-  const navigate = useNavigate();
   const [range, setRangeState] = useState<RangeKey>(() => user.defaultChartRange ?? "1d");
   const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [draftPosition, setDraftPosition] = useState<PositionWithMarket | null>(null);
+  const [openingPositionEditor, setOpeningPositionEditor] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
   const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
@@ -83,16 +82,45 @@ export function AssetDetailPage({ user }: { user: User }) {
   const marketUnavailable = quote.unavailable || position?.marketDataUnavailable;
 
   async function deletePosition() {
-    if (!position) return;
-    await api.deletePosition(position.id);
+    const target = position ?? draftPosition;
+    if (!target) return;
+    await api.deletePosition(target.id);
+    setDraftPosition(null);
     setToast("Position supprimée");
-    navigate("/search");
+    await asset.reload();
   }
 
   async function refreshAfterEdit() {
     await asset.reload();
+    setDraftPosition(null);
     setToast("Position mise à jour");
     window.setTimeout(() => setToast(null), 3000);
+  }
+
+  async function openPositionEditor() {
+    if (position) {
+      setEditing(true);
+      return;
+    }
+    setOpeningPositionEditor(true);
+    setToast(null);
+    try {
+      const created = await api.ensurePosition({ symbol: quote.symbol, name: quote.name, currency: quote.currency });
+      setDraftPosition(created);
+      setEditing(true);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Ajout impossible");
+    } finally {
+      setOpeningPositionEditor(false);
+    }
+  }
+
+  async function closePositionEditor() {
+    setEditing(false);
+    if (!draftPosition) return;
+    await api.deletePosition(draftPosition.id).catch(() => undefined);
+    setDraftPosition(null);
+    await asset.reload();
   }
 
   const dayChange = range === "1d" ? marketInfo?.regularMarketChange ?? quote.change : undefined;
@@ -109,7 +137,7 @@ export function AssetDetailPage({ user }: { user: User }) {
       <AssetDetailHeader
         displayPrice={displayPrice}
         marketUnavailable={marketUnavailable}
-        onAdd={() => setAdding(true)}
+        onAdd={() => void openPositionEditor()}
         onEdit={() => setEditing(true)}
         onToggleWatchlist={() => void toggleWatchlist()}
         peaEligibilityStatus={asset.data.peaEligibility.status}
@@ -122,6 +150,7 @@ export function AssetDetailPage({ user }: { user: User }) {
       />
 
       {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
+      {openingPositionEditor ? <div className="card border-mint/40 p-3 text-sm text-mint">Préparation de l'ajout...</div> : null}
 
       <AssetHistorySection
         chart={chart}
@@ -156,24 +185,13 @@ export function AssetDetailPage({ user }: { user: User }) {
 
       {user.assetNewsEnabled && <NewsArticleList articles={news} />}
 
-      {editing && position && (
+      {editing && (position ?? draftPosition) && (
         <EditPositionModal
-          onClose={() => setEditing(false)}
+          onClose={() => void closePositionEditor()}
           onDeleted={() => void deletePosition()}
-          onSaved={() => void refreshAfterEdit()}
-          position={position}
-        />
-      )}
-      {adding && (
-        <AddAssetPositionModal
-          currency={quote.currency}
-          name={quote.name}
-          onClose={() => setAdding(false)}
-          onSaved={async () => {
-            setAdding(false);
-            await asset.reload();
-          }}
-          symbol={quote.symbol}
+          onSaved={refreshAfterEdit}
+          position={(position ?? draftPosition)!}
+          startWithDraft={!position}
         />
       )}
       {comparing && (

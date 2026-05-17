@@ -7,6 +7,7 @@ import type {
   PortfolioFullDto,
   PortfolioPerformancePoint,
   PortfolioSummary,
+  PositionWithMarket,
   PositionRangePerformance,
   RangeKey,
   UpdatePositionInput
@@ -27,6 +28,8 @@ export const portfolioApi = {
     dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   portfolioFull: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioFullDto>(`/api/portfolio/full?range=${range}`, signal),
+  ensurePosition: (input: { symbol: string; name?: string; currency: string }) =>
+    request<PositionWithMarket>("/api/portfolio/positions/ensure", { method: "POST", body: JSON.stringify(input) }),
   addPosition: (input: CreatePositionInput) =>
     request("/api/portfolio/positions", { method: "POST", body: JSON.stringify(input) }),
   updatePosition: (id: number, input: UpdatePositionInput) =>

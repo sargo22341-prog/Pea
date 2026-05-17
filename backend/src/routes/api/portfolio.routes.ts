@@ -60,6 +60,26 @@ portfolioRouter.post("/portfolio/positions", asyncRoute(async (req, res) => {
   res.status(201).json(await portfolioService.createPosition(body));
 }));
 
+portfolioRouter.post("/portfolio/positions/ensure", asyncRoute(async (req, res) => {
+  const body = z
+    .object({
+      symbol: z.string().trim().min(1),
+      name: z.string().trim().optional(),
+      currency: z.string().default("EUR")
+    })
+    .parse(req.body);
+
+  const position = portfolioService.ensurePosition(body.symbol, body.name ?? body.symbol, body.currency);
+  res.status(201).json({
+    ...position,
+    currentPrice: 0,
+    marketValue: 0,
+    costBasis: 0,
+    performance: 0,
+    performancePercent: 0
+  });
+}));
+
 portfolioRouter.put("/portfolio/positions/:id", asyncRoute(async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const body = z
