@@ -1,4 +1,8 @@
-# PEA Portfolio
+<p align="center">
+  <img src="./docs/logo.png" width="120" alt="PEA Portfolio logo" />
+</p>
+
+<h1 align="center">PEA Portfolio</h1>
 
 Application auto-hebergee pour suivre un portefeuille PEA : positions, valorisation,
 dividendes, actualites, graphiques de marche et analyses.
