@@ -306,6 +306,18 @@ jobs:
           TAG="v${VERSION}"
           API="${{ gitea.server_url }}/api/v1"
           REPO="${{ gitea.repository }}"
+          NOTES_FILE="release-notes-final.md"
+
+          {
+            echo "Release $TAG"
+            echo
+            cat RELEASE_NOTES.md
+            echo
+            echo "- Image Docker: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
+            echo "- APK Android signe attache a cette release."
+          } > "$NOTES_FILE"
+
+          RELEASE_BODY=$(node -e "console.log(JSON.stringify(require('fs').readFileSync(process.argv[1], 'utf8')))" "$NOTES_FILE")
 
           RESPONSE=$(curl -sS -X POST \
             "$API/repos/$REPO/releases" \
@@ -315,7 +327,7 @@ jobs:
               \"tag_name\": \"$TAG\",
               \"target_commitish\": \"$TAG\",
               \"name\": \"PEA Portfolio $TAG\",
-              \"body\": \"Release $TAG\\n\\n- Image Docker: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}\\n- APK Android signé attaché à cette release.\",
+              \"body\": $RELEASE_BODY,
               \"draft\": false,
               \"prerelease\": false
             }")
@@ -337,3 +349,13 @@ jobs:
             -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
             -H "Content-Type: multipart/form-data" \
             -F "attachment=@$APK_PATH"
+
+      - name: Clear release notes template
+        run: |
+          printf "## Notes de release\n\n- Ajoutez ici les changements a publier.\n" > RELEASE_NOTES.md
+          git config user.name "gitea-actions"
+          git config user.email "gitea-actions@local"
+          git add RELEASE_NOTES.md
+          git diff --cached --quiet || git commit -m "docs: clear release notes [skip ci]"
+          git diff --cached --quiet || true
+          git push origin "HEAD:${{ gitea.ref_name }}"
