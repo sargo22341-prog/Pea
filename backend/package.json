@@ -1,7 +1,7 @@
 {
   "name": "@pea/backend",
   "private": true,
-  "version": "0.1.56",
+  "version": "0.1.57",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
