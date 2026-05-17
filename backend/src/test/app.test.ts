@@ -269,6 +269,46 @@ test("production mutating requests accept configured public URL", () => {
   assert.equal(result.body.username, "alice");
 });
 
+test("production CSP does not upgrade assets when public URL is HTTP", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/health\`);
+        console.log("__RESULT__" + JSON.stringify({
+          csp: response.headers.get("content-security-policy")
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } });
+
+  assert.ok(!result.csp.includes("upgrade-insecure-requests"));
+});
+
+test("production CSP upgrades assets when public URL is HTTPS", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/health\`);
+        console.log("__RESULT__" + JSON.stringify({
+          csp: response.headers.get("content-security-policy")
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } });
+
+  assert.ok(result.csp.includes("upgrade-insecure-requests"));
+});
+
 test("production mutating requests accept local host origin when public URL is empty", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";

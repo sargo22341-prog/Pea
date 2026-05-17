@@ -38,7 +38,8 @@ app.use(
         "connect-src": ["'self'"],
         "object-src": ["'none'"],
         "base-uri": ["'self'"],
-        "form-action": ["'self'"]
+        "form-action": ["'self'"],
+        "upgrade-insecure-requests": config.publicUrl?.startsWith("https://") ? [] : null
       }
     }
   })
