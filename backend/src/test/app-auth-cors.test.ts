@@ -398,6 +398,58 @@ test("auth setup, login and logout use secure local session flow", () => {
   assert.equal(result.meAfterLogoutBody.user, null);
 });
 
+test("production auth cookie is not Secure on HTTP public URL", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "http://192.168.0.44:4000" },
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          status: response.status,
+          setCookie: response.headers.get("set-cookie")
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } });
+
+  assert.equal(result.status, 201);
+  assert.ok(!result.setCookie.includes("Secure"));
+});
+
+test("production auth cookie is Secure on HTTPS public URL", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      try {
+        const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Origin: "https://pea.example.com" },
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          status: response.status,
+          setCookie: response.headers.get("set-cookie")
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } });
+
+  assert.equal(result.status, 201);
+  assert.ok(result.setCookie.includes("Secure"));
+});
+
 test("auth setup rejects weak passwords", () => {
   const result = runBackendScript(`
     import { app } from "./app.ts";

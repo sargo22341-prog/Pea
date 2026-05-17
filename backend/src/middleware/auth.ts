@@ -33,13 +33,17 @@ export function readSessionToken(req: Request) {
   return readBearerToken(req) ?? readCookie(req, authCookieName);
 }
 
+function shouldUseSecureCookie() {
+  return config.nodeEnv === "production" && config.publicUrl?.startsWith("https://") === true;
+}
+
 export function setAuthCookie(res: Response, token: string) {
   res.cookie(authCookieName, token, {
     httpOnly: true,
     // "strict" empêche l'envoi du cookie sur toute navigation cross-site,
     // y compris les GET top-level. Sans impact pour une SPA servie sur le même domaine.
     sameSite: "strict",
-    secure: config.nodeEnv === "production",
+    secure: shouldUseSecureCookie(),
     path: "/",
     maxAge: 30 * 24 * 60 * 60 * 1000
   });
