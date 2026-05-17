@@ -58,12 +58,8 @@ services:
     image: ghcr.io/sargo22341-prog/pea-portfolio:latest
     environment:
       TZ: ${TZ:-Europe/Paris}
-      DEBUG: ${DEBUG:-false}
-      DEBUG_DATE: ${DEBUG_DATE:-}
-      ENABLE_MARKET_LIVE_REFRESH: ${ENABLE_MARKET_LIVE_REFRESH:-true}
       PUBLIC_URL: ${PUBLIC_URL:-}
       TRUST_PROXY: ${TRUST_PROXY:-false}
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
       LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
     volumes:
       - /data:/app/data
@@ -81,14 +77,6 @@ docker compose up -d
 
 Puis ouvrir `http://localhost:4000`.
 
-Chemins Docker persistants :
-
-| Donnee | Chemin |
-|---|---|
-| SQLite | `/app/data/pea.sqlite` |
-| Configuration graphiques | `/app/data/config.json` |
-| Icons et logs | `/app/data/icons`, `/app/data/profile-icons`, `/app/data/log` |
-| Build frontend servi par le backend | `/app/frontend-dist` |
 
 Le build frontend est embarque dans l'image Docker. Il n'est pas stocke dans le
 volume `/app/data`, car ce ne sont pas des donnees utilisateur.
