@@ -137,8 +137,7 @@ jobs:
         run: |
           VERSION="${{ needs.release-version.outputs.version }}"
           IMAGE="${{ needs.release-version.outputs.image }}"
-          SHORT_SHA="${GITHUB_SHA::7}"
-          TAGS="${IMAGE}:${VERSION},${IMAGE}:sha-${SHORT_SHA}"
+          TAGS="${IMAGE}:${VERSION}"
 
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             TAGS="${TAGS},${IMAGE}:latest"
@@ -254,9 +253,8 @@ jobs:
         id: apk
         run: |
           VERSION="${{ needs.release-version.outputs.version }}"
-          SHORT_SHA="${GITHUB_SHA::7}"
           APK_SOURCE="frontend/android/app/build/outputs/apk/release/app-release.apk"
-          APK_TARGET="pea-portfolio-${VERSION}-sha-${SHORT_SHA}.apk"
+          APK_TARGET="pea-portfolio-${VERSION}.apk"
 
           cp "$APK_SOURCE" "$APK_TARGET"
 
