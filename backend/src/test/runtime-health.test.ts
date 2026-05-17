@@ -93,3 +93,22 @@ test("runtime health endpoint returns metrics without triggering cleanup", () =>
   assert.equal(quoteScope.expiredRows, 1);
   assert.equal(result.body.cache.cleanup.lastRunAt, undefined);
 });
+
+test("runtime health clears scheduler error after a successful tick marker", () => {
+  const result = runBackendScript(`
+    import { schedulerHealthRepository } from "./repositories/market/scheduler-health.repository.ts";
+    import { runtimeHealthService } from "./services/admin/runtime-health.service.ts";
+
+    schedulerHealthRepository.markError("market-scheduler", new Error("temporary yahoo failure"), new Date("2026-05-14T12:00:00.000Z"));
+    const afterError = runtimeHealthService.snapshot(new Date("2026-05-14T12:01:00.000Z")).scheduler;
+    schedulerHealthRepository.markSuccess("market-scheduler", new Date("2026-05-14T12:02:00.000Z"));
+    const afterSuccess = runtimeHealthService.snapshot(new Date("2026-05-14T12:03:00.000Z")).scheduler;
+
+    console.log("__RESULT__" + JSON.stringify({ afterError, afterSuccess }));
+  `);
+
+  assert.equal(result.afterError.status, "error");
+  assert.equal(result.afterError.lastError, "temporary yahoo failure");
+  assert.equal(result.afterSuccess.status, "healthy");
+  assert.equal(result.afterSuccess.lastError, null);
+});

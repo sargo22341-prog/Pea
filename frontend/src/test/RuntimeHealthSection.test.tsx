@@ -115,9 +115,9 @@ describe("RuntimeHealthSection", () => {
     expect(screen.getByText("Chargement...")).toBeInTheDocument();
     request.resolve(basePayload);
 
-    await waitFor(() => expect(screen.getByText("Scheduler healthy")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Planificateur sain")).toBeInTheDocument());
     expect(screen.getByText("cache_entries")).toBeInTheDocument();
-    expect(screen.getByText("intradayChartCache")).toBeInTheDocument();
+    expect(screen.getByText("Cache graphiques intraday")).toBeInTheDocument();
     expect(screen.getByText("Circuit breaker")).toBeInTheDocument();
   });
 
@@ -143,10 +143,10 @@ describe("RuntimeHealthSection", () => {
     render(<RuntimeHealthSection />);
     openRuntimeMonitoring();
 
-    await waitFor(() => expect(screen.getAllByText("Scheduler warning").length).toBeGreaterThan(0));
-    expect(screen.getAllByText("Yahoo open").length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText("Planificateur attention").length).toBeGreaterThan(0));
+    expect(screen.getAllByText("Yahoo ouvert").length).toBeGreaterThan(0);
     expect(screen.getByText("3 taches en erreur")).toBeInTheDocument();
-    expect(screen.getByText("SSE proche limite")).toBeInTheDocument();
+    expect(screen.getByText("Clients SSE proches de la limite")).toBeInTheDocument();
   });
 
   it("le bouton refresh rappelle l'API", async () => {
@@ -155,7 +155,7 @@ describe("RuntimeHealthSection", () => {
     render(<RuntimeHealthSection />);
     openRuntimeMonitoring();
 
-    await screen.findByText("Scheduler healthy");
+    await screen.findByText("Planificateur sain");
     fireEvent.click(screen.getByRole("button", { name: /rafraichir/i }));
 
     await waitFor(() => expect(api.getRuntimeHealth).toHaveBeenCalledTimes(2));

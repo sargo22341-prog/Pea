@@ -60,16 +60,42 @@ function failedQueueTone(failed = 0): BadgeTone {
   return "ok";
 }
 
+function schedulerStatusLabel(status?: RuntimeHealthDto["scheduler"]["status"]) {
+  if (status === "healthy") return "sain";
+  if (status === "warning") return "attention";
+  if (status === "error") return "erreur";
+  return "inconnu";
+}
+
+function yahooCircuitLabel(state?: RuntimeHealthDto["yahoo"]["circuitBreaker"]["state"]) {
+  if (state === "closed") return "fermé";
+  if (state === "open") return "ouvert";
+  if (state === "half-open") return "semi-ouvert";
+  return "inconnu";
+}
+
+function queueTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    candles: "Bougies",
+    snapshots: "Instantanés",
+    financials: "Données financières",
+    dividends: "Dividendes",
+    calendar: "Calendrier",
+    cleanup: "Nettoyage"
+  };
+  return labels[type] ?? type;
+}
+
 function warningBadges(data: RuntimeHealthDto | null) {
   if (!data) return [];
   const badges: Array<{ label: string; tone: BadgeTone }> = [];
-  if (data.scheduler.status !== "healthy") badges.push({ label: `Scheduler ${data.scheduler.status}`, tone: schedulerTone(data.scheduler.status) });
-  if (data.yahoo.circuitBreaker.state !== "closed") badges.push({ label: `Yahoo ${data.yahoo.circuitBreaker.state}`, tone: yahooTone(data.yahoo.circuitBreaker.state) });
+  if (data.scheduler.status !== "healthy") badges.push({ label: `Planificateur ${schedulerStatusLabel(data.scheduler.status)}`, tone: schedulerTone(data.scheduler.status) });
+  if (data.yahoo.circuitBreaker.state !== "closed") badges.push({ label: `Yahoo ${yahooCircuitLabel(data.yahoo.circuitBreaker.state)}`, tone: yahooTone(data.yahoo.circuitBreaker.state) });
   if (data.queue.failed > 0) badges.push({ label: `${formatNumber(data.queue.failed)} taches en erreur`, tone: failedQueueTone(data.queue.failed) });
-  if ((data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000) badges.push({ label: "Running > 30 min", tone: "warning" });
-  if (data.cache.cacheEntries.expiredRows > 1_000) badges.push({ label: "Cache expire eleve", tone: "warning" });
-  if (data.memory.sseClients >= 80) badges.push({ label: "SSE proche limite", tone: "warning" });
-  if (data.memory.authFailureEntries > 1_000) badges.push({ label: "Auth failures eleves", tone: "warning" });
+  if ((data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000) badges.push({ label: "Exécution > 30 min", tone: "warning" });
+  if (data.cache.cacheEntries.expiredRows > 1_000) badges.push({ label: "Cache expiré élevé", tone: "warning" });
+  if (data.memory.sseClients >= 80) badges.push({ label: "Clients SSE proches de la limite", tone: "warning" });
+  if (data.memory.authFailureEntries > 1_000) badges.push({ label: "Échecs de connexion élevés", tone: "warning" });
   return badges;
 }
 
@@ -140,9 +166,9 @@ function StatusBadges({ data, warnings }: { data: RuntimeHealthDto; warnings: Ar
   const items = warnings.length ? warnings : [{ label: "Aucune alerte active", tone: "ok" as BadgeTone }];
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge label={`Scheduler ${data.scheduler.status}`} tone={schedulerTone(data.scheduler.status)} />
-      <Badge label={`Yahoo ${data.yahoo.circuitBreaker.state}`} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
-      <Badge label={`Queue failed ${formatNumber(data.queue.failed)}`} tone={failedQueueTone(data.queue.failed)} />
+      <Badge label={`Planificateur ${schedulerStatusLabel(data.scheduler.status)}`} tone={schedulerTone(data.scheduler.status)} />
+      <Badge label={`Yahoo ${yahooCircuitLabel(data.yahoo.circuitBreaker.state)}`} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
+      <Badge label={`File en erreur ${formatNumber(data.queue.failed)}`} tone={failedQueueTone(data.queue.failed)} />
       {items.map((item) => <Badge key={item.label} label={item.label} tone={item.tone} />)}
     </div>
   );
@@ -161,9 +187,9 @@ function Badge({ label, tone }: { label: string; tone: BadgeTone }) {
 function RuntimeSummary({ data }: { data: RuntimeHealthDto }) {
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <MetricTile label="Scheduler" value={data.scheduler.status} tone={schedulerTone(data.scheduler.status)} />
-      <MetricTile label="Circuit Yahoo" value={data.yahoo.circuitBreaker.state} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
-      <MetricTile label="Queue" value={`${formatNumber(data.queue.pending)} / ${formatNumber(data.queue.running)} / ${formatNumber(data.queue.failed)}`} hint="pending / running / failed" />
+      <MetricTile label="Planificateur" value={schedulerStatusLabel(data.scheduler.status)} tone={schedulerTone(data.scheduler.status)} />
+      <MetricTile label="Circuit Yahoo" value={yahooCircuitLabel(data.yahoo.circuitBreaker.state)} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
+      <MetricTile label="File de tâches" value={`${formatNumber(data.queue.pending)} / ${formatNumber(data.queue.running)} / ${formatNumber(data.queue.failed)}`} hint="en attente / en cours / en erreur" />
       <MetricTile label="Dernière purge cache" value={formatDateTime(data.cache.cleanup.lastRunAt)} hint={`${formatNumber(data.cache.cleanup.totalDeletedRows)} lignes`} />
     </div>
   );
@@ -190,7 +216,7 @@ function CacheBlock({ data }: { data: RuntimeHealthDto }) {
         <MetricTile label="frontend_block_cache" value={formatNumber(data.cache.derivedCaches.frontendBlockCacheRows)} />
       </div>
       <CompactTable
-        columns={["Scope", "Lignes", "Expirées"]}
+        columns={["Périmètre", "Lignes", "Expirées"]}
         emptyLabel="Aucun scope cache."
         rows={data.cache.cacheEntries.byScope.map((row) => [row.scope, formatNumber(row.rows), formatNumber(row.expiredRows)])}
       />
@@ -203,14 +229,14 @@ function MemoryBlock({ data }: { data: RuntimeHealthDto }) {
   return (
     <RuntimeBlock title="Mémoire">
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="intradayChartCache" value={formatNumber(memory.intradayChartCacheEntries)} />
-        <MetricTile label="snapshotQuoteCache" value={formatNumber(memory.snapshotQuoteCacheEntries)} />
-        <MetricTile label="previousOpenDays" value={formatNumber(memory.previousOpenMarketDaysCacheEntries)} />
-        <MetricTile label="inFlight backend" value={formatNumber(memory.backendInFlightRequests)} />
-        <MetricTile label="SSE clients" value={formatNumber(memory.sseClients)} tone={memory.sseClients >= 80 ? "warning" : "neutral"} />
-        <MetricTile label="rate-limit buckets" value={formatNumber(memory.rateLimitBuckets)} />
-        <MetricTile label="auth failures" value={formatNumber(memory.authFailureEntries)} tone={memory.authFailureEntries > 1_000 ? "warning" : "neutral"} />
-        <MetricTile label="Yahoo mémoire" value={`${formatNumber(memory.yahooSearchCacheEntries)} / ${formatNumber(memory.yahooQuoteCombineCacheEntries)}`} hint="search / quoteCombine" />
+        <MetricTile label="Cache graphiques intraday" value={formatNumber(memory.intradayChartCacheEntries)} />
+        <MetricTile label="Cache cotations instantanées" value={formatNumber(memory.snapshotQuoteCacheEntries)} />
+        <MetricTile label="Jours ouverts en cache" value={formatNumber(memory.previousOpenMarketDaysCacheEntries)} />
+        <MetricTile label="Requêtes backend en cours" value={formatNumber(memory.backendInFlightRequests)} />
+        <MetricTile label="Clients SSE" value={formatNumber(memory.sseClients)} tone={memory.sseClients >= 80 ? "warning" : "neutral"} />
+        <MetricTile label="Seaux rate-limit" value={formatNumber(memory.rateLimitBuckets)} />
+        <MetricTile label="Échecs de connexion" value={formatNumber(memory.authFailureEntries)} tone={memory.authFailureEntries > 1_000 ? "warning" : "neutral"} />
+        <MetricTile label="Mémoire Yahoo" value={`${formatNumber(memory.yahooSearchCacheEntries)} / ${formatNumber(memory.yahooQuoteCombineCacheEntries)}`} hint="recherche / cotations combinées" />
       </div>
     </RuntimeBlock>
   );
@@ -218,22 +244,22 @@ function MemoryBlock({ data }: { data: RuntimeHealthDto }) {
 
 function QueueBlock({ data }: { data: RuntimeHealthDto }) {
   return (
-    <RuntimeBlock title="Queue">
+    <RuntimeBlock title="File de tâches">
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Pending" value={formatNumber(data.queue.pending)} />
-        <MetricTile label="Running" value={formatNumber(data.queue.running)} />
-        <MetricTile label="Failed" value={formatNumber(data.queue.failed)} tone={failedQueueTone(data.queue.failed)} />
-        <MetricTile label="Completed" value={formatNumber(data.queue.completed)} />
-        <MetricTile label="Oldest pending" value={formatDuration(data.queue.oldestPendingAgeMs)} />
-        <MetricTile label="Oldest running" value={formatDuration(data.queue.oldestRunningAgeMs)} tone={(data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000 ? "warning" : "neutral"} />
+        <MetricTile label="En attente" value={formatNumber(data.queue.pending)} />
+        <MetricTile label="En cours" value={formatNumber(data.queue.running)} />
+        <MetricTile label="En erreur" value={formatNumber(data.queue.failed)} tone={failedQueueTone(data.queue.failed)} />
+        <MetricTile label="Terminées" value={formatNumber(data.queue.completed)} />
+        <MetricTile label="Plus ancienne attente" value={formatDuration(data.queue.oldestPendingAgeMs)} />
+        <MetricTile label="Plus ancienne exécution" value={formatDuration(data.queue.oldestRunningAgeMs)} tone={(data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000 ? "warning" : "neutral"} />
         <MetricTile label="Workers" value={`${formatNumber(data.queue.activeWorkers)} / ${formatNumber(data.queue.maxConcurrentTasks)}`} />
-        <MetricTile label="Busy symbols" value={formatNumber(data.queue.busySymbols)} />
+        <MetricTile label="Symboles occupés" value={formatNumber(data.queue.busySymbols)} />
       </div>
       <CompactTable
-        columns={["Type", "Priorité", "Pending", "Running", "Failed", "Completed"]}
+        columns={["Type", "Priorité", "En attente", "En cours", "En erreur", "Terminées"]}
         emptyLabel="Aucune tâche historisée."
         rows={data.queue.byTypePriority.map((row) => [
-          row.type,
+          queueTypeLabel(row.type),
           formatNumber(row.priority),
           formatNumber(row.pending),
           formatNumber(row.running),
@@ -247,14 +273,14 @@ function QueueBlock({ data }: { data: RuntimeHealthDto }) {
 
 function SchedulerBlock({ data }: { data: RuntimeHealthDto }) {
   return (
-    <RuntimeBlock title="Scheduler">
+    <RuntimeBlock title="Planificateur">
       <div className="grid gap-3 md:grid-cols-4">
         <MetricTile label="Dernier tick" value={formatDateTime(data.scheduler.lastTickAt)} />
         <MetricTile label="Durée tick" value={formatDuration(data.scheduler.lastTickDurationMs)} />
         <MetricTile label="Dernier succès" value={formatDateTime(data.scheduler.lastSuccessAt)} />
         <MetricTile label="Dernière erreur" value={data.scheduler.lastError || "-"} tone={data.scheduler.lastError ? "error" : "neutral"} />
-        <MetricTile label="Lock owner" value={data.scheduler.lockOwner || "-"} />
-        <MetricTile label="Heartbeat age" value={formatDuration(data.scheduler.heartbeatAgeMs)} />
+        <MetricTile label="Propriétaire du verrou" value={data.scheduler.lockOwner || "-"} />
+        <MetricTile label="Âge du heartbeat" value={formatDuration(data.scheduler.heartbeatAgeMs)} />
         <MetricTile label="Marchés suivis" value={formatNumber(data.scheduler.trackedMarkets)} />
         <MetricTile label="Prochain tick" value={formatDateTime(data.scheduler.nextTickAt)} />
       </div>
@@ -267,13 +293,13 @@ function YahooBlock({ data }: { data: RuntimeHealthDto }) {
   return (
     <RuntimeBlock title="Yahoo">
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Circuit breaker" value={breaker.state} tone={yahooTone(breaker.state)} />
-        <MetricTile label="Failure count" value={formatNumber(breaker.failureCount)} />
+        <MetricTile label="Circuit breaker" value={yahooCircuitLabel(breaker.state)} tone={yahooTone(breaker.state)} />
+        <MetricTile label="Échecs consécutifs" value={formatNumber(breaker.failureCount)} />
         <MetricTile label="Ouvert à" value={formatDateTime(breaker.openedAt)} />
         <MetricTile label="Appels 24h" value={formatNumber(data.yahoo.recentCalls24h)} />
-        <MetricTile label="In-flight" value={formatNumber(data.yahoo.backendInFlightRequests)} />
-        <MetricTile label="Search cache" value={formatNumber(data.yahoo.searchCacheEntries)} />
-        <MetricTile label="QuoteCombine cache" value={formatNumber(data.yahoo.quoteCombineCacheEntries)} />
+        <MetricTile label="Requêtes en cours" value={formatNumber(data.yahoo.backendInFlightRequests)} />
+        <MetricTile label="Cache recherche" value={formatNumber(data.yahoo.searchCacheEntries)} />
+        <MetricTile label="Cache cotations combinées" value={formatNumber(data.yahoo.quoteCombineCacheEntries)} />
       </div>
       <RecentErrors errors={data.yahoo.recentErrors} />
     </RuntimeBlock>

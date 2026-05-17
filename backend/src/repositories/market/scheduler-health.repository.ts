@@ -29,6 +29,9 @@ export class SchedulerHealthRepository {
   private upsert(name: string, patch: Partial<SchedulerHealthRow>) {
     const current = this.get(name);
     const updatedAt = nowIso();
+    const value = <K extends keyof SchedulerHealthRow>(key: K) =>
+      Object.prototype.hasOwnProperty.call(patch, key) ? patch[key] : current?.[key] ?? null;
+
     db.prepare(
       `INSERT INTO scheduler_health (scheduler_name, last_tick_at, last_successful_tick_at, last_error, updated_at)
        VALUES (?, ?, ?, ?, ?)
@@ -39,9 +42,9 @@ export class SchedulerHealthRepository {
          updated_at = excluded.updated_at`
     ).run(
       name,
-      patch.last_tick_at ?? current?.last_tick_at ?? null,
-      patch.last_successful_tick_at ?? current?.last_successful_tick_at ?? null,
-      patch.last_error ?? current?.last_error ?? null,
+      value("last_tick_at"),
+      value("last_successful_tick_at"),
+      value("last_error"),
       updatedAt
     );
   }
