@@ -11,7 +11,7 @@ function runBackendScript(script: string) {
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
     cwd: path.resolve(import.meta.dirname, ".."),
     encoding: "utf8",
-    env: { ...process.env, NODE_ENV: "development", SQLITE_PATH: sqlitePath }
+    env: { ...process.env, NODE_ENV: "development", PEA_TEST_SQLITE_PATH: sqlitePath }
   });
   fs.rmSync(tempDir, { recursive: true, force: true });
   assert.equal(result.status, 0, result.stderr);

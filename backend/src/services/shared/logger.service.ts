@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import util from "node:util";
+import { config } from "../../config.js";
 
 export type LogCategory =
   | "cache"
@@ -36,7 +37,7 @@ function isDebugEnabled() {
 }
 
 function logDirectory() {
-  return path.join(path.dirname(process.env.SQLITE_PATH ?? "./data/pea.sqlite"), "log");
+  return path.join(path.dirname(config.sqlitePath), "log");
 }
 
 function sanitizeMeta(value: unknown): unknown {

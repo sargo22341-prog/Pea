@@ -55,20 +55,15 @@ Exemple de `docker-compose.yml` :
 ```yaml
 services:
   pea-portfolio:
-    image: ${DOCKER_REGISTRY:-}/pea-portfolio:${IMAGE_TAG:-latest}
+    image: ghcr.io/sargo22341-prog/pea-portfolio:latest
     environment:
-      NODE_ENV: production
       PORT: 4000
-      SQLITE_PATH: /app/data/pea.sqlite
-      FRONTEND_DIST: /app/frontend-dist
-      DEBUG: "false"
-      PUBLIC_URL: ${PUBLIC_URL:-}
-      TRUST_PROXY: ${TRUST_PROXY:-false}
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
-      LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
+      LOGO_DEV_API_KEY: # Cle api LOGO DEV public
       TZ: Europe/Paris
+      PUBLIC_URL: # Url
+      TRUST_PROXY: true
     volumes:
-      - ./data:/app/data
+      - /data:/app/data
     ports:
       - "4000:4000"
     restart: unless-stopped
@@ -92,25 +87,19 @@ cp .env.example .env
 
 | Variable | Defaut | Utilisation |
 |---|---:|---|
-| `NODE_ENV` | `development` | Mode Node. En Docker, utilisez `production`. |
+| `NODE_ENV` | `production` | Mode Node. Utilisez `development` pour le serveur local Vite + API. |
 | `PORT` | `4000` | Port du serveur Express. |
-| `SQLITE_PATH` | `./data/pea.sqlite` | Chemin du fichier SQLite. En Docker : `/app/data/pea.sqlite`. |
 | `TZ` | `Europe/Paris` | Fuseau horaire des calculs de marche. |
 | `DEBUG` | `false` | Active les logs et options de debug. |
 | `DEBUG_DATE` | vide | Force une date pour tester les comportements temporels. |
-| `FRONTEND_DIST` | `../frontend/dist` | Chemin du build frontend servi par le backend. |
-| `CHART_CONFIG_PATH` | `data/config.json` | Chemin du fichier de configuration des graphiques. |
-| `ENABLE_MARKET_LIVE_REFRESH` | `false` | Active le rafraichissement live des donnees de marche. |
+| `ENABLE_MARKET_LIVE_REFRESH` | `true` | Active le rafraichissement automatique via Yahoo Finance ; genere plus de requetes Yahoo. |
 | `PUBLIC_URL` | vide | Origine publique attendue, par exemple `https://pea.example.com`. |
 | `TRUST_PROXY` | `false` | Active la confiance dans `X-Forwarded-*` derriere un reverse proxy fiable. |
-| `CORS_ORIGINS` | `https://localhost` | Origines cross-origin autorisees, separees par des virgules. Utile pour l'APK Capacitor. |
+| `CORS_ORIGINS` | `https://localhost` | Origines cross-origin autorisees, separees par des virgules. |
 | `VITE_API_BASE_URL` | `http://localhost:4000` | URL du backend utilisee par le frontend en developpement. |
 | `WAIT_FOR_HEALTH_TIMEOUT_MS` | `30000` | Timeout du script local qui attend `/health` avant de lancer Vite. |
 | `LOGO_DEV_API_KEY` | vide | Cle optionnelle pour recuperer automatiquement des logos d'actifs. |
-| `PEA_AUTH_BACKOFF_BASE_MS` | `1000` | Base du backoff auth, seulement prise en compte en environnement `test`. |
-| `PEA_AUTH_BACKOFF_MAX_MS` | `30000` | Maximum du backoff auth, seulement pris en compte en environnement `test`. |
-| `DOCKER_REGISTRY` | vide | Prefixe optionnel du registre Docker dans `docker-compose.yml`. |
-| `IMAGE_TAG` | `latest` | Tag d'image Docker utilise par `docker-compose.yml`. |
+
 
 ## Developpement local
 

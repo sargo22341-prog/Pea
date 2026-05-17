@@ -1,16 +1,20 @@
 import dotenv from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidTimeZone, zonedTimeToUtc } from "./services/timezone/date-time.service.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(__dirname, "../..");
+const appDataDir = path.join(appRoot, "data");
 const rootEnvPath = path.resolve(__dirname, "../../.env");
-const initialNodeEnv = process.env.NODE_ENV ?? "development";
 
-if (initialNodeEnv !== "production") {
+if (process.env.NODE_ENV !== "production") {
   dotenv.config({ path: rootEnvPath });
   dotenv.config();
 }
+
+const initialNodeEnv = process.env.NODE_ENV ?? "production";
 
 const fallbackTimezone = "Europe/Paris";
 const configuredTimezone = process.env.TZ?.trim() || fallbackTimezone;
@@ -51,17 +55,23 @@ function parseOriginList(value: string | undefined) {
     .filter(Boolean);
 }
 
+function frontendDistPath() {
+  const dockerPath = path.join(appDataDir, "frontend-dist");
+  if (fs.existsSync(dockerPath)) return dockerPath;
+  return path.join(appRoot, "frontend", "dist");
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
-  sqlitePath: process.env.SQLITE_PATH ?? "./data/pea.sqlite",
+  sqlitePath: process.env.PEA_TEST_SQLITE_PATH ?? path.join(appDataDir, "pea.sqlite"),
   debug: process.env.DEBUG === "true",
   debugDate: parseDebugDate(process.env.DEBUG_DATE, appTimezone),
-  frontendDist: process.env.FRONTEND_DIST ?? "../frontend/dist",
+  frontendDist: frontendDistPath(),
   nodeEnv: initialNodeEnv,
   appTimezone,
   logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
-  chartConfigPath: process.env.CHART_CONFIG_PATH ?? path.resolve(__dirname, "../../data/config.json"),
-  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, false),
+  chartConfigPath: path.join(appDataDir, "config.json"),
+  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, true),
   publicUrl: parsePublicUrl(process.env.PUBLIC_URL),
   trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
   corsOrigins: parseOriginList(process.env.CORS_ORIGINS)

@@ -1,8 +1,14 @@
 {
   "charts": {
-    "1d": { "interval": "5m" },
-    "1w": { "interval": "2h" },
-    "1m": { "interval": "4h" }
+    "1d": {
+      "interval": "5m"
+    },
+    "1w": {
+      "interval": "2h"
+    },
+    "1m": {
+      "interval": "4h"
+    }
   },
   "marketLiveRefresh": {
     "snapshotsIntervalMinutes": 5,

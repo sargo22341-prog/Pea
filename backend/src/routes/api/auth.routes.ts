@@ -117,7 +117,7 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
 authRouter.get("/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
   const icon = authService.getProfileIconFile(req.user!.id);
   if (!icon) {
-    res.status(404).json({ message: "Icone de profil absente." });
+    res.status(404).end();
     return;
   }
   res.type(icon.mimeType).sendFile(icon.filePath);

@@ -14,7 +14,7 @@ function runBackendScript(script: string, nodeEnv = "development") {
     env: {
       ...process.env,
       NODE_ENV: nodeEnv,
-      SQLITE_PATH: sqlitePath
+      PEA_TEST_SQLITE_PATH: sqlitePath
     }
   });
 

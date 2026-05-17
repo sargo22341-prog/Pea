@@ -24,7 +24,7 @@ RUN npm ci --omit=dev -w backend
 
 COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/backend/dist backend/dist
-COPY --from=build /app/frontend/dist frontend-dist
+COPY --from=build /app/frontend/dist data/frontend-dist
 
 WORKDIR /app/backend
 EXPOSE 4000

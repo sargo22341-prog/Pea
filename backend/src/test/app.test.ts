@@ -34,6 +34,38 @@ test("default chart range keeps all as a valid user preference", () => {
   assert.equal(result.meBody.user.defaultChartRange, "all");
 });
 
+test("missing profile icon returns an empty 404 for image tags", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+        const icon = await fetch(\`\${baseUrl}/api/auth/me/profile-icon\`, { headers: { Cookie: cookie } });
+        console.log("__RESULT__" + JSON.stringify({
+          status: icon.status,
+          contentType: icon.headers.get("content-type"),
+          body: await icon.text()
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.status, 404);
+  assert.equal(result.contentType, null);
+  assert.equal(result.body, "");
+});
+
 test("static JSON cache rejects non-whitelisted SQL targets", () => {
   const result = runBackendScript(`
     import { readStaticJsonCache } from "./services/shared/cache.service.ts";

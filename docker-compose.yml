@@ -1,17 +1,11 @@
 services:
   pea-portfolio:
-    image: ${DOCKER_REGISTRY:-}/pea-portfolio:${IMAGE_TAG:-latest}
+    image: ghcr.io/sargo22341-prog/pea-portfolio:latest
     environment:
-      NODE_ENV: production
-      PORT: 4000
-      SQLITE_PATH: /app/data/pea.sqlite
-      FRONTEND_DIST: /app/frontend-dist
-      DEBUG: "false" # Optional
-      PUBLIC_URL: ${PUBLIC_URL:-}
-      TRUST_PROXY: ${TRUST_PROXY:-false}
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
-      LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
+      LOGO_DEV_API_KEY: # Cle api LOGO DEV public
       TZ: Europe/Paris
+      PUBLIC_URL: # Url
+      TRUST_PROXY: true
     volumes:
       - /data:/app/data
     ports:
