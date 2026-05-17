@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1.55"
-def androidVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "155") as int
+def androidVersionName = System.getenv("ANDROID_VERSION_NAME") ?: "0.1.58"
+def androidVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "158") as int
 def releaseStoreFile = System.getenv("ANDROID_KEYSTORE_PATH") ?: project.findProperty("PEA_RELEASE_STORE_FILE") ?: "pea-release.keystore"
 def releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("PEA_RELEASE_STORE_PASSWORD")
 def releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: project.findProperty("PEA_RELEASE_KEY_ALIAS")

@@ -39,6 +39,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
+      version_code: ${{ steps.version.outputs.version_code }}
 
     steps:
       - name: Checkout
@@ -73,10 +74,14 @@ jobs:
             const file = 'frontend/android/app/build.gradle';
             const version = process.argv[1];
             const code = process.argv[2];
-            let text = fs.readFileSync(file, 'utf8');
-            text = text
-              .replace(/def androidVersionName = \"[^\"]+\"/, 'def androidVersionName = \"' + version + '\"')
-              .replace(/def androidVersionCode = \d+/, 'def androidVersionCode = ' + code);
+            const text = fs.readFileSync(file, 'utf8')
+              .split(/\\r?\\n/)
+              .map((line) => {
+                if (line.startsWith('def androidVersionName =')) return 'def androidVersionName = System.getenv(\"ANDROID_VERSION_NAME\") ?: \"' + version + '\"';
+                if (line.startsWith('def androidVersionCode =')) return 'def androidVersionCode = (System.getenv(\"ANDROID_VERSION_CODE\") ?: \"' + code + '\") as int';
+                return line;
+              })
+              .join('\\n');
             fs.writeFileSync(file, text);
           " "$VERSION" "$VERSION_CODE"
 
@@ -87,7 +92,9 @@ jobs:
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          VERSION_CODE=$(node -e "const [major, minor, patch] = process.argv[1].split('.').map(Number); if (![major, minor, patch].every(Number.isInteger) || minor > 99 || patch > 99) process.exit(1); console.log(major * 10000 + minor * 100 + patch)" "$VERSION")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
 
       - name: Commit and tag version
         run: |
@@ -232,10 +239,35 @@ jobs:
         working-directory: frontend/android
         run: chmod +x ./gradlew
 
+      - name: Sync Android APK version for build
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          VERSION_CODE="${{ needs.version.outputs.version_code }}"
+
+          node -e "
+            const fs = require('fs');
+            const file = 'frontend/android/app/build.gradle';
+            const version = process.argv[1];
+            const code = process.argv[2];
+            const text = fs.readFileSync(file, 'utf8')
+              .split(/\\r?\\n/)
+              .map((line) => {
+                if (line.startsWith('def androidVersionName =')) return 'def androidVersionName = System.getenv(\"ANDROID_VERSION_NAME\") ?: \"' + version + '\"';
+                if (line.startsWith('def androidVersionCode =')) return 'def androidVersionCode = (System.getenv(\"ANDROID_VERSION_CODE\") ?: \"' + code + '\") as int';
+                return line;
+              })
+              .join('\\n');
+            fs.writeFileSync(file, text);
+          " "$VERSION" "$VERSION_CODE"
+
+          sed -n '1,6p' frontend/android/app/build.gradle
+
       - name: Build signed release APK
         working-directory: frontend/android
         run: ./gradlew assembleRelease
         env:
+          ANDROID_VERSION_NAME: ${{ needs.version.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ needs.version.outputs.version_code }}
           ANDROID_KEYSTORE_PATH: ${{ gitea.workspace }}/frontend/android/pea-release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -244,11 +276,12 @@ jobs:
       - name: Verify signed APK version
         run: |
           VERSION="${{ needs.version.outputs.version }}"
-          VERSION_CODE=$(node -e "const [major, minor, patch] = process.argv[1].split('.').map(Number); if (![major, minor, patch].every(Number.isInteger) || minor > 99 || patch > 99) process.exit(1); console.log(major * 10000 + minor * 100 + patch)" "$VERSION")
+          VERSION_CODE="${{ needs.version.outputs.version_code }}"
           APK_SOURCE="frontend/android/app/build/outputs/apk/release/app-release.apk"
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)
           BADGING=$("$AAPT" dump badging "$APK_SOURCE")
 
+          echo "$BADGING"
           echo "$BADGING" | grep "versionName='$VERSION'"
           echo "$BADGING" | grep "versionCode='$VERSION_CODE'"
           echo "APK versionName=$VERSION"
