@@ -46,6 +46,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+
       - name: Check Node
         run: |
           node -v
@@ -119,6 +125,12 @@ jobs:
         run: |
           git fetch --tags --force origin
           git checkout "v${{ needs.version.outputs.version }}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
 
       - name: Check Node
         run: |
@@ -206,6 +218,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
 
       - name: Check Java and Android
         run: |
