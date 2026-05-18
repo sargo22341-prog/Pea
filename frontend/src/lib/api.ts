@@ -1,5 +1,6 @@
 import type {
   AuthMe,
+  AppLanguage,
   BoursoramaImportRow,
   BoursoramaUpdateRow,
   DashboardSortKey,
@@ -62,6 +63,7 @@ const authApi = {
     localPeaSearchEnabled?: boolean;
     assetNewsEnabled?: boolean;
     newsLanguages?: NewsLanguage[];
+    language?: AppLanguage;
     privacyModeEnabled?: boolean;
   }) =>
     request<User>("/api/auth/me", { method: "PATCH", body: JSON.stringify(input) }),

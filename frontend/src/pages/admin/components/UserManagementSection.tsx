@@ -1,6 +1,7 @@
 import type { AdminManagedUser } from "@pea/shared";
 import { RefreshCcw, Trash2, UserPlus, Users } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
@@ -18,6 +19,7 @@ function formatDate(value: string) {
 }
 
 export function UserManagementSection() {
+  const { t } = useTranslation(["common"]);
   const [users, setUsers] = useState<AdminManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -26,17 +28,17 @@ export function UserManagementSection() {
   const [pendingDelete, setPendingDelete] = useState<AdminManagedUser | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setToast(null);
     try {
       setUsers(await api.adminUsers());
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Utilisateurs indisponibles" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.users.unavailable", { ns: "common" }) });
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,9 +49,9 @@ export function UserManagementSection() {
       setUsers((current) => [...current, created].sort((a, b) => a.id - b.id));
       setUsername("");
       setPassword("");
-      setToast({ tone: "success", text: `${created.username} ajoute comme utilisateur standard.` });
+      setToast({ tone: "success", text: t("admin.users.added", { ns: "common", username: created.username }) });
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Creation impossible" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.users.createFailed", { ns: "common" }) });
     } finally {
       setCreating(false);
     }
@@ -61,19 +63,19 @@ export function UserManagementSection() {
     try {
       await api.deleteAdminUser(user.id);
       setUsers((current) => current.filter((item) => item.id !== user.id));
-      setToast({ tone: "success", text: `${user.username} supprime.` });
+      setToast({ tone: "success", text: t("admin.users.deleted", { ns: "common", username: user.username }) });
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Suppression impossible" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.users.deleteFailed", { ns: "common" }) });
       await load();
     }
   }
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   return (
-    <Collapsible title="Manager users">
+    <Collapsible title={t("admin.users.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 rounded-md border border-line bg-panel2/70 p-3">
@@ -81,32 +83,32 @@ export function UserManagementSection() {
             <Users size={18} />
           </div>
           <div className="min-w-0">
-            <p className="muted">Comptes applicatifs</p>
-            <p className="text-sm font-semibold">{loading ? "Chargement..." : `${users.length} utilisateur${users.length > 1 ? "s" : ""}`}</p>
+            <p className="muted">{t("admin.users.accounts", { ns: "common" })}</p>
+            <p className="text-sm font-semibold">{loading ? t("common.loading", { ns: "common" }) : t("admin.users.count", { count: users.length, ns: "common" })}</p>
           </div>
         </div>
         <button className="btn-ghost shrink-0 gap-2" disabled={loading} onClick={() => void load()} type="button">
           <RefreshCcw size={16} />
-          Actualiser
+          {t("actions.refreshNow", { ns: "common" })}
         </button>
       </div>
 
       <form className="grid gap-3 rounded-md border border-line bg-panel2/50 p-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={(event) => void createUser(event)}>
         <label className="space-y-2 text-sm font-medium">
-          <span>Username</span>
+          <span>{t("fields.username", { ns: "common" })}</span>
           <input className="input" disabled={creating} onChange={(event) => setUsername(event.target.value)} required type="text" value={username} />
         </label>
         <label className="space-y-2 text-sm font-medium">
-          <span>Mot de passe</span>
+          <span>{t("fields.password", { ns: "common" })}</span>
           <input className="input" disabled={creating} minLength={10} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
         </label>
         <div className="flex items-end">
           <button className="btn-primary w-full gap-2 md:w-auto" disabled={creating} type="submit">
             <UserPlus size={16} />
-            {creating ? "Ajout..." : "Ajouter"}
+            {creating ? t("admin.users.creating", { ns: "common" }) : t("actions.add", { ns: "common" })}
           </button>
         </div>
-        <p className="muted md:col-span-3">Les nouveaux comptes sont toujours crees avec le role utilisateur standard. Le role admin est reserve au compte bootstrap cree pendant le setup initial.</p>
+        <p className="muted md:col-span-3">{t("admin.users.standardRoleHelp", { ns: "common" })}</p>
       </form>
 
       <UsersTable loading={loading} onDelete={setPendingDelete} users={users} />
@@ -114,11 +116,11 @@ export function UserManagementSection() {
       {pendingDelete ? (
         <ConfirmDialog
           danger
-          confirmLabel="Supprimer"
-          description={`Cette action supprimera le compte ${pendingDelete.username} et ses donnees associees. Le compte administrateur bootstrap et votre session courante sont proteges cote serveur.`}
+          confirmLabel={t("actions.delete", { ns: "common" })}
+          description={t("admin.users.deleteDescription", { ns: "common", username: pendingDelete.username })}
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => void deleteUser(pendingDelete)}
-          title={`Supprimer ${pendingDelete.username} ?`}
+          title={t("admin.users.deleteTitle", { ns: "common", username: pendingDelete.username })}
         />
       ) : null}
     </Collapsible>
@@ -126,18 +128,20 @@ export function UserManagementSection() {
 }
 
 function UsersTable({ loading, onDelete, users }: { loading: boolean; onDelete: (user: AdminManagedUser) => void; users: AdminManagedUser[] }) {
-  if (loading) return <p className="muted">Chargement des utilisateurs...</p>;
-  if (!users.length) return <p className="muted">Aucun utilisateur pour le moment.</p>;
+  const { t } = useTranslation(["common"]);
+
+  if (loading) return <p className="muted">{t("admin.users.loading", { ns: "common" })}</p>;
+  if (!users.length) return <p className="muted">{t("admin.users.empty", { ns: "common" })}</p>;
 
   return (
     <div className="overflow-x-auto rounded-md border border-line">
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="bg-panel2/80 text-xs uppercase text-slate-400">
           <tr>
-            <th className="p-3">Username</th>
+            <th className="p-3">{t("fields.username", { ns: "common" })}</th>
             <th className="p-3">Role</th>
-            <th className="p-3">Creation</th>
-            <th className="p-3 text-right">Actions</th>
+            <th className="p-3">{t("admin.users.createdAt", { ns: "common" })}</th>
+            <th className="p-3 text-right">{t("admin.users.actions", { ns: "common" })}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -152,9 +156,9 @@ function UsersTable({ loading, onDelete, users }: { loading: boolean; onDelete: 
               <td className="p-3 text-slate-300">{formatDate(user.createdAt)}</td>
               <td className="p-3 text-right">
                 {user.isProtectedAdmin ? (
-                  <span className="muted">Protege</span>
+                  <span className="muted">{t("admin.users.protected", { ns: "common" })}</span>
                 ) : (
-                  <button aria-label={`Supprimer ${user.username}`} className="btn-ghost px-2 text-coral" onClick={() => onDelete(user)} type="button">
+                  <button aria-label={t("admin.users.deleteUser", { ns: "common", username: user.username })} className="btn-ghost px-2 text-coral" onClick={() => onDelete(user)} type="button">
                     <Trash2 size={16} />
                   </button>
                 )}

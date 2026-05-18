@@ -1,5 +1,6 @@
 import type { NetMarginItem } from "@pea/shared";
 import { memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../common/AssetIcon";
 import { ChartEmpty } from "./ChartEmpty";
@@ -61,9 +62,10 @@ function MarginAssetTick({ y, payload, data, compact }: MarginAssetTickProps) {
 }
 
 export const NetMarginBarChart = memo(function NetMarginBarChart({ data }: { data: NetMarginItem[] }) {
+  const { t } = useTranslation(["dashboard"]);
   const compactAxis = useCompactAxis();
 
-  if (!data.length) return <ChartEmpty label="Aucune marge nette disponible." />;
+  if (!data.length) return <ChartEmpty label={t("chart.emptyNetMargin", { ns: "dashboard" })} />;
 
   return (
     <div className="h-[420px] min-w-0">
@@ -79,7 +81,7 @@ export const NetMarginBarChart = memo(function NetMarginBarChart({ data }: { dat
             width={compactAxis ? 54 : 190}
           />
           <Tooltip content={<NetMarginTooltip />} />
-          <Bar dataKey="netMargin" fill="#4ade80" name="Marge nette" radius={[0, 6, 6, 0]} />
+          <Bar dataKey="netMargin" fill="#4ade80" name={t("chart.netMargin", { ns: "dashboard" })} radius={[0, 6, 6, 0]} />
         </BarChart>
       </SafeResponsiveContainer>
     </div>

@@ -1,6 +1,7 @@
 import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
@@ -43,10 +44,10 @@ function draftTransaction(position: PositionWithMarket): EditableTransactionForm
   };
 }
 
-function parseNonNegativeNumber(value: string, label: string) {
-  if (!value.trim()) throw new Error(`${label} requis.`);
+function parseNonNegativeNumber(value: string, label: string, t: (key: string, options?: Record<string, unknown>) => string) {
+  if (!value.trim()) throw new Error(t("errors:required", { field: label }));
   const numberValue = Number(value);
-  if (!Number.isFinite(numberValue) || numberValue < 0) throw new Error(`${label} invalide.`);
+  if (!Number.isFinite(numberValue) || numberValue < 0) throw new Error(t("errors:invalidField", { field: label }));
   return numberValue;
 }
 
@@ -63,6 +64,7 @@ export function EditPositionModal({
   onDeleted: () => void;
   startWithDraft?: boolean;
 }) {
+  const { t } = useTranslation(["common", "errors", "portfolio"]);
   const [rows, setRows] = useState<EditableTransactionFormRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,14 +79,14 @@ export function EditPositionModal({
         const nextRows = transactions.map(toFormRow);
         setRows(nextRows.length || !startWithDraft ? nextRows : [draftTransaction(position)]);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Chargement impossible."))
+      .catch((err) => setError(err instanceof Error ? err.message : t("errors:loadFailed")))
       .finally(() => {
         if (alive) setLoading(false);
       });
     return () => {
       alive = false;
     };
-  }, [position, position.id, startWithDraft]);
+  }, [position, position.id, startWithDraft, t]);
 
   function patchRow(index: number, patch: Partial<EditableTransactionFormRow>) {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
@@ -113,26 +115,26 @@ export function EditPositionModal({
 
   async function save(row: EditableTransactionFormRow) {
     if (row.id.startsWith("legacy-")) {
-      setError("Cette ligne legacy vient de la position CSV. Ajoute une transaction datee pour l'editer finement.");
+      setError(t("portfolio:position.legacyLocked"));
       return;
     }
     let quantity: number;
     let price: number;
     let totalFees: number;
     try {
-      quantity = parseNonNegativeNumber(row.quantity, "Quantite");
-      price = parseNonNegativeNumber(row.price, "Prix");
-      totalFees = parseNonNegativeNumber(row.totalFees, "Frais");
+      quantity = parseNonNegativeNumber(row.quantity, t("common:fields.quantity"), t);
+      price = parseNonNegativeNumber(row.price, t("common:fields.price"), t);
+      totalFees = parseNonNegativeNumber(row.totalFees, t("common:fields.fees"), t);
     } catch (parseError) {
-      setError(parseError instanceof Error ? parseError.message : "Valeur numerique invalide.");
+      setError(parseError instanceof Error ? parseError.message : t("errors:numericInvalid"));
       return;
     }
     if (quantity <= 0) {
-      setError("La quantite doit etre strictement positive.");
+      setError(t("errors:quantityStrictlyPositive"));
       return;
     }
     if (row.type === "sell" && quantity > position.quantity) {
-      setError(`La quantite vendue ne peut pas depasser ${position.quantity}.`);
+      setError(t("portfolio:position.soldQuantityTooHigh", { quantity: position.quantity }));
       return;
     }
     setError(null);
@@ -169,19 +171,19 @@ export function EditPositionModal({
       <div className="card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0 bg-ink/85">
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Transactions {position.symbol}</h2>
-            <p className="muted">Modifier les transactions qui alimentent la quantite, le PRU et les frais.</p>
+            <h2 className="text-lg font-semibold">{t("portfolio:position.title", { symbol: position.symbol })}</h2>
+            <p className="muted">{t("portfolio:position.editTransactions")}</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button className="btn-primary" onClick={addDraftTransaction} type="button">
               <Plus size={17} />
-              Ajouter une transaction
+              {t("portfolio:position.addTransaction")}
             </button>
-            <button className="btn-ghost" onClick={onClose} type="button">Fermer</button>
+            <button className="btn-ghost" onClick={onClose} type="button">{t("common:actions.close")}</button>
           </div>
         </div>
 
-        {loading ? <p className="p-4 text-slate-400">Chargement...</p> : null}
+        {loading ? <p className="p-4 text-slate-400">{t("common:common.loading")}</p> : null}
         {error ? <p className="m-4 rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
 
         <div className="max-h-[58vh] overflow-y-auto p-4">
@@ -195,43 +197,43 @@ export function EditPositionModal({
                   {separatesExistingRows ? (
                     <div className="flex items-center gap-3 py-1 text-xs font-medium uppercase text-slate-500">
                       <span className="h-px flex-1 bg-line" />
-                      <span>Transactions existantes</span>
+                      <span>{t("portfolio:position.existingTransactions")}</span>
                       <span className="h-px flex-1 bg-line" />
                     </div>
                   ) : null}
                   <div className={`rounded-md border p-3 ${isDraft ? "border-mint/50 bg-mint/5" : "border-line bg-ink/60"}`}>
-                    {isDraft ? <p className="mb-3 text-xs font-medium uppercase text-mint">A remplir</p> : null}
+                    {isDraft ? <p className="mb-3 text-xs font-medium uppercase text-mint">{t("portfolio:position.toFill")}</p> : null}
                     <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_120px_1fr_1fr_1fr_110px_auto_auto] md:items-end">
                       <label>
-                        <span className="muted mb-1 block">Date</span>
+                        <span className="muted mb-1 block">{t("common:fields.date")}</span>
                         <input className="input" onChange={(event) => patchRow(index, { tradedAt: event.target.value, dateExecution: event.target.value })} type="datetime-local" value={toDateTimeLocalValue(row.tradedAt)} />
                       </label>
                       <label>
-                        <span className="muted mb-1 block">Sens</span>
+                        <span className="muted mb-1 block">{t("common:fields.side")}</span>
                         <select className="input" onChange={(event) => patchTransactionType(index, event.target.value as EditablePortfolioTransaction["type"])} value={row.type}>
-                          <option value="buy">Achat</option>
-                          <option value="sell">Vente</option>
+                          <option value="buy">{t("common:states.buy")}</option>
+                          <option value="sell">{t("common:states.sell")}</option>
                         </select>
                       </label>
                       <label>
-                        <span className="muted mb-1 block">Quantite</span>
+                        <span className="muted mb-1 block">{t("common:fields.quantity")}</span>
                         <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => patchTransactionQuantity(index, event.target.value, row.type)} step="any" type="number" value={row.quantity} />
                       </label>
                       <label>
-                        <span className="muted mb-1 block">Prix</span>
+                        <span className="muted mb-1 block">{t("common:fields.price")}</span>
                         <input className="input" min="0" onChange={(event) => patchRow(index, { price: event.target.value, executedPrice: event.target.value })} step="any" type="number" value={row.price} />
                       </label>
                       <label>
-                        <span className="muted mb-1 block">Frais</span>
+                        <span className="muted mb-1 block">{t("common:fields.fees")}</span>
                         <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: event.target.value })} step="any" type="number" value={row.totalFees} />
                       </label>
                       <label>
-                        <span className="muted mb-1 block">Devise</span>
+                        <span className="muted mb-1 block">{t("common:fields.currency")}</span>
                         <input className="input" onChange={(event) => patchRow(index, { currency: event.target.value.toUpperCase() })} value={row.currency} />
                       </label>
                       <button className="btn-primary" disabled={row.id.startsWith("legacy-")} onClick={() => void save(row)} type="button">
                         <Save size={16} />
-                        Sauver
+                        {t("portfolio:position.save")}
                       </button>
                       <button className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => setPendingDelete(row)} type="button">
                         <Trash2 size={16} />
@@ -243,7 +245,7 @@ export function EditPositionModal({
             })}
             {!rows.length && !loading ? (
               <div className="rounded-md border border-dashed border-line p-6 text-center text-sm text-slate-400">
-                Aucune transaction pour cette position.
+                {t("portfolio:position.noTransactions")}
               </div>
             ) : null}
           </div>
@@ -252,29 +254,29 @@ export function EditPositionModal({
         <div className="flex justify-between gap-3 border-t border-line p-4">
           <button className="btn-ghost text-coral" onClick={() => setConfirmPositionDelete(true)} type="button">
             <Trash2 size={17} />
-            Supprimer l'action
+            {t("portfolio:position.deleteAction")}
           </button>
-          <button className="btn-primary" onClick={onClose} type="button">Terminer</button>
+          <button className="btn-primary" onClick={onClose} type="button">{t("common:actions.done")}</button>
         </div>
       </div>
       {pendingDelete ? (
         <ConfirmDialog
           danger
-          confirmLabel="Supprimer"
-          description={`La transaction ${pendingDelete.type === "sell" ? "de vente" : "d'achat"} du ${toDateTimeLocalValue(pendingDelete.tradedAt).replace("T", " ")} sera supprimee.`}
+          confirmLabel={t("common:actions.delete")}
+          description={t("portfolio:position.deleteTransactionDescription", { type: pendingDelete.type === "sell" ? t("common:states.sell").toLowerCase() : t("common:states.buy").toLowerCase(), date: toDateTimeLocalValue(pendingDelete.tradedAt).replace("T", " ") })}
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => void remove(pendingDelete)}
-          title="Supprimer cette transaction ?"
+          title={t("portfolio:position.deleteTransactionTitle")}
         />
       ) : null}
       {confirmPositionDelete ? (
         <ConfirmDialog
           danger
-          confirmLabel="Supprimer la position"
-          description={`La position ${position.symbol} et ses transactions seront supprimees du portefeuille.`}
+          confirmLabel={t("portfolio:position.deletePositionAction")}
+          description={t("portfolio:position.deletePositionDescription", { symbol: position.symbol })}
           onCancel={() => setConfirmPositionDelete(false)}
           onConfirm={onDeleted}
-          title={`Supprimer ${position.symbol} ?`}
+          title={t("portfolio:position.deletePositionTitle", { symbol: position.symbol })}
         />
       ) : null}
     </div>

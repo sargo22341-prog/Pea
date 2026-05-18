@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { SearchPanel } from "./components/SearchPanel";
 import { TopMoversSection } from "./components/TopMoversSection";
 import { useAsync } from "../../hooks/useAsync";
@@ -7,13 +8,14 @@ import { api } from "../../lib/api";
 
 /** Page de recherche principale, protegee par les appels API authentifies. */
 export function SearchPage() {
+  const { t } = useTranslation("navigation");
 
   useEffect(() => {
-    document.title = "Chercher | PEA Portfolio";
+    document.title = `${t("search")} | PEA Portfolio`;
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, []);
+  }, [t]);
 
   const me = useAsync(() => api.me());
   const search = useEnrichedSearch({ localPeaSearchEnabled: me.data?.user?.localPeaSearchEnabled });

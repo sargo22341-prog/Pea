@@ -1,0 +1,14 @@
+{
+  "dashboard": "Dashboard",
+  "news": "News",
+  "search": "Search",
+  "analysis": "Analysis",
+  "dividends": "Dividends",
+  "settings": "Settings",
+  "admin": "Server administration",
+  "logout": "Sign out",
+  "portfolioNews": "News for my assets",
+  "globalNews": "Global news",
+  "noPortfolioNews": "No article linked to your assets yet.",
+  "noGlobalNews": "No global article yet."
+}

@@ -1,5 +1,6 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { useEffect, useRef, useState } from "react";
+import { i18n } from "../i18n";
 import { api } from "../lib/api";
 
 export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEnabled?: boolean }) {
@@ -29,7 +30,7 @@ export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEna
         lastQueryRef.current = normalizedQuery;
         setResults(nextResults);
       } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Recherche impossible");
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : i18n.t("errors:networkSearch"));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }

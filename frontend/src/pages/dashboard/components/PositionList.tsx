@@ -1,5 +1,6 @@
 import type { DashboardSortKey, MarketEventType, PositionRangePerformance, PositionWithMarket, RangeKey, SortDirection } from "@pea/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
@@ -8,13 +9,13 @@ import { PositionRows } from "./PositionRows";
 import { SortableSection, type SortOption } from "./SortableSection";
 import { sortPositions } from "./dashboardSort.helpers";
 
-const sortOptions: Array<SortOption<DashboardSortKey>> = [
-  { label: "Nom A -> Z", key: "name", direction: "asc" },
-  { label: "Nom Z -> A", key: "name", direction: "desc" },
-  { label: "Valeur marche croissante", key: "currentMarketValue", direction: "asc" },
-  { label: "Valeur marche decroissante", key: "currentMarketValue", direction: "desc" },
-  { label: "Variation % croissante", key: "intervalPerformancePercent", direction: "asc" },
-  { label: "Variation % decroissante", key: "intervalPerformancePercent", direction: "desc" }
+const sortOptions: Array<Omit<SortOption<DashboardSortKey>, "label"> & { labelKey: string }> = [
+  { labelKey: "sort.nameAsc", key: "name", direction: "asc" },
+  { labelKey: "sort.nameDesc", key: "name", direction: "desc" },
+  { labelKey: "sort.marketValueAsc", key: "currentMarketValue", direction: "asc" },
+  { labelKey: "sort.marketValueDesc", key: "currentMarketValue", direction: "desc" },
+  { labelKey: "sort.variationAsc", key: "intervalPerformancePercent", direction: "asc" },
+  { labelKey: "sort.variationDesc", key: "intervalPerformancePercent", direction: "desc" }
 ];
 
 const performanceReloadEvents: MarketEventType[] = ["portfolio-performance-updated", "portfolio-chart-updated", "portfolio-assets-updated"];
@@ -30,6 +31,7 @@ export function PositionList({
   defaultSortKey?: DashboardSortKey;
   defaultSortDirection?: SortDirection;
 }) {
+  const { t } = useTranslation(["dashboard", "settings"]);
   const [sortKey, setSortKey] = useState<DashboardSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [performanceById, setPerformanceById] = useState<Map<number, PositionRangePerformance>>(new Map());
@@ -52,13 +54,13 @@ export function PositionList({
         if (!cancelled) setPerformanceById(new Map(items.map((item) => [item.id, item])));
       })
       .catch((caughtError) => {
-        if (!cancelled) setPerformanceError(caughtError instanceof Error ? caughtError.message : "Performances indisponibles");
+        if (!cancelled) setPerformanceError(caughtError instanceof Error ? caughtError.message : t("positionRows.performanceUnavailable", { ns: "dashboard" }));
       });
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [range]);
+  }, [range, t]);
 
   useMarketEventReload({
     debounceMs: 300,
@@ -78,7 +80,7 @@ export function PositionList({
           setPerformanceRefreshing(false);
         })
         .catch((caughtError) => {
-          setPerformanceError(caughtError instanceof Error ? caughtError.message : "Performances indisponibles");
+          setPerformanceError(caughtError instanceof Error ? caughtError.message : t("positionRows.performanceUnavailable", { ns: "dashboard" }));
           setPerformanceRefreshing(false);
         }),
     reloadOnFocus: false,
@@ -102,6 +104,10 @@ export function PositionList({
 
   const prive = usePrivacy();
   const rangeLabel = formatRangeLabel(range);
+  const translatedSortOptions = useMemo<Array<SortOption<DashboardSortKey>>>(
+    () => sortOptions.map((option) => ({ ...option, label: t(option.labelKey, { ns: "settings" }) })),
+    [t]
+  );
 
   return (
     <SortableSection
@@ -109,11 +115,11 @@ export function PositionList({
       activeKey={sortKey}
       className={`card overflow-hidden ${performanceRefreshing ? "stale-refreshing" : ""}`}
       onSortChange={updateSort}
-      options={sortOptions}
+      options={translatedSortOptions}
       title={
         <h2 className="font-semibold">
-          <span className="sm:hidden">Liste des positions</span>
-          <span className="hidden sm:inline">Positions</span>
+          <span className="sm:hidden">{t("positionList", { ns: "dashboard" })}</span>
+          <span className="hidden sm:inline">{t("positions", { ns: "dashboard" })}</span>
         </h2>
       }
     >

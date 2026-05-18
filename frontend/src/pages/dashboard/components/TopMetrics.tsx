@@ -1,5 +1,6 @@
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
 import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { formatRangeLabel, money, percent } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
@@ -18,18 +19,19 @@ export function TopMetrics({
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
 
   return (
     <section className="space-y-3">
       <PortfolioTotal loading={loading} prive={prive} value={summary?.totalValue} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Metric icon={TrendingUp} label="Total investi" loading={loading} value={summary ? masquerValeur(money(summary.totalCost, summary.currency), prive) : undefined} />
-        <Metric icon={Coins} label="Total dividendes" loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, summary.currency), prive) : undefined} />
-        <Metric icon={ReceiptText} label="Total frais" loading={loading} value={summary ? masquerValeur(money(summary.totalFees, summary.currency), prive) : undefined} />
+        <Metric icon={TrendingUp} label={t("topMetrics.invested", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalCost, summary.currency), prive) : undefined} />
+        <Metric icon={Coins} label={t("topMetrics.dividends", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, summary.currency), prive) : undefined} />
+        <Metric icon={ReceiptText} label={t("topMetrics.fees", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalFees, summary.currency), prive) : undefined} />
         <Metric
           icon={LineChart}
-          label="Performance"
+          label={t("metrics.performance", { ns: "dashboard" })}
           loading={loading}
           tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
           value={summary ? masquerValeur(`${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})`, prive) : undefined}
@@ -85,10 +87,12 @@ function RangeMetric({
   chartLoading: boolean;
   prive: boolean;
 }) {
+  const { t } = useTranslation(["dashboard"]);
+  const label = t("topMetrics.rangePerformance", { ns: "dashboard", range: formatRangeLabel(range) });
   if (!summaryReady) {
-    return <Metric icon={Activity} label={`Performance sur ${formatRangeLabel(range)}`} loading />;
+    return <Metric icon={Activity} label={label} loading />;
   }
-  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} prive={prive} range={range} />;
+  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} label={label} prive={prive} />;
 }
 
 /**
@@ -96,21 +100,21 @@ function RangeMetric({
  */
 function LoadedRangeMetric({
   currency,
-  range,
   chart,
   chartLoading,
+  label,
   prive
 }: {
   currency: string;
-  range: RangeKey;
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
+  label: string;
   prive: boolean;
 }) {
   return (
     <Metric
       icon={Activity}
-      label={`Performance sur ${formatRangeLabel(range)}`}
+      label={label}
       loading={chartLoading || !chart}
       tone={chart == null ? undefined : chart.performanceEuro >= 0 ? "positive" : "negative"}
       value={chart ? masquerValeur(`${money(chart.performanceEuro, currency)} · ${percent(chart.performancePercent)}`, prive) : undefined}

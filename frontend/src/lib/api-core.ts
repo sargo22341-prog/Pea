@@ -1,3 +1,4 @@
+import { translateApiMessage } from "../i18n";
 import { getNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isNativeApp, resolveServerPath } from "./native-auth";
 
 // En production web Docker, l'API doit rester relative au domaine courant.
@@ -97,7 +98,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const message = typeof payload.message === "string" && payload.message.trim()
       ? payload.message
       : `Erreur API ${response.status}`;
-    throw new ApiError(response.status, message, { details: payload.details, raw: body });
+    throw new ApiError(response.status, translateApiMessage(message), { details: payload.details, raw: body });
   }
 
   if (response.status === 204) {
@@ -126,7 +127,7 @@ export async function requestBlob(path: string, init?: RequestInit): Promise<Blo
 
   if (!response.ok) {
     const message = response.status === 401 ? "Authentification requise." : `Erreur API ${response.status}`;
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, translateApiMessage(message));
   }
 
   return response.blob();

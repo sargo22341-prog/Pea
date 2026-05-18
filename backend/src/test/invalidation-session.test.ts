@@ -205,6 +205,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.ok(resultat.colonnesUsers.includes("bootstrap_admin"), "colonne bootstrap_admin absente");
+  assert.ok(resultat.colonnesUsers.includes("language"), "colonne language absente");
   assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles range/interval absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval_start"), "index chart_candles range/interval/start absent");
@@ -233,8 +234,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
-    "les 29 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+    "les 30 migrations doivent etre enregistrees"
   );
 });
 

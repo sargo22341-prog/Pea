@@ -1,4 +1,5 @@
 import { Search, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
 import { COMPARE_COLORS } from "../charts/compareColors";
 
@@ -19,6 +20,7 @@ interface CompareModalProps {
 const MAX_COMPARE = 4;
 
 export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose, localPeaSearchEnabled }: CompareModalProps) {
+  const { t } = useTranslation(["common", "portfolio"]);
   const { query, setQuery, results, loading } = useEnrichedSearch({ localPeaSearchEnabled });
   const excluded = new Set([currentSymbol, ...selected.map((s) => s.symbol)]);
   const canAdd = selected.length < MAX_COMPARE;
@@ -30,7 +32,7 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
     >
       <div className="card w-full max-w-md space-y-4 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Comparer avec</h2>
+          <h2 className="text-lg font-semibold">{t("portfolio:compare.title")}</h2>
           <button className="btn-ghost" onClick={onClose} type="button">
             <X size={17} />
           </button>
@@ -59,16 +61,16 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
             <input
               autoFocus
               className="input pl-9"
-              placeholder="Ticker, entreprise ou ETF"
+              placeholder={t("portfolio:compare.placeholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
         ) : (
-          <p className="text-sm text-slate-400">Maximum {MAX_COMPARE} titres en comparaison.</p>
+          <p className="text-sm text-slate-400">{t("portfolio:compare.maxSymbols", { count: MAX_COMPARE })}</p>
         )}
 
-        {loading && <p className="text-sm text-slate-400">Recherche...</p>}
+        {loading && <p className="text-sm text-slate-400">{t("common:states.searching")}</p>}
 
         {results.length > 0 && (
           <div className="max-h-64 overflow-y-auto space-y-0.5">

@@ -1,5 +1,6 @@
 import type { User } from "@pea/shared";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
@@ -14,6 +15,7 @@ function mobileNavClass({ isActive }: NavLinkRenderProps) {
 }
 
 export function Shell({ user }: { user: User }) {
+  const { t } = useTranslation(["common", "navigation"]);
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
@@ -45,11 +47,11 @@ export function Shell({ user }: { user: User }) {
           <div className="flex min-w-0 items-center gap-3">
             <img alt="" className="h-11 w-11 rounded-md object-cover shadow-glow" src="/pea-icon.png" />
             <div className="min-w-0">
-              <p className="truncate text-lg font-bold">PEA Portfolio</p>
-              <p className="text-xs text-slate-400">Actions et ETF</p>
+              <p className="truncate text-lg font-bold">{t("common:app.name")}</p>
+              <p className="text-xs text-slate-400">{t("common:app.subtitle")}</p>
             </div>
           </div>
-          <NavLink className="btn-ghost shrink-0 px-2 lg:hidden" title="Parametres" to="/settings">
+          <NavLink className="btn-ghost shrink-0 px-2 lg:hidden" title={t("navigation:settings")} to="/settings">
             {!shouldLoadProfileIcon || !profileIconUrl ? (
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                 {user.username.slice(0, 1).toUpperCase()}
@@ -71,10 +73,10 @@ export function Shell({ user }: { user: User }) {
                 to={link.path}
               >
                 <link.icon size={17} />
-                {link.label}
+                {t(link.labelKey)}
               </NavLink>
             ))}
-            <NavLink className={navButtonClass} title="Parametres" to="/settings">
+            <NavLink className={navButtonClass} title={t("navigation:settings")} to="/settings">
               {!shouldLoadProfileIcon || !profileIconUrl ? (
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
                   {user.username.slice(0, 1).toUpperCase()}
@@ -105,7 +107,7 @@ export function Shell({ user }: { user: User }) {
             to={link.path}
           >
             <link.icon size={20} />
-            <span className="w-full truncate text-center">{link.label}</span>
+            <span className="w-full truncate text-center">{t(link.labelKey)}</span>
           </NavLink>
         ))}
       </nav>

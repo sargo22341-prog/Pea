@@ -1,6 +1,7 @@
 import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { RefreshCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, type YahooUsageStatsFilters } from "../../../lib/api";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
 import { YahooUsageChart } from "./yahoo-usage/YahooUsageCharts";
@@ -11,6 +12,7 @@ import type { DetailSelection, PeriodKey, SuccessFilter } from "./yahoo-usage/ya
 import { bucketRange, dateFromPeriod, isoLocalInput } from "./yahoo-usage/yahooUsageUtils";
 
 export function YahooUsageSection() {
+  const { t } = useTranslation(["common"]);
   const [data, setData] = useState<YahooUsageStatsDto | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("24h");
   const [groupBy, setGroupBy] = useState<"hour" | "day">("hour");
@@ -24,7 +26,7 @@ export function YahooUsageSection() {
   const [loading, setLoading] = useState(true);
   const [calls, setCalls] = useState<YahooUsageCallDto[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
-  const [selection, setSelection] = useState<DetailSelection>({ label: "10 derniers appels", filters: {} });
+  const [selection, setSelection] = useState<DetailSelection>({ label: t("admin.yahooUsage.lastCalls", { ns: "common" }), filters: {} });
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   const filters = useMemo<YahooUsageStatsFilters>(() => {
@@ -48,11 +50,11 @@ export function YahooUsageSection() {
     try {
       setData(await api.yahooUsageStats(filters));
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Statistiques Yahoo indisponibles" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.yahooUsage.statsUnavailable", { ns: "common" }) });
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, t]);
 
   const detailFilters = useMemo<YahooUsageStatsFilters>(() => ({ ...filters, ...selection.filters, limit: 10 }), [filters, selection.filters]);
 
@@ -61,11 +63,11 @@ export function YahooUsageSection() {
     try {
       setCalls(await api.yahooUsageCalls(detailFilters));
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Liste des appels Yahoo indisponible" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.yahooUsage.callsUnavailable", { ns: "common" }) });
     } finally {
       setCallsLoading(false);
     }
-  }, [detailFilters]);
+  }, [detailFilters, t]);
 
   useEffect(() => {
     void load();
@@ -78,7 +80,7 @@ export function YahooUsageSection() {
   const chartData = groupBy === "hour" ? data?.callsByHour ?? [] : data?.callsByDay ?? [];
 
   return (
-    <Collapsible title="Utilisation Yahoo Finance">
+    <Collapsible title={t("admin.yahooUsage.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <YahooUsageFilters
@@ -103,33 +105,33 @@ export function YahooUsageSection() {
         />
         <button className="btn-ghost shrink-0 gap-2" disabled={loading} onClick={() => void load()} type="button">
           <RefreshCcw size={16} />
-          Actualiser
+          {t("admin.yahooUsage.refresh", { ns: "common" })}
         </button>
       </div>
 
-      {loading && !data ? <p className="muted">Chargement des statistiques Yahoo...</p> : null}
+      {loading && !data ? <p className="muted">{t("admin.yahooUsage.loadingStats", { ns: "common" })}</p> : null}
       {data ? (
         <>
           <YahooUsageSummaryCards data={data} />
           <div className="grid gap-4 xl:grid-cols-2">
             <YahooUsageChart
               data={chartData}
-              onSelect={(bucket) => setSelection({ label: `${groupBy === "hour" ? "Heure" : "Jour"} ${bucket.key}`, filters: bucketRange(bucket, groupBy) })}
-              title={groupBy === "hour" ? "Appels par heure" : "Appels par jour"}
+              onSelect={(bucket) => setSelection({ label: `${groupBy === "hour" ? t("admin.yahooUsage.hour", { ns: "common" }) : t("admin.yahooUsage.day", { ns: "common" })} ${bucket.key}`, filters: bucketRange(bucket, groupBy) })}
+              title={groupBy === "hour" ? t("admin.yahooUsage.callsByHour", { ns: "common" }) : t("admin.yahooUsage.callsByDay", { ns: "common" })}
             />
             <YahooUsageChart
               data={data.byMethod}
-              onSelect={(bucket) => setSelection({ label: `Type ${bucket.key}`, filters: { method: bucket.key } })}
-              title="Repartition par type d'appel"
+              onSelect={(bucket) => setSelection({ label: `${t("admin.yahooUsage.type", { ns: "common" })} ${bucket.key}`, filters: { method: bucket.key } })}
+              title={t("admin.yahooUsage.byMethod", { ns: "common" })}
             />
           </div>
           <div className="grid gap-4 xl:grid-cols-4">
-            <YahooUsageTopTable emptyLabel="Aucune source" onSelect={(row) => setSelection({ label: `Source ${row.key}`, filters: { source: row.key } })} rows={data.bySource} title="Sources internes" />
-            <YahooUsageTopTable emptyLabel="Aucun ticker" onSelect={(row) => setSelection({ label: `Ticker ${row.key}`, filters: { ticker: row.key } })} rows={data.topTickers} title="Top tickers" />
-            <YahooUsageTopTable emptyLabel="Aucun module" onSelect={(row) => setSelection({ label: `Module ${row.key}`, filters: { module: row.key } })} rows={data.topModules} title="Top modules quoteSummary" />
-            <YahooUsageRecentErrors data={data} onSelect={(error) => setSelection({ label: `Erreur #${error.id}`, filters: { id: error.id, success: false } })} />
+            <YahooUsageTopTable emptyLabel={t("admin.yahooUsage.noSource", { ns: "common" })} onSelect={(row) => setSelection({ label: `Source ${row.key}`, filters: { source: row.key } })} rows={data.bySource} title={t("admin.yahooUsage.sources", { ns: "common" })} />
+            <YahooUsageTopTable emptyLabel={t("admin.yahooUsage.noTicker", { ns: "common" })} onSelect={(row) => setSelection({ label: `Ticker ${row.key}`, filters: { ticker: row.key } })} rows={data.topTickers} title="Top tickers" />
+            <YahooUsageTopTable emptyLabel={t("admin.yahooUsage.noModule", { ns: "common" })} onSelect={(row) => setSelection({ label: `Module ${row.key}`, filters: { module: row.key } })} rows={data.topModules} title="Top modules quoteSummary" />
+            <YahooUsageRecentErrors data={data} onSelect={(error) => setSelection({ label: `${t("admin.yahooUsage.error", { ns: "common" })} #${error.id}`, filters: { id: error.id, success: false } })} />
           </div>
-          <YahooUsageCallsTable calls={calls} loading={callsLoading} onReset={() => setSelection({ label: "10 derniers appels", filters: {} })} selection={selection.label} />
+          <YahooUsageCallsTable calls={calls} loading={callsLoading} onReset={() => setSelection({ label: t("admin.yahooUsage.lastCalls", { ns: "common" }), filters: {} })} selection={selection.label} />
         </>
       ) : null}
     </Collapsible>

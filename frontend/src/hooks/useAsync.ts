@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { i18n } from "../i18n";
 import { useLatestRef } from "./useLatestRef";
 
 /**
@@ -32,7 +33,7 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
       if (!signal?.aborted && requestId === requestIdRef.current) setData(result);
     } catch (err) {
       if (!signal?.aborted && requestId === requestIdRef.current) {
-        setError(err instanceof Error ? err.message : "Erreur inconnue");
+        setError(err instanceof Error ? err.message : i18n.t("errors:unknown"));
       }
     } finally {
       if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);

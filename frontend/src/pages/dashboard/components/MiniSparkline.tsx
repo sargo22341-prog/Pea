@@ -1,14 +1,16 @@
 import type { PositionRangePerformance } from "@pea/shared";
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../../lib/timezone";
 
 export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerformance["miniChart"]; tone: "positive" | "negative" | "neutral" }) {
+  const { t } = useTranslation(["dashboard"]);
   const points = miniChart?.points ?? [];
   const colorClass = tone === "positive" ? "text-mint" : tone === "negative" ? "text-coral" : "text-slate-400";
 
   if (points.length < 2) {
     return (
-      <div className="h-9 w-[84px] sm:w-28" aria-label="Mini-graph indisponible">
+      <div className="h-9 w-[84px] sm:w-28" aria-label={t("positionRows.miniGraphUnavailable", { ns: "dashboard" })}>
         <div className="mt-[17px] h-px w-full rounded bg-line/80" />
       </div>
     );
@@ -35,7 +37,7 @@ export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { 
 
   return (
     <svg
-      aria-label={`Mini-graph ${miniChart?.range ?? ""}`}
+      aria-label={t("positionRows.miniGraph", { ns: "dashboard", range: miniChart?.range ?? "" })}
       className={`h-9 w-[84px] overflow-visible sm:w-28 ${colorClass}`}
       focusable="false"
       preserveAspectRatio="none"

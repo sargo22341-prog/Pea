@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { User } from "@pea/shared";
+import { useTranslation } from "react-i18next";
 import { NewsArticleList } from "../../components/common/NewsArticleList";
 import { NewsHeader } from "./components/NewsHeader";
 import { NewsPagination } from "./components/NewsPagination";
@@ -7,6 +8,7 @@ import { NewsSkeleton } from "./components/NewsSkeleton";
 import { useNewsPageData } from "./hooks/useNewsPageData";
 
 export function NewsPage({ user }: { user: User }) {
+  const { t } = useTranslation("navigation");
   const {
     articles,
     currentPage,
@@ -25,7 +27,7 @@ export function NewsPage({ user }: { user: User }) {
     };
   }, []);
 
-  const sectionTitle = portfolioOnly ? "Actualites de mes actifs" : "Actualites globales";
+  const sectionTitle = portfolioOnly ? t("portfolioNews") : t("globalNews");
 
   return (
     <div className="space-y-6">
@@ -37,7 +39,7 @@ export function NewsPage({ user }: { user: User }) {
       ) : (
         <NewsArticleList
           articles={articles}
-          emptyLabel={portfolioOnly ? "Aucun article lie a vos actifs pour le moment." : "Aucun article global pour le moment."}
+          emptyLabel={portfolioOnly ? t("noPortfolioNews") : t("noGlobalNews")}
           showRelatedAssets={portfolioOnly}
           title={sectionTitle}
         />

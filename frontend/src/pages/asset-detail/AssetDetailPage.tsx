@@ -1,5 +1,6 @@
 import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents";
 import { CompareModal } from "../../components/common/CompareModal";
@@ -18,6 +19,7 @@ import { useAssetChartLifecycle } from "./hooks/useAssetChartLifecycle";
 import { useAssetWatchlist } from "./hooks/useAssetWatchlist";
 
 export function AssetDetailPage({ user }: { user: User }) {
+  const { t } = useTranslation("asset");
   const { symbol = "" } = useParams();
   const [range, setRangeState] = useState<RangeKey>(() => user.defaultChartRange ?? "1d");
   const [editing, setEditing] = useState(false);
@@ -73,7 +75,7 @@ export function AssetDetailPage({ user }: { user: User }) {
     };
   }, [asset.data?.quote?.name, symbol]);
 
-  if (asset.loading && !asset.data) return <div className="card p-6">Chargement de {symbol}...</div>;
+  if (asset.loading && !asset.data) return <div className="card p-6">{t("loadingAsset", { symbol })}</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
   if (!asset.data) return null;
 
@@ -86,14 +88,14 @@ export function AssetDetailPage({ user }: { user: User }) {
     if (!target) return;
     await api.deletePosition(target.id);
     setDraftPosition(null);
-    setToast("Position supprimée");
+    setToast(t("positionDeleted"));
     await asset.reload();
   }
 
   async function refreshAfterEdit() {
     await asset.reload();
     setDraftPosition(null);
-    setToast("Position mise à jour");
+    setToast(t("positionUpdated"));
     window.setTimeout(() => setToast(null), 3000);
   }
 
@@ -109,7 +111,7 @@ export function AssetDetailPage({ user }: { user: User }) {
       setDraftPosition(created);
       setEditing(true);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "Ajout impossible");
+      setToast(error instanceof Error ? error.message : t("addFailed"));
     } finally {
       setOpeningPositionEditor(false);
     }
@@ -150,7 +152,7 @@ export function AssetDetailPage({ user }: { user: User }) {
       />
 
       {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
-      {openingPositionEditor ? <div className="card border-mint/40 p-3 text-sm text-mint">Préparation de l'ajout...</div> : null}
+      {openingPositionEditor ? <div className="card border-mint/40 p-3 text-sm text-mint">{t("openingPositionEditor")}</div> : null}
 
       <AssetHistorySection
         chart={chart}

@@ -1,5 +1,6 @@
 import type { PortfolioChartDto, RangeKey } from "@pea/shared";
 import { memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { formatChartDate, formatChartDateTime, formatChartTime, formatChartWeekTick } from "../../lib/format";
 import { normalizeSeriesByPoints } from "../../lib/seriesNormalization";
@@ -43,6 +44,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   userTimezone?: string;
   maskValues?: boolean;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const compressTimeAxis = shouldNormalizeComparisonByPoints(range);
   const comparisonData = useMemo(() => buildComparisonData(chart, comparisons, range), [chart, comparisons, range]);
   const comparisonEntries = useMemo(
@@ -122,7 +124,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
               <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-slate-400">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-0.5 w-5 rounded" style={{ backgroundColor: portfolioColor }} />
-                  Portefeuille
+                  {t("chart.portfolio", { ns: "dashboard" })}
                 </span>
                 {comparisonEntries.map((entry) => (
                   <span className="flex items-center gap-1.5" key={entry.key}>
@@ -179,6 +181,7 @@ function ComparisonTooltip({
   comparisons: ComparisonEntry[];
   maskValues: boolean;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   if (!active || !payload?.length) return null;
 
   const portfolioItem = payload.find((item) => item.dataKey === "portfolio");
@@ -190,7 +193,7 @@ function ComparisonTooltip({
       <p className="mb-2 font-medium text-slate-300">{labelFormatter(labelStr)}</p>
       {portfolioValue !== undefined && (
         <p className="mb-1 text-slate-100">
-          Portefeuille&ensp;
+          {t("chart.portfolio", { ns: "dashboard" })}&ensp;
           {maskValues ? "...." : formatBase100Value(portfolioValue)}
         </p>
       )}

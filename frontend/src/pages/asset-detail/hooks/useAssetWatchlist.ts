@@ -1,5 +1,6 @@
 import type { Quote } from "@pea/shared";
 import { useEffect, useState } from "react";
+import { i18n } from "../../../i18n";
 import { api } from "../../../lib/api";
 
 export function useAssetWatchlist({
@@ -36,7 +37,7 @@ export function useAssetWatchlist({
       }
     } catch (error) {
       setWatchlisted(!next);
-      onError(error instanceof Error ? error.message : "Liste de suivi impossible");
+      onError(error instanceof Error ? error.message : i18n.t("errors:watchlistUnavailable"));
     }
   }
 

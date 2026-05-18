@@ -1,8 +1,9 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { api } from "../../../lib/api";
-import { useAsync } from "../../../hooks/useAsync";
+import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
+import { useAsync } from "../../../hooks/useAsync";
+import { api } from "../../../lib/api";
 
 function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -14,6 +15,7 @@ function blobToDataURL(blob: Blob): Promise<string> {
 }
 
 export function useAccountSettings() {
+  const { t } = useTranslation(["settings"]);
   const me = useAsync(() => api.me());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +32,6 @@ export function useAccountSettings() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setToast(null);
-    // Detect whether the user actually typed something in the credential fields
     const willChangeCredentials = username !== "" || password !== "";
     try {
       await api.updateMe({
@@ -39,22 +40,21 @@ export function useAccountSettings() {
         confirmPassword: password ? confirmPassword : undefined,
       });
       if (willChangeCredentials) {
-        setToast({ tone: "success", text: "Compte mis a jour. Deconnexion en cours…" });
-        await new Promise<void>((r) => setTimeout(r, 1500));
+        setToast({ tone: "success", text: t("account.updatedLogout", { ns: "settings" }) });
+        await new Promise<void>((resolve) => setTimeout(resolve, 1500));
         await api.logout();
         window.location.assign("/");
       } else {
-        setToast({ tone: "success", text: "Compte mis a jour." });
+        setToast({ tone: "success", text: t("account.updated", { ns: "settings" }) });
         await me.reload();
       }
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Mise a jour impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("account.updateError", { ns: "settings" }) });
     }
   }
 
   async function uploadCroppedBlob(blob: Blob) {
     setToast(null);
-    // Show the cropped image as preview immediately (avoid waiting for server round-trip)
     const dataUrl = await blobToDataURL(blob);
     setProfilePreview(dataUrl);
     try {
@@ -63,14 +63,12 @@ export function useAccountSettings() {
       const nextBust = Date.now();
       setProfileFailed(false);
       setProfileCacheBust(nextBust);
-      window.dispatchEvent(
-        new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: true } })
-      );
-      setToast({ tone: "success", text: "Icone de profil mise a jour." });
+      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: true } }));
+      setToast({ tone: "success", text: t("account.profileIconUpdated", { ns: "settings" }) });
       await me.reload();
     } catch (error) {
       setProfilePreview("");
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Upload impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("account.uploadError", { ns: "settings" }) });
     }
   }
 
@@ -82,13 +80,11 @@ export function useAccountSettings() {
       const nextBust = Date.now();
       setProfileFailed(true);
       setProfileCacheBust(nextBust);
-      window.dispatchEvent(
-        new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: false } })
-      );
-      setToast({ tone: "success", text: "Icone de profil supprimee." });
+      window.dispatchEvent(new CustomEvent("profile-icon-updated", { detail: { cacheBust: nextBust, hasProfileIcon: false } }));
+      setToast({ tone: "success", text: t("account.profileIconDeleted", { ns: "settings" }) });
       await me.reload();
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Suppression impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("account.deleteError", { ns: "settings" }) });
     }
   }
 

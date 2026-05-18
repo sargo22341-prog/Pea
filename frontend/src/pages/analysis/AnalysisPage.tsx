@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AssetIcon } from "../../components/common/AssetIcon";
 import { CountryAllocationChart } from "../../components/charts/CountryAllocationChart";
 import { FinancialComboChart } from "../../components/charts/FinancialComboChart";
@@ -12,15 +13,16 @@ import { api } from "../../lib/api";
 
 type ChartKey = "country" | "sector" | "treemap" | "netMargin" | "financials";
 
-const chartOptions: Array<{ key: ChartKey; label: string }> = [
-  { key: "country", label: "Répartition par pays" },
-  { key: "sector", label: "Répartition par secteur" },
-  { key: "treemap", label: "Treemap du portefeuille" },
-  { key: "netMargin", label: "Marges nettes par entreprise" },
-  { key: "financials", label: "Revenue / Net Income / Marge" }
+const chartOptions: Array<{ key: ChartKey; labelKey: string }> = [
+  { key: "country", labelKey: "analysis.charts.country" },
+  { key: "sector", labelKey: "analysis.charts.sector" },
+  { key: "treemap", labelKey: "analysis.charts.treemap" },
+  { key: "netMargin", labelKey: "analysis.charts.netMargin" },
+  { key: "financials", labelKey: "analysis.charts.financials" }
 ];
 
 export function AnalysisPage() {
+  const { t } = useTranslation("common");
   const [selectedChart, setSelectedChart] = useState<ChartKey>("country");
   const [selectedFinancialSymbol, setSelectedFinancialSymbol] = useState("");
   const analysis = useAsync((signal) => api.portfolioAnalysis(signal));
@@ -34,11 +36,11 @@ export function AnalysisPage() {
   );
 
   useEffect(() => {
-    document.title = "Analysis | PEA Portfolio";
+    document.title = `${t("analysis.title")} | PEA Portfolio`;
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, []);
+  }, [t]);
 
   useMarketEventReload({
     eventTypes: ["analysis-updated"],
@@ -74,15 +76,15 @@ export function AnalysisPage() {
     <div className="min-w-0 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Analyse</h1>
-          <p className="muted">Lecture visuelle du poids de chaque ligne du portefeuille.</p>
+          <h1 className="text-2xl font-bold">{t("analysis.title")}</h1>
+          <p className="muted">{t("analysis.subtitle")}</p>
         </div>
         <label className="grid gap-1 text-sm text-slate-300 sm:w-80">
-          <span>Graphique</span>
+          <span>{t("analysis.chart")}</span>
           <select className="input" onChange={(event) => setSelectedChart(event.target.value as ChartKey)} value={selectedChart}>
             {chartOptions.map((option) => (
               <option key={option.key} value={option.key}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
@@ -90,22 +92,22 @@ export function AnalysisPage() {
       </div>
 
       {analysis.loading ? (
-        <div className="card p-6">Chargement...</div>
+        <div className="card p-6">{t("common.loading")}</div>
       ) : analysis.error ? (
         <div className="rounded-lg border border-coral/40 bg-coral/10 p-4 text-sm text-rose-100">
-          {analysis.error || "Impossible de charger l'analyse du portefeuille."}
+          {analysis.error || t("analysis.loadError")}
         </div>
       ) : !hasAnyData ? (
         <EmptyState />
       ) : (
         <section className="card min-w-0 p-3 sm:p-5">
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">{activeOption.label}</h2>
-            {analysis.data?.stale ? <span className="text-xs text-amber">Données partielles ou en cache</span> : null}
+            <h2 className="text-lg font-semibold">{t(activeOption.labelKey)}</h2>
+            {analysis.data?.stale ? <span className="text-xs text-amber">{t("analysis.stale")}</span> : null}
           </div>
           {selectedChart === "financials" && analysis.data?.financialsByAsset.length ? (
             <label className="mb-4 grid gap-1 text-sm text-slate-300 sm:max-w-sm">
-              <span>Action</span>
+              <span>{t("analysis.stock")}</span>
               <select className="input" onChange={(event) => setSelectedFinancialSymbol(event.target.value)} value={selectedFinancialAsset?.symbol ?? ""}>
                 {analysis.data.financialsByAsset.map((asset) => (
                   <option key={asset.symbol} value={asset.symbol}>

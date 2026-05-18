@@ -1,4 +1,5 @@
 import type { YahooUsageBucketDto, YahooUsageCallDto, YahooUsageRecentErrorDto, YahooUsageStatsDto } from "@pea/shared";
+import { useTranslation } from "react-i18next";
 import { formatDateTime, formatMs, formatNumber } from "./yahooUsageUtils";
 
 export function YahooUsageTopTable({ emptyLabel, onSelect, rows, title }: { emptyLabel: string; onSelect: (row: YahooUsageBucketDto) => void; rows: YahooUsageBucketDto[]; title: string }) {
@@ -24,9 +25,10 @@ export function YahooUsageTopTable({ emptyLabel, onSelect, rows, title }: { empt
 }
 
 export function YahooUsageRecentErrors({ data, onSelect }: { data: YahooUsageStatsDto; onSelect: (error: YahooUsageRecentErrorDto) => void }) {
+  const { t } = useTranslation(["common"]);
   return (
     <section className="overflow-hidden rounded-md border border-line">
-      <h3 className="border-b border-line bg-panel2/60 p-3 text-sm font-semibold text-slate-300">Erreurs recentes</h3>
+      <h3 className="border-b border-line bg-panel2/60 p-3 text-sm font-semibold text-slate-300">{t("admin.yahooUsage.recentErrors", { ns: "common" })}</h3>
       {data.recentErrors.length ? (
         <div className="max-h-80 overflow-auto">
           <table className="w-full text-left text-sm">
@@ -36,7 +38,7 @@ export function YahooUsageRecentErrors({ data, onSelect }: { data: YahooUsageSta
                   <td className="p-3">
                     <p className="font-medium">{error.method} {error.ticker ?? error.tickers[0] ?? ""}</p>
                     <p className="muted">{formatDateTime(error.createdAt)} - {formatMs(error.durationMs)}</p>
-                    <p className="mt-1 text-slate-300">{error.errorMessage ?? "Erreur Yahoo"}</p>
+                    <p className="mt-1 text-slate-300">{error.errorMessage ?? t("admin.yahooUsage.yahooError", { ns: "common" })}</p>
                   </td>
                 </tr>
               ))}
@@ -44,21 +46,22 @@ export function YahooUsageRecentErrors({ data, onSelect }: { data: YahooUsageSta
           </table>
         </div>
       ) : (
-        <p className="p-3 text-sm text-slate-400">Aucune erreur sur la periode.</p>
+        <p className="p-3 text-sm text-slate-400">{t("admin.yahooUsage.noErrorPeriod", { ns: "common" })}</p>
       )}
     </section>
   );
 }
 
 export function YahooUsageCallsTable({ calls, loading, onReset, selection }: { calls: YahooUsageCallDto[]; loading: boolean; onReset: () => void; selection: string }) {
+  const { t } = useTranslation(["common"]);
   return (
     <section className="overflow-hidden rounded-md border border-line">
       <div className="flex flex-col gap-2 border-b border-line bg-panel2/60 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-300">Liste des appels</h3>
+          <h3 className="text-sm font-semibold text-slate-300">{t("admin.yahooUsage.callsList", { ns: "common" })}</h3>
           <p className="muted">{selection}</p>
         </div>
-        <button className="btn-ghost shrink-0" onClick={onReset} type="button">10 derniers appels</button>
+        <button className="btn-ghost shrink-0" onClick={onReset} type="button">{t("admin.yahooUsage.lastCalls", { ns: "common" })}</button>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-[1100px] w-full text-left text-sm">
@@ -70,14 +73,14 @@ export function YahooUsageCallsTable({ calls, loading, onReset, selection }: { c
               <th className="p-3">Modules</th>
               <th className="p-3">Source</th>
               <th className="p-3">Range</th>
-              <th className="p-3">Duree</th>
-              <th className="p-3">Statut</th>
-              <th className="p-3">Erreur</th>
+              <th className="p-3">{t("admin.yahooUsage.duration", { ns: "common" })}</th>
+              <th className="p-3">{t("admin.yahooUsage.status", { ns: "common" })}</th>
+              <th className="p-3">{t("admin.yahooUsage.error", { ns: "common" })}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {loading ? (
-              <tr><td className="p-3 text-slate-400" colSpan={9}>Chargement des appels...</td></tr>
+              <tr><td className="p-3 text-slate-400" colSpan={9}>{t("admin.yahooUsage.loadingCalls", { ns: "common" })}</td></tr>
             ) : calls.length ? calls.map((call) => (
               <tr className="align-top" key={call.id}>
                 <td className="whitespace-nowrap p-3 text-slate-300">{formatDateTime(call.createdAt)}</td>
@@ -87,11 +90,11 @@ export function YahooUsageCallsTable({ calls, loading, onReset, selection }: { c
                 <td className="max-w-72 p-3 text-slate-300">{call.internalSource ?? "-"}</td>
                 <td className="p-3 text-slate-300">{[call.range, call.interval].filter(Boolean).join(" / ") || "-"}</td>
                 <td className="whitespace-nowrap p-3 text-slate-300">{formatMs(call.durationMs)}</td>
-                <td className={call.success ? "p-3 text-mint" : "p-3 text-coral"}>{call.success ? "Succes" : "Erreur"}</td>
+                <td className={call.success ? "p-3 text-mint" : "p-3 text-coral"}>{call.success ? t("admin.yahooUsage.success", { ns: "common" }) : t("admin.yahooUsage.error", { ns: "common" })}</td>
                 <td className="max-w-80 p-3 text-slate-300">{call.errorMessage ?? "-"}</td>
               </tr>
             )) : (
-              <tr><td className="p-3 text-slate-400" colSpan={9}>Aucun appel pour cette selection.</td></tr>
+              <tr><td className="p-3 text-slate-400" colSpan={9}>{t("admin.yahooUsage.noCalls", { ns: "common" })}</td></tr>
             )}
           </tbody>
         </table>

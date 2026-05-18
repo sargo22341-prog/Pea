@@ -1,13 +1,15 @@
 import type { RuntimeHealthDto, YahooUsageRecentErrorDto } from "@pea/shared";
 import { AlertTriangle, CheckCircle2, RefreshCcw, ServerCog } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../../../lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Collapsible, Toast } from "../../../components/common/feedback";
+import { api } from "../../../lib/api";
 
 const autoRefreshMs = 60_000;
 
 type BadgeTone = "ok" | "warning" | "error" | "neutral";
+type RuntimeT = (key: string, options?: Record<string, unknown>) => string;
 
 function formatNumber(value?: number) {
   return new Intl.NumberFormat("fr-FR").format(value ?? 0);
@@ -60,75 +62,68 @@ function failedQueueTone(failed = 0): BadgeTone {
   return "ok";
 }
 
-function schedulerStatusLabel(status?: RuntimeHealthDto["scheduler"]["status"]) {
-  if (status === "healthy") return "sain";
-  if (status === "warning") return "attention";
-  if (status === "error") return "erreur";
-  return "inconnu";
+function schedulerStatusLabel(t: RuntimeT, status?: RuntimeHealthDto["scheduler"]["status"]) {
+  if (status === "healthy") return t("admin.runtime.status.healthy", { ns: "common" });
+  if (status === "warning") return t("admin.runtime.status.warning", { ns: "common" });
+  if (status === "error") return t("admin.runtime.status.error", { ns: "common" });
+  return t("admin.runtime.status.unknown", { ns: "common" });
 }
 
-function yahooCircuitLabel(state?: RuntimeHealthDto["yahoo"]["circuitBreaker"]["state"]) {
-  if (state === "closed") return "fermé";
-  if (state === "open") return "ouvert";
-  if (state === "half-open") return "semi-ouvert";
-  return "inconnu";
+function yahooCircuitLabel(t: RuntimeT, state?: RuntimeHealthDto["yahoo"]["circuitBreaker"]["state"]) {
+  if (state === "closed") return t("admin.runtime.status.closed", { ns: "common" });
+  if (state === "open") return t("admin.runtime.status.open", { ns: "common" });
+  if (state === "half-open") return t("admin.runtime.status.halfOpen", { ns: "common" });
+  return t("admin.runtime.status.unknown", { ns: "common" });
 }
 
-function queueTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    candles: "Bougies",
-    snapshots: "Instantanés",
-    financials: "Données financières",
-    dividends: "Dividendes",
-    calendar: "Calendrier",
-    cleanup: "Nettoyage"
-  };
-  return labels[type] ?? type;
+function queueTypeLabel(t: RuntimeT, type: string) {
+  return t(`admin.runtime.queueTypes.${type}`, { defaultValue: type, ns: "common" });
 }
 
-function warningBadges(data: RuntimeHealthDto | null) {
+function warningBadges(data: RuntimeHealthDto | null, t: RuntimeT) {
   if (!data) return [];
   const badges: Array<{ label: string; tone: BadgeTone }> = [];
-  if (data.scheduler.status !== "healthy") badges.push({ label: `Planificateur ${schedulerStatusLabel(data.scheduler.status)}`, tone: schedulerTone(data.scheduler.status) });
-  if (data.yahoo.circuitBreaker.state !== "closed") badges.push({ label: `Yahoo ${yahooCircuitLabel(data.yahoo.circuitBreaker.state)}`, tone: yahooTone(data.yahoo.circuitBreaker.state) });
-  if (data.queue.failed > 0) badges.push({ label: `${formatNumber(data.queue.failed)} taches en erreur`, tone: failedQueueTone(data.queue.failed) });
-  if ((data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000) badges.push({ label: "Exécution > 30 min", tone: "warning" });
-  if (data.cache.cacheEntries.expiredRows > 1_000) badges.push({ label: "Cache expiré élevé", tone: "warning" });
-  if (data.memory.sseClients >= 80) badges.push({ label: "Clients SSE proches de la limite", tone: "warning" });
-  if (data.memory.authFailureEntries > 1_000) badges.push({ label: "Échecs de connexion élevés", tone: "warning" });
+  if (data.scheduler.status !== "healthy") badges.push({ label: t("admin.runtime.schedulerWarning", { ns: "common", status: schedulerStatusLabel(t, data.scheduler.status) }), tone: schedulerTone(data.scheduler.status) });
+  if (data.yahoo.circuitBreaker.state !== "closed") badges.push({ label: t("admin.runtime.yahooWarning", { ns: "common", status: yahooCircuitLabel(t, data.yahoo.circuitBreaker.state) }), tone: yahooTone(data.yahoo.circuitBreaker.state) });
+  if (data.queue.failed > 0) badges.push({ label: t("admin.runtime.tasksFailed", { count: data.queue.failed, ns: "common" }), tone: failedQueueTone(data.queue.failed) });
+  if ((data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000) badges.push({ label: t("admin.runtime.executionLong", { ns: "common" }), tone: "warning" });
+  if (data.cache.cacheEntries.expiredRows > 1_000) badges.push({ label: t("admin.runtime.cacheExpiredHigh", { ns: "common" }), tone: "warning" });
+  if (data.memory.sseClients >= 80) badges.push({ label: t("admin.runtime.sseNearLimit", { ns: "common" }), tone: "warning" });
+  if (data.memory.authFailureEntries > 1_000) badges.push({ label: t("admin.runtime.authFailuresHigh", { ns: "common" }), tone: "warning" });
   return badges;
 }
 
 export function RuntimeHealthSection() {
+  const { t } = useTranslation(["common"]);
   const [data, setData] = useState<RuntimeHealthDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load(silent = false) {
+  const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
       setData(await api.getRuntimeHealth());
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Monitoring runtime indisponible");
+      setError(loadError instanceof Error ? loadError.message : t("admin.runtime.unavailable", { ns: "common" }));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, [t]);
 
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(true), autoRefreshMs);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [load]);
 
-  const badges = useMemo(() => warningBadges(data), [data]);
+  const badges = useMemo(() => warningBadges(data, t), [data, t]);
 
   return (
-    <Collapsible title="Monitoring runtime">
+    <Collapsible title={t("admin.runtime.title", { ns: "common" })}>
       {error ? <Toast tone="error">{error}</Toast> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -136,39 +131,39 @@ export function RuntimeHealthSection() {
             <ServerCog size={18} />
           </div>
           <div className="min-w-0">
-            <p className="muted">Dernier relevé</p>
-            <p className="truncate text-sm font-semibold">{loading && !data ? "Chargement..." : formatDateTime(data?.generatedAt)}</p>
+            <p className="muted">{t("admin.runtime.lastReading", { ns: "common" })}</p>
+            <p className="truncate text-sm font-semibold">{loading && !data ? t("common.loading", { ns: "common" }) : formatDateTime(data?.generatedAt)}</p>
           </div>
         </div>
         <button className="btn-ghost shrink-0 gap-2" disabled={loading || refreshing} onClick={() => void load(true)} type="button">
           <RefreshCcw size={16} />
-          Rafraichir
+          {t("actions.refresh", { ns: "common" })}
         </button>
       </div>
 
-      {!loading && !data && !error ? <p className="muted">Aucune métrique runtime disponible.</p> : null}
+      {!loading && !data && !error ? <p className="muted">{t("admin.runtime.empty", { ns: "common" })}</p> : null}
       {data ? (
         <>
-          <StatusBadges data={data} warnings={badges} />
-          <RuntimeSummary data={data} />
-          <CacheBlock data={data} />
-          <MemoryBlock data={data} />
-          <QueueBlock data={data} />
-          <SchedulerBlock data={data} />
-          <YahooBlock data={data} />
+          <StatusBadges data={data} t={t} warnings={badges} />
+          <RuntimeSummary data={data} t={t} />
+          <CacheBlock data={data} t={t} />
+          <MemoryBlock data={data} t={t} />
+          <QueueBlock data={data} t={t} />
+          <SchedulerBlock data={data} t={t} />
+          <YahooBlock data={data} t={t} />
         </>
       ) : null}
     </Collapsible>
   );
 }
 
-function StatusBadges({ data, warnings }: { data: RuntimeHealthDto; warnings: Array<{ label: string; tone: BadgeTone }> }) {
-  const items = warnings.length ? warnings : [{ label: "Aucune alerte active", tone: "ok" as BadgeTone }];
+function StatusBadges({ data, warnings, t }: { data: RuntimeHealthDto; warnings: Array<{ label: string; tone: BadgeTone }>; t: RuntimeT }) {
+  const items = warnings.length ? warnings : [{ label: t("admin.runtime.noActiveAlert", { ns: "common" }), tone: "ok" as BadgeTone }];
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge label={`Planificateur ${schedulerStatusLabel(data.scheduler.status)}`} tone={schedulerTone(data.scheduler.status)} />
-      <Badge label={`Yahoo ${yahooCircuitLabel(data.yahoo.circuitBreaker.state)}`} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
-      <Badge label={`File en erreur ${formatNumber(data.queue.failed)}`} tone={failedQueueTone(data.queue.failed)} />
+      <Badge label={t("admin.runtime.schedulerWarning", { ns: "common", status: schedulerStatusLabel(t, data.scheduler.status) })} tone={schedulerTone(data.scheduler.status)} />
+      <Badge label={t("admin.runtime.yahooWarning", { ns: "common", status: yahooCircuitLabel(t, data.yahoo.circuitBreaker.state) })} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
+      <Badge label={t("admin.runtime.queueFailed", { count: data.queue.failed, ns: "common" })} tone={failedQueueTone(data.queue.failed)} />
       {items.map((item) => <Badge key={item.label} label={item.label} tone={item.tone} />)}
     </div>
   );
@@ -184,13 +179,13 @@ function Badge({ label, tone }: { label: string; tone: BadgeTone }) {
   );
 }
 
-function RuntimeSummary({ data }: { data: RuntimeHealthDto }) {
+function RuntimeSummary({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <MetricTile label="Planificateur" value={schedulerStatusLabel(data.scheduler.status)} tone={schedulerTone(data.scheduler.status)} />
-      <MetricTile label="Circuit Yahoo" value={yahooCircuitLabel(data.yahoo.circuitBreaker.state)} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
-      <MetricTile label="File de tâches" value={`${formatNumber(data.queue.pending)} / ${formatNumber(data.queue.running)} / ${formatNumber(data.queue.failed)}`} hint="en attente / en cours / en erreur" />
-      <MetricTile label="Dernière purge cache" value={formatDateTime(data.cache.cleanup.lastRunAt)} hint={`${formatNumber(data.cache.cleanup.totalDeletedRows)} lignes`} />
+      <MetricTile label={t("admin.runtime.scheduler", { ns: "common" })} value={schedulerStatusLabel(t, data.scheduler.status)} tone={schedulerTone(data.scheduler.status)} />
+      <MetricTile label={t("admin.runtime.yahooCircuit", { ns: "common" })} value={yahooCircuitLabel(t, data.yahoo.circuitBreaker.state)} tone={yahooTone(data.yahoo.circuitBreaker.state)} />
+      <MetricTile label={t("admin.runtime.queue", { ns: "common" })} value={`${formatNumber(data.queue.pending)} / ${formatNumber(data.queue.running)} / ${formatNumber(data.queue.failed)}`} hint={t("admin.runtime.pendingRunningFailed", { ns: "common" })} />
+      <MetricTile label={t("admin.runtime.lastCacheCleanup", { ns: "common" })} value={formatDateTime(data.cache.cleanup.lastRunAt)} hint={t("admin.runtime.rows", { count: data.cache.cleanup.totalDeletedRows, ns: "common" })} />
     </div>
   );
 }
@@ -205,61 +200,61 @@ function MetricTile({ label, value, hint, tone = "neutral" }: { label: string; v
   );
 }
 
-function CacheBlock({ data }: { data: RuntimeHealthDto }) {
+function CacheBlock({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   return (
     <RuntimeBlock title="Cache">
       <div className="grid gap-3 md:grid-cols-5">
         <MetricTile label="cache_entries" value={formatNumber(data.cache.cacheEntries.totalRows)} />
-        <MetricTile label="Expirées" value={formatNumber(data.cache.cacheEntries.expiredRows)} tone={data.cache.cacheEntries.expiredRows > 1_000 ? "warning" : "neutral"} />
+        <MetricTile label={t("admin.runtime.expired", { ns: "common" })} value={formatNumber(data.cache.cacheEntries.expiredRows)} tone={data.cache.cacheEntries.expiredRows > 1_000 ? "warning" : "neutral"} />
         <MetricTile label="portfolio_chart_cache" value={formatNumber(data.cache.derivedCaches.portfolioChartCacheRows)} />
         <MetricTile label="positions_perf_cache" value={formatNumber(data.cache.derivedCaches.portfolioPositionsPerformanceCacheRows)} />
         <MetricTile label="frontend_block_cache" value={formatNumber(data.cache.derivedCaches.frontendBlockCacheRows)} />
       </div>
       <CompactTable
-        columns={["Périmètre", "Lignes", "Expirées"]}
-        emptyLabel="Aucun scope cache."
+        columns={[t("admin.runtime.scope", { ns: "common" }), t("admin.runtime.lines", { ns: "common" }), t("admin.runtime.expired", { ns: "common" })]}
+        emptyLabel={t("admin.runtime.noCacheScope", { ns: "common" })}
         rows={data.cache.cacheEntries.byScope.map((row) => [row.scope, formatNumber(row.rows), formatNumber(row.expiredRows)])}
       />
     </RuntimeBlock>
   );
 }
 
-function MemoryBlock({ data }: { data: RuntimeHealthDto }) {
+function MemoryBlock({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   const memory = data.memory;
   return (
-    <RuntimeBlock title="Mémoire">
+    <RuntimeBlock title={t("admin.runtime.memory", { ns: "common" })}>
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Cache graphiques intraday" value={formatNumber(memory.intradayChartCacheEntries)} />
-        <MetricTile label="Cache cotations instantanées" value={formatNumber(memory.snapshotQuoteCacheEntries)} />
-        <MetricTile label="Jours ouverts en cache" value={formatNumber(memory.previousOpenMarketDaysCacheEntries)} />
-        <MetricTile label="Requêtes backend en cours" value={formatNumber(memory.backendInFlightRequests)} />
-        <MetricTile label="Clients SSE" value={formatNumber(memory.sseClients)} tone={memory.sseClients >= 80 ? "warning" : "neutral"} />
-        <MetricTile label="Seaux rate-limit" value={formatNumber(memory.rateLimitBuckets)} />
-        <MetricTile label="Échecs de connexion" value={formatNumber(memory.authFailureEntries)} tone={memory.authFailureEntries > 1_000 ? "warning" : "neutral"} />
-        <MetricTile label="Mémoire Yahoo" value={`${formatNumber(memory.yahooSearchCacheEntries)} / ${formatNumber(memory.yahooQuoteCombineCacheEntries)}`} hint="recherche / cotations combinées" />
+        <MetricTile label={t("admin.runtime.intradayChartCache", { ns: "common" })} value={formatNumber(memory.intradayChartCacheEntries)} />
+        <MetricTile label={t("admin.runtime.snapshotQuoteCache", { ns: "common" })} value={formatNumber(memory.snapshotQuoteCacheEntries)} />
+        <MetricTile label={t("admin.runtime.openDaysCache", { ns: "common" })} value={formatNumber(memory.previousOpenMarketDaysCacheEntries)} />
+        <MetricTile label={t("admin.runtime.backendRequests", { ns: "common" })} value={formatNumber(memory.backendInFlightRequests)} />
+        <MetricTile label={t("admin.runtime.sseClients", { ns: "common" })} value={formatNumber(memory.sseClients)} tone={memory.sseClients >= 80 ? "warning" : "neutral"} />
+        <MetricTile label={t("admin.runtime.rateLimitBuckets", { ns: "common" })} value={formatNumber(memory.rateLimitBuckets)} />
+        <MetricTile label={t("admin.runtime.authFailures", { ns: "common" })} value={formatNumber(memory.authFailureEntries)} tone={memory.authFailureEntries > 1_000 ? "warning" : "neutral"} />
+        <MetricTile label={t("admin.runtime.yahooMemory", { ns: "common" })} value={`${formatNumber(memory.yahooSearchCacheEntries)} / ${formatNumber(memory.yahooQuoteCombineCacheEntries)}`} hint={t("admin.runtime.searchCombinedQuotes", { ns: "common" })} />
       </div>
     </RuntimeBlock>
   );
 }
 
-function QueueBlock({ data }: { data: RuntimeHealthDto }) {
+function QueueBlock({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   return (
-    <RuntimeBlock title="File de tâches">
+    <RuntimeBlock title={t("admin.runtime.queue", { ns: "common" })}>
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="En attente" value={formatNumber(data.queue.pending)} />
-        <MetricTile label="En cours" value={formatNumber(data.queue.running)} />
-        <MetricTile label="En erreur" value={formatNumber(data.queue.failed)} tone={failedQueueTone(data.queue.failed)} />
-        <MetricTile label="Terminées" value={formatNumber(data.queue.completed)} />
-        <MetricTile label="Plus ancienne attente" value={formatDuration(data.queue.oldestPendingAgeMs)} />
-        <MetricTile label="Plus ancienne exécution" value={formatDuration(data.queue.oldestRunningAgeMs)} tone={(data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000 ? "warning" : "neutral"} />
-        <MetricTile label="Workers" value={`${formatNumber(data.queue.activeWorkers)} / ${formatNumber(data.queue.maxConcurrentTasks)}`} />
-        <MetricTile label="Symboles occupés" value={formatNumber(data.queue.busySymbols)} />
+        <MetricTile label={t("admin.runtime.pending", { ns: "common" })} value={formatNumber(data.queue.pending)} />
+        <MetricTile label={t("admin.runtime.running", { ns: "common" })} value={formatNumber(data.queue.running)} />
+        <MetricTile label={t("admin.runtime.failed", { ns: "common" })} value={formatNumber(data.queue.failed)} tone={failedQueueTone(data.queue.failed)} />
+        <MetricTile label={t("admin.runtime.completed", { ns: "common" })} value={formatNumber(data.queue.completed)} />
+        <MetricTile label={t("admin.runtime.oldestPending", { ns: "common" })} value={formatDuration(data.queue.oldestPendingAgeMs)} />
+        <MetricTile label={t("admin.runtime.oldestRunning", { ns: "common" })} value={formatDuration(data.queue.oldestRunningAgeMs)} tone={(data.queue.oldestRunningAgeMs ?? 0) > 30 * 60_000 ? "warning" : "neutral"} />
+        <MetricTile label={t("admin.runtime.workers", { ns: "common" })} value={`${formatNumber(data.queue.activeWorkers)} / ${formatNumber(data.queue.maxConcurrentTasks)}`} />
+        <MetricTile label={t("admin.runtime.busySymbols", { ns: "common" })} value={formatNumber(data.queue.busySymbols)} />
       </div>
       <CompactTable
-        columns={["Type", "Priorité", "En attente", "En cours", "En erreur", "Terminées"]}
-        emptyLabel="Aucune tâche historisée."
+        columns={[t("admin.yahooUsage.type", { ns: "common" }), t("admin.runtime.priority", { ns: "common" }), t("admin.runtime.pending", { ns: "common" }), t("admin.runtime.running", { ns: "common" }), t("admin.runtime.failed", { ns: "common" }), t("admin.runtime.completed", { ns: "common" })]}
+        emptyLabel={t("admin.runtime.noHistoricalTask", { ns: "common" })}
         rows={data.queue.byTypePriority.map((row) => [
-          queueTypeLabel(row.type),
+          queueTypeLabel(t, row.type),
           formatNumber(row.priority),
           formatNumber(row.pending),
           formatNumber(row.running),
@@ -271,46 +266,46 @@ function QueueBlock({ data }: { data: RuntimeHealthDto }) {
   );
 }
 
-function SchedulerBlock({ data }: { data: RuntimeHealthDto }) {
+function SchedulerBlock({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   return (
-    <RuntimeBlock title="Planificateur">
+    <RuntimeBlock title={t("admin.runtime.scheduler", { ns: "common" })}>
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Dernier tick" value={formatDateTime(data.scheduler.lastTickAt)} />
-        <MetricTile label="Durée tick" value={formatDuration(data.scheduler.lastTickDurationMs)} />
-        <MetricTile label="Dernier succès" value={formatDateTime(data.scheduler.lastSuccessAt)} />
-        <MetricTile label="Dernière erreur" value={data.scheduler.lastError || "-"} tone={data.scheduler.lastError ? "error" : "neutral"} />
-        <MetricTile label="Propriétaire du verrou" value={data.scheduler.lockOwner || "-"} />
-        <MetricTile label="Âge du heartbeat" value={formatDuration(data.scheduler.heartbeatAgeMs)} />
-        <MetricTile label="Marchés suivis" value={formatNumber(data.scheduler.trackedMarkets)} />
-        <MetricTile label="Prochain tick" value={formatDateTime(data.scheduler.nextTickAt)} />
+        <MetricTile label={t("admin.runtime.lastTick", { ns: "common" })} value={formatDateTime(data.scheduler.lastTickAt)} />
+        <MetricTile label={t("admin.runtime.tickDuration", { ns: "common" })} value={formatDuration(data.scheduler.lastTickDurationMs)} />
+        <MetricTile label={t("admin.runtime.lastSuccess", { ns: "common" })} value={formatDateTime(data.scheduler.lastSuccessAt)} />
+        <MetricTile label={t("admin.runtime.lastError", { ns: "common" })} value={data.scheduler.lastError || "-"} tone={data.scheduler.lastError ? "error" : "neutral"} />
+        <MetricTile label={t("admin.runtime.lockOwner", { ns: "common" })} value={data.scheduler.lockOwner || "-"} />
+        <MetricTile label={t("admin.runtime.heartbeatAge", { ns: "common" })} value={formatDuration(data.scheduler.heartbeatAgeMs)} />
+        <MetricTile label={t("admin.runtime.trackedMarkets", { ns: "common" })} value={formatNumber(data.scheduler.trackedMarkets)} />
+        <MetricTile label={t("admin.runtime.nextTick", { ns: "common" })} value={formatDateTime(data.scheduler.nextTickAt)} />
       </div>
     </RuntimeBlock>
   );
 }
 
-function YahooBlock({ data }: { data: RuntimeHealthDto }) {
+function YahooBlock({ data, t }: { data: RuntimeHealthDto; t: RuntimeT }) {
   const breaker = data.yahoo.circuitBreaker;
   return (
     <RuntimeBlock title="Yahoo">
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricTile label="Circuit breaker" value={yahooCircuitLabel(breaker.state)} tone={yahooTone(breaker.state)} />
-        <MetricTile label="Échecs consécutifs" value={formatNumber(breaker.failureCount)} />
-        <MetricTile label="Ouvert à" value={formatDateTime(breaker.openedAt)} />
-        <MetricTile label="Appels 24h" value={formatNumber(data.yahoo.recentCalls24h)} />
-        <MetricTile label="Requêtes en cours" value={formatNumber(data.yahoo.backendInFlightRequests)} />
-        <MetricTile label="Cache recherche" value={formatNumber(data.yahoo.searchCacheEntries)} />
-        <MetricTile label="Cache cotations combinées" value={formatNumber(data.yahoo.quoteCombineCacheEntries)} />
+        <MetricTile label={t("admin.runtime.circuitBreaker", { ns: "common" })} value={yahooCircuitLabel(t, breaker.state)} tone={yahooTone(breaker.state)} />
+        <MetricTile label={t("admin.runtime.consecutiveFailures", { ns: "common" })} value={formatNumber(breaker.failureCount)} />
+        <MetricTile label={t("admin.runtime.openedAt", { ns: "common" })} value={formatDateTime(breaker.openedAt)} />
+        <MetricTile label={t("admin.runtime.calls24h", { ns: "common" })} value={formatNumber(data.yahoo.recentCalls24h)} />
+        <MetricTile label={t("admin.runtime.backendRequests", { ns: "common" })} value={formatNumber(data.yahoo.backendInFlightRequests)} />
+        <MetricTile label={t("admin.runtime.searchCache", { ns: "common" })} value={formatNumber(data.yahoo.searchCacheEntries)} />
+        <MetricTile label={t("admin.runtime.combinedQuoteCache", { ns: "common" })} value={formatNumber(data.yahoo.quoteCombineCacheEntries)} />
       </div>
-      <RecentErrors errors={data.yahoo.recentErrors} />
+      <RecentErrors errors={data.yahoo.recentErrors} t={t} />
     </RuntimeBlock>
   );
 }
 
-function RecentErrors({ errors }: { errors: YahooUsageRecentErrorDto[] }) {
+function RecentErrors({ errors, t }: { errors: YahooUsageRecentErrorDto[]; t: RuntimeT }) {
   return (
     <CompactTable
-      columns={["Date", "Méthode", "Ticker", "Erreur"]}
-      emptyLabel="Aucune erreur Yahoo récente."
+      columns={[t("fields.date", { ns: "common" }), t("admin.runtime.method", { ns: "common" }), t("admin.runtime.ticker", { ns: "common" }), t("admin.runtime.error", { ns: "common" })]}
+      emptyLabel={t("admin.runtime.noRecentYahooError", { ns: "common" })}
       rows={errors.slice(0, 5).map((error) => [
         formatDateTime(error.createdAt),
         error.method,

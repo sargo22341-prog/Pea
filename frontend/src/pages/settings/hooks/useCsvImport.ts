@@ -1,5 +1,6 @@
 import type { BoursoramaImportRow, BoursoramaUpdateRow } from "@pea/shared";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
@@ -18,6 +19,7 @@ function rowsWithImportErrors<T extends { line: number; errors: string[] }>(rows
 }
 
 export function useCsvImport() {
+  const { t } = useTranslation(["settings"]);
   const navigate = useNavigate();
   const [rows, setRows] = useState<BoursoramaImportRow[]>([]);
   const [updateRows, setUpdateRows] = useState<BoursoramaUpdateRow[]>([]);
@@ -35,7 +37,7 @@ export function useCsvImport() {
       setRows(previewRows);
       setUpdateRows([]);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Import impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.importError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }
@@ -50,23 +52,23 @@ export function useCsvImport() {
       setUpdateRows(await api.previewBoursoramaUpdate(content));
       setRows([]);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Preview impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.previewError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }
   }
 
   async function confirmUpdate() {
-    if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm("Confirmer les suppressions de positions absentes du CSV ?")) return;
+    if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm(t("imports.confirmDeleteMissing", { ns: "settings" }))) return;
     setLoading(true);
     try {
       const result = await api.confirmBoursoramaUpdate(updateRows);
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(`${result.imported.length} changement(s) applique(s), ${result.skipped.length} ignore(s), ${result.errors.length} erreur(s).`);
+      setMessage(t("imports.confirmUpdateResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
       setUpdateRows((current) => rowsWithImportErrors(current, result.errors));
       if (result.errors.length === 0) navigate("/");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Validation impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }
@@ -77,11 +79,11 @@ export function useCsvImport() {
     try {
       const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(`${result.imported.length} ligne(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
+      setMessage(t("imports.confirmImportResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
       setRows((current) => rowsWithImportErrors(current, result.errors));
       if (result.errors.length === 0) navigate("/");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Validation impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { DividendAnnualEstimate } from "./components/DividendAnnualEstimate";
 import { DividendGroupedList } from "./components/DividendGroupedList";
 import { StaleBadge } from "../../components/common/StaleBadge";
@@ -10,13 +11,14 @@ import { api } from "../../lib/api";
 const currentYear = getCurrentDividendYear();
 
 export function DividendsPage() {
+  const { t } = useTranslation(["dashboard", "navigation"]);
 
   useEffect(() => {
-    document.title = "Dividendes | PEA Portfolio";
+    document.title = `${t("navigation:dividends")} | PEA Portfolio`;
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, []);
+  }, [t]);
 
   const dividends = useAsync(() => api.portfolioDividends());
   const dividendsReload = dividends.reload;
@@ -35,17 +37,17 @@ export function DividendsPage() {
     year
   });
 
-  if (dividends.loading) return <div className="card p-6">Chargement des dividendes...</div>;
+  if (dividends.loading) return <div className="card p-6">{t("dashboard:dividendsPage.loading")}</div>;
   if (dividends.error) return <div className="card border-coral p-6 text-coral">{dividends.error}</div>;
 
   return (
     <div className="space-y-6">
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold">Dividendes</h1>
+          <h1 className="text-2xl font-bold">{t("navigation:dividends")}</h1>
           <StaleBadge show={data?.stale || dividendOverview.stale} />
         </div>
-        <p className="muted">Vue annuelle regroupee par action, avec repartition trimestrielle.</p>
+        <p className="muted">{t("dashboard:dividendsPage.subtitle")}</p>
       </div>
 
       <DividendAnnualEstimate

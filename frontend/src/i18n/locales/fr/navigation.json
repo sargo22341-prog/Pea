@@ -1,0 +1,14 @@
+{
+  "dashboard": "Dashboard",
+  "news": "Actualite",
+  "search": "Chercher",
+  "analysis": "Analyse",
+  "dividends": "Dividendes",
+  "settings": "Parametres",
+  "admin": "Administration serveur",
+  "logout": "Se deconnecter",
+  "portfolioNews": "Actualites de mes actifs",
+  "globalNews": "Actualites globales",
+  "noPortfolioNews": "Aucun article lie a vos actifs pour le moment.",
+  "noGlobalNews": "Aucun article global pour le moment."
+}

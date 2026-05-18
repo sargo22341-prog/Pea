@@ -18,9 +18,11 @@
     "@capacitor/core": "^8.3.4",
     "@capacitor/status-bar": "^8.0.2",
     "@pea/shared": "file:../shared",
+    "i18next": "^26.2.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^7.14.2",
     "recharts": "^3.8.1"
   },

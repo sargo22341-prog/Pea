@@ -1,6 +1,7 @@
 import type { TrackedMarketDto, TrackedMarketsSettingsDto } from "@pea/shared";
 import { Activity, Clock, RefreshCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
@@ -25,22 +26,23 @@ function statusLabel(status: string) {
 }
 
 export function TrackedMarketsSection() {
+  const { t } = useTranslation(["common"]);
   const [data, setData] = useState<TrackedMarketsSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingDeleteMarket, setPendingDeleteMarket] = useState<TrackedMarketDto | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setToast(null);
     try {
       setData(await api.trackedMarketsSettings());
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Etat marche indisponible" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.markets.stateUnavailable", { ns: "common" }) });
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   async function deleteMarket(market: TrackedMarketDto) {
     setPendingDeleteMarket(null);
@@ -48,25 +50,25 @@ export function TrackedMarketsSection() {
     try {
       const result = await api.deleteTrackedMarket(market.marketKey);
       setData((current) => current ? { ...current, markets: current.markets.filter((item) => item.marketKey !== market.marketKey) } : current);
-      setToast({ tone: "success", text: `${market.displayName} supprime (${result.runs} runs, ${result.logs} logs nettoyes).` });
+      setToast({ tone: "success", text: t("admin.markets.deleted", { logs: result.logs, market: market.displayName, ns: "common", runs: result.runs }) });
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Suppression impossible" });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.markets.deleteFailed", { ns: "common" }) });
       await load();
     }
   }
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   return (
-    <Collapsible title="Marches suivis">
+    <Collapsible title={t("admin.markets.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <NextTask data={data} loading={loading} />
         <button className="btn-ghost shrink-0 gap-2" disabled={loading} onClick={() => void load()} type="button">
           <RefreshCcw size={16} />
-          Actualiser
+          {t("actions.refreshNow", { ns: "common" })}
         </button>
       </div>
       <SchedulerHealth data={data} />
@@ -74,11 +76,11 @@ export function TrackedMarketsSection() {
       {pendingDeleteMarket ? (
         <ConfirmDialog
           danger
-          confirmLabel="Supprimer"
-          description={`Cette action retire ${pendingDeleteMarket.displayName} des marches suivis et nettoie son historique scheduler. Elle sera refusee si des assets sont a nouveau lies a cette bourse.`}
+          confirmLabel={t("actions.delete", { ns: "common" })}
+          description={t("admin.markets.deleteDescription", { market: pendingDeleteMarket.displayName, ns: "common" })}
           onCancel={() => setPendingDeleteMarket(null)}
           onConfirm={() => void deleteMarket(pendingDeleteMarket)}
-          title={`Supprimer ${pendingDeleteMarket.displayName} ?`}
+          title={t("admin.markets.deleteTitle", { market: pendingDeleteMarket.displayName, ns: "common" })}
         />
       ) : null}
     </Collapsible>
@@ -86,8 +88,9 @@ export function TrackedMarketsSection() {
 }
 
 function NextTask({ data, loading }: { data: TrackedMarketsSettingsDto | null; loading: boolean }) {
+  const { t } = useTranslation(["common"]);
   const task = data?.nextTask;
-  const label = task?.type === "open" ? "Ouverture" : task?.type === "close" ? "Fermeture" : "Aucune tache";
+  const label = task?.type === "open" ? t("admin.markets.open", { ns: "common" }) : task?.type === "close" ? t("admin.markets.close", { ns: "common" }) : t("admin.markets.noTask", { ns: "common" });
   const time = task ? `${formatDateTime(task.runAt)} ${userTimezone} / ${formatDateTime(task.runAt, task.marketTimezone)} ${task.marketTimezone}` : "-";
 
   return (
@@ -96,9 +99,9 @@ function NextTask({ data, loading }: { data: TrackedMarketsSettingsDto | null; l
         <Clock size={18} />
       </div>
       <div className="min-w-0">
-        <p className="muted">Prochaine tache</p>
+        <p className="muted">{t("admin.markets.nextTask", { ns: "common" })}</p>
         <p className="truncate text-sm font-semibold">
-          {loading ? "Chargement..." : task ? `${label} - ${task.marketName} - ${time}` : "Aucune tache planifiee"}
+          {loading ? t("common.loading", { ns: "common" }) : task ? `${label} - ${task.marketName} - ${time}` : t("admin.markets.noPlannedTask", { ns: "common" })}
         </p>
       </div>
     </div>
@@ -106,12 +109,13 @@ function NextTask({ data, loading }: { data: TrackedMarketsSettingsDto | null; l
 }
 
 function SchedulerHealth({ data }: { data: TrackedMarketsSettingsDto | null }) {
+  const { t } = useTranslation(["common"]);
   const health = data?.health;
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      <HealthTile label="Dernier tick" value={formatDateTime(health?.last_tick_at)} />
-      <HealthTile label="Dernier tick reussi" value={formatDateTime(health?.last_successful_tick_at)} />
-      <HealthTile label="Derniere erreur" value={health?.last_error || "-"} />
+      <HealthTile label={t("admin.markets.lastTick", { ns: "common" })} value={formatDateTime(health?.last_tick_at)} />
+      <HealthTile label={t("admin.markets.lastSuccessfulTick", { ns: "common" })} value={formatDateTime(health?.last_successful_tick_at)} />
+      <HealthTile label={t("admin.markets.lastError", { ns: "common" })} value={health?.last_error || "-"} />
     </div>
   );
 }
@@ -126,33 +130,35 @@ function HealthTile({ label, value }: { label: string; value: string }) {
 }
 
 function MarketsTable({ markets, loading, onDelete }: { markets: TrackedMarketDto[]; loading: boolean; onDelete: (market: TrackedMarketDto) => void }) {
-  if (loading) return <p className="muted">Chargement des marches suivis...</p>;
-  if (!markets.length) return <p className="muted">Aucune bourse active pour le moment.</p>;
+  const { t } = useTranslation(["common"]);
+
+  if (loading) return <p className="muted">{t("admin.markets.loading", { ns: "common" })}</p>;
+  if (!markets.length) return <p className="muted">{t("admin.markets.empty", { ns: "common" })}</p>;
 
   return (
     <div className="overflow-x-auto rounded-md border border-line">
       <table className="min-w-[1400px] w-full text-left text-sm">
         <thead className="bg-panel2/80 text-xs uppercase text-slate-400">
           <tr>
-            <th className="p-3">Bourse</th>
+            <th className="p-3">{t("admin.markets.exchange", { ns: "common" })}</th>
             <th className="p-3">Timezone</th>
-            <th className="p-3">Date trading</th>
+            <th className="p-3">{t("admin.markets.tradingDate", { ns: "common" })}</th>
             <th className="p-3">Assets</th>
-            <th className="p-3">Ouverture prevue</th>
-            <th className="p-3">Ouverture confirmee</th>
-            <th className="p-3">Dernier check ouv.</th>
-            <th className="p-3">Prochain check ouv.</th>
-            <th className="p-3">Statut ouv.</th>
-            <th className="p-3">Message ouv.</th>
-            <th className="p-3">Tentatives ouv.</th>
-            <th className="p-3">Fermeture prevue</th>
-            <th className="p-3">Fermeture confirmee</th>
-            <th className="p-3">Dernier check ferm.</th>
-            <th className="p-3">Prochain check ferm.</th>
-            <th className="p-3">Statut ferm.</th>
-            <th className="p-3">Message ferm.</th>
-            <th className="p-3">Tentatives ferm.</th>
-            <th className="p-3 text-right">Actions</th>
+            <th className="p-3">{t("admin.markets.expectedOpen", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.confirmedOpen", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.lastOpenCheck", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.nextOpenCheck", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.openStatus", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.openMessage", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.openAttempts", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.expectedClose", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.confirmedClose", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.lastCloseCheck", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.nextCloseCheck", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.closeStatus", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.closeMessage", { ns: "common" })}</th>
+            <th className="p-3">{t("admin.markets.closeAttempts", { ns: "common" })}</th>
+            <th className="p-3 text-right">{t("admin.users.actions", { ns: "common" })}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -166,6 +172,7 @@ function MarketsTable({ markets, loading, onDelete }: { markets: TrackedMarketDt
 }
 
 function MarketRow({ market, onDelete }: { market: TrackedMarketDto; onDelete: (market: TrackedMarketDto) => void }) {
+  const { t } = useTranslation(["common"]);
   const canDelete = market.assetsCount === 0;
 
   return (
@@ -196,10 +203,10 @@ function MarketRow({ market, onDelete }: { market: TrackedMarketDto; onDelete: (
       <td className="p-3 text-right">
         {canDelete ? (
           <button
-            aria-label={`Supprimer ${market.displayName}`}
+            aria-label={t("admin.markets.deleteMarket", { market: market.displayName, ns: "common" })}
             className="btn-ghost px-2 text-coral"
             onClick={() => onDelete(market)}
-            title="Supprimer cette bourse des marches suivis"
+            title={t("admin.markets.deleteMarketTitle", { ns: "common" })}
             type="button"
           >
             <Trash2 size={16} />

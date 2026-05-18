@@ -1,5 +1,6 @@
 import type { PeaEligibilityStatus, Quote } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { StaleBadge } from "../../../components/common/StaleBadge";
 import { money, percent } from "../../../lib/format";
@@ -32,6 +33,7 @@ export function AssetDetailHeader({
   stale?: boolean;
   watchlisted: boolean;
 }) {
+  const { t } = useTranslation(["asset", "common"]);
   const positive = rangeChange >= 0;
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
@@ -46,12 +48,12 @@ export function AssetDetailHeader({
               <h1 className="text-3xl font-bold">{quote.name}</h1>
               <PeaBadge status={peaEligibilityStatus} />
               <StaleBadge
-                label={marketUnavailable ? "Données de marché indisponibles" : "Données différées"}
+                label={marketUnavailable ? t("marketUnavailable", { ns: "asset" }) : t("marketDelayed", { ns: "asset" })}
                 show={Boolean(stale || quote.stale || marketUnavailable)}
               />
             </div>
             <p className="mt-2 text-slate-400">
-              {quote.exchange ?? "Marché n/a"} · {quote.currency}
+              {quote.exchange ?? t("marketNotAvailable", { ns: "asset" })} - {quote.currency}
             </p>
           </div>
         </div>
@@ -65,13 +67,13 @@ export function AssetDetailHeader({
             {positionExists ? (
               <button className="btn-ghost" onClick={onEdit} type="button">
                 <Pencil size={17} />
-                Éditer
+                {t("actions.edit", { ns: "common" })}
               </button>
             ) : (
               <>
                 <button className="btn-primary" onClick={onAdd} type="button">
                   <Plus size={17} />
-                  Ajouter
+                  {t("actions.add", { ns: "common" })}
                 </button>
                 <button className={watchlisted ? "btn bg-amber text-ink" : "btn-ghost"} onClick={onToggleWatchlist} type="button">
                   <Star fill={watchlisted ? "currentColor" : "none"} size={17} />

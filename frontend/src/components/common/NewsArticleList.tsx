@@ -1,27 +1,32 @@
 import type { NewsArticle } from "@pea/shared";
 import { Newspaper } from "lucide-react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import { AssetIcon } from "./AssetIcon";
 import { formatArticleDate } from "../../lib/format";
 
 export function NewsArticleList({
   articles,
-  emptyLabel = "Aucun article lie a ce titre pour le moment.",
+  emptyLabel,
   showRelatedAssets = false,
-  title = "Articles Yahoo Finance"
+  title
 }: {
   articles: NewsArticle[];
   emptyLabel?: string;
   showRelatedAssets?: boolean;
   title?: string;
 }) {
+  const { t } = useTranslation(["common"]);
+  const resolvedTitle = title ?? t("news.articlesTitle", { ns: "common" });
+  const resolvedEmptyLabel = emptyLabel ?? t("news.emptyAsset", { ns: "common" });
+
   return (
     <section className="card overflow-hidden">
       <div className="border-b border-line p-4">
-        <h2 className="font-semibold">{title}</h2>
+        <h2 className="font-semibold">{resolvedTitle}</h2>
       </div>
       <div className="space-y-3 p-4">
-        {articles.length === 0 && <p className="text-slate-400">{emptyLabel}</p>}
+        {articles.length === 0 && <p className="text-slate-400">{resolvedEmptyLabel}</p>}
         {articles.map((article) => (
           <ArticleBlock article={article} key={article.url} showRelatedAssets={showRelatedAssets} />
         ))}

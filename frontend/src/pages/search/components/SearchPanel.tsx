@@ -1,5 +1,6 @@
 import type { EnrichedSearchResult } from "@pea/shared";
 import { Search, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { money, percent } from "../../../lib/format";
 
@@ -21,16 +22,17 @@ export function SearchPanel({
   query: string;
   results: EnrichedSearchResult[];
 }) {
+  const { t } = useTranslation(["common"]);
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Chercher</h1>
-        <p className="muted">Recherchez des actions ou ETF et ajoutez-les a votre liste de suivi.</p>
+        <h1 className="text-2xl font-bold">{t("searchPage.title", { ns: "common" })}</h1>
+        <p className="muted">{t("searchPage.subtitle", { ns: "common" })}</p>
       </div>
 
       <label className="relative block">
         <Search className="absolute left-3 top-3 text-slate-500" size={18} />
-        <input className="input pl-10" onChange={(event) => onQueryChange(event.target.value)} placeholder="Ticker, entreprise ou ETF" value={query} />
+        <input className="input pl-10" onChange={(event) => onQueryChange(event.target.value)} placeholder={t("searchPage.placeholder", { ns: "common" })} value={query} />
       </label>
 
       {error && <div className="card border-coral p-4 text-coral">{error}</div>}
@@ -42,7 +44,7 @@ export function SearchPanel({
         ))}
         {!loading && query.trim().length >= 2 && results.length === 0 && (
           <p className="p-4 text-slate-400">
-            {localPeaSearchEnabled ? "Aucun resultat dans la liste locale PEA." : "Aucun resultat."}
+            {localPeaSearchEnabled ? t("searchPage.noLocalResult", { ns: "common" }) : t("searchPage.noResult", { ns: "common" })}
           </p>
         )}
       </div>
@@ -58,12 +60,13 @@ function SearchResultRow({
   item: EnrichedSearchResult;
   onToggleWatchlist: (item: EnrichedSearchResult) => void;
 }) {
+  const { t } = useTranslation(["common"]);
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 p-4">
       <Link className="min-w-0" to={`/assets/${item.symbol}`}>
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate font-semibold">{item.name}</p>
-          {item.isInPortfolio && <span className="rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">En portefeuille</span>}
+          {item.isInPortfolio && <span className="rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">{t("searchPage.inPortfolio", { ns: "common" })}</span>}
         </div>
         <p className="muted">{item.symbol}</p>
         {item.quoteType && <p className="text-xs text-slate-500">{item.quoteType}</p>}
@@ -74,7 +77,7 @@ function SearchResultRow({
           {item.regularMarketChangePercent === undefined ? "n/a" : percent(item.regularMarketChangePercent)}
         </p>
       </div>
-      <button className="text-amber" onClick={() => onToggleWatchlist(item)} title="Liste de suivi" type="button">
+      <button className="text-amber" onClick={() => onToggleWatchlist(item)} title={t("searchPage.watchlist", { ns: "common" })} type="button">
         <Star fill={item.isInWatchlist ? "currentColor" : "none"} size={22} />
       </button>
     </div>

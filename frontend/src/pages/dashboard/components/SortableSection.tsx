@@ -1,6 +1,7 @@
 import type { SortDirection } from "@pea/shared";
 import { ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export type SortOption<TKey extends string> = {
   direction: SortDirection;
@@ -29,6 +30,7 @@ export function SortableSection<TKey extends string>({
   titleClassName?: string;
   onSortChange: (key: TKey, direction: SortDirection) => void;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const [sortOpen, setSortOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const activeSort = options.find((option) => option.key === activeKey && option.direction === activeDirection) ?? options[0];
@@ -54,7 +56,7 @@ export function SortableSection<TKey extends string>({
       <div className="flex items-center justify-between gap-3 border-b border-line p-4">
         <div className={titleClassName}>
           {title}
-          <p className="mt-1 truncate text-xs text-slate-400">Tri actif: {activeSort.label}</p>
+          <p className="mt-1 truncate text-xs text-slate-400">{t("sort.active", { label: activeSort.label, ns: "dashboard" })}</p>
         </div>
 
         <div className="relative shrink-0" ref={sortMenuRef}>
@@ -63,11 +65,11 @@ export function SortableSection<TKey extends string>({
             aria-haspopup="menu"
             className="btn-ghost px-2.5 sm:px-3"
             onClick={() => setSortOpen((current) => !current)}
-            title={activeDirection === "asc" ? "Trier vers le haut" : "Trier vers le bas"}
+            title={activeDirection === "asc" ? t("sort.ascending", { ns: "dashboard" }) : t("sort.descending", { ns: "dashboard" })}
             type="button"
           >
             <SortIcon size={17} />
-            <span className="hidden sm:inline">Trier</span>
+            <span className="hidden sm:inline">{t("sort.sort", { ns: "dashboard" })}</span>
           </button>
 
           {sortOpen && (
@@ -83,7 +85,7 @@ export function SortableSection<TKey extends string>({
                     type="button"
                   >
                     <span>{option.label}</span>
-                    {active && <span className="text-xs font-semibold">actif</span>}
+                    {active && <span className="text-xs font-semibold">{t("sort.activeBadge", { defaultValue: "actif", ns: "dashboard" })}</span>}
                   </button>
                 );
               })}

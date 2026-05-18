@@ -1,0 +1,26 @@
+{
+  "position": {
+    "currentValue": "Current value",
+    "editTransactions": "Edit the transactions that feed the quantity, average cost, and fees.",
+    "existingTransactions": "Existing transactions",
+    "legacyLocked": "This legacy line comes from the CSV position. Add a dated transaction to edit it precisely.",
+    "soldQuantityTooHigh": "Sold quantity cannot exceed {{quantity}}.",
+    "deleteAction": "Delete the stock",
+    "addTransaction": "Add a transaction",
+    "deletePositionAction": "Delete position",
+    "deleteTransactionTitle": "Delete this transaction?",
+    "deletePositionTitle": "Delete {{symbol}}?",
+    "deleteTransactionDescription": "The {{type}} transaction from {{date}} will be deleted.",
+    "deletePositionDescription": "The {{symbol}} position and its transactions will be deleted from the portfolio.",
+    "noTransactions": "No transaction for this position.",
+    "save": "Save",
+    "title": "Transactions {{symbol}}",
+    "toFill": "To fill"
+  },
+  "compare": {
+    "title": "Compare with",
+    "placeholder": "Ticker, company, or ETF",
+    "main": "Main",
+    "maxSymbols": "Maximum {{count}} securities in comparison."
+  }
+}

@@ -1,5 +1,6 @@
 import type { BoursoramaImportRow, BoursoramaUpdateRow } from "@pea/shared";
 import { Database, Upload } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useCsvImport } from "../hooks/useCsvImport";
 
 function hasFieldError(errors: string[], field: "symbol" | "quantity" | "price" | "general") {
@@ -14,47 +15,42 @@ function inputTone(hasError: boolean) {
   return `input ${hasError ? "border-coral bg-coral/10 focus:border-coral" : ""}`;
 }
 
-function detectedAssetLabel(row: BoursoramaImportRow | BoursoramaUpdateRow) {
+function detectedAssetLabel(row: BoursoramaImportRow | BoursoramaUpdateRow, t: (key: string, options?: Record<string, unknown>) => string) {
   if (row.detectedAsset) {
-    return `Actif detecte : ${row.detectedAsset.symbol} - ${row.detectedAsset.name} ${Math.round(row.detectedAsset.confidenceScore * 100)}%`;
+    const asset = `${row.detectedAsset.symbol} - ${row.detectedAsset.name} ${Math.round(row.detectedAsset.confidenceScore * 100)}%`;
+    return t("imports.detectedAsset", { asset, ns: "settings" });
   }
-  if (row.symbol) return `Actif detecte : ${row.symbol}`;
-  return "Actif detecte : a renseigner";
+  if (row.symbol) return t("imports.detectedAsset", { asset: row.symbol, ns: "settings" });
+  return t("imports.detectedAssetMissing", { ns: "settings" });
 }
 
 export function CsvImportSection() {
+  const { t } = useTranslation(["common", "settings"]);
   const csvImport = useCsvImport();
 
   return (
     <section className="card overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-semibold">Import CSV Boursorama</h2>
-          <p className="muted">Importer ou synchroniser l'etat total du portefeuille.</p>
+          <h2 className="font-semibold">{t("imports.csvTitle", { ns: "settings" })}</h2>
+          <p className="muted">{t("imports.csvHelp", { ns: "settings" })}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <label className="btn-ghost cursor-pointer">
             <Upload size={17} />
-            Importer CSV
+            {t("imports.importCsv", { ns: "settings" })}
             <input accept=".csv,text/csv" className="hidden" onChange={(event) => void csvImport.importCsv(event.target.files?.[0])} type="file" />
           </label>
           <label className="btn-ghost cursor-pointer">
             <Upload size={17} />
-            Mettre a jour via CSV
+            {t("imports.updateCsv", { ns: "settings" })}
             <input accept=".csv,text/csv" className="hidden" onChange={(event) => void csvImport.previewUpdate(event.target.files?.[0])} type="file" />
           </label>
         </div>
       </div>
       {csvImport.message && <p className="p-4 text-sm text-mint">{csvImport.message}</p>}
-      {csvImport.loading && <p className="p-4 text-slate-400">Traitement...</p>}
-      {csvImport.rows.length > 0 && (
-        <ImportPreviewTable
-          loading={csvImport.loading}
-          onConfirm={() => void csvImport.confirmImport()}
-          onUpdateRow={csvImport.updateImportRow}
-          rows={csvImport.rows}
-        />
-      )}
+      {csvImport.loading && <p className="p-4 text-slate-400">{t("imports.processing", { ns: "settings" })}</p>}
+      {csvImport.rows.length > 0 && <ImportPreviewTable loading={csvImport.loading} onConfirm={() => void csvImport.confirmImport()} onUpdateRow={csvImport.updateImportRow} rows={csvImport.rows} />}
       {csvImport.updateRows.length > 0 && (
         <UpdatePreviewTable
           loading={csvImport.loading}
@@ -80,18 +76,19 @@ function ImportPreviewTable({
   onUpdateRow: (index: number, patch: Partial<BoursoramaImportRow>) => void;
   rows: BoursoramaImportRow[];
 }) {
+  const { t } = useTranslation(["common", "settings"]);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[860px] text-sm">
         <thead className="bg-ink text-left text-slate-400">
           <tr>
-            <th className="p-3">Nom</th>
+            <th className="p-3">{t("fields.name", { ns: "common" })}</th>
             <th className="p-3">ISIN</th>
-            <th className="p-3">Qte</th>
+            <th className="p-3">{t("fields.quantity", { ns: "common" })}</th>
             <th className="p-3">PRU</th>
-            <th className="p-3">Ticker</th>
-            <th className="p-3">Action</th>
-            <th className="p-3">Statut</th>
+            <th className="p-3">{t("fields.symbol", { ns: "common" })}</th>
+            <th className="p-3">{t("imports.action", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.status", { ns: "settings" })}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -103,16 +100,16 @@ function ImportPreviewTable({
               <td className={`p-3 ${hasFieldError(row.errors, "price") ? "text-coral" : ""}`}>{row.buyingPrice}</td>
               <td className="p-3">
                 <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false, errors: [] })} value={row.symbol ?? ""} />
-                <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row)}</p>
+                <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row, t)}</p>
               </td>
               <td className="p-3">
                 <select className="input" onChange={(event) => onUpdateRow(index, { action: event.target.value as BoursoramaImportRow["action"] })} value={row.action ?? "merge"}>
-                  <option value="merge">Fusionner</option>
-                  <option value="replace">Remplacer</option>
-                  <option value="ignore">Ignorer</option>
+                  <option value="merge">{t("imports.merge", { ns: "settings" })}</option>
+                  <option value="replace">{t("imports.replace", { ns: "settings" })}</option>
+                  <option value="ignore">{t("imports.ignore", { ns: "settings" })}</option>
                 </select>
               </td>
-              <td className={`p-3 ${row.errors.length ? "text-coral" : row.needsReview ? "text-amber" : "text-mint"}`}>{row.errors.length ? row.errors.join(", ") : row.needsReview ? "A verifier" : "OK"}</td>
+              <td className={`p-3 ${row.errors.length ? "text-coral" : row.needsReview ? "text-amber" : "text-mint"}`}>{row.errors.length ? row.errors.join(", ") : row.needsReview ? t("imports.toReview", { ns: "settings" }) : "OK"}</td>
             </tr>
           ))}
         </tbody>
@@ -120,7 +117,7 @@ function ImportPreviewTable({
       <div className="flex justify-end p-4">
         <button className="btn-primary" disabled={loading} onClick={onConfirm} type="button">
           <Database size={17} />
-          Importer
+          {t("imports.importCsv", { ns: "settings" })}
         </button>
       </div>
     </div>
@@ -142,25 +139,26 @@ function UpdatePreviewTable({
   rows: BoursoramaUpdateRow[];
   showUnchanged: boolean;
 }) {
+  const { t } = useTranslation(["common", "settings"]);
   return (
     <div className="overflow-x-auto">
       <label className="flex items-center gap-2 p-4 text-sm text-slate-400">
         <input checked={showUnchanged} onChange={(event) => onShowUnchangedChange(event.target.checked)} type="checkbox" />
-        Afficher les lignes inchangees
+        {t("imports.showUnchanged", { ns: "settings" })}
       </label>
       <table className="w-full min-w-[1120px] text-sm">
         <thead className="bg-ink text-left text-slate-400">
           <tr>
-            <th className="p-3">Nom</th>
+            <th className="p-3">{t("fields.name", { ns: "common" })}</th>
             <th className="p-3">ISIN</th>
-            <th className="p-3">Ticker</th>
-            <th className="p-3">Qte app</th>
-            <th className="p-3">Qte CSV</th>
-            <th className="p-3">Diff</th>
-            <th className="p-3">PRU app</th>
-            <th className="p-3">PRU CSV</th>
-            <th className="p-3">Diff PRU</th>
-            <th className="p-3">Action</th>
+            <th className="p-3">{t("fields.symbol", { ns: "common" })}</th>
+            <th className="p-3">{t("imports.appQuantity", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.csvQuantity", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.diff", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.appAveragePrice", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.csvAveragePrice", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.averagePriceDiff", { ns: "settings" })}</th>
+            <th className="p-3">{t("imports.action", { ns: "settings" })}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -174,7 +172,7 @@ function UpdatePreviewTable({
                 <td className="p-3">{row.isin || "n/a"}</td>
                 <td className="p-3">
                   <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(row, { symbol: event.target.value.toUpperCase(), errors: [] })} value={row.symbol ?? ""} />
-                  <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row)}</p>
+                  <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row, t)}</p>
                 </td>
                 <td className="p-3">{row.currentQuantity ?? 0}</td>
                 <td className={`p-3 ${hasFieldError(row.errors, "quantity") ? "text-coral" : ""}`}>{row.csvQuantity}</td>
@@ -183,11 +181,7 @@ function UpdatePreviewTable({
                 <td className={`p-3 ${hasFieldError(row.errors, "price") ? "text-coral" : ""}`}>{row.csvAverageBuyPrice}</td>
                 <td className={`p-3 ${averageBuyPriceDiff >= 0 ? "text-mint" : "text-coral"}`}>
                   {averageBuyPriceChanged ? averageBuyPriceDiff.toLocaleString("fr-FR", { maximumFractionDigits: 4 }) : "0"}
-                  {averageBuyPriceChanged && (
-                    <span className="ml-2 rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">
-                      PRU mis a jour
-                    </span>
-                  )}
+                  {averageBuyPriceChanged && <span className="ml-2 rounded bg-mint/10 px-2 py-1 text-[11px] font-semibold text-mint">{t("imports.averagePriceUpdated", { ns: "settings" })}</span>}
                 </td>
                 <td className="p-3">
                   <p>{row.proposedAction}</p>
@@ -201,7 +195,7 @@ function UpdatePreviewTable({
       <div className="flex justify-end p-4">
         <button className="btn-primary" disabled={loading} onClick={onConfirm} type="button">
           <Database size={17} />
-          Valider la mise a jour
+          {t("imports.confirmUpdate", { ns: "settings" })}
         </button>
       </div>
     </div>

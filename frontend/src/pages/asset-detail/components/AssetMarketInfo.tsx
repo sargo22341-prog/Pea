@@ -1,5 +1,6 @@
 import type { AssetDetails, Quote } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, BadgeEuro, BarChart3, CalendarDays, CircleDollarSign, Database, Gauge, Landmark, Percent, Timer, Wallet } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../../../lib/format";
 import { type InfoTone, toneFromNumber } from "../../../utils/assetTone";
 import { AssetInfoTile } from "./AssetInfoTile";
@@ -15,6 +16,7 @@ export function AssetMarketInfo({
   currency: string;
   hasKnownDividends: boolean;
 }) {
+  const { t } = useTranslation(["asset"]);
   const info = marketInfo ?? {};
   const displayCurrency = info.currency ?? currency;
   const dayChange = info.regularMarketChange ?? quote.change;
@@ -24,17 +26,17 @@ export function AssetMarketInfo({
 
   return (
     <div className="grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] xl:grid-cols-3">
-      <AssetInfoTile icon={<Gauge size={18} />} iconTone="amber" label="Marché" tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} variant="market" />
-      <AssetInfoTile icon={<BadgeEuro size={18} />} iconTone="green" label="Dernier prix" value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
-      <AssetInfoTile icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label="Variation jour" tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
-      <AssetInfoTile icon={<Landmark size={18} />} iconTone="slate" label="Bourse" value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
-      <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label="Devise" value={info.currency ?? quote.currency ?? "n/a"} variant="market" />
-      <AssetInfoTile icon={<BarChart3 size={18} />} iconTone="sky" label="Volume" value={formatMaybeInteger(info.regularMarketVolume)} variant="market" />
+      <AssetInfoTile icon={<Gauge size={18} />} iconTone="amber" label={t("market.state", { ns: "asset" })} tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} variant="market" />
+      <AssetInfoTile icon={<BadgeEuro size={18} />} iconTone="green" label={t("market.lastPrice", { ns: "asset" })} value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
+      <AssetInfoTile icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label={t("market.dayChange", { ns: "asset" })} tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
+      <AssetInfoTile icon={<Landmark size={18} />} iconTone="slate" label={t("market.exchange", { ns: "asset" })} value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
+      <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label={t("market.currency", { ns: "asset" })} value={info.currency ?? quote.currency ?? "n/a"} variant="market" />
+      <AssetInfoTile icon={<BarChart3 size={18} />} iconTone="sky" label={t("market.volume", { ns: "asset" })} value={formatMaybeInteger(info.regularMarketVolume)} variant="market" />
       <div className="col-span-2 xl:col-span-2">
         <AssetInfoTile
           icon={<Timer size={18} />}
           iconTone="slate"
-          label="Fourchette 52 semaines"
+          label={t("market.range52Weeks", { ns: "asset" })}
           value={
             <Range52Slider
               currency={displayCurrency}
@@ -46,13 +48,13 @@ export function AssetMarketInfo({
           variant="market"
         />
       </div>
-      <AssetInfoTile icon={<Database size={18} />} iconTone="sky" label="Volume moyen 3M" value={formatMaybeInteger(info.averageDailyVolume3Month)} variant="market" />
+      <AssetInfoTile icon={<Database size={18} />} iconTone="sky" label={t("market.averageVolume3m", { ns: "asset" })} value={formatMaybeInteger(info.averageDailyVolume3Month)} variant="market" />
 
       {hasKnownDividends && (
         <>
-          <AssetInfoTile icon={<Wallet size={18} />} iconTone="green" label="Dividende annuel" value={formatMaybeMoney(info.dividendRate ?? quote.dividendRate, displayCurrency)} variant="market" />
-          <AssetInfoTile icon={<Percent size={18} />} iconTone="green" label="Rendement dividende" tone={info.dividendYield == null && quote.dividendYield == null ? "muted" : undefined} value={formatMaybePercentYield(info.dividendYield ?? quote.dividendYield)} variant="market" />
-          <AssetInfoTile icon={<CalendarDays size={18} />} iconTone="slate" label="Ex-date" value={formatMaybeDate(info.exDividendDate)} variant="market" />
+          <AssetInfoTile icon={<Wallet size={18} />} iconTone="green" label={t("market.annualDividend", { ns: "asset" })} value={formatMaybeMoney(info.dividendRate ?? quote.dividendRate, displayCurrency)} variant="market" />
+          <AssetInfoTile icon={<Percent size={18} />} iconTone="green" label={t("market.dividendYield", { ns: "asset" })} tone={info.dividendYield == null && quote.dividendYield == null ? "muted" : undefined} value={formatMaybePercentYield(info.dividendYield ?? quote.dividendYield)} variant="market" />
+          <AssetInfoTile icon={<CalendarDays size={18} />} iconTone="slate" label={t("market.exDate", { ns: "asset" })} value={formatMaybeDate(info.exDividendDate)} variant="market" />
         </>
       )}
     </div>
@@ -70,6 +72,8 @@ function Range52Slider({
   currentPrice?: number;
   currency: string;
 }) {
+  const { t } = useTranslation(["asset"]);
+
   if (
     low52 == null ||
     high52 == null ||
@@ -112,7 +116,7 @@ function Range52Slider({
         />
       </div>
       <div className="mt-2 text-xs font-medium text-slate-400">
-        Prix actuel <span className="text-slate-200">{money(currentPrice, currency)}</span>
+        {t("market.currentPrice", { ns: "asset" })} <span className="text-slate-200">{money(currentPrice, currency)}</span>
       </div>
     </div>
   );

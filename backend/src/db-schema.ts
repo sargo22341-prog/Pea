@@ -108,6 +108,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
     asset_news_enabled INTEGER NOT NULL DEFAULT 1,
     news_language_fr_enabled INTEGER NOT NULL DEFAULT 1,
     news_language_en_enabled INTEGER NOT NULL DEFAULT 0,
+    language TEXT NOT NULL DEFAULT 'fr',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );

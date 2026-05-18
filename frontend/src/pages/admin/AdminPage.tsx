@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { DataConstructionSection } from "./components/DataConstructionSection";
 import { MarketDataActionsSection } from "./components/MarketDataActionsSection";
 import { RuntimeHealthSection } from "./components/RuntimeHealthSection";
@@ -7,18 +8,19 @@ import { UserManagementSection } from "./components/UserManagementSection";
 import { YahooUsageSection } from "./components/YahooUsageSection";
 
 export function AdminPage() {
+  const { t } = useTranslation("common");
   useEffect(() => {
-    document.title = "Administration | PEA Portfolio";
+    document.title = `${t("admin.title")} | PEA Portfolio`;
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Administration serveur</h1>
-        <p className="muted">Utilisateurs, diagnostics Yahoo Finance, marches suivis et actions de maintenance.</p>
+        <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
+        <p className="muted">{t("admin.subtitle")}</p>
       </div>
       <UserManagementSection />
       <DataConstructionSection />

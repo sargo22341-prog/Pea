@@ -1,5 +1,6 @@
 import { Save, Server, Wifi } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { describeNetworkError, fetchWithTimeout } from "../../lib/api-core";
 import { clearNativeAuthToken, configureNativeBackendUrl, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
 import { Collapsible, Toast } from "./feedback";
@@ -32,6 +33,7 @@ async function assertServerReachable(serverUrl: string) {
 }
 
 export function ServerSetupPage({ message, onConfigured }: { message?: string; onConfigured: () => void }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="safe-bottom flex min-h-screen items-center justify-center bg-ink px-4 py-8 text-slate-100" data-system-bars-bottom="#071014" data-system-bars-top="#071014">
       <div className="w-full max-w-md rounded-md border border-line bg-panel p-5 shadow-glow">
@@ -40,24 +42,25 @@ export function ServerSetupPage({ message, onConfigured }: { message?: string; o
             <Server size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Serveur PEA</h1>
-            <p className="muted text-sm">Adresse de votre instance auto-hebergee.</p>
+            <h1 className="text-xl font-bold">{t("server.pageTitle")}</h1>
+            <p className="muted text-sm">{t("server.subtitle")}</p>
           </div>
         </div>
         {message && <p className="mb-3 rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{message}</p>}
-        <ServerUrlForm submitLabel="Connecter" onSaved={onConfigured} />
+        <ServerUrlForm submitLabel={t("server.connect")} onSaved={onConfigured} />
       </div>
     </div>
   );
 }
 
 export function ServerSettingsSection() {
+  const { t } = useTranslation("settings");
   if (!isNativeApp()) return null;
 
   return (
-    <Collapsible title="Serveur">
+    <Collapsible title={t("server.title")}>
       <ServerUrlForm
-        submitLabel="Modifier serveur"
+        submitLabel={t("server.change")}
         onSaved={() => {
           window.location.assign("/");
         }}
@@ -67,6 +70,7 @@ export function ServerSettingsSection() {
 }
 
 function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLabel: string }) {
+  const { t } = useTranslation(["common", "settings"]);
   const [serverUrl, setServerUrl] = useState("");
   const [toast, setToast] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -92,10 +96,10 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
       await assertServerReachable(normalized);
       await setNativeServerUrl(normalized);
       await clearNativeAuthToken();
-      setToast({ tone: "success", text: "Serveur enregistre. Reconnexion requise." });
+      setToast({ tone: "success", text: t("settings:server.saved") });
       onSaved();
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Serveur inaccessible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("settings:server.unreachable") });
     } finally {
       setSaving(false);
     }
@@ -104,7 +108,7 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
   return (
     <form className="space-y-3" onSubmit={submit}>
       <label>
-        <span className="muted mb-1 block">URL serveur</span>
+        <span className="muted mb-1 block">{t("settings:server.url")}</span>
         <input
           className="input"
           inputMode="url"
@@ -115,13 +119,13 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
       </label>
       {insecureUrl && (
         <p className="rounded-md border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">
-          HTTP est autorise pour les serveurs locaux/self-hosted. Verifiez seulement que le telephone peut joindre ce nom ou cette IP sur le meme reseau.
+          {t("settings:server.insecureWarning")}
         </p>
       )}
       <div className="flex justify-end pt-2">
         <button className="btn-primary" disabled={saving} type="submit">
           {saving ? <Wifi size={17} /> : <Save size={17} />}
-          {saving ? "Verification..." : submitLabel}
+          {saving ? t("common:states.checking") : submitLabel}
         </button>
       </div>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}

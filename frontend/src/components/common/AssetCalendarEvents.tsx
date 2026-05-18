@@ -1,11 +1,13 @@
-import { useEffect, useRef } from "react";
-import { Clock3 } from "lucide-react";
 import type { CalendarEvent } from "@pea/shared";
+import { Clock3 } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useAsync } from "../../hooks/useAsync";
-import { api } from "../../lib/api";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
+import { api } from "../../lib/api";
 
 type VisualTone = "green" | "blue" | "purple";
+type CalendarT = (key: string, options?: Record<string, unknown>) => string;
 
 interface VisualEvent {
   id: string;
@@ -19,27 +21,28 @@ interface VisualEvent {
   symbol: string;
 }
 
-const EVENT_META: Record<string, { title: string; tone: VisualTone; session?: string }> = {
-  earnings:      { title: "Résultats trimestriels", tone: "green", session: "Après-marché" },
-  earnings_call: { title: "Conférence résultats",   tone: "green", session: "Après-marché" },
-  ex_dividend:   { title: "Détachement du dividende", tone: "blue", session: "Journée" },
-  dividend:      { title: "Paiement du dividende",   tone: "purple", session: "Journée" }
-};
+function eventMeta(eventType: string, t: CalendarT): { title: string; tone: VisualTone; session?: string } {
+  const metas: Record<string, { title: string; tone: VisualTone; session?: string }> = {
+    earnings: { title: t("calendar.earnings", { ns: "common" }), tone: "green", session: t("calendar.afterMarket", { ns: "common" }) },
+    earnings_call: { title: t("calendar.earningsCall", { ns: "common" }), tone: "green", session: t("calendar.afterMarket", { ns: "common" }) },
+    ex_dividend: { title: t("calendar.exDividend", { ns: "common" }), tone: "blue", session: t("calendar.day", { ns: "common" }) },
+    dividend: { title: t("calendar.dividend", { ns: "common" }), tone: "purple", session: t("calendar.day", { ns: "common" }) }
+  };
+  return metas[eventType] ?? { title: eventType, tone: "blue" };
+}
 
-function toVisual(ev: CalendarEvent, now: Date): VisualEvent {
-  const meta = EVENT_META[ev.eventType] ?? { title: ev.eventType, tone: "blue" as VisualTone };
+function toVisual(ev: CalendarEvent, now: Date, t: CalendarT): VisualEvent {
+  const meta = eventMeta(ev.eventType, t);
   const date = new Date(ev.eventDate);
   const isPast = date < now;
 
   let badge: string | undefined;
   if (ev.eventType === "earnings" || ev.eventType === "earnings_call") {
-    badge = isPast ? "Publié" : ev.isEstimate ? "Estimation" : "Prévu";
+    badge = isPast ? t("calendar.published", { ns: "common" }) : ev.isEstimate ? t("calendar.estimate", { ns: "common" }) : t("calendar.planned", { ns: "common" });
   }
 
   const hasTime = date.getUTCHours() !== 0 || date.getUTCMinutes() !== 0;
-  const time = hasTime
-    ? date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })
-    : undefined;
+  const time = hasTime ? date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }) : undefined;
 
   return {
     id: `${ev.symbol}-${ev.eventType}-${ev.eventDate}`,
@@ -57,11 +60,10 @@ function toVisual(ev: CalendarEvent, now: Date): VisualEvent {
 function CalendarEventsList({ events }: { events: VisualEvent[] }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nextEventRef = useRef<HTMLDivElement | null>(null);
-
   const now = new Date();
   const sorted = [...events].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const pastCount = sorted.filter((e) => e.date < now).length;
-  const nextIndex = sorted.findIndex((e) => e.date >= now);
+  const pastCount = sorted.filter((event) => event.date < now).length;
+  const nextIndex = sorted.findIndex((event) => event.date >= now);
   const activeIndex = nextIndex === -1 ? sorted.length - 1 : nextIndex;
   const shouldCenter = pastCount > 0 && nextIndex !== -1;
 
@@ -74,19 +76,14 @@ function CalendarEventsList({ events }: { events: VisualEvent[] }) {
   }, [shouldCenter]);
 
   return (
-    <div
-      ref={scrollRef}
-      className="flex gap-0 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <div ref={scrollRef} className="flex gap-0 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {sorted.map((event, index) => {
         const isPast = event.date < now;
         const isNext = index === activeIndex;
         return (
           <div ref={isNext ? nextEventRef : undefined} className="flex shrink-0 items-center" key={event.id}>
             <CalendarEventCard event={event} isNext={isNext} isPast={isPast} />
-            {index < sorted.length - 1 && (
-              <div className="mx-3 h-px w-10 shrink-0" style={{ backgroundColor: getColor(index, sorted.length) }} />
-            )}
+            {index < sorted.length - 1 && <div className="mx-3 h-px w-10 shrink-0" style={{ backgroundColor: getColor(index, sorted.length) }} />}
           </div>
         );
       })}
@@ -94,56 +91,43 @@ function CalendarEventsList({ events }: { events: VisualEvent[] }) {
   );
 }
 
-/** Version home : charge les events de tous les actifs du portfolio */
 export function PortfolioCalendarEvents() {
+  const { t } = useTranslation(["common"]);
   const result = useAsync(() => api.calendarEvents());
 
   if (result.loading && !result.data) return null;
   if (!result.data || result.data.length === 0) return null;
 
   const now = new Date();
-  const events = result.data.map((ev) => toVisual(ev, now));
+  const events = result.data.map((event) => toVisual(event, now, t));
 
   return (
     <section className="w-full">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
-        Événements calendrier
-      </h2>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">{t("calendar.title", { ns: "common" })}</h2>
       <CalendarEventsList events={events} />
     </section>
   );
 }
 
-/** Version page actif : charge uniquement les events de ce symbol */
 export function AssetCalendarEvents({ symbol }: { symbol: string }) {
+  const { t } = useTranslation(["common"]);
   const result = useAsync(() => api.calendarEventsForSymbol(symbol), symbol);
 
   if (result.loading && !result.data) return null;
   if (!result.data || result.data.length === 0) return null;
 
   const now = new Date();
-  const events = result.data.map((ev) => toVisual(ev, now));
+  const events = result.data.map((event) => toVisual(event, now, t));
 
   return (
     <section className="w-full">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
-        Événements calendrier
-      </h2>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">{t("calendar.title", { ns: "common" })}</h2>
       <CalendarEventsList events={events} />
     </section>
   );
 }
 
-
-function CalendarEventCard({
-  event,
-  isPast,
-  isNext
-}: {
-  event: VisualEvent;
-  isPast: boolean;
-  isNext: boolean;
-}) {
+function CalendarEventCard({ event, isPast, isNext }: { event: VisualEvent; isPast: boolean; isNext: boolean }) {
   const iconUrl = useAuthenticatedImageUrl(`/api/assets/${encodeURIComponent(event.symbol)}/icon?v=0`, event.symbol);
   const day = event.date.toLocaleDateString("fr-FR", { day: "2-digit" });
   const month = event.date.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "");
@@ -160,15 +144,7 @@ function CalendarEventCard({
       }`}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-slate-900">
-        {iconUrl ? (
-          <img
-            src={iconUrl}
-            alt={event.symbol}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <span className="text-xs font-bold text-sky">{event.symbol.slice(0, 3)}</span>
-        )}
+        {iconUrl ? <img src={iconUrl} alt={event.symbol} className="h-full w-full object-cover" /> : <span className="text-xs font-bold text-sky">{event.symbol.slice(0, 3)}</span>}
       </div>
 
       <div className="shrink-0 text-center leading-tight">
@@ -187,7 +163,8 @@ function CalendarEventCard({
       {event.time && (
         <div className="shrink-0 text-right">
           <p className="mt-2 flex items-center justify-end gap-1 text-xs text-slate-300">
-            <Clock3 size={13} />{event.time}
+            <Clock3 size={13} />
+            {event.time}
           </p>
         </div>
       )}

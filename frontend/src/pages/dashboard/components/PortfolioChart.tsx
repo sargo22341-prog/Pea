@@ -1,5 +1,6 @@
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
 import { Suspense, lazy, memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import type { AssetComparisonSerie } from "../../../hooks/useAssetComparisonSeries";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../../lib/timezone";
@@ -36,6 +37,7 @@ export const PortfolioChart = memo(function PortfolioChart({
   comparisonLoading?: boolean;
   isRefreshing?: boolean;
 }) {
+  const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
   const chartData = useMemo(() => toChartPoints(chart), [chart]);
   const marketSession = range === "1d" ? chart.marketSession ?? fallbackIntradaySession : undefined;
@@ -47,7 +49,7 @@ export const PortfolioChart = memo(function PortfolioChart({
     return (
       <div>
         <p className="px-4 pb-1 text-xs text-slate-400">
-          {waitingForPortfolioChart ? "Donnees en cours de preparation..." : "Chargement des comparaisons..."}
+          {waitingForPortfolioChart ? t("chart.preparing", { ns: "dashboard" }) : t("chart.loadingComparisons", { ns: "dashboard" })}
         </p>
         <ChartSkeleton />
       </div>
@@ -58,7 +60,7 @@ export const PortfolioChart = memo(function PortfolioChart({
     <div className={isRefreshing ? "stale-refreshing rounded-md" : undefined}>
       {chart.isPreparing && (
         <p className="px-4 pb-2 text-xs text-amber">
-          Donnees en cours de preparation{chart.missingAssets?.length ? `: ${chart.missingAssets.join(", ")}` : ""}
+          {chart.missingAssets?.length ? t("chart.preparingWithAssets", { assets: chart.missingAssets.join(", "), ns: "dashboard" }) : t("chart.preparing", { ns: "dashboard" })}
         </p>
       )}
 
@@ -96,7 +98,7 @@ export const PortfolioChart = memo(function PortfolioChart({
 
       {!showComparison && range === "1d" && marketSession && (marketSession.timezone !== normalizeTimeZone(userTimezone) || marketSession.sessions.length > 1) && (
         <p className="px-4 pt-2 text-xs text-slate-400">
-          Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.sessions)}, heure locale du marche
+          {t("chart.marketHours", { city: marketSession.city, hours: formatMarketSessionHours(marketSession.sessions), ns: "dashboard" })}
         </p>
       )}
     </div>

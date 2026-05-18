@@ -4,6 +4,7 @@ export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerforma
 export type WatchlistSortKey = "name" | "price" | "performancePercent";
 export type SortDirection = "asc" | "desc";
 export type NewsLanguage = "fr" | "en";
+export type AppLanguage = "fr" | "en";
 
 export interface User {
   id: number;
@@ -19,6 +20,7 @@ export interface User {
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];
+  language: AppLanguage;
   privacyModeEnabled: boolean;
   createdAt: string;
 }

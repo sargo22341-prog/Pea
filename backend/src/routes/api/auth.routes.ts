@@ -96,6 +96,7 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional(),
+    language: z.enum(["fr", "en"]).optional(),
     privacyModeEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");

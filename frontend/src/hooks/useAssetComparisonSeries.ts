@@ -2,6 +2,7 @@ import type { AssetChartDto, RangeKey } from "@pea/shared";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { ComparisonSerie } from "../components/charts/PriceHistoryChart";
+import { i18n } from "../i18n";
 import type { PriceHistoryInputPoint } from "./usePriceHistoryChart";
 
 export interface ComparableAsset {
@@ -84,7 +85,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
       const preparing = [...new Set([...launched, ...preparingTargets.map((target) => target.symbol)])];
       if (displaySeries.length > 0 || preparing.length === 0) setSeries(displaySeries);
       setPreparingSymbols(preparing);
-      setError(preparing.length > 0 ? null : "Comparaison indisponible pour au moins un actif");
+      setError(preparing.length > 0 ? null : i18n.t("errors:comparisonUnavailable"));
       setLoading(false);
       if (preparing.length > 0) {
         const retryKey = `${range}:${preparing.map((symbol) => symbol.toUpperCase()).sort().join(",")}`;
@@ -102,7 +103,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
                 .map((item) => item.target.symbol);
               if (loadedAfterPreparation.length > 0 || stillPreparing.length === 0) setSeries(loadedAfterPreparation);
               setPreparingSymbols(stillPreparing);
-              setError(loadedAfterPreparation.length === targetsRef.current.length || stillPreparing.length > 0 ? null : "Comparaison indisponible pour au moins un actif");
+              setError(loadedAfterPreparation.length === targetsRef.current.length || stillPreparing.length > 0 ? null : i18n.t("errors:comparisonUnavailable"));
               setLoading(false);
             });
           }, preparationRefetchDelayMs);
@@ -130,7 +131,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
         if (loadId.current !== currentLoadId) return;
         setSeries(loadedSeries);
         setPreparingSymbols([]);
-        setError(loadedSeries.length === targetsRef.current.length ? null : "Comparaison indisponible pour au moins un actif");
+        setError(loadedSeries.length === targetsRef.current.length ? null : i18n.t("errors:comparisonUnavailable"));
         setLoading(false);
       });
     }

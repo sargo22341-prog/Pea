@@ -1,11 +1,13 @@
 import { MARKET_EVENT_TYPES } from "@pea/shared";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Shell } from "./components/common/Shell";
 import { ServerSetupPage } from "./components/common/ServerSettings";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
+import { i18n } from "./i18n";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
 import { AuthPage } from "./pages/auth/AuthPage";
@@ -20,11 +22,13 @@ const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then((mo
 const AdminPage = lazy(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 function LoadingPage() {
-  return <div className="p-6 text-slate-400">Chargement...</div>;
+  const { t } = useTranslation();
+  return <div className="p-6 text-slate-400">{t("common.loading")}</div>;
 }
 
 export function App() {
   useSystemBars();
+  const { t } = useTranslation(["common"]);
   const [nativeServerState, setNativeServerState] = useState<{ loading: boolean; configured: boolean }>({
     loading: isNativeApp(),
     configured: !isNativeApp()
@@ -41,7 +45,7 @@ export function App() {
     };
   }, []);
 
-  if (nativeServerState.loading) return <div className="p-6 text-slate-400">Chargement...</div>;
+  if (nativeServerState.loading) return <div className="p-6 text-slate-400">{t("common:common.loading")}</div>;
   if (!nativeServerState.configured) {
     return <ServerSetupPage onConfigured={() => setNativeServerState({ loading: false, configured: true })} />;
   }
@@ -65,8 +69,14 @@ function useSystemBars() {
 
 function AuthenticatedApp() {
   const me = useAsync(() => api.me());
+  const { t } = useTranslation(["common", "errors"]);
   const userId = me.data?.user?.id;
+  const userLanguage = me.data?.user?.language;
   const marketEventsRef = useRef<ReturnType<typeof api.subscribeMarketEvents> | null>(null);
+
+  useEffect(() => {
+    if (userLanguage && i18n.language !== userLanguage) void i18n.changeLanguage(userLanguage);
+  }, [userLanguage]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -99,11 +109,11 @@ function AuthenticatedApp() {
     };
   }, [userId]);
 
-  if (me.loading) return <div className="p-6 text-slate-400">Chargement...</div>;
+  if (me.loading) return <div className="p-6 text-slate-400">{t("common:common.loading")}</div>;
   if (me.error && isNativeApp()) {
     return (
       <ServerSetupPage
-        message={`Serveur inaccessible ou invalide. Detail : ${me.error}`}
+        message={t("errors:serverUnreachableWithDetail", { detail: me.error })}
         onConfigured={() => window.location.assign("/")}
       />
     );

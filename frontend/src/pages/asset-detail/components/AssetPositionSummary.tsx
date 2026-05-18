@@ -1,5 +1,6 @@
 import type { PositionRangePerformance, PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins, ReceiptText, WalletCards } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
@@ -21,6 +22,7 @@ export function AssetPositionSummary({
   range: RangeKey;
   stats?: PositionTransactionStats;
 }) {
+  const { t } = useTranslation(["common", "asset", "dashboard"]);
   const prive = usePrivacy();
   const safeCurrentPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : position.currentPrice;
   const currentValue = position.quantity * safeCurrentPrice;
@@ -53,7 +55,7 @@ export function AssetPositionSummary({
         >
           <TotalTrendIcon size={24} />
         </div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Valeur actuelle</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("asset:currentValue")}</p>
         <div className="mt-3 pr-14">
           <p className="text-[32px] font-bold leading-tight text-white sm:text-4xl">{masquerValeur(money(currentValue, position.currency), prive)}</p>
           <p className={`mt-2 text-base font-semibold ${toneClass(totalTone)}`}>
@@ -64,10 +66,10 @@ export function AssetPositionSummary({
         <div className="mt-6 border-t border-white/[0.05] pt-4">
           <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
             <span>
-              Valeur d'achat <span className="ml-1 text-slate-300">{masquerValeur(money(position.costBasis, position.currency), prive)}</span>
+              {t("asset:purchaseValue")} <span className="ml-1 text-slate-300">{masquerValeur(money(position.costBasis, position.currency), prive)}</span>
             </span>
             <span className="text-right">
-              Valeur actuelle <span className="ml-1 text-slate-300">{masquerValeur(money(currentValue, position.currency), prive)}</span>
+              {t("asset:currentValue")} <span className="ml-1 text-slate-300">{masquerValeur(money(currentValue, position.currency), prive)}</span>
             </span>
           </div>
           <div className="relative mt-3 h-3 rounded-full bg-slate-950/80 shadow-[inset_0_1px_4px_rgba(0,0,0,0.55)]">
@@ -86,7 +88,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<Coins size={18} />}
           iconTone="sky"
-          label="Quantité"
+          label={t("common:fields.quantity")}
           value={masquerValeur(formatNumber(position.quantity), prive)}
           variant="market"
         />
@@ -94,7 +96,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<CircleDollarSign size={18} />}
           iconTone="cyan"
-          label="Prix moyen"
+          label={t("asset:averagePrice")}
           value={masquerValeur(money(position.averageBuyPrice, position.currency), prive)}
           variant="market"
         />
@@ -102,7 +104,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<PeriodTrendIcon size={18} />}
           iconTone={periodTone === "negative" ? "red" : "green"}
-          label={`Performance ${formatRangeLabel(range, { compact: true })}`}
+          label={`${t("dashboard:metrics.performance")} ${formatRangeLabel(range, { compact: true })}`}
           tone={periodTone}
           variant="market"
           value={
@@ -126,7 +128,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<ReceiptText size={18} />}
           iconTone="sky"
-          label="Nb de transaction"
+          label={t("asset:transactionCount")}
           value={masquerValeur(formatNumber(stats?.transactionCount ?? 0), prive)}
           variant="market"
         />
@@ -134,7 +136,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<WalletCards size={18} />}
           iconTone="cyan"
-          label="Total frais"
+          label={t("asset:totalFees")}
           value={masquerValeur(money(stats?.totalFees ?? 0, stats?.currency ?? position.currency), prive)}
           variant="market"
         />
@@ -142,7 +144,7 @@ export function AssetPositionSummary({
         <AssetInfoTile
           icon={<Coins size={18} />}
           iconTone="green"
-          label="Total dividende reçus"
+          label={t("asset:totalDividendsReceived")}
           value={masquerValeur(money(stats?.totalDividendsReceived ?? 0, stats?.currency ?? position.currency), prive)}
           variant="market"
         />

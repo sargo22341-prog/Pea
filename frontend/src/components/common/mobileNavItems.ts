@@ -4,16 +4,16 @@ import type { LucideIcon } from "lucide-react";
 
 export type MobileNavItem = {
   icon: LucideIcon;
-  label: string;
+  labelKey: string;
   path: string;
 };
 
 export function getMobileNavItems(user: Pick<User, "assetNewsEnabled">): MobileNavItem[] {
   return [
-    { path: "/", label: "Dashboard", icon: Home },
-    ...(user.assetNewsEnabled ? [{ path: "/news", label: "Actualite", icon: Newspaper }] : []),
-    { path: "/search", label: "Chercher", icon: Search },
-    { path: "/analysis", label: "Analyse", icon: BarChart3 },
-    { path: "/dividends", label: "Dividendes", icon: CalendarDays }
+    { path: "/", labelKey: "navigation:dashboard", icon: Home },
+    ...(user.assetNewsEnabled ? [{ path: "/news", labelKey: "navigation:news", icon: Newspaper }] : []),
+    { path: "/search", labelKey: "navigation:search", icon: Search },
+    { path: "/analysis", labelKey: "navigation:analysis", icon: BarChart3 },
+    { path: "/dividends", labelKey: "navigation:dividends", icon: CalendarDays }
   ];
 }

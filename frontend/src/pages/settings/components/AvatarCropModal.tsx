@@ -1,5 +1,6 @@
 import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const PREVIEW_SIZE = 240;
 const OUTPUT_SIZE = 512;
@@ -11,6 +12,7 @@ interface AvatarCropModalProps {
 }
 
 export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalProps) {
+  const { t } = useTranslation(["common"]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [minScale, setMinScale] = useState(0.1);
@@ -125,7 +127,7 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-semibold">Ajuster l'image</span>
+          <span className="font-semibold">{t("avatar.adjust", { ns: "common" })}</span>
           <button className="text-slate-400 hover:text-white" onClick={onCancel} type="button">
             <X size={20} />
           </button>
@@ -151,7 +153,7 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
           >
             {!loaded && (
               <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                Chargement…
+                {t("avatar.loading", { ns: "common" })}
               </div>
             )}
           </div>
@@ -174,17 +176,17 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
             <ZoomIn className="shrink-0 text-slate-400" size={16} />
           </div>
           <p className="mt-2 text-center text-xs text-slate-500">
-            Glissez pour repositionner · Molette ou curseur pour zoomer
+            {t("avatar.help", { ns: "common" })}
           </p>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-line px-4 py-3">
           <button className="btn-ghost" onClick={onCancel} type="button">
-            Annuler
+            {t("actions.cancel", { ns: "common" })}
           </button>
           <button className="btn-primary" disabled={!loaded} onClick={confirm} type="button">
             <Check size={16} />
-            Appliquer
+            {t("actions.apply", { ns: "common" })}
           </button>
         </div>
       </div>

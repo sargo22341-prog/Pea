@@ -30,7 +30,7 @@ const standardUser: AdminManagedUser = {
 };
 
 function openManagerUsers() {
-  fireEvent.click(screen.getByRole("button", { name: /manager users/i }));
+  fireEvent.click(screen.getByRole("button", { name: /gestion des utilisateurs/i }));
 }
 
 describe("UserManagementSection", () => {

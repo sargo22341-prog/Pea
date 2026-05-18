@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "@pea/shared";
 import { Bar, BarChart, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
@@ -31,19 +32,20 @@ interface DividendAnnualEstimateProps {
 }
 
 export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChange, total, year, years }: DividendAnnualEstimateProps) {
+  const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
 
   return (
     <section className="card overflow-hidden">
       <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="muted">Total annuel estime</p>
+          <p className="muted">{t("dividendsPage.annualEstimate", { ns: "dashboard" })}</p>
           <p className="mt-1 text-3xl font-bold text-mint">{masquerValeur(money(total, currency), prive)}</p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
-          <h2 className="font-semibold sm:pb-2">Prevision mensuelle</h2>
+          <h2 className="font-semibold sm:pb-2">{t("dividendsPage.monthlyForecast", { ns: "dashboard" })}</h2>
           <label className="w-full sm:w-44">
-            <span className="muted mb-2 block">Annee</span>
+            <span className="muted mb-2 block">{t("dividendsPage.year", { ns: "dashboard" })}</span>
             <select className="input" onChange={(event) => onYearChange(event.target.value)} value={year}>
               {years.map((item) => (
                 <option key={item} value={item}>{item}</option>
@@ -81,13 +83,14 @@ function MonthlyDividendTooltip({
   prive: boolean;
 }) {
   const month = payload?.[0]?.payload;
+  const { t } = useTranslation(["dashboard"]);
   if (!active || !month) return null;
 
   return (
     <div className="min-w-52 rounded-md border border-line bg-panel p-3 shadow-glow">
       <p className="mb-2 font-semibold capitalize">{month.label}</p>
       {month.entries.length === 0 ? (
-        <p className="text-sm text-slate-400">Aucun dividende</p>
+        <p className="text-sm text-slate-400">{t("dividendsPage.noDividend", { ns: "dashboard" })}</p>
       ) : (
         <div className="space-y-2">
           {month.entries.map((entry) => (
@@ -102,7 +105,7 @@ function MonthlyDividendTooltip({
         </div>
       )}
       <div className="mt-3 flex items-center justify-between border-t border-line pt-2 font-semibold">
-        <span>Total</span>
+        <span>{t("dividendsPage.total", { ns: "dashboard" })}</span>
         <span className="text-mint">{masquerValeur(money(month.total, month.currency), prive)}</span>
       </div>
     </div>

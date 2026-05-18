@@ -1,14 +1,16 @@
 import type { YahooUsageStatsDto } from "@pea/shared";
 import { AlertTriangle, BarChart3, Clock, Gauge } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { formatMs, formatNumber, formatPercent } from "./yahooUsageUtils";
 
 export function YahooUsageSummaryCards({ data }: { data: YahooUsageStatsDto }) {
+  const { t } = useTranslation(["common"]);
   const cards = [
-    { label: "Appels aujourd'hui", value: formatNumber(data.summary.callsToday), icon: BarChart3 },
-    { label: "Appels 24h", value: formatNumber(data.summary.calls24h), icon: Clock },
-    { label: "Appels 7 jours", value: formatNumber(data.summary.calls7d), icon: BarChart3 },
-    { label: "Taux d'erreur", value: formatPercent(data.summary.errorRate), icon: AlertTriangle },
-    { label: "Duree moyenne", value: formatMs(data.summary.avgDurationMs), icon: Gauge }
+    { label: t("admin.yahooUsage.callsToday", { ns: "common" }), value: formatNumber(data.summary.callsToday), icon: BarChart3 },
+    { label: t("admin.yahooUsage.calls24h", { ns: "common" }), value: formatNumber(data.summary.calls24h), icon: Clock },
+    { label: t("admin.yahooUsage.calls7d", { ns: "common" }), value: formatNumber(data.summary.calls7d), icon: BarChart3 },
+    { label: t("admin.yahooUsage.errorRate", { ns: "common" }), value: formatPercent(data.summary.errorRate), icon: AlertTriangle },
+    { label: t("admin.yahooUsage.avgDuration", { ns: "common" }), value: formatMs(data.summary.avgDurationMs), icon: Gauge }
   ];
 
   return (

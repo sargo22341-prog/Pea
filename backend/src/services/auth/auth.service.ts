@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import bcrypt from "bcryptjs";
-import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
+import type { AppLanguage, DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { config } from "../../config.js";
 import { authRepository, type AuthUserRow } from "../../repositories/auth/auth.repository.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -22,6 +22,7 @@ export interface AuthUser {
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];
+  language: AppLanguage;
   privacyModeEnabled: boolean;
   createdAt: string;
 }
@@ -48,6 +49,7 @@ interface UserRow extends AuthUserRow {
   asset_news_enabled: number | null;
   news_language_fr_enabled: number | null;
   news_language_en_enabled: number | null;
+  language: string | null;
   privacy_mode_enabled: number | null;
   created_at: string;
 }
@@ -84,6 +86,10 @@ function isRangeKey(value: unknown): value is RangeKey {
   );
 }
 
+function isAppLanguage(value: unknown): value is AppLanguage {
+  return value === "fr" || value === "en";
+}
+
 function extensionForMime(mimeType: string) {
   if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
   return "png";
@@ -110,6 +116,7 @@ function rowToAuthUser(row: UserRow): AuthUser {
     localPeaSearchEnabled: row.local_pea_search_enabled === undefined || row.local_pea_search_enabled === null ? true : Boolean(row.local_pea_search_enabled),
     assetNewsEnabled: row.asset_news_enabled === undefined || row.asset_news_enabled === null ? true : Boolean(row.asset_news_enabled),
     newsLanguages: languages.length ? languages : ["fr"],
+    language: isAppLanguage(row.language) ? row.language : "fr",
     privacyModeEnabled: Boolean(row.privacy_mode_enabled),
     createdAt: String(row.created_at)
   };
@@ -231,6 +238,7 @@ export class AuthService {
       localPeaSearchEnabled?: boolean;
       assetNewsEnabled?: boolean;
       newsLanguages?: NewsLanguage[];
+      language?: AppLanguage;
       privacyModeEnabled?: boolean;
     }
   ) {
@@ -252,6 +260,7 @@ export class AuthService {
     const newsLanguageFrEnabled = input.newsLanguages === undefined ? Number(current.news_language_fr_enabled ?? 1) : validLanguages.includes("fr") ? 1 : 0;
     const newsLanguageEnEnabled = input.newsLanguages === undefined ? Number(current.news_language_en_enabled ?? 0) : validLanguages.includes("en") ? 1 : 0;
     if (!newsLanguageFrEnabled && !newsLanguageEnEnabled) throw new HttpError(400, "Au moins une langue d'actualites doit etre activee.");
+    const language = input.language ?? (isAppLanguage(current.language) ? current.language : "fr");
     const privacyModeEnabled = input.privacyModeEnabled === undefined ? Number(current.privacy_mode_enabled ?? 0) : input.privacyModeEnabled ? 1 : 0;
 
     try {
@@ -268,6 +277,7 @@ export class AuthService {
         assetNewsEnabled,
         newsLanguageFrEnabled,
         newsLanguageEnEnabled,
+        language,
         privacyModeEnabled
       });
     } catch {

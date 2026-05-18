@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
 
 export function useAssetIconsSettings() {
+  const { t } = useTranslation(["settings"]);
   const icons = useAsync(() => api.assetIcons());
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
@@ -30,10 +32,10 @@ export function useAssetIconsSettings() {
       const version = Date.now();
       setCacheBusts((current) => ({ ...current, [symbol]: version }));
       window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
-      setToast({ tone: "success", text: `Icone ${symbol} mise a jour.` });
+      setToast({ tone: "success", text: t("icons.updated", { ns: "settings", symbol }) });
       await icons.reload();
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Upload impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("icons.uploadError", { ns: "settings" }) });
     }
   }
 
@@ -45,10 +47,10 @@ export function useAssetIconsSettings() {
       const version = Date.now();
       setCacheBusts((current) => ({ ...current, [symbol]: version }));
       window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
-      setToast({ tone: "success", text: `Icone ${symbol} supprimee.` });
+      setToast({ tone: "success", text: t("icons.deleted", { ns: "settings", symbol }) });
       await icons.reload();
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Suppression impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("icons.deleteError", { ns: "settings" }) });
     }
   }
 

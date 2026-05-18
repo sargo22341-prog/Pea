@@ -1,6 +1,7 @@
 import type { MarketEventType, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { StaleBadge } from "../../../components/common/StaleBadge";
@@ -14,13 +15,13 @@ import { sortWatchlistItems, watchlistCacheVersion } from "./dashboardSort.helpe
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
 
-const watchlistSortOptions: Array<SortOption<WatchlistSortKey>> = [
-  { label: "Nom A -> Z", key: "name", direction: "asc" },
-  { label: "Nom Z -> A", key: "name", direction: "desc" },
-  { label: "Prix croissant", key: "price", direction: "asc" },
-  { label: "Prix decroissant", key: "price", direction: "desc" },
-  { label: "Performance croissante", key: "performancePercent", direction: "asc" },
-  { label: "Performance decroissante", key: "performancePercent", direction: "desc" }
+const watchlistSortOptions: Array<Omit<SortOption<WatchlistSortKey>, "label"> & { labelKey: string }> = [
+  { labelKey: "sort.nameAsc", key: "name", direction: "asc" },
+  { labelKey: "sort.nameDesc", key: "name", direction: "desc" },
+  { labelKey: "sort.priceAsc", key: "price", direction: "asc" },
+  { labelKey: "sort.priceDesc", key: "price", direction: "desc" },
+  { labelKey: "sort.performanceAsc", key: "performancePercent", direction: "asc" },
+  { labelKey: "sort.performanceDesc", key: "performancePercent", direction: "desc" }
 ];
 
 const watchlistReloadEvents: MarketEventType[] = [
@@ -31,6 +32,7 @@ const watchlistReloadEvents: MarketEventType[] = [
 ];
 
 export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaultSortDirection = "asc" }: { range?: RangeKey; defaultSortKey?: WatchlistSortKey; defaultSortDirection?: SortDirection }) {
+  const { t } = useTranslation(["dashboard", "settings"]);
   const navigate = useNavigate();
   const watchlist = useAsync((signal) => api.watchlist(range, signal), range);
   const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
@@ -114,9 +116,13 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const sortedItems = useMemo(() => {
     return sortWatchlistItems(watchlist.data ?? [], sortKey, sortDirection);
   }, [sortDirection, sortKey, watchlist.data]);
+  const translatedSortOptions = useMemo<Array<SortOption<WatchlistSortKey>>>(
+    () => watchlistSortOptions.map((option) => ({ ...option, label: t(option.labelKey, { ns: "settings" }) })),
+    [t]
+  );
 
   if (watchlist.loading) {
-    return <div className="card p-4 text-slate-400">Chargement de la liste de suivi...</div>;
+    return <div className="card p-4 text-slate-400">{t("watchlistSection.loading", { ns: "dashboard" })}</div>;
   }
 
   if (!watchlist.data || watchlist.data.length === 0) {
@@ -140,8 +146,8 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
       as="section"
       className={`card overflow-hidden ${chartRefreshing ? "stale-refreshing" : ""}`}
       onSortChange={updateSort}
-      options={watchlistSortOptions}
-      title={<h2 className="truncate font-semibold">Liste de suivi</h2>}
+      options={translatedSortOptions}
+      title={<h2 className="truncate font-semibold">{t("watchlist", { ns: "dashboard" })}</h2>}
       titleClassName="min-w-0"
     >
       <div className="divide-y divide-line">
@@ -175,7 +181,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
 
               <div className="min-w-0 justify-self-center text-center leading-tight">
                 <p className="text-[10px] font-semibold text-slate-400 sm:text-xs">
-                  Prix actuel
+                  {t("watchlistSection.currentPrice", { ns: "dashboard" })}
                 </p>
                 <p className="truncate whitespace-nowrap text-xs font-semibold tabular-nums sm:text-base">
                   {item.quote ? money(item.quote.price, item.quote.currency) : "n/a"}
@@ -183,7 +189,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
               </div>
 
               <div className="min-w-0 justify-self-end text-right leading-tight">
-                <p className="hidden text-sm text-slate-400 sm:block">Valeur | Perf</p>
+                <p className="hidden text-sm text-slate-400 sm:block">{t("watchlistSection.valuePerformance", { ns: "dashboard" })}</p>
 
                 <p
                   className={`flex min-w-0 items-center justify-end gap-0.5 whitespace-nowrap text-[11px] font-semibold tabular-nums sm:text-sm ${positive ? "text-mint" : "text-coral"}`}
@@ -203,7 +209,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
               <button
                 className="justify-self-end text-amber"
                 onClick={(e) => { e.stopPropagation(); void remove(item.symbol); }}
-                title="Retirer de la liste de suivi"
+                title={t("watchlistSection.remove", { ns: "dashboard" })}
                 type="button"
               >
                 <Star fill="currentColor" size={20} />

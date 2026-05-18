@@ -1,5 +1,6 @@
 import type { NewsArticle, NewsAssetsPage, NewsFeedPage, User } from "@pea/shared";
 import type { Dispatch, SetStateAction } from "react";
+import { i18n } from "../../../i18n";
 import { api } from "../../../lib/api";
 import type { AssetNewsCacheEntry, AsyncNewsState, NewsMode } from "./newsTypes";
 
@@ -68,7 +69,7 @@ export async function loadAssetMode(
       void preloadRemainingAssetNews(user, signal, setState);
     }
   } catch (error) {
-    if (!signal.aborted) setState((current) => ({ ...current, loading: false, error: error instanceof Error ? error.message : "Actualites indisponibles" }));
+    if (!signal.aborted) setState((current) => ({ ...current, loading: false, error: error instanceof Error ? error.message : i18n.t("errors:newsUnavailable") }));
   }
 }
 
@@ -96,7 +97,7 @@ export async function loadGlobalMode(
     const data = await fetchGlobalNews(user, page);
     if (!signal.aborted) setState({ data, loading: false, error: null });
   } catch (error) {
-    if (!signal.aborted) setState((current) => ({ ...current, loading: false, error: error instanceof Error ? error.message : "Actualites indisponibles" }));
+    if (!signal.aborted) setState((current) => ({ ...current, loading: false, error: error instanceof Error ? error.message : i18n.t("errors:newsUnavailable") }));
   }
 }
 

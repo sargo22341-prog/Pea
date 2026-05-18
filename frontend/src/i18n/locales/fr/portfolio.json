@@ -1,0 +1,26 @@
+{
+  "position": {
+    "currentValue": "Valeur actuelle",
+    "editTransactions": "Modifier les transactions qui alimentent la quantite, le PRU et les frais.",
+    "existingTransactions": "Transactions existantes",
+    "legacyLocked": "Cette ligne legacy vient de la position CSV. Ajoute une transaction datee pour l'editer finement.",
+    "soldQuantityTooHigh": "La quantite vendue ne peut pas depasser {{quantity}}.",
+    "deleteAction": "Supprimer l'action",
+    "addTransaction": "Ajouter une transaction",
+    "deletePositionAction": "Supprimer la position",
+    "deleteTransactionTitle": "Supprimer cette transaction ?",
+    "deletePositionTitle": "Supprimer {{symbol}} ?",
+    "deleteTransactionDescription": "La transaction {{type}} du {{date}} sera supprimee.",
+    "deletePositionDescription": "La position {{symbol}} et ses transactions seront supprimees du portefeuille.",
+    "noTransactions": "Aucune transaction pour cette position.",
+    "save": "Sauver",
+    "title": "Transactions {{symbol}}",
+    "toFill": "A remplir"
+  },
+  "compare": {
+    "title": "Comparer avec",
+    "placeholder": "Ticker, entreprise ou ETF",
+    "main": "Principal",
+    "maxSymbols": "Maximum {{count}} titres en comparaison."
+  }
+}

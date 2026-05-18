@@ -1,5 +1,6 @@
 import type { PortfolioTransactionMarker } from "@pea/shared";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { formatChartDateTime, formatNumber, money } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
@@ -16,13 +17,14 @@ export function TransactionMarkerOverlay({
   userTimezone?: string;
   maskValues: boolean;
 }) {
+  const { t } = useTranslation(["common"]);
   const [activePoint, setActivePoint] = useState<MarkerOverlayPoint | null>(null);
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-5 h-8">
       {points.map((point) => (
         <button
-          aria-label={`${point.markers.length} transaction${point.markers.length > 1 ? "s" : ""}`}
+          aria-label={t("states.transactions", { count: point.markers.length, ns: "common" })}
           className="pointer-events-auto absolute top-1/2 flex h-8 min-w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center border-0 bg-transparent p-0"
           key={point.date}
           onBlur={() => setActivePoint(null)}
@@ -89,6 +91,7 @@ function TransactionMarkerTooltip({
   userTimezone?: string;
   maskValues: boolean;
 }) {
+  const { t } = useTranslation(["common", "dashboard"]);
   return (
     <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
       {markers.map((marker) => {
@@ -102,7 +105,8 @@ function TransactionMarkerTooltip({
                 {isBuy ? "+" : "-"} {masquerValeur(formatNumber(marker.quantity), maskValues)} {marker.symbol}
               </p>
               <p className="text-slate-400">
-                {isBuy ? "Achat" : "Vente"}{marker.price == null ? "" : ` a ${masquerValeur(money(marker.price, currency), maskValues)}`} - {formatChartDateTime(marker.transactionDate, userTimezone)}
+                {isBuy ? t("states.buy", { ns: "common" }) : t("states.sell", { ns: "common" })}
+                {marker.price == null ? "" : ` ${t("chart.atPrice", { ns: "dashboard", price: masquerValeur(money(marker.price, currency), maskValues) })}`} - {formatChartDateTime(marker.transactionDate, userTimezone)}
               </p>
             </div>
           </div>

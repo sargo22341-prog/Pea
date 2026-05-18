@@ -1,5 +1,6 @@
 import type { AssetChartDto, MarketSessionDto, RangeKey } from "@pea/shared";
 import { GitCompare } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ComparisonChart, PriceHistoryChart } from "../../../components/charts/PriceHistoryChart";
 import { RangeSelector } from "../../../components/common/RangeSelector";
 import { formatMarketSessionHours } from "../../../lib/timezone";
@@ -45,22 +46,23 @@ export function AssetHistorySection({
   symbol: string;
   userTimezone: string;
 }) {
+  const { t } = useTranslation(["asset", "portfolio"]);
   const chartMarketSession = marketSession ?? displayChart?.marketSession;
 
   return (
     <section className={`card p-0 sm:p-4 ${chartRefreshing ? "stale-refreshing" : ""}`}>
       <div className="mb-3 flex flex-col justify-between gap-4 px-2 sm:mb-4 sm:flex-row sm:items-center sm:px-0">
-        <h2 className="font-semibold">Historique</h2>
+        <h2 className="font-semibold">{t("asset:history")}</h2>
         <div className="flex items-center justify-end gap-2">
           <button className={compareTargetsCount > 0 ? "btn bg-blue-600 text-white" : "btn-ghost"} onClick={onCompare} type="button">
             <GitCompare size={17} />
-            {compareTargetsCount > 0 ? compareTargetsCount : "Comparer"}
+            {compareTargetsCount > 0 ? compareTargetsCount : t("portfolio:compare.title")}
           </button>
           <RangeSelector onChange={onRangeChange} value={range} />
         </div>
       </div>
       {loading && chartPoints.length <= 1 ? (
-        <div className="flex h-80 items-center justify-center text-sm text-slate-400">Chargement du graphique...</div>
+        <div className="flex h-80 items-center justify-center text-sm text-slate-400">{t("asset:chartLoading")}</div>
       ) : chartPoints.length > 1 ? (
         comparisonSeries.length > 0 ? (
           <ComparisonChart
@@ -87,23 +89,23 @@ export function AssetHistorySection({
         )
       ) : chart?.isPreparing ? (
         <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-amber">
-          Donnees en cours de preparation
+          {t("asset:dataPreparing")}
         </div>
       ) : chartPendingOpenConfirmation ? (
         <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink px-4 text-center text-sm text-slate-400">
-          Donnees intraday pas encore disponibles, marche pas encore confirme ouvert
+          {t("asset:intradayPendingOpen")}
         </div>
       ) : (
         <div className="flex h-40 items-center justify-center rounded-md border border-line bg-ink text-sm text-slate-400">
-          {range === "1d" ? "Données intraday indisponibles" : "Données de marché indisponibles"}
+          {range === "1d" ? t("asset:intradayUnavailableShort") : t("asset:marketUnavailable")}
         </div>
       )}
       {range === "1d" && (chartPoints.length === 0 || stale) && (
-        <p className="mt-3 text-xs text-slate-500">Donnees intraday indisponibles ou servies depuis le cache.</p>
+        <p className="mt-3 text-xs text-slate-500">{t("asset:intradayUnavailable")}</p>
       )}
       {compareTargetsCount > 0 && preparingSymbols.length > 0 && (
         <p className="mt-3 text-xs text-amber">
-          Preparation des donnees de comparaison : {preparingSymbols.join(", ")}
+          {t("asset:comparisonPreparing", { symbols: preparingSymbols.join(", ") })}
         </p>
       )}
       {compareTargetsCount > 0 && comparisonError && preparingSymbols.length === 0 && (
@@ -111,7 +113,7 @@ export function AssetHistorySection({
       )}
       {range === "1d" && marketSession && (marketSession.timezone !== userTimezone || marketSession.sessions.length > 1) && (
         <p className="mt-3 text-xs text-slate-400">
-          Horaires du marche : {marketSession.city} {formatMarketSessionHours(marketSession.sessions)}, heure locale du marche
+          {t("asset:marketHours", { city: marketSession.city, hours: formatMarketSessionHours(marketSession.sessions) })}
         </p>
       )}
     </section>

@@ -1,5 +1,6 @@
 import type { FinancialYearItem } from "@pea/shared";
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from "recharts";
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { ChartEmpty } from "./ChartEmpty";
@@ -17,7 +18,10 @@ function MarginLabel({ x, y, value }: LabelProps) {
 }
 
 export const FinancialComboChart = memo(function FinancialComboChart({ data }: { data: FinancialYearItem[] }) {
-  if (!data.length) return <ChartEmpty label="Aucune donnée financière annuelle disponible." />;
+  const { t } = useTranslation(["dashboard"]);
+  const netMarginLabel = t("chart.netMargin", { ns: "dashboard" });
+
+  if (!data.length) return <ChartEmpty label={t("chart.emptyFinancialAnnual", { ns: "dashboard" })} />;
 
   return (
     <div className="h-[420px] min-w-0">
@@ -29,7 +33,7 @@ export const FinancialComboChart = memo(function FinancialComboChart({ data }: {
           <YAxis orientation="right" tick={{ fill: "#94a3b8", fontSize: 12 }} tickFormatter={(value) => formatPercent(Number(value))} yAxisId="margin" />
           <Tooltip
             contentStyle={{ background: "rgba(7, 16, 20, 0.95)", border: "1px solid #263844", borderRadius: 8 }}
-            formatter={(value, name) => (name === "Marge nette" ? formatPercent(Number(value)) : compactMoney(Number(value)))}
+            formatter={(value, name) => (name === netMarginLabel ? formatPercent(Number(value)) : compactMoney(Number(value)))}
             labelFormatter={(value) => String(value)}
             labelStyle={{ color: "#f8fafc" }}
           />
@@ -40,7 +44,7 @@ export const FinancialComboChart = memo(function FinancialComboChart({ data }: {
             dataKey="netMargin"
             dot={{ fill: "#d4af37", r: 4 }}
             label={<MarginLabel />}
-            name="Marge nette"
+            name={netMarginLabel}
             stroke="#d4af37"
             strokeWidth={3}
             type="monotone"

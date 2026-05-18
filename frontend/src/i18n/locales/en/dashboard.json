@@ -1,0 +1,72 @@
+{
+  "title": "Dashboard",
+  "positions": "Positions",
+  "positionList": "Position list",
+  "watchlist": "Watchlist",
+  "portfolioEvolution": "Portfolio evolution",
+  "empty": {
+    "title": "Add your first line",
+    "description": "Search for a Yahoo Finance ticker, enter your quantity and average price to feed the dashboard."
+  },
+  "metrics": {
+    "totalValue": "Total value",
+    "dailyChange": "Daily change",
+    "performance": "Performance",
+    "dividends": "Dividends"
+  },
+  "sort": {
+    "active": "Active sort: {{label}}",
+    "activeBadge": "active",
+    "sort": "Sort",
+    "ascending": "Sort ascending",
+    "descending": "Sort descending"
+  },
+  "watchlistSection": {
+    "loading": "Loading watchlist...",
+    "currentPrice": "Current price",
+    "valuePerformance": "Value | Perf",
+    "remove": "Remove from watchlist"
+  },
+  "positionRows": {
+    "valuePerformance": "Value | Perf {{range}}",
+    "performanceUnavailable": "Performance unavailable",
+    "miniGraphUnavailable": "Mini chart unavailable",
+    "miniGraph": "Mini chart {{range}}",
+    "partial": "partial"
+  },
+  "chart": {
+    "portfolio": "Portfolio",
+    "subtitle": "Aggregated valuation from Yahoo Finance history.",
+    "empty": "No data available.",
+    "emptyFinancialAnnual": "No annual financial data available.",
+    "emptyNetMargin": "No net margin available.",
+    "netMargin": "Net margin",
+    "atPrice": "at {{price}}",
+    "preparing": "Data is being prepared...",
+    "loadingComparisons": "Loading comparisons...",
+    "preparingWithAssets": "Data is being prepared: {{assets}}",
+    "marketHours": "Market hours: {{city}} {{hours}}, local market time"
+  },
+  "topMetrics": {
+    "invested": "Total invested",
+    "dividends": "Total dividends",
+    "fees": "Total fees",
+    "rangePerformance": "Performance over {{range}}"
+  },
+  "dividendsPage": {
+    "loading": "Loading dividends...",
+    "subtitle": "Annual view grouped by stock, with quarterly breakdown.",
+    "annualEstimate": "Estimated annual total",
+    "monthlyForecast": "Monthly forecast",
+    "year": "Year",
+    "noDividend": "No dividend",
+    "income": "{{year}} income",
+    "noDividendAvailable": "No dividends available.",
+    "quarterlyBreakdown": "Quarterly breakdown",
+    "total": "Total",
+    "groupedList": "List grouped by stock",
+    "shares": "{{quantity}} shares",
+    "estimated": "Includes estimates",
+    "cached": "Cached data"
+  }
+}

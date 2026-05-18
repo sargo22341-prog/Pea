@@ -1,11 +1,13 @@
 import { Camera, Save, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { useAccountSettings } from "../hooks/useAccountSettings";
-import { AvatarCropModal } from "./AvatarCropModal";
+import { useTranslation } from "react-i18next";
 import { Collapsible, Toast } from "../../../components/common/feedback";
 import { useAuthenticatedImageUrl } from "../../../hooks/useAuthenticatedImageUrl";
+import { useAccountSettings } from "../hooks/useAccountSettings";
+import { AvatarCropModal } from "./AvatarCropModal";
 
 export function AccountSettingsSection() {
+  const { t } = useTranslation(["common", "settings"]);
   const {
     confirmPassword,
     deleteProfileIcon,
@@ -29,12 +31,13 @@ export function AccountSettingsSection() {
   const shouldLoadProfileIcon = Boolean(user?.hasProfileIcon && !profileFailed && !profilePreview);
   const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
 
-  if (me.loading)
+  if (me.loading) {
     return (
-      <Collapsible title="Compte">
-        <p className="text-slate-400">Chargement du compte…</p>
+      <Collapsible title={t("account.title", { ns: "settings" })}>
+        <p className="text-slate-400">{t("account.loading", { ns: "settings" })}</p>
       </Collapsible>
     );
+  }
 
   const initial = user?.username.slice(0, 1).toUpperCase() ?? "?";
   const hasIcon = !profileFailed && (user?.hasProfileIcon || profilePreview !== "");
@@ -42,12 +45,11 @@ export function AccountSettingsSection() {
   function handleFileChange(file: File | undefined) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
       if (dataUrl) setCropSrc(dataUrl);
     };
     reader.readAsDataURL(file);
-    // Reset so the same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -65,52 +67,37 @@ export function AccountSettingsSection() {
           onCancel={() => setCropSrc(null)}
         />
       )}
-      <Collapsible title="Compte">
+      <Collapsible title={t("account.title", { ns: "settings" })}>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-3 md:grid-cols-2">
             <label>
-              <span className="muted mb-1 block">Username</span>
-              <input
-                className="input"
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={user?.username}
-              />
+              <span className="muted mb-1 block">{t("fields.username", { ns: "common" })}</span>
+              <input className="input" onChange={(event) => setUsername(event.target.value)} placeholder={user?.username} />
             </label>
             <label>
-              <span className="muted mb-1 block">Nouveau mot de passe</span>
-              <input
-                className="input"
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                value={password}
-              />
+              <span className="muted mb-1 block">{t("account.newPassword", { ns: "settings" })}</span>
+              <input className="input" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
             </label>
             <label>
-              <span className="muted mb-1 block">Confirmation</span>
-              <input
-                className="input"
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                type="password"
-                value={confirmPassword}
-              />
+              <span className="muted mb-1 block">{t("common.confirmation", { ns: "common" })}</span>
+              <input className="input" onChange={(event) => setConfirmPassword(event.target.value)} type="password" value={confirmPassword} />
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn-primary" type="submit">
               <Save size={17} />
-              Enregistrer
+              {t("actions.save", { ns: "common" })}
             </button>
           </div>
         </form>
 
         <div className="rounded-md border border-line bg-ink p-3">
-          <p className="mb-3 font-semibold">Icone utilisateur</p>
+          <p className="mb-3 font-semibold">{t("account.userIcon", { ns: "settings" })}</p>
           <div className="flex items-center gap-4">
-            {/* Clickable avatar circle */}
             <button
               className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-panel2 font-bold text-sky"
               onClick={() => fileInputRef.current?.click()}
-              title="Modifier l'icone"
+              title={t("account.editIcon", { ns: "settings" })}
               type="button"
             >
               {profilePreview ? (
@@ -118,12 +105,7 @@ export function AccountSettingsSection() {
               ) : !shouldLoadProfileIcon || !profileIconUrl ? (
                 <span>{initial}</span>
               ) : (
-                <img
-                  alt=""
-                  className="h-full w-full object-cover"
-                  onError={() => setProfileFailed(true)}
-                  src={profileIconUrl}
-                />
+                <img alt="" className="h-full w-full object-cover" onError={() => setProfileFailed(true)} src={profileIconUrl} />
               )}
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                 <Camera className="text-white" size={20} />
@@ -131,29 +113,19 @@ export function AccountSettingsSection() {
             </button>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Photo de profil</p>
-              <p className="muted text-xs">Cliquez sur l'icone pour modifier. PNG ou JPEG, max 1 Mo.</p>
+              <p className="text-sm font-medium">{t("account.profilePicture", { ns: "settings" })}</p>
+              <p className="muted text-xs">{t("account.profilePictureHelp", { ns: "settings" })}</p>
             </div>
 
             {hasIcon && (
-              <button
-                className="btn-ghost text-coral"
-                onClick={() => void deleteProfileIcon()}
-                type="button"
-              >
+              <button className="btn-ghost text-coral" onClick={() => void deleteProfileIcon()} type="button">
                 <Trash2 size={17} />
-                Supprimer
+                {t("actions.delete", { ns: "common" })}
               </button>
             )}
           </div>
 
-          <input
-            accept="image/png,image/jpeg"
-            className="hidden"
-            onChange={(e) => handleFileChange(e.target.files?.[0])}
-            ref={fileInputRef}
-            type="file"
-          />
+          <input accept="image/png,image/jpeg" className="hidden" onChange={(event) => handleFileChange(event.target.files?.[0])} ref={fileInputRef} type="file" />
         </div>
 
         {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}

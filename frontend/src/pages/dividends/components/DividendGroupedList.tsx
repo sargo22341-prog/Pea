@@ -1,6 +1,7 @@
 import type { CurrencyCode } from "@pea/shared";
 import { CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/PrivacyContext";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { money } from "../../../lib/format";
@@ -27,6 +28,7 @@ interface DividendGroupedListProps {
 }
 
 export function DividendGroupedList({ currency, groups, total, year }: DividendGroupedListProps) {
+  const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
 
   return (
@@ -35,15 +37,15 @@ export function DividendGroupedList({ currency, groups, total, year }: DividendG
         <div>
           <div className="flex items-center gap-2">
             <CalendarClock className="text-mint" size={20} />
-            <h2 className="font-semibold">Revenus {year}</h2>
+            <h2 className="font-semibold">{t("dividendsPage.income", { ns: "dashboard", year })}</h2>
           </div>
-          <p className="muted mt-1">Liste regroupee par action</p>
+          <p className="muted mt-1">{t("dividendsPage.groupedList", { ns: "dashboard" })}</p>
         </div>
         <p className="text-lg font-semibold text-mint">{masquerValeur(money(total, currency), prive)}</p>
       </div>
 
       <div className="divide-y divide-line">
-        {groups.length === 0 && <p className="p-4 text-slate-400">Aucun dividende disponible.</p>}
+        {groups.length === 0 && <p className="p-4 text-slate-400">{t("dividendsPage.noDividendAvailable", { ns: "dashboard" })}</p>}
         {groups.map((group) => (
           <DividendAssetRow group={group} key={group.symbol} prive={prive} />
         ))}
@@ -53,6 +55,7 @@ export function DividendGroupedList({ currency, groups, total, year }: DividendG
 }
 
 function DividendAssetRow({ group, prive }: { group: DividendGroup; prive: boolean }) {
+  const { t } = useTranslation(["dashboard"]);
   return (
     <Link className="grid min-w-0 grid-cols-[minmax(0,1fr)_110px_minmax(80px,auto)] items-center gap-1 p-4 transition hover:bg-panel2/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-mint sm:gap-3 sm:grid-cols-[minmax(0,1fr)_150px_minmax(126px,1fr)]" to={`/assets/${group.symbol}`}>
       {/* LEFT */}
@@ -67,7 +70,7 @@ function DividendAssetRow({ group, prive }: { group: DividendGroup; prive: boole
             {group.name}
           </p>
           <p className="mt-1 text-sm text-slate-400">
-            {masquerValeur(`${formatQuantity(group.quantity)}`, prive)} titres
+            {t("dividendsPage.shares", { ns: "dashboard", quantity: masquerValeur(`${formatQuantity(group.quantity)}`, prive) })}
           </p>
         </div>
       </div>
@@ -92,7 +95,7 @@ function DividendAssetRow({ group, prive }: { group: DividendGroup; prive: boole
 
         {(group.hasEstimated || group.stale) && (
           <p className="mt-1 text-xs text-slate-500">
-            {group.hasEstimated ? "Inclut estime" : "Donnees en cache"}
+            {group.hasEstimated ? t("dividendsPage.estimated", { ns: "dashboard" }) : t("dividendsPage.cached", { ns: "dashboard" })}
           </p>
         )}
       </div>
@@ -101,10 +104,11 @@ function DividendAssetRow({ group, prive }: { group: DividendGroup; prive: boole
 }
 
 function QuarterBars({ quarters, currency, prive }: { quarters: [number, number, number, number]; currency: CurrencyCode; prive: boolean }) {
+  const { t } = useTranslation(["dashboard"]);
   const max = Math.max(...quarters, 0);
 
   return (
-    <div className="grid h-14 min-w-0 grid-cols-4 items-end gap-1" aria-label="Repartition trimestrielle">
+    <div className="grid h-14 min-w-0 grid-cols-4 items-end gap-1" aria-label={t("dividendsPage.quarterlyBreakdown", { ns: "dashboard" })}>
       {quarters.map((amount, index) => {
         const height = max > 0 ? Math.max(8, Math.round((amount / max) * 40)) : 4;
         return (

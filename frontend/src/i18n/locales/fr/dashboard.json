@@ -1,0 +1,72 @@
+{
+  "title": "Dashboard",
+  "positions": "Positions",
+  "positionList": "Liste des positions",
+  "watchlist": "Liste de suivi",
+  "portfolioEvolution": "Evolution du portefeuille",
+  "empty": {
+    "title": "Ajoutez votre premiere ligne",
+    "description": "Recherchez un ticker Yahoo Finance, indiquez votre quantite et votre prix moyen pour alimenter le dashboard."
+  },
+  "metrics": {
+    "totalValue": "Valeur totale",
+    "dailyChange": "Variation jour",
+    "performance": "Performance",
+    "dividends": "Dividendes"
+  },
+  "sort": {
+    "active": "Tri actif : {{label}}",
+    "activeBadge": "actif",
+    "sort": "Trier",
+    "ascending": "Trier vers le haut",
+    "descending": "Trier vers le bas"
+  },
+  "watchlistSection": {
+    "loading": "Chargement de la liste de suivi...",
+    "currentPrice": "Prix actuel",
+    "valuePerformance": "Valeur | Perf",
+    "remove": "Retirer de la liste de suivi"
+  },
+  "positionRows": {
+    "valuePerformance": "Valeur | Perf {{range}}",
+    "performanceUnavailable": "Performances indisponibles",
+    "miniGraphUnavailable": "Mini-graph indisponible",
+    "miniGraph": "Mini-graph {{range}}",
+    "partial": "partiel"
+  },
+  "chart": {
+    "portfolio": "Portefeuille",
+    "subtitle": "Valorisation agregee depuis les historiques Yahoo Finance.",
+    "empty": "Aucune donnee disponible.",
+    "emptyFinancialAnnual": "Aucune donnee financiere annuelle disponible.",
+    "emptyNetMargin": "Aucune marge nette disponible.",
+    "netMargin": "Marge nette",
+    "atPrice": "a {{price}}",
+    "preparing": "Donnees en cours de preparation...",
+    "loadingComparisons": "Chargement des comparaisons...",
+    "preparingWithAssets": "Donnees en cours de preparation: {{assets}}",
+    "marketHours": "Horaires du marche : {{city}} {{hours}}, heure locale du marche"
+  },
+  "topMetrics": {
+    "invested": "Total investi",
+    "dividends": "Total dividendes",
+    "fees": "Total frais",
+    "rangePerformance": "Performance sur {{range}}"
+  },
+  "dividendsPage": {
+    "loading": "Chargement des dividendes...",
+    "subtitle": "Vue annuelle regroupee par action, avec repartition trimestrielle.",
+    "annualEstimate": "Total annuel estime",
+    "monthlyForecast": "Prevision mensuelle",
+    "year": "Annee",
+    "noDividend": "Aucun dividende",
+    "income": "Revenus {{year}}",
+    "noDividendAvailable": "Aucun dividende disponible.",
+    "quarterlyBreakdown": "Repartition trimestrielle",
+    "total": "Total",
+    "groupedList": "Liste regroupee par action",
+    "shares": "{{quantity}} titres",
+    "estimated": "Inclut estime",
+    "cached": "Donnees en cache"
+  }
+}

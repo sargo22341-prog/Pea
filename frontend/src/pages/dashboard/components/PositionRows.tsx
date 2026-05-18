@@ -1,6 +1,7 @@
 import type { PositionRangePerformance, PositionWithMarket } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { money, percent } from "../../../lib/format";
@@ -142,6 +143,7 @@ function MobilePositionRow({ position, positive, prive }: { position: PositionRa
 }
 
 function DesktopPositionRow({ position, positive, prive, rangeLabel }: { position: PositionRangePerformance; positive: boolean; prive: boolean; rangeLabel: string }) {
+  const { t } = useTranslation(["dashboard"]);
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
@@ -151,7 +153,7 @@ function DesktopPositionRow({ position, positive, prive, rangeLabel }: { positio
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate font-semibold">{position.name}</p>
-            {position.incompleteData && <span className="rounded bg-amber/15 px-2 py-1 text-[11px] font-semibold text-amber">partiel</span>}
+            {position.incompleteData && <span className="rounded bg-amber/15 px-2 py-1 text-[11px] font-semibold text-amber">{t("positionRows.partial", { ns: "dashboard" })}</span>}
           </div>
           <p className="muted truncate">{masquerValeur(`${formatQuantity(position.quantity)} x ${money(position.averageBuyPrice, position.currency)}`, prive)}</p>
         </div>
@@ -160,7 +162,7 @@ function DesktopPositionRow({ position, positive, prive, rangeLabel }: { positio
       <MiniSparkline miniChart={position.miniChart} tone={sparklineTone(position)} />
 
       <div className="text-right">
-        <p className="text-sm text-slate-400">Valeur | Perf {rangeLabel}</p>
+        <p className="text-sm text-slate-400">{t("positionRows.valuePerformance", { ns: "dashboard", range: rangeLabel })}</p>
         <p className="font-semibold">
           {masquerValeur(`${money(position.currentPrice, position.currency)} / ${money(position.currentMarketValue, position.currency)}`, prive)}
         </p>

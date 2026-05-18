@@ -1,4 +1,5 @@
 import type { User } from "@pea/shared";
+import { useTranslation } from "react-i18next";
 
 export function NewsHeader({
   portfolioOnly,
@@ -9,18 +10,22 @@ export function NewsHeader({
   toggleMode: () => void;
   user: User;
 }) {
+  const { t } = useTranslation(["common"]);
+  const languages = [
+    user.newsLanguages.includes("fr") ? t("news.french", { ns: "common" }) : "",
+    user.newsLanguages.includes("en") ? t("news.english", { ns: "common" }) : ""
+  ].filter(Boolean).join(t("news.and", { ns: "common" }));
+
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
       <div>
-        <h1 className="text-2xl font-bold">Actualite</h1>
+        <h1 className="text-2xl font-bold">{t("news.title", { ns: "common" })}</h1>
         <p className="muted">
-          Articles Yahoo Finance en {user.newsLanguages.includes("fr") ? "francais" : ""}
-          {user.newsLanguages.length === 2 ? " et " : ""}
-          {user.newsLanguages.includes("en") ? "anglais" : ""}.
+          {t("news.languageSummary", { languages, ns: "common" })}
         </p>
       </div>
       <label className="flex items-center gap-3 rounded-md border border-line bg-ink p-3">
-        <span className="text-sm font-medium">Mes actifs</span>
+        <span className="text-sm font-medium">{t("news.myAssets", { ns: "common" })}</span>
         <button
           aria-checked={portfolioOnly}
           className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${portfolioOnly ? "bg-mint" : "bg-panel2"}`}

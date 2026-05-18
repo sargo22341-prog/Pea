@@ -1,5 +1,6 @@
 import type { ParsedAvisOperation } from "@pea/shared";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 
@@ -14,6 +15,7 @@ function rowsWithImportErrors(rows: ParsedAvisOperation[], errors: ImportError[]
 }
 
 export function useAvisOperesPdfImport() {
+  const { t } = useTranslation(["settings"]);
   const [rows, setRows] = useState<ParsedAvisOperation[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,7 @@ export function useAvisOperesPdfImport() {
     try {
       setRows((await api.previewAvisOperesPdf(pdfFiles)).map((row) => ({ ...row, action: "import" })));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Extraction PDF impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.pdfExtractError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }
@@ -37,10 +39,10 @@ export function useAvisOperesPdfImport() {
     try {
       const result = await api.confirmAvisOperesPdf(rows);
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(`${result.imported.length} operation(s) importee(s), ${result.skipped.length} ignoree(s), ${result.errors.length} erreur(s).`);
+      setMessage(t("imports.operationImportedResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
       setRows((current) => result.errors.length ? rowsWithImportErrors(current, result.errors) : []);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Import PDF impossible.");
+      setMessage(error instanceof Error ? error.message : t("imports.pdfImportError", { ns: "settings" }));
     } finally {
       setLoading(false);
     }

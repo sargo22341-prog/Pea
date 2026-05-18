@@ -1,10 +1,13 @@
-import type { DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
+import type { AppLanguage, DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
+import { i18n } from "../../../i18n";
 
 export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
+  const { t } = useTranslation(["settings"]);
   const me = useAsync(() => api.me());
   const [sortValue, setSortValue] = useState("name:asc");
   const [watchlistSortValue, setWatchlistSortValue] = useState("name:asc");
@@ -12,6 +15,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
   const [newsLanguages, setNewsLanguages] = useState<NewsLanguage[]>(["fr"]);
+  const [language, setLanguage] = useState<AppLanguage>("fr");
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
@@ -24,6 +28,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
     setNewsLanguages(user.newsLanguages?.length ? user.newsLanguages : ["fr"]);
+    setLanguage(user.language ?? "fr");
     setPrivacyModeEnabled(user.privacyModeEnabled);
   }, [me.data?.user]);
 
@@ -41,24 +46,27 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     const [watchlistDefaultSortKey, watchlistDefaultSortDirection] = watchlistSortValue.split(":") as [WatchlistSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, privacyModeEnabled });
-      setToast({ tone: "success", text: "Preferences enregistrees." });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled });
+      await i18n.changeLanguage(language);
+      setToast({ tone: "success", text: t("settings:preferences.saved") });
       await me.reload();
       await onUserUpdated?.();
     } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : "Enregistrement impossible." });
+      setToast({ tone: "error", text: error instanceof Error ? error.message : t("settings:preferences.saveError") });
     }
   }
 
   return {
     assetNewsEnabled,
     localPeaSearchEnabled,
+    language,
     me,
     newsLanguages,
     privacyModeEnabled,
     range,
     save,
     setAssetNewsEnabled,
+    setLanguage,
     setLocalPeaSearchEnabled,
     setPrivacyModeEnabled,
     setRange,

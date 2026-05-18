@@ -20,6 +20,7 @@ export interface AuthUserRow {
   asset_news_enabled: number | null;
   news_language_fr_enabled: number | null;
   news_language_en_enabled: number | null;
+  language: string | null;
   privacy_mode_enabled: number | null;
   created_at: string;
 }
@@ -82,6 +83,7 @@ export class AuthRepository {
     assetNewsEnabled: number;
     newsLanguageFrEnabled: number;
     newsLanguageEnEnabled: number;
+    language: string;
     privacyModeEnabled: number;
   }) {
     db.prepare(
@@ -98,6 +100,7 @@ export class AuthRepository {
            asset_news_enabled = ?,
            news_language_fr_enabled = ?,
            news_language_en_enabled = ?,
+           language = ?,
            privacy_mode_enabled = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
@@ -114,6 +117,7 @@ export class AuthRepository {
       input.assetNewsEnabled,
       input.newsLanguageFrEnabled,
       input.newsLanguageEnEnabled,
+      input.language,
       input.privacyModeEnabled,
       userId
     );

@@ -1,6 +1,7 @@
 import type { MarketListId, MarketListResponse, TopMover } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, BadgePercent, Flame, Gem, Landmark, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api } from "../../../lib/api";
 import { formatSignedMoney, money, percent } from "../../../lib/format";
@@ -9,17 +10,16 @@ type ButtonTone = "mint" | "coral" | "violet" | "amber" | "sky" | "teal" | "fuch
 
 const marketLists: Array<{
   id: MarketListId;
-  name: string;
   tone: ButtonTone;
   icon: typeof ArrowUpRight;
 }> = [
-  { id: "day_gainers", name: "Top gainers", tone: "mint", icon: ArrowUpRight },
-  { id: "day_losers", name: "Top losers", tone: "coral", icon: ArrowDownRight },
-  { id: "trending_fr", name: "trendingSymbols", tone: "violet", icon: TrendingUp },
-  { id: "high_dividend_yield", name: "dividend", tone: "amber", icon: BadgePercent },
-  { id: "top_etfs_us", name: "ETFs", tone: "sky", icon: Landmark },
-  { id: "undervalued_large_caps", name: "Grandes caps sous-valorisees", tone: "teal", icon: Gem },
-  { id: "undervalued_growth_stocks", name: "Croissance sous-valorisee", tone: "fuchsia", icon: Flame }
+  { id: "day_gainers", tone: "mint", icon: ArrowUpRight },
+  { id: "day_losers", tone: "coral", icon: ArrowDownRight },
+  { id: "trending_fr", tone: "violet", icon: TrendingUp },
+  { id: "high_dividend_yield", tone: "amber", icon: BadgePercent },
+  { id: "top_etfs_us", tone: "sky", icon: Landmark },
+  { id: "undervalued_large_caps", tone: "teal", icon: Gem },
+  { id: "undervalued_growth_stocks", tone: "fuchsia", icon: Flame }
 ];
 
 const toneClasses: Record<ButtonTone, { button: string; icon: string; active: string }> = {
@@ -61,6 +61,7 @@ const toneClasses: Record<ButtonTone, { button: string; icon: string; active: st
 };
 
 export function TopMoversSection() {
+  const { t } = useTranslation(["common", "errors"]);
   const [selectedId, setSelectedId] = useState<MarketListId | null>(null);
   const [data, setData] = useState<MarketListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,20 +79,20 @@ export function TopMoversSection() {
         if (!controller.signal.aborted) setData(result);
       })
       .catch((err) => {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Erreur inconnue");
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("unknown", { ns: "errors" }));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
 
     return () => controller.abort();
-  }, [selectedId]);
+  }, [selectedId, t]);
 
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-xl font-bold">Listes Yahoo Finance</h2>
-        <p className="muted">Cliquez une categorie pour charger uniquement cette liste.</p>
+        <h2 className="text-xl font-bold">{t("searchPage.yahooLists", { ns: "common" })}</h2>
+        <p className="muted">{t("searchPage.yahooListsHelp", { ns: "common" })}</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -109,9 +110,9 @@ export function TopMoversSection() {
       {error && <div className="card border-coral p-4 text-sm text-coral">{error}</div>}
 
       {!selected ? (
-        <div className="card p-4 text-sm text-slate-400">Choisissez une liste a afficher.</div>
+        <div className="card p-4 text-sm text-slate-400">{t("searchPage.chooseList", { ns: "common" })}</div>
       ) : (
-        <TopMoverCard icon={selected.icon} items={data?.id === selected.id ? data.items : []} loading={loading} tone={selected.tone} title={selected.name} />
+        <TopMoverCard icon={selected.icon} items={data?.id === selected.id ? data.items : []} loading={loading} tone={selected.tone} title={t(`searchPage.marketLists.${selected.id}`, { ns: "common" })} />
       )}
     </section>
   );
@@ -128,6 +129,7 @@ function MarketListButton({
   loading: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation(["common"]);
   const Icon = list.icon;
   const tone = toneClasses[list.tone];
 
@@ -139,7 +141,7 @@ function MarketListButton({
       type="button"
     >
       <Icon className="shrink-0 text-white" size={16} strokeWidth={2.5} />
-      <span className="whitespace-nowrap">{loading ? "Chargement..." : list.name}</span>
+      <span className="whitespace-nowrap">{loading ? t("common.loading", { ns: "common" }) : t(`searchPage.marketLists.${list.id}`, { ns: "common" })}</span>
     </button>
   );
 }
@@ -157,6 +159,7 @@ function TopMoverCard({
   title: string;
   tone: ButtonTone;
 }) {
+  const { t } = useTranslation(["common"]);
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between border-b border-line p-4">
@@ -169,7 +172,7 @@ function TopMoverCard({
       {loading ? (
         <TopMoverSkeleton />
       ) : items.length === 0 ? (
-        <p className="p-4 text-sm text-slate-400">Aucun actif a afficher.</p>
+        <p className="p-4 text-sm text-slate-400">{t("searchPage.emptyAssets", { ns: "common" })}</p>
       ) : (
         <div className="divide-y divide-line">
           {items.map((item) => (

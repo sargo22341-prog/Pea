@@ -1,12 +1,13 @@
 import { AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 
 export function ConfirmDialog({
   title,
   description,
-  confirmLabel = "Confirmer",
-  cancelLabel = "Annuler",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onCancel,
   onConfirm
@@ -19,6 +20,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation("common");
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onCancel();
@@ -43,12 +45,12 @@ export function ConfirmDialog({
             <AlertTriangle size={20} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="muted">Confirmation</p>
+            <p className="muted">{t("common.confirmation")}</p>
             <h3 className="text-base font-semibold" id="confirm-dialog-title">
               {title}
             </h3>
           </div>
-          <button aria-label="Fermer" className="btn-ghost shrink-0 px-2" onClick={onCancel} type="button">
+          <button aria-label={t("actions.close")} className="btn-ghost shrink-0 px-2" onClick={onCancel} type="button">
             <X size={16} />
           </button>
         </div>
@@ -59,10 +61,10 @@ export function ConfirmDialog({
 
         <div className="flex flex-col-reverse gap-2 border-t border-line p-4 sm:flex-row sm:justify-end">
           <button className="btn-ghost" onClick={onCancel} type="button">
-            {cancelLabel}
+            {cancelLabel ?? t("actions.cancel")}
           </button>
           <button className={danger ? "btn-ghost text-coral" : "btn-primary"} onClick={onConfirm} type="button">
-            {confirmLabel}
+            {confirmLabel ?? t("common.confirmation")}
           </button>
         </div>
       </div>

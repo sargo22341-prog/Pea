@@ -9,6 +9,7 @@ import { config } from "./config.js";
 import "./db.js";
 import { createRateLimit } from "./middleware/rate-limit.js";
 import { apiRouter } from "./routes/api.js";
+import { translateForRequest } from "./services/i18n/i18n.service.js";
 import { logger } from "./services/shared/logger.service.js";
 import { HttpError } from "./utils/http-error.js";
 
@@ -111,7 +112,7 @@ if (config.nodeEnv === "production") {
   });
 }
 
-app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof ZodError) {
     logger.warn("api", "validation error", { details: error.flatten() });
     res.status(400).json({ message: "Données invalides", details: error.flatten() });
@@ -121,10 +122,10 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   if (error instanceof HttpError) {
     if (error.status >= 500) logger.error("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
     else logger.warn("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
-    res.status(error.status).json({ message: error.message, details: error.details });
+    res.status(error.status).json({ message: translateForRequest(req, error.message), details: error.details });
     return;
   }
 
   logger.error("api", "Unhandled error", { error });
-  res.status(500).json({ message: "Erreur interne du serveur." });
+  res.status(500).json({ message: translateForRequest(req, "Erreur interne du serveur.") });
 });

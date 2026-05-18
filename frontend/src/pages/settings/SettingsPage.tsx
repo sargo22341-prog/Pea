@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { Shield } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSection";
@@ -12,24 +13,25 @@ import { UserPreferencesSection } from "./components/UserPreferencesSection";
 import { api } from "../../lib/api";
 
 export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Promise<void>; user: User }) {
+  const { t } = useTranslation(["navigation", "settings"]);
   useEffect(() => {
-    document.title = "Parametres | PEA Portfolio";
+    document.title = `${t("settings:title")} | PEA Portfolio`;
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, []);
+  }, [t]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Parametres</h1>
-        <p className="muted">Compte, preferences, icones et import Boursorama.</p>
+        <h1 className="text-2xl font-bold">{t("settings:title")}</h1>
+        <p className="muted">{t("settings:subtitle")}</p>
       </div>
       <ServerSettingsSection />
       <AccountSettingsSection />
       <UserPreferencesSection onUserUpdated={onUserUpdated} />
       <AssetIconsSettingsSection />
-      <Collapsible title="Import Boursorama">
+      <Collapsible title={t("settings:imports.boursorama")}>
         <CsvImportSection />
         <ImportAvisOperesPdf />
       </Collapsible>
@@ -40,17 +42,19 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
 }
 
 function AdminLinkSection() {
+  const { t } = useTranslation("navigation");
   return (
     <section className="flex justify-end">
       <Link className="btn-primary gap-2" to="/admin">
         <Shield size={16} />
-        Administration serveur
+        {t("admin")}
       </Link>
     </section>
   );
 }
 
 function LogoutSection() {
+  const { t } = useTranslation("navigation");
   async function logout() {
     await api.logout();
     window.location.assign("/");
@@ -59,7 +63,7 @@ function LogoutSection() {
   return (
     <section className="flex justify-end">
       <button className="btn-ghost text-coral" onClick={() => void logout()} type="button">
-        Se deconnecter
+        {t("logout")}
       </button>
     </section>
   );

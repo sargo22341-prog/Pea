@@ -1,4 +1,5 @@
 import type { PeriodKey, SuccessFilter } from "./yahooUsageTypes";
+import { useTranslation } from "react-i18next";
 import { yahooUsageMethods } from "./yahooUsageTypes";
 
 export function YahooUsageFilters(props: {
@@ -21,22 +22,23 @@ export function YahooUsageFilters(props: {
   setSuccess: (value: SuccessFilter) => void;
   setTicker: (value: string) => void;
 }) {
+  const { t } = useTranslation(["common"]);
   return (
     <div className="grid flex-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
       <label className="space-y-1 text-sm">
-        <span className="muted">Periode</span>
+        <span className="muted">{t("admin.yahooUsage.period", { ns: "common" })}</span>
         <select className="input" value={props.period} onChange={(event) => props.setPeriod(event.target.value as PeriodKey)}>
-          <option value="today">Aujourd'hui</option>
+          <option value="today">{t("admin.yahooUsage.today", { ns: "common" })}</option>
           <option value="24h">24h</option>
-          <option value="7d">7 jours</option>
-          <option value="30d">30 jours</option>
-          <option value="custom">Personnalise</option>
+          <option value="7d">{t("admin.yahooUsage.sevenDays", { ns: "common" })}</option>
+          <option value="30d">{t("admin.yahooUsage.thirtyDays", { ns: "common" })}</option>
+          <option value="custom">{t("admin.yahooUsage.custom", { ns: "common" })}</option>
         </select>
       </label>
       <label className="space-y-1 text-sm">
-        <span className="muted">Type</span>
+        <span className="muted">{t("admin.yahooUsage.type", { ns: "common" })}</span>
         <select className="input" value={props.method} onChange={(event) => props.setMethod(event.target.value)}>
-          <option value="">Tous</option>
+          <option value="">{t("admin.yahooUsage.all", { ns: "common" })}</option>
           {yahooUsageMethods.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
       </label>
@@ -50,31 +52,31 @@ export function YahooUsageFilters(props: {
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">Source</span>
-        <input className="input" onChange={(event) => props.setSource(event.target.value)} placeholder="navigation ou tache" value={props.source} />
+        <input className="input" onChange={(event) => props.setSource(event.target.value)} placeholder={t("admin.yahooUsage.sourcePlaceholder", { ns: "common" })} value={props.source} />
       </label>
       <label className="space-y-1 text-sm">
-        <span className="muted">Statut</span>
+        <span className="muted">{t("admin.yahooUsage.status", { ns: "common" })}</span>
         <select className="input" value={props.success} onChange={(event) => props.setSuccess(event.target.value as SuccessFilter)}>
-          <option value="all">Tous</option>
-          <option value="success">Succes</option>
-          <option value="error">Erreur</option>
+          <option value="all">{t("admin.yahooUsage.all", { ns: "common" })}</option>
+          <option value="success">{t("admin.yahooUsage.success", { ns: "common" })}</option>
+          <option value="error">{t("admin.yahooUsage.error", { ns: "common" })}</option>
         </select>
       </label>
       <label className="space-y-1 text-sm">
-        <span className="muted">Groupement</span>
+        <span className="muted">{t("admin.yahooUsage.groupBy", { ns: "common" })}</span>
         <select className="input" value={props.groupBy} onChange={(event) => props.setGroupBy(event.target.value as "hour" | "day")}>
-          <option value="hour">Heure</option>
-          <option value="day">Jour</option>
+          <option value="hour">{t("admin.yahooUsage.hour", { ns: "common" })}</option>
+          <option value="day">{t("admin.yahooUsage.day", { ns: "common" })}</option>
         </select>
       </label>
       {props.period === "custom" && (
         <>
           <label className="space-y-1 text-sm">
-            <span className="muted">Debut</span>
+            <span className="muted">{t("admin.yahooUsage.start", { ns: "common" })}</span>
             <input className="input" onChange={(event) => props.setCustomFrom(event.target.value)} type="datetime-local" value={props.customFrom} />
           </label>
           <label className="space-y-1 text-sm">
-            <span className="muted">Fin</span>
+            <span className="muted">{t("admin.yahooUsage.end", { ns: "common" })}</span>
             <input className="input" onChange={(event) => props.setCustomTo(event.target.value)} type="datetime-local" value={props.customTo} />
           </label>
         </>

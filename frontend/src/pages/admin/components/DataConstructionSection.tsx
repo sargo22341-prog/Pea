@@ -1,10 +1,12 @@
 import { Activity } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DataConstructionJobDto } from "@pea/shared";
 import { api } from "../../../lib/api";
 import { dataConstructionChangedEvent, isDataConstructionActive } from "../../../lib/dataConstruction";
 
 export function DataConstructionSection() {
+  const { t } = useTranslation(["common"]);
   const [job, setJob] = useState<DataConstructionJobDto | null>(null);
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function DataConstructionSection() {
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Activity className="text-sky" size={20} />
-          <h2 className="font-semibold">Construction des donnees</h2>
+          <h2 className="font-semibold">{t("admin.construction.title", { ns: "common" })}</h2>
         </div>
         <span className="text-sm text-slate-400">{completed + failed} / {total}</span>
       </div>
@@ -80,9 +82,9 @@ export function DataConstructionSection() {
       </div>
 
       <div className="mt-3 flex flex-col gap-1 text-sm text-slate-400">
-        <p>Statut: {status}</p>
-        {job?.currentTaskLabel ? <p>Tache courante: {job.currentTaskLabel}</p> : null}
-        <p>{job?.currentMessage ?? "Aucune construction en cours"}</p>
+        <p>{t("admin.construction.status", { ns: "common", status })}</p>
+        {job?.currentTaskLabel ? <p>{t("admin.construction.currentTask", { ns: "common", task: job.currentTaskLabel })}</p> : null}
+        <p>{job?.currentMessage ?? t("admin.construction.idle", { ns: "common" })}</p>
         {job?.errors?.length ? (
           <ul className="space-y-1 text-coral">
             {job.errors.slice(-3).map((error) => (
