@@ -9,6 +9,7 @@
     "build:android": "tsc -p tsconfig.json && vite build --mode android && cap sync android",
     "android": "cap open android",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run --config vitest.config.ts"
   },

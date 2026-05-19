@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssetDetailPage } from "../pages/asset-detail/AssetDetailPage";
@@ -91,6 +91,12 @@ function renderPage() {
   );
 }
 
+async function waitForPendingUpdates() {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 20));
+  });
+}
+
 describe("AssetDetailPage lazy chart refresh", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -104,7 +110,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
 
     await screen.findByText("ASML");
     await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
-    await new Promise((resolve) => window.setTimeout(resolve, 20));
+    await waitForPendingUpdates();
 
     expect(api.asset).toHaveBeenCalledTimes(1);
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
@@ -121,12 +127,14 @@ describe("AssetDetailPage lazy chart refresh", () => {
     await screen.findByText("ASML");
     await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
 
-    window.dispatchEvent(new CustomEvent("pea:market-event", {
-      detail: { type: "asset-chart-updated", symbol: "ASML.AS", range: "1d", updatedAt: new Date().toISOString() }
-    }));
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("pea:market-event", {
+        detail: { type: "asset-chart-updated", symbol: "ASML.AS", range: "1d", updatedAt: new Date().toISOString() }
+      }));
+    });
 
     await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
-    await new Promise((resolve) => window.setTimeout(resolve, 20));
+    await waitForPendingUpdates();
 
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
@@ -140,10 +148,12 @@ describe("AssetDetailPage lazy chart refresh", () => {
     await screen.findByText("ASML");
     await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
 
-    window.dispatchEvent(new CustomEvent("pea:market-event", {
-      detail: { type: "asset-chart-refresh-started", symbol: "ASML.AS", range: "1d", startedAt: new Date().toISOString() }
-    }));
-    await new Promise((resolve) => window.setTimeout(resolve, 20));
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("pea:market-event", {
+        detail: { type: "asset-chart-refresh-started", symbol: "ASML.AS", range: "1d", startedAt: new Date().toISOString() }
+      }));
+    });
+    await waitForPendingUpdates();
 
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });

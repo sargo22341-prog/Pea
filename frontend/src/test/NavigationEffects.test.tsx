@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -99,7 +99,9 @@ describe("NavigationEffects", () => {
 
     expect(await screen.findByText("Asset")).toBeInTheDocument();
     await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    nativeMocks.backHandler?.({ canGoBack: true });
+    await act(async () => {
+      nativeMocks.backHandler?.({ canGoBack: true });
+    });
 
     expect(await screen.findByText("Home")).toBeInTheDocument();
     expect(nativeMocks.exitApp).not.toHaveBeenCalled();
@@ -116,7 +118,9 @@ describe("NavigationEffects", () => {
 
     expect(await screen.findByText("Asset")).toBeInTheDocument();
     await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    nativeMocks.backHandler?.({ canGoBack: false });
+    await act(async () => {
+      nativeMocks.backHandler?.({ canGoBack: false });
+    });
 
     expect(await screen.findByText("Home")).toBeInTheDocument();
     expect(nativeMocks.exitApp).not.toHaveBeenCalled();
@@ -133,7 +137,9 @@ describe("NavigationEffects", () => {
 
     expect(await screen.findByText("Home")).toBeInTheDocument();
     await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    nativeMocks.backHandler?.({ canGoBack: true });
+    await act(async () => {
+      nativeMocks.backHandler?.({ canGoBack: true });
+    });
 
     expect(nativeMocks.exitApp).toHaveBeenCalledTimes(1);
   });

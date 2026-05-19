@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import type { AssetChartDto, RangeKey } from "@pea/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAssetComparisonSeries, type ComparableAsset } from "../hooks/useAssetComparisonSeries";
@@ -69,7 +69,9 @@ describe("useAssetComparisonSeries", () => {
     render(<Probe />);
 
     await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
-    await new Promise((resolve) => window.setTimeout(resolve, 2_200));
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 2_200));
+    });
 
     expect(api.history).toHaveBeenCalledTimes(1);
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
@@ -85,9 +87,11 @@ describe("useAssetComparisonSeries", () => {
     render(<Probe />);
 
     await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
-    window.dispatchEvent(new CustomEvent("pea:market-event", {
-      detail: { type: "asset-chart-updated", symbol: "URTH", range: "1d" }
-    }));
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("pea:market-event", {
+        detail: { type: "asset-chart-updated", symbol: "URTH", range: "1d" }
+      }));
+    });
 
     await waitFor(() => expect(screen.getByTestId("series").textContent).toBe("1"));
   });
@@ -108,7 +112,9 @@ describe("useAssetComparisonSeries", () => {
     expect(screen.getByTestId("series").textContent).toBe("1");
     expect(screen.getByTestId("loading").textContent).toBe("true");
 
-    resolveSecond(chart([100, 103]));
+    await act(async () => {
+      resolveSecond(chart([100, 103]));
+    });
 
     await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
     expect(screen.getByTestId("series").textContent).toBe("1");

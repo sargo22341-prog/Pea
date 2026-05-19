@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PositionList } from "../pages/dashboard/components/PositionList";
@@ -97,9 +97,11 @@ describe("PositionList mini charts", () => {
     renderList("1w");
     await screen.findByText("AIR LIQUIDE");
 
-    window.dispatchEvent(new CustomEvent("pea:market-event", {
-      detail: { type: "portfolio-chart-updated", range: "1w", updatedAt: "2026-05-06T12:00:00.000Z" }
-    }));
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("pea:market-event", {
+        detail: { type: "portfolio-chart-updated", range: "1w", updatedAt: "2026-05-06T12:00:00.000Z" }
+      }));
+    });
 
     await waitFor(() => expect(api.positionsPerformance).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.positionsPerformance).mock.calls.some((call) => call[0] === "1w" && call.length === 1)).toBe(true);

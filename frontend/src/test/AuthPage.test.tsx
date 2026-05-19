@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AuthPage } from "../pages/auth/AuthPage";
@@ -66,7 +66,10 @@ describe("AuthPage – login mode", () => {
     await user.type(screen.getByLabelText(/mot de passe/i), "pass");
     await user.click(screen.getByRole("button", { name: /se connecter/i }));
     expect(screen.getByRole("button", { name: /validation/i })).toBeDisabled();
-    resolve();
+    await act(async () => {
+      resolve();
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /se connecter/i })).toBeEnabled());
   });
 });
 
