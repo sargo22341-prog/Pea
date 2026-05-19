@@ -1,5 +1,5 @@
 import type { PositionWithMarket, RangeKey, User } from "@pea/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents";
@@ -18,9 +18,48 @@ import { EditPositionModal } from "./components/EditPositionModal";
 import { useAssetChartLifecycle } from "./hooks/useAssetChartLifecycle";
 import { useAssetWatchlist } from "./hooks/useAssetWatchlist";
 
+function scrollToPageTop() {
+  window.scrollTo({ left: 0, top: 0, behavior: "auto" });
+  document.scrollingElement?.scrollTo({ left: 0, top: 0, behavior: "auto" });
+}
+
+function keepPageAtTopForInitialPaint(frameCount: number) {
+  let remainingFrames = frameCount;
+  let frameHandle: number | undefined;
+  let cancelled = false;
+
+  const requestFrame = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
+  const cancelFrame = window.cancelAnimationFrame ?? ((handle: number) => window.clearTimeout(handle));
+  const cancel = () => {
+    cancelled = true;
+    if (frameHandle !== undefined) cancelFrame(frameHandle);
+  };
+
+  const tick = () => {
+    scrollToPageTop();
+    remainingFrames -= 1;
+    if (!cancelled && remainingFrames > 0) frameHandle = requestFrame(tick);
+  };
+
+  window.addEventListener("touchstart", cancel, { passive: true, once: true });
+  window.addEventListener("wheel", cancel, { passive: true, once: true });
+  window.addEventListener("pointerdown", cancel, { passive: true, once: true });
+  window.addEventListener("keydown", cancel, { once: true });
+  tick();
+
+  return () => {
+    cancel();
+    window.removeEventListener("touchstart", cancel);
+    window.removeEventListener("wheel", cancel);
+    window.removeEventListener("pointerdown", cancel);
+    window.removeEventListener("keydown", cancel);
+  };
+}
+
 export function AssetDetailPage({ user }: { user: User }) {
   const { t } = useTranslation("asset");
   const { symbol = "" } = useParams();
+  const lastInitialScrollSymbolRef = useRef<string | null>(null);
   const [range, setRangeState] = useState<RangeKey>(() => user.defaultChartRange ?? "1d");
   const [editing, setEditing] = useState(false);
   const [draftPosition, setDraftPosition] = useState<PositionWithMarket | null>(null);
@@ -47,6 +86,17 @@ export function AssetDetailPage({ user }: { user: User }) {
     onError: setToast,
     quote: asset.data?.quote
   });
+
+  useLayoutEffect(() => {
+    lastInitialScrollSymbolRef.current = null;
+    return keepPageAtTopForInitialPaint(30);
+  }, [symbol]);
+
+  useLayoutEffect(() => {
+    if (!asset.data || lastInitialScrollSymbolRef.current === symbol) return;
+    lastInitialScrollSymbolRef.current = symbol;
+    return keepPageAtTopForInitialPaint(180);
+  }, [asset.data, symbol]);
 
   function addCompareTarget(target: { symbol: string; name: string }) {
     setCompareTargets((prev) => (prev.some((item) => item.symbol === target.symbol) ? prev : [...prev, target]));

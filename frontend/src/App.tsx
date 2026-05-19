@@ -2,6 +2,7 @@ import { MARKET_EVENT_TYPES } from "@pea/shared";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { NavigationEffects } from "./components/common/NavigationEffects";
 import { Shell } from "./components/common/Shell";
 import { ServerSetupPage } from "./components/common/ServerSettings";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
@@ -134,22 +135,23 @@ function AuthenticatedApp() {
 
   return (
     <PrivacyProvider privacyEnabled={me.data.user.privacyModeEnabled}>
-    <Suspense fallback={<LoadingPage />}>
-      <Routes>
-        <Route element={<Shell user={me.data.user} />}>
-          <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
-          <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
-          <Route path="/portfolio" element={<Navigate replace to="/news" />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/dividends" element={<DividendsPage />} />
-          <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-          <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
-          <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
-          <Route path="*" element={<Navigate replace to="/" />} />
-        </Route>
-      </Routes>
-    </Suspense>
+      <NavigationEffects />
+      <Suspense fallback={<LoadingPage />}>
+        <Routes>
+          <Route element={<Shell user={me.data.user} />}>
+            <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
+            <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
+            <Route path="/portfolio" element={<Navigate replace to="/news" />} />
+            <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/dividends" element={<DividendsPage />} />
+            <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
+            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
+            <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
+            <Route path="*" element={<Navigate replace to="/" />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </PrivacyProvider>
   );
 }

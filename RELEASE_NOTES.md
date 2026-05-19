@@ -1,3 +1,3 @@
 ## Notes de release
 
-- Ajoutez ici les changements a publier.
+- Correction du retour Android dans l'app et remise en haut des nouvelles pages apres navigation.
