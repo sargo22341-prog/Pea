@@ -11,7 +11,7 @@ import { YahooUsageCallsTable, YahooUsageRecentErrors, YahooUsageTopTable } from
 import type { DetailSelection, PeriodKey, SuccessFilter } from "./yahoo-usage/yahooUsageTypes";
 import { bucketRange, dateFromPeriod, isoLocalInput } from "./yahoo-usage/yahooUsageUtils";
 
-export function YahooUsageSection() {
+export function YahooUsageSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
   const [data, setData] = useState<YahooUsageStatsDto | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("24h");
@@ -80,7 +80,7 @@ export function YahooUsageSection() {
   const chartData = groupBy === "hour" ? data?.callsByHour ?? [] : data?.callsByDay ?? [];
 
   return (
-    <Collapsible title={t("admin.yahooUsage.title", { ns: "common" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("admin.yahooUsage.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <YahooUsageFilters

@@ -6,7 +6,7 @@ import { useAuthenticatedImageUrl } from "../../../hooks/useAuthenticatedImageUr
 import { useAccountSettings } from "../hooks/useAccountSettings";
 import { AvatarCropModal } from "./AvatarCropModal";
 
-export function AccountSettingsSection() {
+export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common", "settings"]);
   const {
     confirmPassword,
@@ -33,7 +33,7 @@ export function AccountSettingsSection() {
 
   if (me.loading) {
     return (
-      <Collapsible title={t("account.title", { ns: "settings" })}>
+      <Collapsible onToggle={onToggle} open={open} title={t("account.title", { ns: "settings" })}>
         <p className="text-slate-400">{t("account.loading", { ns: "settings" })}</p>
       </Collapsible>
     );
@@ -67,7 +67,7 @@ export function AccountSettingsSection() {
           onCancel={() => setCropSrc(null)}
         />
       )}
-      <Collapsible title={t("account.title", { ns: "settings" })}>
+      <Collapsible onToggle={onToggle} open={open} title={t("account.title", { ns: "settings" })}>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-3 md:grid-cols-2">
             <label>

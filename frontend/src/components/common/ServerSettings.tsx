@@ -53,12 +53,12 @@ export function ServerSetupPage({ message, onConfigured }: { message?: string; o
   );
 }
 
-export function ServerSettingsSection() {
+export function ServerSettingsSection({ open, onToggle }: { open?: boolean; onToggle?: () => void } = {}) {
   const { t } = useTranslation("settings");
   if (!isNativeApp()) return null;
 
   return (
-    <Collapsible title={t("server.title")}>
+    <Collapsible onToggle={onToggle} open={open} title={t("server.title")}>
       <ServerUrlForm
         submitLabel={t("server.change")}
         onSaved={() => {

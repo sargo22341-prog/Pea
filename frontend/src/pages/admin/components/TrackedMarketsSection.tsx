@@ -25,7 +25,7 @@ function statusLabel(status: string) {
   return status.replace(/_/g, " ");
 }
 
-export function TrackedMarketsSection() {
+export function TrackedMarketsSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
   const [data, setData] = useState<TrackedMarketsSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,7 @@ export function TrackedMarketsSection() {
   }, [load]);
 
   return (
-    <Collapsible title={t("admin.markets.title", { ns: "common" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("admin.markets.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <NextTask data={data} loading={loading} />

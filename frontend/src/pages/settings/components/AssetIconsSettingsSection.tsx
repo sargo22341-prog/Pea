@@ -4,12 +4,12 @@ import { AssetIcon } from "../../../components/common/AssetIcon";
 import { useAssetIconsSettings } from "../hooks/useAssetIconsSettings";
 import { Collapsible, Toast } from "../../../components/common/feedback";
 
-export function AssetIconsSettingsSection() {
+export function AssetIconsSettingsSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common", "settings"]);
   const settings = useAssetIconsSettings();
 
   return (
-    <Collapsible title={t("icons.title", { ns: "settings" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("icons.title", { ns: "settings" })}>
       {settings.toast && <Toast tone={settings.toast.tone}>{settings.toast.text}</Toast>}
       {settings.icons.loading ? <p className="text-slate-400">{t("common.loading", { ns: "common" })}</p> : (
         <div className="divide-y divide-line overflow-hidden rounded-md border border-line">

@@ -26,12 +26,12 @@ const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direct
 
 const chartRanges: RangeKey[] = ["1d", "1w", "1m", "ytd", "1y", "5y", "10y", "all"];
 
-export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
+export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUserUpdated?: () => Promise<void>; open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common", "settings"]);
   const preferences = useUserPreferences({ onUserUpdated });
 
   return (
-    <Collapsible title={t("settings:preferences.title")}>
+    <Collapsible onToggle={onToggle} open={open} title={t("settings:preferences.title")}>
       <div className="grid gap-3 md:grid-cols-2">
         <label>
           <span className="muted mb-1 block">{t("settings:preferences.dashboardSort")}</span>

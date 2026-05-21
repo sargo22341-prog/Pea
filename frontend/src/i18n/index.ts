@@ -21,8 +21,8 @@ import objectivesEn from "./locales/en/objectives.json";
 export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives"] as const;
 
 export const languageOptions: Array<{ code: AppLanguage; labelKey: string; flag: string }> = [
-  { code: "fr", labelKey: "languages.fr", flag: "FR" },
-  { code: "en", labelKey: "languages.en", flag: "EN" }
+  { code: "fr", labelKey: "languages.fr", flag: "🇫🇷" },
+  { code: "en", labelKey: "languages.en", flag: "🇬🇧" }
 ];
 
 const resources = {

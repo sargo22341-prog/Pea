@@ -41,7 +41,7 @@ function actionText(t: (key: string, options?: Record<string, unknown>) => strin
   return t(`admin.actionsPanel.${action.translationKey}${suffix}`, { ns: "common" });
 }
 
-export function MarketDataActionsSection() {
+export function MarketDataActionsSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
   const [running, setRunning] = useState<ActionKey | null>(null);
   const [pendingAction, setPendingAction] = useState<QuickAction | null>(null);
@@ -68,7 +68,7 @@ export function MarketDataActionsSection() {
   }
 
   return (
-    <Collapsible title={t("admin.actionsPanel.title", { ns: "common" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("admin.actionsPanel.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <ActionGroup actions={rebuildActions} onRun={requestAction} running={running} title={t("admin.actionsPanel.rebuildGroup", { ns: "common" })} />
       <ActionGroup actions={annexActions} onRun={requestAction} running={running} title={t("admin.actionsPanel.annexGroup", { ns: "common" })} />

@@ -18,7 +18,7 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-export function UserManagementSection() {
+export function UserManagementSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
   const [users, setUsers] = useState<AdminManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ export function UserManagementSection() {
   }, [load]);
 
   return (
-    <Collapsible title={t("admin.users.title", { ns: "common" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("admin.users.title", { ns: "common" })}>
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 rounded-md border border-line bg-panel2/70 p-3">

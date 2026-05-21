@@ -93,7 +93,7 @@ function warningBadges(data: RuntimeHealthDto | null, t: RuntimeT) {
   return badges;
 }
 
-export function RuntimeHealthSection() {
+export function RuntimeHealthSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
   const [data, setData] = useState<RuntimeHealthDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +123,7 @@ export function RuntimeHealthSection() {
   const badges = useMemo(() => warningBadges(data, t), [data, t]);
 
   return (
-    <Collapsible title={t("admin.runtime.title", { ns: "common" })}>
+    <Collapsible onToggle={onToggle} open={open} title={t("admin.runtime.title", { ns: "common" })}>
       {error ? <Toast tone="error">{error}</Toast> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">

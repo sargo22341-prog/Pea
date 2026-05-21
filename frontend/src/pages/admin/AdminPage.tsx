@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DataConstructionSection } from "./components/DataConstructionSection";
 import { MarketDataActionsSection } from "./components/MarketDataActionsSection";
@@ -9,6 +9,12 @@ import { YahooUsageSection } from "./components/YahooUsageSection";
 
 export function AdminPage() {
   const { t } = useTranslation("common");
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  function toggleSection(section: string) {
+    setOpenSection((current) => current === section ? null : section);
+  }
+
   useEffect(() => {
     document.title = `${t("admin.title")} | PEA Portfolio`;
     return () => {
@@ -22,12 +28,12 @@ export function AdminPage() {
         <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
         <p className="muted">{t("admin.subtitle")}</p>
       </div>
-      <UserManagementSection />
+      <UserManagementSection onToggle={() => toggleSection("users")} open={openSection === "users"} />
       <DataConstructionSection />
-      <RuntimeHealthSection />
-      <YahooUsageSection />
-      <TrackedMarketsSection />
-      <MarketDataActionsSection />
+      <RuntimeHealthSection onToggle={() => toggleSection("runtime")} open={openSection === "runtime"} />
+      <YahooUsageSection onToggle={() => toggleSection("yahooUsage")} open={openSection === "yahooUsage"} />
+      <TrackedMarketsSection onToggle={() => toggleSection("markets")} open={openSection === "markets"} />
+      <MarketDataActionsSection onToggle={() => toggleSection("actions")} open={openSection === "actions"} />
     </div>
   );
 }
