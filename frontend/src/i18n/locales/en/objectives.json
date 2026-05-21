@@ -15,6 +15,11 @@
     "leadLag": "Ahead / behind",
     "progress": "Progress"
   },
+  "summaryMessage": {
+    "fixedReachable": "Keeping your contributions and a {{returnRate}}% annual return, you could reach your goal at {{age}}.",
+    "annuityReachable": "Keeping your contributions and a {{returnRate}}% annual return, you could start your annuity at {{age}}.",
+    "unreachable": "With the current assumptions, the goal is not reached before age {{age}}."
+  },
   "chart": {
     "title": "Wealth projection",
     "ranges": {

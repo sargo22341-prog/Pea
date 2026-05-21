@@ -140,6 +140,11 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function isUsernameUniqueConstraintError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /UNIQUE constraint failed: users\.username/i.test(message);
+}
+
 export const authCookieName = "pea_session";
 
 export class AuthService {
@@ -289,8 +294,11 @@ export class AuthService {
         language,
         privacyModeEnabled
       });
-    } catch {
-      throw new HttpError(409, "Ce username est deja utilise.");
+    } catch (error) {
+      if (isUsernameUniqueConstraintError(error)) {
+        throw new HttpError(409, "Ce username est deja utilise.");
+      }
+      throw error;
     }
 
     // Invalide toutes les sessions actives lors d'un changement de mot de passe pour qu'un

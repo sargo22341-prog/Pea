@@ -28,6 +28,80 @@ function lancerScriptBackend(script: string, nodeEnv = "development") {
   return JSON.parse(lignResultat.slice("__RESULT__".length));
 }
 
+test("la migration repare les colonnes de preferences utilisateur manquantes", () => {
+  const resultat = lancerScriptBackend(`
+    import Database from "better-sqlite3";
+    import bcrypt from "bcryptjs";
+
+    const motDePasse = "correct horse battery staple";
+    const sqlitePath = process.env.PEA_TEST_SQLITE_PATH;
+    const legacyDb = new Database(sqlitePath);
+    legacyDb.exec(\`
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        bootstrap_admin INTEGER NOT NULL DEFAULT 0,
+        profile_icon_url TEXT,
+        profile_icon_path TEXT,
+        profile_icon_mime_type TEXT,
+        profile_icon_size INTEGER,
+        has_profile_icon INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE _migrations (
+        version INTEGER PRIMARY KEY,
+        description TEXT NOT NULL,
+        appliquee_le TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    \`);
+    legacyDb.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)").run("alice", await bcrypt.hash(motDePasse, 4));
+    for (let version = 1; version <= 31; version += 1) {
+      legacyDb.prepare("INSERT INTO _migrations (version, description) VALUES (?, ?)").run(version, "legacy");
+    }
+    legacyDb.close();
+
+    const { app } = await import("./app.ts");
+    const { db } = await import("./db.ts");
+
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      try {
+        const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "alice", password: motDePasse })
+        });
+        const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+        const miseAJour = await fetch(\`\${baseUrl}/api/auth/me\`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ defaultChartRange: "1w", privacyModeEnabled: true, language: "fr" })
+        });
+        const corpsMiseAJour = await miseAJour.json();
+        const colonnesUsers = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
+        console.log("__RESULT__" + JSON.stringify({
+          statutMiseAJour: miseAJour.status,
+          intervalle: corpsMiseAJour.defaultChartRange,
+          privacy: corpsMiseAJour.privacyModeEnabled,
+          colonnesUsers
+        }));
+      } finally {
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(resultat.statutMiseAJour, 200);
+  assert.equal(resultat.intervalle, "1w");
+  assert.equal(resultat.privacy, true);
+  assert.ok(resultat.colonnesUsers.includes("privacy_mode_enabled"));
+  assert.ok(resultat.colonnesUsers.includes("projection_end_age"));
+});
+
 test("le changement de mot de passe invalide toutes les sessions existantes", () => {
   const resultat = lancerScriptBackend(`
     import { app } from "./app.ts";
@@ -240,8 +314,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-    "les 31 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+    "les 32 migrations doivent etre enregistrees"
   );
 });
 

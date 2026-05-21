@@ -54,7 +54,7 @@ function objective(overrides: Partial<ObjectiveDto> = {}): ObjectiveDto {
         reachedDate: "2040-01-01T00:00:00.000Z",
         leadLagMonths: 12,
         progressPercent: 2,
-        message: "En maintenant vos versements, objectif atteint."
+        message: "objectives.summaryMessage.reachable"
       },
       series: [
         { date: "2026-05-20T00:00:00.000Z", age: 35, real: 10000, objective: 10000 },
@@ -97,6 +97,7 @@ describe("ObjectivePage", () => {
     expect(screen.getByText("Seuil objectif")).toBeInTheDocument();
     expect(screen.queryByText("objectif")).not.toBeInTheDocument();
     expect(screen.getByText("Objectif atteignable a 37 ans")).toBeInTheDocument();
+    expect(screen.getByText("En maintenant vos versements et un rendement annuel de 7 %, vous pourriez demarrer votre rente a 49 ans.")).toBeInTheDocument();
     expect(screen.getByText("Versements de l'annee")).toBeInTheDocument();
     expect(screen.getByTestId("objective-contribution-chart")).toHaveClass("text-slate-100");
     expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();

@@ -7,6 +7,7 @@ import { ObjectiveAssumptionsCard } from "./components/ObjectiveAssumptionsCard"
 import { ObjectiveContributionChart } from "./components/ObjectiveContributionChart";
 import { ObjectiveEditModal } from "./components/ObjectiveEditModal";
 import { ObjectiveEmptyState } from "./components/ObjectiveEmptyState";
+import { ObjectiveExplanationMessage } from "./components/ObjectiveExplanationMessage";
 import { ObjectiveMissingDataState } from "./components/ObjectiveMissingDataState";
 import { ObjectiveProgressCard } from "./components/ObjectiveProgressCard";
 import { ObjectiveProjectionChart } from "./components/ObjectiveProjectionChart";
@@ -53,11 +54,7 @@ export function ObjectivePage({ user }: { user: User }) {
       {projection.status === "missing_data" ? <ObjectiveMissingDataState items={projection.missingData} /> : null}
       {projection.summary ? <ObjectiveSummaryCards summary={projection.summary} /> : null}
       <ObjectiveProjectionChart projection={projection} />
-      {projection.summary ? (
-        <section className="rounded-lg border border-sky/30 bg-sky/10 p-4 text-sm text-sky-50">
-          {projection.summary.message}
-        </section>
-      ) : null}
+      <ObjectiveExplanationMessage objective={objective} projection={projection} />
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-4">

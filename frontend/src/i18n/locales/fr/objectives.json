@@ -15,6 +15,11 @@
     "leadLag": "Avance / retard",
     "progress": "Progression"
   },
+  "summaryMessage": {
+    "fixedReachable": "En maintenant vos versements et un rendement annuel de {{returnRate}} %, vous pourriez atteindre votre objectif a {{age}} ans.",
+    "annuityReachable": "En maintenant vos versements et un rendement annuel de {{returnRate}} %, vous pourriez demarrer votre rente a {{age}} ans.",
+    "unreachable": "Avec les hypotheses actuelles, l'objectif n'est pas atteint avant {{age}} ans."
+  },
   "chart": {
     "title": "Projection patrimoniale",
     "ranges": {

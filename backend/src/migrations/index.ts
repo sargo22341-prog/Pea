@@ -29,6 +29,7 @@ import { snapshotSplitMigration } from "./028-snapshot-split.js";
 import { bootstrapAdminMigration } from "./029-bootstrap-admin.js";
 import { userLanguageMigration } from "./030-user-language.js";
 import { objectivesMigration } from "./031-objectives.js";
+import { userPreferencesColumnsMigration } from "./032-user-preferences-columns.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -62,5 +63,6 @@ export const migrations: Migration[] = [
   snapshotSplitMigration,
   bootstrapAdminMigration,
   userLanguageMigration,
-  objectivesMigration
+  objectivesMigration,
+  userPreferencesColumnsMigration
 ];

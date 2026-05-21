@@ -145,7 +145,7 @@ test("objective calculator infers annuity consuming capital start age", () => {
 
   assert.equal(projection.status, "ready");
   assert.ok((projection.summary?.reachedAge ?? 0) > 35);
-  assert.match(projection.summary?.message ?? "", /demarrer votre rente/);
+  assert.equal(projection.summary?.message, "objectives.summaryMessage.reachable");
 });
 
 test("annuity projections stop future savings after the rent starts by default", () => {

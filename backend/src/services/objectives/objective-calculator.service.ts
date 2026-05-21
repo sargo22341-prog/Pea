@@ -209,8 +209,6 @@ export class ObjectiveCalculatorService {
     const reachedAge = reachedMonth === undefined ? undefined : currentAge + reachedMonth / 12;
     const reachedDate = reachedMonth === undefined ? undefined : addYears(now, reachedMonth / 12).toISOString();
     const progressPercent = targetCapital > 0 ? Math.min(100, Math.round((portfolio.currentCapital / targetCapital) * 1000) / 10) : 100;
-    const label = inferAnnuityStart ? "rente" : "objectif";
-
     return {
       summary: {
         currentCapital: portfolio.currentCapital,
@@ -220,8 +218,8 @@ export class ObjectiveCalculatorService {
         leadLagMonths,
         progressPercent,
         message: reachedAge
-          ? `En maintenant vos versements et un rendement annuel de ${assumptions.annualReturnRate} %, vous pourriez demarrer votre ${label} a ${Math.round(reachedAge)} ans.`
-          : `Avec les hypotheses actuelles, l'objectif n'est pas atteint avant ${Math.round(currentAge + maxMonths / 12)} ans.`
+          ? "objectives.summaryMessage.reachable"
+          : "objectives.summaryMessage.unreachable"
       },
       series,
       contributions
