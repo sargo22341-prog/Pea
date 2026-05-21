@@ -20,6 +20,7 @@ import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { readCachedExtraData } from "../yahoo/fundamentals/fundamentals.job.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
+import { assetNewsRefreshService } from "./asset-news-refresh.service.js";
 import { assetDataService } from "./asset-data.service.js";
 import { evaluatePeaEligibility, rankAssetForPea } from "./peaEligibility.js";
 import type { AuthUser } from "../auth/auth.service.js";
@@ -200,7 +201,13 @@ class NewsSection {
     articlesDto: AssetDetails["articlesDto"];
     news: NewsArticle[];
   }> {
-    if (!user.assetNewsEnabled || config.enableMarketLiveRefresh) return { articlesDto: undefined, news: [] };
+    if (!user.assetNewsEnabled) return { articlesDto: undefined, news: [] };
+
+    if (config.enableMarketLiveRefresh) {
+      const cachedNews = assetNewsRefreshService.readCached(symbol, languages);
+      if (!cachedNews.length) assetNewsRefreshService.refreshInBackgroundIfEmpty(symbol, languages);
+      return { articlesDto: undefined, news: cachedNews };
+    }
 
     const [articlesDto, newsResult] = await Promise.all([
       assetDataService.articles(symbol, languages),

@@ -24,7 +24,7 @@ test("open market window is resolved once per market date and range", () => {
   assert.deepEqual(result.markets, ["euronextParis"]);
 });
 
-test("live refresh mode serves dashboard assets analysis and dividends from cache without Yahoo on navigation", () => {
+test("live refresh mode serves dashboard assets analysis and dividends from cache while asset news refreshes in background", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
     const { app } = await import("./app.ts");
@@ -126,5 +126,5 @@ test("live refresh mode serves dashboard assets analysis and dividends from cach
   `);
 
   assert.ok(result.responses.every((response: any) => response.status === 200), JSON.stringify(result.responses));
-  assert.deepEqual(result.calls, { quote: 0, quoteBatchRaw: 0, chart: 0, quoteSummary: 0, fundamentals: 0, marketInfo: 0, extraData: 0, news: 0 });
+  assert.deepEqual(result.calls, { quote: 0, quoteBatchRaw: 0, chart: 0, quoteSummary: 0, fundamentals: 0, marketInfo: 0, extraData: 0, news: 1 });
 });

@@ -9,3 +9,4 @@
 - Les sections dépliables des paramètres se referment automatiquement quand une autre est ouverte.
 - La page d’un asset non détenu charge désormais automatiquement les données annexes disponibles : dividendes, événements, analyse et informations ETF.
 - Les données annexes apparaissent automatiquement dès la fin du rafraîchissement, sans avoir besoin de recharger la page.
+- Les articles d'un asset sont relus depuis le cache puis rafraichis en arriere-plan si aucun article n'est disponible, avec affichage automatique via SSE.
