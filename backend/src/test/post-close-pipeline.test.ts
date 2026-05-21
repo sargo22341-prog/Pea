@@ -116,9 +116,9 @@ test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apre
 });
 
 // ——————————————————————————————————————————————————————————————
-// Test 3 : range 1W construit depuis 7 jours de 1D finalises
+// Test 3 : range 1W construit depuis une semaine calendaire de 1D finalises
 // ——————————————————————————————————————————————————————————————
-test("rebuildStoredRangesFromFinalData - 1W produit 7 candles depuis 7 jours de 1D, close correct", () => {
+test("rebuildStoredRangesFromFinalData - 1W produit les candles de la semaine calendaire, close correct", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
@@ -149,7 +149,7 @@ test("rebuildStoredRangesFromFinalData - 1W produit 7 candles depuis 7 jours de 
     console.log("__RESULT__" + JSON.stringify({ count: candles1w.length, dernierClose }));
   `);
 
-  assert.equal(result.count, 7, "1W doit avoir 7 candles (1 par jour ouvre)");
+  assert.equal(result.count, 5, "1W doit couvrir une semaine calendaire, pas 7 jours ouverts");
   assert.equal(result.dernierClose, 56.80, "le dernier close 1W doit etre le prix du dernier jour");
 });
 
@@ -157,7 +157,7 @@ test("rebuildStoredRangesFromFinalData - 1W produit 7 candles depuis 7 jours de 
 // Test 4 : 1W - build incrementale preserve les candles existants
 // (c'est le test le plus important : garantit que le pipeline ne vide pas 1W)
 // ——————————————————————————————————————————————————————————————
-test("rebuildStoredRangesFromFinalData - 1W incremental preserve les 6 jours existants quand on ajoute le 7e", () => {
+test("rebuildStoredRangesFromFinalData - 1W incremental preserve une semaine calendaire quand on ajoute le 7e jour ouvert", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
@@ -191,14 +191,14 @@ test("rebuildStoredRangesFromFinalData - 1W incremental preserve les 6 jours exi
     console.log("__RESULT__" + JSON.stringify({ apres6, apres7 }));
   `);
 
-  assert.equal(result.apres6, 6, "apres 6 jours de 1D : 1W doit avoir 6 candles");
-  assert.equal(result.apres7, 7, "apres le 7e jour : 1W doit avoir 7 candles (incremental, pas de reset)");
+  assert.equal(result.apres6, 5, "apres 6 jours de 1D : 1W doit garder les candles de la semaine calendaire");
+  assert.equal(result.apres7, 5, "apres le 7e jour ouvert : 1W garde une semaine calendaire");
 });
 
 // ——————————————————————————————————————————————————————————————
-// Test 5 : range 1M borne a 30 jours ouvrés meme avec 35 jours de 1D
+// Test 5 : range 1M borne a un mois calendaire meme avec 35 jours de 1D
 // ——————————————————————————————————————————————————————————————
-test("rebuildStoredRangesFromFinalData - 1M est borne a 30 jours ouvrés meme avec 35 jours de sources 1D", () => {
+test("rebuildStoredRangesFromFinalData - 1M est borne a un mois calendaire meme avec 35 jours de sources 1D", () => {
   const result = lancerScriptBackend(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
@@ -233,8 +233,8 @@ test("rebuildStoredRangesFromFinalData - 1M est borne a 30 jours ouvrés meme av
   `);
 
   assert.equal(result.count1d, 36, "la source 1D doit conserver tous les 36 jours inseres");
-  assert.ok(result.count1m <= 30, `1M doit etre borne a 30 jours (etait ${result.count1m as number})`);
-  assert.ok(result.count1m >= 28, `1M doit avoir au moins 28 jours (etait ${result.count1m as number})`);
+  assert.ok(result.count1m <= 23, `1M doit etre borne a un mois calendaire (etait ${result.count1m as number})`);
+  assert.ok(result.count1m >= 20, `1M doit garder les jours ouverts du mois calendaire (etait ${result.count1m as number})`);
 });
 
 // ——————————————————————————————————————————————————————————————
@@ -281,9 +281,9 @@ test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis l
     console.log("__RESULT__" + JSON.stringify({ count1w, count1m, close1w, close1m }));
   `);
 
-  // 10 jours disponibles mais 1W limite a 7 → les 3 plus anciens depassent la fenetre
+  // 10 jours disponibles mais 1W limite a une semaine calendaire.
   assert.ok(result.count1w <= 10, `1W ne doit pas depasser 10 candles (etait ${result.count1w as number})`);
-  assert.ok(result.count1m <= 10, `1M doit avoir les 10 jours (tous dans les 30 jours)`);
+  assert.ok(result.count1m <= 10, `1M doit avoir les 10 jours (tous dans le mois calendaire)`);
   assert.equal(result.close1w, result.close1m, "le dernier close doit etre identique entre 1W et 1M");
 });
 

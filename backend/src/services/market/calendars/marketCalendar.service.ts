@@ -175,6 +175,44 @@ export function getPreviousOpenMarketDays(
   return days;
 }
 
+export function getOpenMarketDaysBetween(
+  market: string | { symbol?: string; exchange?: string },
+  startDate: Date,
+  endDate: Date
+): OpenMarketDay[] {
+  const { symbol, exchange } = resolveMarketInput(market);
+  const calendar = getMarketCalendar(symbol, exchange);
+  const startLocalDate = getLocalDateParts(startDate, calendar.timezone).isoDate;
+  const endLocalDate = getLocalDateParts(endDate, calendar.timezone).isoDate;
+  const days: OpenMarketDay[] = [];
+  const ignored: Array<{ date: string; reason: string }> = [];
+  let cursorDate = endLocalDate;
+
+  while (cursorDate >= startLocalDate) {
+    const cursor = zonedTimeToUtc(cursorDate, "12:00", calendar.timezone);
+    const local = getLocalDateParts(cursor, calendar.timezone);
+    const reason = tradingDayReason(symbol, exchange, cursor, calendar);
+    if (!reason) {
+      days.push(getSessionForDate(symbol, exchange, local.isoDate));
+    } else {
+      ignored.push({ date: local.isoDate, reason });
+    }
+    cursorDate = addDaysToIsoDate(cursorDate, -1);
+  }
+
+  logger.debug("market-data", "calendar market window resolved", {
+    market: calendar.market,
+    timezone: calendar.timezone,
+    symbol,
+    exchange,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    returnedOpenDays: days.length,
+    ignoredDays: ignored
+  });
+  return days;
+}
+
 function trimPreviousOpenMarketDaysCache() {
   while (previousOpenMarketDaysCache.size > maxPreviousOpenMarketDaysCacheEntries) {
     const oldestKey = previousOpenMarketDaysCache.keys().next().value as string | undefined;

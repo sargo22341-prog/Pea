@@ -12,6 +12,7 @@ import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
 
 const portfolioTransactionMarkerRanges = new Set<RangeKey>(["1w", "1m", "ytd", "1y", "5y", "10y", "all"]);
+const portfolioChartCacheVersion = "calendar-ranges-v2";
 
 /**
  * `PortfolioChartsService` (anciennement `PortfolioChartService`) : compose le DTO chart
@@ -45,7 +46,7 @@ export class PortfolioChartsService {
     const cacheUserId = String(resolvedUserId);
 
     if (!options.forceIntradayOpen && !options.intradayNow) {
-      const cacheKey = `${cacheUserId}:${range}`;
+      const cacheKey = this.chartCacheKey(cacheUserId, range);
       const cached = portfolioChartRepository.readChartCache(cacheKey, nowMs());
       if (cached) return cached;
     }
@@ -105,11 +106,15 @@ export class PortfolioChartsService {
     if (!payload.isPreparing && !options.forceIntradayOpen && !options.intradayNow) {
       const ttl = PortfolioChartsService.CHART_CACHE_TTL_MS[range] ?? 4 * 60 * 60 * 1000;
       const expiresAt = cachedAt + ttl;
-      const cacheKey = `${cacheUserId}:${range}`;
+      const cacheKey = this.chartCacheKey(cacheUserId, range);
       portfolioChartRepository.upsertChartCache({ cacheKey, userId: cacheUserId, range, payload, cachedAt, expiresAt });
     }
 
     return payload;
+  }
+
+  private chartCacheKey(userId: string, range: RangeKey) {
+    return `${userId}:${range}:${portfolioChartCacheVersion}`;
   }
 
   private transactionMarkersForChart(range: RangeKey, timestamps: number[], userId: number): PortfolioTransactionMarker[] {

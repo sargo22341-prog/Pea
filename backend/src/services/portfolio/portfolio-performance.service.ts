@@ -51,6 +51,13 @@ function maxHistoryTime(points: HistoryPoint[]) {
   return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
 }
 
+function minHistoryTime(points: HistoryPoint[]) {
+  return points.reduce((earliest, point) => {
+    const time = new Date(point.date).getTime();
+    return Number.isFinite(time) ? Math.min(earliest, time) : earliest;
+  }, Number.POSITIVE_INFINITY);
+}
+
 function latestTransactionTime(entry?: PositionTransactionCache) {
   return entry?.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0) ?? 0;
 }
@@ -102,12 +109,14 @@ export class PortfolioPerformanceService {
       (latest, item) => Math.max(latest, latestHistoryTimeByPosition.get(item.position.id) ?? 0),
       0
     );
+    const earliestPortfolioHistoryTime = histories.reduce((earliest, item) => Math.min(earliest, minHistoryTime(item.history)), Number.POSITIVE_INFINITY);
     const currentPointDate = needsCurrentPoint
       ? new Date(range === "1d" && latestPortfolioHistoryTime > 0 ? latestPortfolioHistoryTime : now).toISOString()
       : undefined;
+    const transactionStartTime = Number.isFinite(earliestPortfolioHistoryTime) ? earliestPortfolioHistoryTime : 0;
     const timeline = [...new Set([
       ...histories.flatMap((item) => item.history.map((point) => point.date)),
-      ...transactionDates,
+      ...transactionDates.filter((date) => new Date(date).getTime() >= transactionStartTime),
       ...(currentPointDate ? [currentPointDate] : [])
     ])]
       .filter((date) => new Date(date).getTime() <= now)

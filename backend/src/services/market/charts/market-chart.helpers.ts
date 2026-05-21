@@ -6,13 +6,11 @@ import { marketRunRepository } from "../../../repositories/market/market-run.rep
 import { localTradingDate } from "../../../schedulers/market-task.utils.js";
 import { logger } from "../../shared/logger.service.js";
 import { chartConfigService, type ChartInterval, type StoredChartRange } from "./chart-config.service.js";
-import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, getPreviousOpenMarketDays, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
+import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, getOpenMarketDaysBetween, getPreviousOpenMarketDays, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
 import { getMarketCalendar } from "../calendars/getMarketCalendar.js";
 export const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
 export const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
-  "1d": 1,
-  "1w": 7,
-  "1m": 30
+  "1d": 1
 };
 export const INTRADAY_CANDLE_RETENTION_OPEN_DAYS = 30;
 export type ClosePointSource = "snapshot_close" | "yahoo_daily_fallback_close";
@@ -85,15 +83,18 @@ export function compactHistory(
 
 export function openMarketWindow(asset: Pick<AssetRow, "symbol" | "exchange">, range: RangeKey | StoredChartRange, endDate = new Date()) {
   const count = openMarketDayCountByRange[range];
-  if (!count) return undefined;
-  const days = getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, endDate, count);
-  const oldest = days[days.length - 1];
-  if (!oldest) return undefined;
+  const cutoffDate = calendarRangeStart(range, endDate);
+  const days = cutoffDate
+    ? getOpenMarketDaysBetween({ symbol: asset.symbol, exchange: asset.exchange }, cutoffDate, endDate)
+    : count
+      ? getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, endDate, count)
+      : undefined;
+  if (!days?.length) return undefined;
   return {
     days,
     dateSet: new Set(days.map((day) => day.date)),
-    cutoffIso: oldest.period1.toISOString(),
-    period1: oldest.period1,
+    cutoffIso: (cutoffDate ?? days[days.length - 1].period1).toISOString(),
+    period1: cutoffDate ?? days[days.length - 1].period1,
     period2: endDate
   };
 }
@@ -106,7 +107,7 @@ export function shortRangeEndDate(asset: Pick<AssetRow, "symbol" | "exchange">, 
 
 export function periodForRange(asset: Pick<AssetRow, "symbol" | "exchange">, range: StoredChartRange, now = new Date()) {
   if (range === "all") return { period1: new Date("2000-01-01"), period2: now };
-  const endDate = openMarketDayCountByRange[range] ? shortRangeEndDate(asset, now) : now;
+  const endDate = openMarketDayCountByRange[range] || calendarRangeStart(range, now) ? shortRangeEndDate(asset, now) : now;
   const window = openMarketWindow(asset, range, endDate);
   if (window) return { period1: window.period1, period2: endDate };
   logger.warn("market-data", "open market window unavailable; using last trading session fallback", {
@@ -116,6 +117,19 @@ export function periodForRange(asset: Pick<AssetRow, "symbol" | "exchange">, ran
     endDate: endDate.toISOString()
   });
   return { period1: endDate, period2: endDate };
+}
+
+function calendarRangeStart(range: RangeKey | StoredChartRange, endDate: Date) {
+  const start = new Date(endDate);
+  if (range === "1w") {
+    start.setDate(start.getDate() - 7);
+    return start;
+  }
+  if (range === "1m") {
+    start.setMonth(start.getMonth() - 1);
+    return start;
+  }
+  return undefined;
 }
 
 export function yahooInterval(interval: ChartInterval): "5m" | "15m" | "30m" | "1h" | "1d" {
