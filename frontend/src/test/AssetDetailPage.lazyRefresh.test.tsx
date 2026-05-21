@@ -13,8 +13,16 @@ vi.mock("../components/charts/DividendLineChartSection", () => ({
   DividendLineChartSection: () => <div>dividend-chart</div>
 }));
 
+vi.mock("../components/charts/FinancialComboChart", () => ({
+  FinancialComboChart: () => <div>financial-chart</div>
+}));
+
+vi.mock("../components/charts/SectorAllocationChart", () => ({
+  SectorAllocationChart: () => <div>sector-allocation-chart</div>
+}));
+
 vi.mock("../components/common/AssetCalendarEvents", () => ({
-  AssetCalendarEvents: () => null
+  AssetCalendarEvents: ({ symbol }: { symbol: string }) => <div>calendar-events-{symbol}</div>
 }));
 
 vi.mock("../lib/api", () => ({
@@ -24,7 +32,8 @@ vi.mock("../lib/api", () => ({
     dataConstructionStatus: vi.fn(),
     deletePosition: vi.fn(),
     addWatchlist: vi.fn(),
-    removeWatchlist: vi.fn()
+    removeWatchlist: vi.fn(),
+    calendarEventsForSymbol: vi.fn()
   }
 }));
 
@@ -140,6 +149,30 @@ describe("AssetDetailPage lazy chart refresh", () => {
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
 
+  it("refetches asset details when annex data is updated", async () => {
+    vi.mocked(api.asset)
+      .mockResolvedValueOnce(assetDto(1) as never)
+      .mockResolvedValueOnce({
+        ...assetDto(2),
+        dividends: [{ symbol: "ASML.AS", date: "2026-05-01T00:00:00.000Z", amount: 1, currency: "EUR", status: "real" }]
+      } as never);
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-fresh" });
+
+    renderPage();
+
+    await screen.findByText("ASML");
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("pea:market-event", {
+        detail: { type: "asset-annex-updated", symbol: "ASML.AS", updatedAt: new Date().toISOString() }
+      }));
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    });
+
+    await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("dividend-chart")).toBeInTheDocument();
+  });
+
   it("does not repost while backend says refresh is already in progress", async () => {
     vi.mocked(api.asset).mockResolvedValue(assetDto() as never);
     vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "in-progress" });
@@ -201,5 +234,39 @@ describe("AssetDetailPage lazy chart refresh", () => {
     expect(screen.getByText((content) => content.replace(/\s/g, "") === "49,24€")).toBeInTheDocument();
     expect(screen.getByText((content) => content.replace(/\s/g, "") === "81,34€")).toBeInTheDocument();
     expect(screen.getByText("30/06/2026")).toBeInTheDocument();
+  });
+
+  it("keeps market sections visible for an ETF that is not in the portfolio", async () => {
+    vi.mocked(api.asset).mockResolvedValue({
+      ...assetDto(),
+      isEtf: true,
+      position: null,
+      dividends: [{ symbol: "ASML.AS", date: "2026-05-01T00:00:00.000Z", amount: 1, currency: "EUR", status: "real" }],
+      financials: [{ year: 2025, revenue: 100, netIncome: 12, netMargin: 12 }],
+      analystConsensus: {
+        currentPrice: 100,
+        targetMedianPrice: 120,
+        recommendationMean: 2,
+        recommendationKey: "buy",
+        numberOfAnalystOpinions: 8
+      },
+      fundDetails: {
+        family: "ETF issuer",
+        annualReportExpenseRatio: 0.0012,
+        totalNetAssets: 1234,
+        sectorWeightings: [{ key: "technology", value: 0.4 }]
+      }
+    } as never);
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-fresh" });
+
+    renderPage();
+
+    await screen.findByText("ASML");
+
+    expect(screen.getByText("calendar-events-ASML.AS")).toBeInTheDocument();
+    expect(screen.getByText("financial-chart")).toBeInTheDocument();
+    expect(screen.getByText("dividend-chart")).toBeInTheDocument();
+    expect(screen.getByText("ETF issuer")).toBeInTheDocument();
+    expect(screen.getByText(/8/)).toBeInTheDocument();
   });
 });

@@ -443,6 +443,7 @@ export type MarketEventType =
   | "watchlist-chart-updated"
   | "portfolio-performance-updated"
   | "dashboard-chart-updated"
+  | "asset-annex-updated"
   | "analysis-updated"
   | "dividends-updated"
   | "scheduler-health-updated";
@@ -472,6 +473,7 @@ export const MARKET_EVENT_TYPES: readonly MarketEventType[] = [
   "watchlist-chart-updated",
   "portfolio-performance-updated",
   "dashboard-chart-updated",
+  "asset-annex-updated",
   "analysis-updated",
   "dividends-updated",
   "scheduler-health-updated"

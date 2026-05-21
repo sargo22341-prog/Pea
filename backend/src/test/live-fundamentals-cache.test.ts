@@ -95,3 +95,45 @@ test("live asset details exposes cached ETF fund details without Yahoo extraData
     ]
   });
 });
+
+test("asset details schedules annex refresh when a known asset has only base snapshot data", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { dataConstructionQueue } = await import("./services/market/construction/data-construction-queue.service.ts");
+    const { assetDetailsAssembler } = await import("./services/assets/asset-details-assembler.service.ts");
+
+    const queuedSymbols = [];
+    dataConstructionQueue.enqueueAnnexRefreshIfNotRecentlyQueued = (symbol) => {
+      queuedSymbols.push(symbol);
+      return dataConstructionQueue.latest();
+    };
+
+    db.prepare("INSERT INTO users (username, password_hash, asset_news_enabled) VALUES ('tester', 'hash', 0)").run();
+    db.prepare("INSERT INTO assets (symbol, name, exchange, currency, quote_type) VALUES ('URTH', 'iShares MSCI World ETF', 'PCX', 'USD', 'ETF')").run();
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'URTH'").get();
+    db.prepare(
+      "INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, previous_close, currency, exchange, quote_type, source, last_checked_at, updated_at) VALUES (?, 'REGULAR', 200, 199, 'USD', 'PCX', 'ETF', 'seed', ?, ?)"
+    ).run(asset.id, new Date().toISOString(), new Date().toISOString());
+
+    const details = await runWithUser(1, () => assetDetailsAssembler.assemble({
+      symbol: "URTH",
+      range: "1d",
+      user: {
+        id: 1,
+        username: "tester",
+        role: "user",
+        assetNewsEnabled: false,
+        newsLanguageFrEnabled: true,
+        newsLanguageEnEnabled: false
+      },
+      newsLanguages: []
+    }));
+    console.log("__RESULT__" + JSON.stringify({ queuedSymbols, isEtf: details.isEtf, fundDetails: details.fundDetails ?? null }));
+  `);
+
+  assert.deepEqual(result.queuedSymbols, ["URTH"]);
+  assert.equal(result.isEtf, true);
+  assert.equal(result.fundDetails, null);
+});

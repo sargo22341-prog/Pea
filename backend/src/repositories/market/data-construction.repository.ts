@@ -116,6 +116,22 @@ export const dataConstructionRepository = {
     return new Set(rows.map((row) => row.task_key));
   },
 
+  hasRecentSymbolTask(symbol: string, types: string[], sinceIso: string) {
+    if (!types.length) return false;
+    const placeholders = types.map(() => "?").join(",");
+    const row = db
+      .prepare(
+        `SELECT 1
+         FROM data_construction_tasks
+         WHERE symbol = ?
+           AND type IN (${placeholders})
+           AND created_at >= ?
+         LIMIT 1`
+      )
+      .get(symbol.toUpperCase(), ...types, sinceIso);
+    return Boolean(row);
+  },
+
   latestJob(): DataConstructionJobSummary | undefined {
     return db
       .prepare(

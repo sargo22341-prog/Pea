@@ -19,6 +19,7 @@ import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { readCachedExtraData } from "../yahoo/fundamentals/fundamentals.job.js";
+import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { assetDataService } from "./asset-data.service.js";
 import { evaluatePeaEligibility, rankAssetForPea } from "./peaEligibility.js";
 import type { AuthUser } from "../auth/auth.service.js";
@@ -65,6 +66,29 @@ function intradayDebugClock(range: string) {
     forceIntradayOpen: true,
     intradayNow: config.debugDate
   };
+}
+
+function shouldQueueAnnexRefresh(input: {
+  dividends: DividendEvent[];
+  extraData: ExtraAssetData;
+  financials: AssetDetails["financials"];
+  isEtf: boolean;
+  marketInfo?: AssetMarketInfo;
+  quote: Quote;
+}) {
+  const hasDividendSignal = firstMarketNumber(
+    input.marketInfo?.dividendRate,
+    input.marketInfo?.dividendYield,
+    input.quote.dividendRate,
+    input.quote.dividendYield
+  ) !== undefined;
+  const hasFinancials = Boolean(input.financials?.length);
+  const hasExtraData = Boolean(input.extraData.calendarEventsData || input.extraData.analystConsensus || input.extraData.fundDetails);
+
+  if (input.isEtf && !input.extraData.fundDetails) return true;
+  if (!input.isEtf && !hasFinancials) return true;
+  if (hasDividendSignal && input.dividends.length === 0) return true;
+  return !hasExtraData;
 }
 
 class PortfolioSection {
@@ -253,6 +277,18 @@ export class AssetDetailsAssembler {
 
     logDividendDesync(symbol, fundamentals.dividends, market.data.marketInfo);
     const mergedMarketInfo = this.market.mergeMarketInfo(market.data.assetMarket, market.data.quote, market.data.marketInfo);
+    const isEtf = fundamentals.isEtf || market.data.assetStatic.type === "etf";
+    const isInWatchlist = watchlistRepository.has(symbol, currentUserId());
+    if (!portfolio.position && !isInWatchlist && shouldQueueAnnexRefresh({
+      dividends: fundamentals.dividends,
+      extraData: fundamentals.extraData,
+      financials: fundamentals.financials,
+      isEtf,
+      marketInfo: mergedMarketInfo,
+      quote: market.data.quote
+    })) {
+      dataConstructionQueue.enqueueAnnexRefreshIfNotRecentlyQueued(symbol);
+    }
     const analystConsensus = fundamentals.extraData.analystConsensus
       ? {
           ...fundamentals.extraData.analystConsensus,
@@ -272,7 +308,7 @@ export class AssetDetailsAssembler {
       positionRangePerformance: portfolio.positionRangePerformance,
       userAssetPosition: portfolio.userAssetPosition,
       positionStats: portfolio.positionStats,
-      isInWatchlist: watchlistRepository.has(symbol, currentUserId()),
+      isInWatchlist,
       stale: Boolean(
         market.marketUnavailable ||
         fundamentals.marketUnavailable ||
@@ -293,7 +329,7 @@ export class AssetDetailsAssembler {
       appTimezone: config.appTimezone,
       marketSession: market.data.marketSession,
       financials: fundamentals.financials,
-      isEtf: fundamentals.isEtf,
+      isEtf,
       calendarEventsData: fundamentals.extraData.calendarEventsData,
       analystConsensus,
       fundDetails: fundamentals.extraData.fundDetails

@@ -5,3 +5,5 @@
 - Correction d’un problème où les préférences n’étaient pas enregistrées correctement.
 - Ajout des drapeaux à côté des langues dans les préférences.
 - Les sections dépliables des paramètres se referment automatiquement quand une autre est ouverte.
+- La page d’un asset non détenu charge désormais automatiquement les données annexes disponibles : dividendes, événements, analyse et informations ETF.
+- Les données annexes apparaissent automatiquement dès la fin du rafraîchissement, sans avoir besoin de recharger la page.

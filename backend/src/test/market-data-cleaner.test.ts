@@ -179,3 +179,33 @@ test("queue construction persiste, dedupe les taches actives et reprend une tach
   assert.equal(result.statuses.find((row: any) => row.task_key === "RESTART:AAA.PA:SNAPSHOT")?.attempts, 2);
   assert.equal(result.latest.status, "success");
 });
+
+test("queue emits asset annex update events after annex tasks", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { dataConstructionQueue } = await import("./services/market/construction/data-construction-queue.service.ts");
+    const { financialsService } = await import("./services/market/financials/financials.service.ts");
+    const { marketEventsService } = await import("./services/market/events/market-events.service.ts");
+
+    db.prepare("INSERT INTO assets (symbol, name, exchange, currency) VALUES ('AAA.PA', 'AAA', 'Paris', 'EUR')").run();
+    financialsService.refreshFinancials = async () => ({ updated: 1 });
+    const events = [];
+    marketEventsService.emitToAll = (event, payload = {}) => events.push({ event, payload });
+
+    dataConstructionQueue.enqueueForSymbols("financials", ["AAA.PA"]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    console.log("__RESULT__" + JSON.stringify({ events }));
+  `);
+
+  assert.deepEqual(result.events, [
+    {
+      event: "asset-annex-updated",
+      payload: {
+        symbol: "AAA.PA",
+        updatedAt: result.events[0].payload.updatedAt
+      }
+    }
+  ]);
+  assert.equal(typeof result.events[0].payload.updatedAt, "string");
+});

@@ -4,6 +4,7 @@ import { dataConstructionRepository, type DataConstructionJobSummary, type DataC
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
+import { marketEventsService } from "../events/market-events.service.js";
 
 type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
@@ -185,6 +186,14 @@ export class DataConstructionQueueService {
     return this.enqueue(tasks, `Rafraichissement annexe de ${uniqueSymbols.length} asset(s) planifie`);
   }
 
+  enqueueAnnexRefreshIfNotRecentlyQueued(symbol: string, retryAfterMs = 6 * 60 * 60 * 1000) {
+    const key = symbol.trim().toUpperCase();
+    if (!key) return this.latest();
+    const sinceIso = new Date(Date.now() - retryAfterMs).toISOString();
+    if (dataConstructionRepository.hasRecentSymbolTask(key, ["calendar-events"], sinceIso)) return this.latest();
+    return this.enqueueAnnexRefresh([key]);
+  }
+
   latest(): DataConstructionJobDto {
     const latest = dataConstructionRepository.latestJob();
     if (latest) return this.toDto(latest);
@@ -241,6 +250,7 @@ export class DataConstructionQueueService {
       });
       await runWithYahooUsageSource(`tache construction: ${task.key}`, () => this.execute(task));
       dataConstructionRepository.markTaskSuccess(taskRow.id);
+      this.emitTaskSuccessEvent(task);
       logger.debug("market-data", "construction task success", {
         task: task.key,
         type: task.type,
@@ -273,6 +283,15 @@ export class DataConstructionQueueService {
         });
       }
     }
+  }
+
+  private emitTaskSuccessEvent(task: ConstructionTask) {
+    if (!task.symbol) return;
+    if (!["financials", "dividends", "calendar-events"].includes(task.type)) return;
+    marketEventsService.emitToAll("asset-annex-updated", {
+      symbol: task.symbol.toUpperCase(),
+      updatedAt: new Date().toISOString()
+    });
   }
 
   private async execute(task: ConstructionTask) {

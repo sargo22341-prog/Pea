@@ -7,6 +7,7 @@ import { CompareModal } from "../../components/common/CompareModal";
 import { NewsArticleList } from "../../components/common/NewsArticleList";
 import { useAsync } from "../../hooks/useAsync";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
+import { useMarketEventReload } from "../../hooks/useMarketEventReload";
 import { api } from "../../lib/api";
 import { normalizeTimeZone } from "../../lib/timezone";
 import { AssetAnalystConsensus } from "./components/AssetAnalystConsensus";
@@ -85,6 +86,15 @@ export function AssetDetailPage({ user }: { user: User }) {
     initialWatchlisted: asset.data?.isInWatchlist,
     onError: setToast,
     quote: asset.data?.quote
+  });
+
+  useMarketEventReload({
+    debounceMs: 300,
+    eventTypes: ["asset-annex-updated"],
+    filterEvent: (payload) => payload.symbol?.toUpperCase() === symbol.toUpperCase(),
+    reload: asset.reload,
+    reloadOnFocus: false,
+    reloadOnVisibility: false
   });
 
   useLayoutEffect(() => {
@@ -227,9 +237,9 @@ export function AssetDetailPage({ user }: { user: User }) {
 
       <AssetOverviewSections asset={asset.data} currentPrice={displayPrice} firstPriceOfRange={firstClose} range={range} />
 
-      {!asset.data.isEtf ? <AssetCalendarEvents symbol={symbol} /> : null}
+      <AssetCalendarEvents symbol={symbol} />
 
-      {!asset.data.isEtf && asset.data.analystConsensus ? (
+      {asset.data.analystConsensus ? (
         <AssetAnalystConsensus currency={quote.currency ?? "EUR"} data={asset.data.analystConsensus} />
       ) : null}
 

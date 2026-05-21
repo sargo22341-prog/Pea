@@ -45,7 +45,7 @@ export function AssetOverviewSections({
       </section>
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        {!asset.isEtf && asset.financials && asset.financials.length > 0 ? (
+        {asset.financials && asset.financials.length > 0 ? (
           <section className="card min-w-0 flex-1 p-4">
             <h2 className="mb-4 font-semibold">{t("revenueNetIncomeMargin")}</h2>
             <FinancialComboChart data={asset.financials} />
@@ -53,7 +53,7 @@ export function AssetOverviewSections({
         ) : null}
 
         <div className="min-w-0 flex-1">
-          {!asset.isEtf && dividends && dividends.length > 0 ? (
+          {dividends && dividends.length > 0 ? (
             <section className="card overflow-hidden">
               <h2 className="mb-4 font-semibold">{t("dividend")}</h2>
               <DividendLineChartSection

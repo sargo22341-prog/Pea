@@ -84,6 +84,12 @@ export class MarketEventsService {
     }
   }
 
+  emitToAll(event: MarketEventType, payload: Omit<MarketEventPayload, "type"> = {}) {
+    for (const client of this.clients.values()) {
+      this.write(client, event, { type: event, ...payload });
+    }
+  }
+
   stats() {
     return { clients: this.clients.size, maxClients: this.maxClients };
   }
