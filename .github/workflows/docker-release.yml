@@ -292,13 +292,3 @@ jobs:
             --notes-file "$NOTES_FILE"
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Clear release notes template
-        run: |
-          printf "## Notes de release\n\n- Ajoutez ici les changements a publier.\n" > RELEASE_NOTES.md
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add RELEASE_NOTES.md
-          git diff --cached --quiet || git commit -m "docs: clear release notes [skip ci]"
-          git diff --cached --quiet || true
-          git push origin "HEAD:${GITHUB_REF_NAME}"
