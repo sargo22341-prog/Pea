@@ -18,6 +18,7 @@ const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage").then(
 const DividendsPage = lazy(() => import("./pages/dividends/DividendsPage").then((module) => ({ default: module.DividendsPage })));
 const AnalysisPage = lazy(() => import("./pages/analysis/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
 const NewsPage = lazy(() => import("./pages/news/NewsPage").then((module) => ({ default: module.NewsPage })));
+const ObjectivePage = lazy(() => import("./pages/objectives/ObjectivePage").then((module) => ({ default: module.ObjectivePage })));
 const SearchPage = lazy(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
@@ -145,8 +146,9 @@ function AuthenticatedApp() {
             <Route path="/analysis" element={<AnalysisPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/dividends" element={<DividendsPage />} />
+            <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
             <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
+            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} />} />
             <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
             <Route path="*" element={<Navigate replace to="/" />} />
           </Route>

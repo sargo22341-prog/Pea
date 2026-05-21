@@ -1,4 +1,4 @@
 ## Notes de release
 
-- Correction du retour Android dans l'app et remise en haut des nouvelles pages apres navigation.
-- Nettoyage des warnings de tests frontend React/Vitest et stabilisation des attentes async.
+- Ajout de la page Objectifs avec plusieurs types d’objectifs
+- Ajout d’un sous-menu sous l’icône utilisateur, avec les pages Paramètres, Objectifs et Administration intégrées dans ce sous-menu

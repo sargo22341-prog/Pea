@@ -104,6 +104,7 @@ export function initializeSchema(db: DatabaseAdapter): void {
     watchlist_default_sort_key TEXT NOT NULL DEFAULT 'name',
     watchlist_default_sort_direction TEXT NOT NULL DEFAULT 'asc',
     default_chart_range TEXT NOT NULL DEFAULT '1d',
+    projection_end_age INTEGER NOT NULL DEFAULT 90,
     local_pea_search_enabled INTEGER NOT NULL DEFAULT 1,
     asset_news_enabled INTEGER NOT NULL DEFAULT 1,
     news_language_fr_enabled INTEGER NOT NULL DEFAULT 1,
@@ -375,6 +376,29 @@ export function initializeSchema(db: DatabaseAdapter): void {
     expires_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS financial_objectives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    type TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    config_json TEXT NOT NULL,
+    assumptions_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS objective_projection_cache (
+    objective_id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    projection_json TEXT NOT NULL,
+    last_updated_at TEXT NOT NULL,
+    next_update_at TEXT NOT NULL,
+    FOREIGN KEY(objective_id) REFERENCES financial_objectives(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval ON chart_candles(asset_id, range_key, interval);
   CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval_start ON chart_candles(asset_id, range_key, interval, datetime_start);
   CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
@@ -386,6 +410,8 @@ export function initializeSchema(db: DatabaseAdapter): void {
   CREATE INDEX IF NOT EXISTS idx_portfolio_positions_performance_cache_expires_at ON portfolio_positions_performance_cache(expires_at);
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_user_block ON frontend_block_cache(user_id, block);
   CREATE INDEX IF NOT EXISTS idx_frontend_block_cache_expires_at ON frontend_block_cache(expires_at);
+  CREATE INDEX IF NOT EXISTS idx_financial_objectives_user_active ON financial_objectives(user_id, active);
+  CREATE INDEX IF NOT EXISTS idx_objective_projection_cache_next_update ON objective_projection_cache(next_update_at);
   CREATE INDEX IF NOT EXISTS idx_market_data_finalizations_asset_range_date ON market_data_finalizations(asset_id, range, trading_date DESC);
   CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_created_at ON yahoo_usage_logs(created_at);
   CREATE INDEX IF NOT EXISTS idx_yahoo_usage_logs_method_created_at ON yahoo_usage_logs(method, created_at);

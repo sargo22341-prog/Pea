@@ -7,6 +7,7 @@ import { currentUserId, requireUserId } from "../auth/user-context.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
+import { objectiveProjectionInvalidationService } from "../objectives/objective-projection-invalidation.service.js";
 import { invalidateUserAssetCaches } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
@@ -89,6 +90,7 @@ export class PortfolioWriteService {
     if (existing) return mapPosition(existing);
     portfolioRepository.insertEmptyPosition({ symbol: normalizedSymbol, name, currency }, resolvedUserId);
     const created = portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId)!;
+    this.invalidatePositionCaches(created.id, resolvedUserId, normalizedSymbol);
     return mapPosition(created);
   }
 
@@ -296,6 +298,7 @@ export class PortfolioWriteService {
   invalidatePositionCaches(positionId: number, userId: number | string, fallbackSymbol?: string) {
     const row = portfolioRepository.findPositionById(positionId, userId);
     invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
+    objectiveProjectionInvalidationService.invalidateUser(userId, "portfolio position changed");
   }
 
   private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {

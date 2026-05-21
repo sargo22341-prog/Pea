@@ -189,6 +189,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
     const colonnesUsers = db.prepare("PRAGMA table_info(users)").all().map((r) => r.name);
     const colonnesUserAssets = db.prepare("PRAGMA table_info(user_assets)").all();
     const colonnesMarketSnapshots = db.prepare("PRAGMA table_info(asset_market_snapshots)").all().map((r) => r.name);
+    const tablesExistantes = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name);
     const colonneUserId = colonnesUserAssets.find((c) => c.name === "user_id");
     const versionsMigrations = db.prepare("SELECT version FROM _migrations ORDER BY version").all().map((r) => r.version);
 
@@ -197,6 +198,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
       triggersExistants,
       colonnesUsers,
       colonnesMarketSnapshots,
+      tablesExistantes,
       typeUserIdUserAssets: colonneUserId?.type,
       versionsMigrations
     }));
@@ -219,6 +221,10 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_active_key"), "index queue construction active absent");
   assert.ok(resultat.indexExistants.includes("idx_data_construction_tasks_status_priority_id"), "index queue construction status priority absent");
   assert.ok(resultat.indexExistants.includes("idx_users_single_bootstrap_admin"), "index bootstrap admin unique absent");
+  assert.ok(resultat.indexExistants.includes("idx_financial_objectives_user_active"), "index objectifs user/active absent");
+  assert.ok(resultat.indexExistants.includes("idx_objective_projection_cache_next_update"), "index cache objectifs next update absent");
+  assert.ok(resultat.tablesExistantes.includes("financial_objectives"), "table objectifs absente");
+  assert.ok(resultat.tablesExistantes.includes("objective_projection_cache"), "table cache projections objectifs absente");
   assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_insert"), "trigger anti-admin runtime insert absent");
   assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_update"), "trigger anti-admin runtime update absent");
   assert.ok(resultat.triggersExistants.includes("users_prevent_bootstrap_admin_demotion"), "trigger immutabilite bootstrap absent");
@@ -234,8 +240,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
-    "les 30 migrations doivent etre enregistrees"
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+    "les 31 migrations doivent etre enregistrees"
   );
 });
 

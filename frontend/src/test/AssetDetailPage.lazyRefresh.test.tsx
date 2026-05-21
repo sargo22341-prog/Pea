@@ -37,6 +37,7 @@ const user = {
   username: "alice",
   role: "user",
   defaultChartRange: "1d",
+  projectionEndAge: 90,
   assetNewsEnabled: false,
   localPeaSearchEnabled: true,
   newsLanguageFrEnabled: true,

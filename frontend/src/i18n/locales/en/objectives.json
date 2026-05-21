@@ -1,0 +1,127 @@
+{
+  "title": "Goal",
+  "loading": "Loading...",
+  "active": "Active",
+  "edit": "Edit",
+  "updatedAt": "Last updated",
+  "nextUpdate": "Next automatic refresh",
+  "around23": "around 11 PM",
+  "values": {
+    "na": "n/a"
+  },
+  "summary": {
+    "reach": "Reached",
+    "targetCapital": "Target capital",
+    "leadLag": "Ahead / behind",
+    "progress": "Progress"
+  },
+  "chart": {
+    "title": "Wealth projection",
+    "ranges": {
+      "1y": "1Y",
+      "5y": "5Y",
+      "all": "All"
+    },
+    "realUnavailable": "Real history is unavailable for now.",
+    "help": "Future projection represents your estimated wealth with your assumptions. Goal threshold represents the minimum expected level to stay on track.",
+    "reachableAtAge": "Goal reachable at {{age}}",
+    "reachableInYear": "Goal reachable in {{year}}",
+    "reachable": "Goal reachable",
+    "series": {
+      "real": "Real wealth",
+      "realDescription": "Actual portfolio history.",
+      "projected": "Future projection",
+      "projectedDescription": "Projected wealth with current assumptions.",
+      "required": "Goal threshold",
+      "requiredDescription": "Minimum capital required to reach your goal with the current parameters."
+    },
+    "possibleIncome": "Possible annuity: {{amount}} / month"
+  },
+  "contributions": {
+    "title": "Year contributions",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "real": "Real",
+    "estimated": "Estimated"
+  },
+  "settings": {
+    "title": "Goal settings",
+    "type": "Type",
+    "targetAmount": "Target amount",
+    "targetAge": "Target age",
+    "monthlyIncome": "Monthly income",
+    "finalCapital": "Final capital",
+    "inflationIndex": "Inflation indexation",
+    "continueSavingsAfterAnnuityStart": "Savings after annuity start",
+    "ageValue": "{{age}} years old",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "assumptions": {
+    "title": "Assumptions",
+    "currentAge": "Current age",
+    "futureSavings": "Future savings",
+    "inflation": "Inflation",
+    "annualReturn": "Annual return",
+    "tax": "Estimated tax",
+    "withdrawal": "Annual withdrawal",
+    "projectionEndAge": "Projection end age",
+    "statePension": "State pension",
+    "scenario": "Scenario",
+    "toComplete": "To complete",
+    "historicalFallback": "Historical average",
+    "monthlyMoney": "{{amount}} / month",
+    "percent": "{{value}} %",
+    "statePensionValue": "{{amount}} / month at {{age}}"
+  },
+  "progress": {
+    "title": "Current progress",
+    "currentCapital": "Current capital:"
+  },
+  "empty": {
+    "title": "No goal",
+    "description": "Create a financial goal to display a wealth trajectory."
+  },
+  "missing": {
+    "title": "Information to complete",
+    "description": "The projection will be calculated once these fields are filled in."
+  },
+  "form": {
+    "title": "Edit goal",
+    "objectSection": "Goal",
+    "assumptionsSection": "Global assumptions",
+    "saveError": "Unable to save the goal.",
+    "or": "Or",
+    "types": {
+      "fixed_capital": "Fixed target capital",
+      "annuity_consuming_capital": "Annuity consuming capital",
+      "annuity_preserve_capital": "Annuity preserving capital",
+      "annuity_target_final_capital": "Annuity with target final capital"
+    },
+    "fields": {
+      "title": "Name",
+      "type": "Goal type",
+      "targetAmount": "Target amount",
+      "targetAge": "Target age",
+      "monthlyIncome": "Desired monthly income",
+      "finalCapitalTarget": "Target final capital",
+      "indexInflation": "Index income to inflation",
+      "indexInflationHelp": "The requested income increases every year with the configured inflation rate, which also increases the required capital.",
+      "continueSavingsAfterAnnuityStart": "Keep saving after the annuity starts",
+      "continueSavingsAfterAnnuityStartHelp": "Off by default: once the annuity is reachable, the projection assumes you live from the annuity and stop saving.",
+      "currentAge": "Current age",
+      "futureMonthlySavings": "Future monthly savings",
+      "scenario": "Scenario",
+      "prudent": "Prudent",
+      "normal": "Normal",
+      "optimistic": "Optimistic",
+      "inflation": "Inflation (%)",
+      "annualReturn": "Annual return (%)",
+      "tax": "Estimated tax (%)",
+      "withdrawalRate": "Annual withdrawal rate",
+      "projectionEndAge": "Projection end age",
+      "statePension": "Monthly state pension",
+      "statePensionStartAge": "State pension start age"
+    }
+  }
+}

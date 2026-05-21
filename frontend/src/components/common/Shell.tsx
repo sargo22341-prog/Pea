@@ -5,6 +5,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { getMobileNavItems } from "./mobileNavItems";
+import { UserMenu } from "./UserMenu";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {
   return isActive ? "btn bg-panel2 text-mint" : "btn-ghost";
@@ -51,20 +52,15 @@ export function Shell({ user }: { user: User }) {
               <p className="text-xs text-slate-400">{t("common:app.subtitle")}</p>
             </div>
           </div>
-          <NavLink className="btn-ghost shrink-0 px-2 lg:hidden" title={t("navigation:settings")} to="/settings">
-            {!shouldLoadProfileIcon || !profileIconUrl ? (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
-                {user.username.slice(0, 1).toUpperCase()}
-              </span>
-            ) : (
-              <img
-                alt=""
-                className="h-6 w-6 rounded-full object-cover"
-                onError={() => setProfileFailed(true)}
-                src={profileIconUrl}
-              />
-            )}
-          </NavLink>
+          <div className="lg:hidden">
+            <UserMenu
+              compact
+              onProfileIconError={() => setProfileFailed(true)}
+              profileIconUrl={profileIconUrl}
+              shouldLoadProfileIcon={shouldLoadProfileIcon}
+              user={user}
+            />
+          </div>
           <nav className="hidden items-center gap-2 lg:flex">
             {links.map((link) => (
               <NavLink
@@ -76,21 +72,12 @@ export function Shell({ user }: { user: User }) {
                 {t(link.labelKey)}
               </NavLink>
             ))}
-            <NavLink className={navButtonClass} title={t("navigation:settings")} to="/settings">
-              {!shouldLoadProfileIcon || !profileIconUrl ? (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">
-                  {user.username.slice(0, 1).toUpperCase()}
-                </span>
-              ) : (
-                <img
-                  alt=""
-                  className="h-6 w-6 rounded-full object-cover"
-                  onError={() => setProfileFailed(true)}
-                  src={profileIconUrl}
-                />
-              )}
-              {user.username}
-            </NavLink>
+            <UserMenu
+              onProfileIconError={() => setProfileFailed(true)}
+              profileIconUrl={profileIconUrl}
+              shouldLoadProfileIcon={shouldLoadProfileIcon}
+              user={user}
+            />
           </nav>
         </div>
       </header>

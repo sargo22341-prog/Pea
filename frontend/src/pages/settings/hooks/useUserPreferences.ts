@@ -12,6 +12,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
   const [sortValue, setSortValue] = useState("name:asc");
   const [watchlistSortValue, setWatchlistSortValue] = useState("name:asc");
   const [range, setRange] = useState<RangeKey>("1d");
+  const [projectionEndAge, setProjectionEndAge] = useState(90);
   const [localPeaSearchEnabled, setLocalPeaSearchEnabled] = useState(false);
   const [assetNewsEnabled, setAssetNewsEnabled] = useState(true);
   const [newsLanguages, setNewsLanguages] = useState<NewsLanguage[]>(["fr"]);
@@ -25,6 +26,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     setSortValue(`${user.dashboardDefaultSortKey}:${user.dashboardDefaultSortDirection}`);
     setWatchlistSortValue(`${user.watchlistDefaultSortKey}:${user.watchlistDefaultSortDirection}`);
     setRange(user.defaultChartRange);
+    setProjectionEndAge(user.projectionEndAge ?? 90);
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
     setNewsLanguages(user.newsLanguages?.length ? user.newsLanguages : ["fr"]);
@@ -46,7 +48,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     const [watchlistDefaultSortKey, watchlistDefaultSortDirection] = watchlistSortValue.split(":") as [WatchlistSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, projectionEndAge, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled });
       await i18n.changeLanguage(language);
       setToast({ tone: "success", text: t("settings:preferences.saved") });
       await me.reload();
@@ -63,12 +65,14 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
     me,
     newsLanguages,
     privacyModeEnabled,
+    projectionEndAge,
     range,
     save,
     setAssetNewsEnabled,
     setLanguage,
     setLocalPeaSearchEnabled,
     setPrivacyModeEnabled,
+    setProjectionEndAge,
     setRange,
     setSortValue,
     setWatchlistSortValue,

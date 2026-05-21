@@ -19,6 +19,7 @@ export interface AuthUser {
   watchlistDefaultSortKey: WatchlistSortKey;
   watchlistDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
+  projectionEndAge: number;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];
@@ -45,6 +46,7 @@ interface UserRow extends AuthUserRow {
   watchlist_default_sort_key: string;
   watchlist_default_sort_direction: string;
   default_chart_range: string;
+  projection_end_age: number | null;
   local_pea_search_enabled: number | null;
   asset_news_enabled: number | null;
   news_language_fr_enabled: number | null;
@@ -113,6 +115,7 @@ function rowToAuthUser(row: UserRow): AuthUser {
     watchlistDefaultSortKey: isWatchlistSortKey(row.watchlist_default_sort_key) ? row.watchlist_default_sort_key : "name",
     watchlistDefaultSortDirection: isSortDirection(row.watchlist_default_sort_direction) ? row.watchlist_default_sort_direction : "asc",
     defaultChartRange: isRangeKey(row.default_chart_range) ? row.default_chart_range : "1d",
+    projectionEndAge: Number.isFinite(Number(row.projection_end_age)) ? Math.min(120, Math.max(70, Number(row.projection_end_age))) : 90,
     localPeaSearchEnabled: row.local_pea_search_enabled === undefined || row.local_pea_search_enabled === null ? true : Boolean(row.local_pea_search_enabled),
     assetNewsEnabled: row.asset_news_enabled === undefined || row.asset_news_enabled === null ? true : Boolean(row.asset_news_enabled),
     newsLanguages: languages.length ? languages : ["fr"],
@@ -235,6 +238,7 @@ export class AuthService {
       watchlistDefaultSortKey?: WatchlistSortKey;
       watchlistDefaultSortDirection?: SortDirection;
       defaultChartRange?: RangeKey;
+      projectionEndAge?: number;
       localPeaSearchEnabled?: boolean;
       assetNewsEnabled?: boolean;
       newsLanguages?: NewsLanguage[];
@@ -253,6 +257,10 @@ export class AuthService {
     const watchlistSortKey = input.watchlistDefaultSortKey ?? current.watchlist_default_sort_key ?? "name";
     const watchlistSortDirection = input.watchlistDefaultSortDirection ?? current.watchlist_default_sort_direction ?? "asc";
     const defaultRange = input.defaultChartRange ?? current.default_chart_range ?? "1d";
+    const projectionEndAge = input.projectionEndAge === undefined ? Number(current.projection_end_age ?? 90) : input.projectionEndAge;
+    if (!Number.isInteger(projectionEndAge) || projectionEndAge < 70 || projectionEndAge > 120) {
+      throw new HttpError(400, "L'age de fin de projection doit etre compris entre 70 et 120 ans.");
+    }
     const localPeaSearchEnabled =
       input.localPeaSearchEnabled === undefined ? Number(current.local_pea_search_enabled ?? 1) : input.localPeaSearchEnabled ? 1 : 0;
     const assetNewsEnabled = input.assetNewsEnabled === undefined ? Number(current.asset_news_enabled ?? 1) : input.assetNewsEnabled ? 1 : 0;
@@ -273,6 +281,7 @@ export class AuthService {
         watchlistDefaultSortKey: watchlistSortKey,
         watchlistDefaultSortDirection: watchlistSortDirection,
         defaultChartRange: defaultRange,
+        projectionEndAge,
         localPeaSearchEnabled,
         assetNewsEnabled,
         newsLanguageFrEnabled,

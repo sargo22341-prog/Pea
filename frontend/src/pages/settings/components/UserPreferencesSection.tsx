@@ -62,6 +62,19 @@ export function UserPreferencesSection({ onUserUpdated }: { onUserUpdated?: () =
           </select>
         </label>
         <label>
+          <span className="muted mb-1 block">{t("settings:preferences.projectionEndAge")}</span>
+          <input
+            className="input"
+            inputMode="numeric"
+            max={120}
+            min={70}
+            onChange={(event) => preferences.setProjectionEndAge(Number(event.target.value))}
+            type="number"
+            value={preferences.projectionEndAge}
+          />
+          <span className="muted mt-1 block text-xs">{t("settings:preferences.projectionEndAgeHelp")}</span>
+        </label>
+        <label>
           <span className="muted mb-1 block">{t("settings:preferences.interfaceLanguage")}</span>
           <select className="input" onChange={(event) => preferences.setLanguage(event.target.value as AppLanguage)} value={preferences.language}>
             {languageOptions.map((option) => (

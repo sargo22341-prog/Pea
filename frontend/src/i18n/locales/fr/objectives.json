@@ -1,0 +1,127 @@
+{
+  "title": "Objectif",
+  "loading": "Chargement...",
+  "active": "Actif",
+  "edit": "Modifier",
+  "updatedAt": "Derniere mise a jour",
+  "nextUpdate": "Prochaine actualisation automatique",
+  "around23": "vers 23h",
+  "values": {
+    "na": "n/a"
+  },
+  "summary": {
+    "reach": "Atteinte",
+    "targetCapital": "Capital cible",
+    "leadLag": "Avance / retard",
+    "progress": "Progression"
+  },
+  "chart": {
+    "title": "Projection patrimoniale",
+    "ranges": {
+      "1y": "1A",
+      "5y": "5A",
+      "all": "Tout"
+    },
+    "realUnavailable": "Historique reel indisponible pour le moment.",
+    "help": "Projection future represente votre patrimoine estime avec vos hypotheses. Seuil objectif represente le niveau minimum attendu pour rester sur la trajectoire de l'objectif.",
+    "reachableAtAge": "Objectif atteignable a {{age}} ans",
+    "reachableInYear": "Objectif atteignable en {{year}}",
+    "reachable": "Objectif atteignable",
+    "series": {
+      "real": "Patrimoine reel",
+      "realDescription": "Historique reel du portefeuille.",
+      "projected": "Projection future",
+      "projectedDescription": "Patrimoine projete avec les hypotheses actuelles.",
+      "required": "Seuil objectif",
+      "requiredDescription": "Capital minimum requis pour atteindre votre objectif avec les paramètres actuels."
+    },
+    "possibleIncome": "Rente possible: {{amount}} / mois"
+  },
+  "contributions": {
+    "title": "Versements de l'annee",
+    "previousYear": "Annee precedente",
+    "nextYear": "Annee suivante",
+    "real": "Reel",
+    "estimated": "Estime"
+  },
+  "settings": {
+    "title": "Parametres objectif",
+    "type": "Type",
+    "targetAmount": "Montant cible",
+    "targetAge": "Age cible",
+    "monthlyIncome": "Rente mensuelle",
+    "finalCapital": "Capital final",
+    "inflationIndex": "Indexation inflation",
+    "continueSavingsAfterAnnuityStart": "Epargne apres demarrage de la rente",
+    "ageValue": "{{age}} ans",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "assumptions": {
+    "title": "Hypotheses",
+    "currentAge": "Age actuel",
+    "futureSavings": "Epargne future",
+    "inflation": "Inflation",
+    "annualReturn": "Rendement annuel",
+    "tax": "Fiscalite estimee",
+    "withdrawal": "Retrait annuel",
+    "projectionEndAge": "Age de fin de projection",
+    "statePension": "Retraite etat",
+    "scenario": "Scenario",
+    "toComplete": "A completer",
+    "historicalFallback": "Moyenne historique",
+    "monthlyMoney": "{{amount}} / mois",
+    "percent": "{{value}} %",
+    "statePensionValue": "{{amount}} / mois a {{age}} ans"
+  },
+  "progress": {
+    "title": "Progression actuelle",
+    "currentCapital": "Capital actuel:"
+  },
+  "empty": {
+    "title": "Aucun objectif",
+    "description": "Creez un objectif financier pour afficher une trajectoire de patrimoine."
+  },
+  "missing": {
+    "title": "Informations a completer",
+    "description": "La projection sera calculee des que ces champs seront renseignes."
+  },
+  "form": {
+    "title": "Modifier l'objectif",
+    "objectSection": "Objectif",
+    "assumptionsSection": "Hypotheses globales",
+    "saveError": "Impossible d'enregistrer l'objectif.",
+    "or": "Ou",
+    "types": {
+      "fixed_capital": "Capital cible fixe",
+      "annuity_consuming_capital": "Rente avec consommation du capital",
+      "annuity_preserve_capital": "Rente sans consommation du capital",
+      "annuity_target_final_capital": "Rente avec capital final impose"
+    },
+    "fields": {
+      "title": "Nom",
+      "type": "Type d'objectif",
+      "targetAmount": "Montant cible",
+      "targetAge": "Age cible",
+      "monthlyIncome": "Rente mensuelle voulue",
+      "finalCapitalTarget": "Capital final voulu",
+      "indexInflation": "Indexer la rente sur l'inflation",
+      "indexInflationHelp": "La rente demandee augmente chaque annee avec l'inflation parametree, ce qui augmente aussi le capital necessaire.",
+      "continueSavingsAfterAnnuityStart": "Continuer a epargner apres le demarrage de la rente",
+      "continueSavingsAfterAnnuityStartHelp": "Desactive par defaut: une fois la rente atteignable, la projection considere que vous vivez de la rente et n'epargnez plus.",
+      "currentAge": "Age actuel",
+      "futureMonthlySavings": "Epargne mensuelle future",
+      "scenario": "Scenario",
+      "prudent": "Prudent",
+      "normal": "Normal",
+      "optimistic": "Optimiste",
+      "inflation": "Inflation (%)",
+      "annualReturn": "Rendement annuel (%)",
+      "tax": "Fiscalite estimee (%)",
+      "withdrawalRate": "% de retrait annuel",
+      "projectionEndAge": "Age de fin de projection",
+      "statePension": "Retraite etat mensuelle",
+      "statePensionStartAge": "Age debut retraite etat"
+    }
+  }
+}

@@ -16,6 +16,7 @@ export interface AuthUserRow {
   watchlist_default_sort_key: string;
   watchlist_default_sort_direction: string;
   default_chart_range: string;
+  projection_end_age: number | null;
   local_pea_search_enabled: number | null;
   asset_news_enabled: number | null;
   news_language_fr_enabled: number | null;
@@ -79,6 +80,7 @@ export class AuthRepository {
     watchlistDefaultSortKey: string;
     watchlistDefaultSortDirection: string;
     defaultChartRange: string;
+    projectionEndAge: number;
     localPeaSearchEnabled: number;
     assetNewsEnabled: number;
     newsLanguageFrEnabled: number;
@@ -96,6 +98,7 @@ export class AuthRepository {
            watchlist_default_sort_key = ?,
            watchlist_default_sort_direction = ?,
            default_chart_range = ?,
+           projection_end_age = ?,
            local_pea_search_enabled = ?,
            asset_news_enabled = ?,
            news_language_fr_enabled = ?,
@@ -113,6 +116,7 @@ export class AuthRepository {
       input.watchlistDefaultSortKey,
       input.watchlistDefaultSortDirection,
       input.defaultChartRange,
+      input.projectionEndAge,
       input.localPeaSearchEnabled,
       input.assetNewsEnabled,
       input.newsLanguageFrEnabled,

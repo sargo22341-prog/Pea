@@ -5,6 +5,7 @@ import { dataConstructionQueue } from "./services/market/construction/data-const
 import { cacheCleanupService } from "./services/shared/cache-cleanup.service.js";
 import { logger } from "./services/shared/logger.service.js";
 import { marketScheduler } from "./schedulers/market-scheduler.service.js";
+import { objectiveScheduler } from "./schedulers/objective-scheduler.service.js";
 
 function localNetworkUrls(port: number) {
   return Object.values(os.networkInterfaces())
@@ -22,6 +23,7 @@ const server = app.listen(config.port, "0.0.0.0", () => {
   cacheCleanupService.start();
   dataConstructionQueue.start();
   marketScheduler.start();
+  objectiveScheduler.start();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {

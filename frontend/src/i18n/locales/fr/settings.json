@@ -36,6 +36,8 @@
     "dashboardSort": "Tri par defaut du dashboard",
     "watchlistSort": "Tri par defaut de la liste de suivi",
     "chartRange": "Intervalle par defaut des graphiques",
+    "projectionEndAge": "Age de fin de projection",
+    "projectionEndAgeHelp": "Utilise pour les objectifs de rente. Valeur autorisee : 70 a 120 ans.",
     "interfaceLanguage": "Langue de l'interface",
     "interfaceLanguageHelp": "Choisissez la langue utilisee pour les textes de l'application.",
     "privateMode": "Mode prive",

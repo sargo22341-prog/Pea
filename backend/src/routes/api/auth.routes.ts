@@ -93,6 +93,7 @@ authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (
     watchlistDefaultSortKey: z.enum(["name", "price", "performancePercent"]).optional(),
     watchlistDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
     defaultChartRange: z.enum(["1d", "1w", "1m", "1y", "5y", "10y", "ytd", "all"]).optional(),
+    projectionEndAge: z.coerce.number().int().min(70).max(120).optional(),
     localPeaSearchEnabled: z.boolean().optional(),
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional(),

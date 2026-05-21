@@ -1,8 +1,5 @@
 import { useEffect } from "react";
-import type { User } from "@pea/shared";
-import { Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSection";
 import { CsvImportSection } from "./components/CsvImportSection";
@@ -12,7 +9,7 @@ import { ServerSettingsSection } from "../../components/common/ServerSettings";
 import { UserPreferencesSection } from "./components/UserPreferencesSection";
 import { api } from "../../lib/api";
 
-export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Promise<void>; user: User }) {
+export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
   const { t } = useTranslation(["navigation", "settings"]);
   useEffect(() => {
     document.title = `${t("settings:title")} | PEA Portfolio`;
@@ -35,21 +32,8 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
         <CsvImportSection />
         <ImportAvisOperesPdf />
       </Collapsible>
-      {user.role === "admin" && <AdminLinkSection />}
       <LogoutSection />
     </div>
-  );
-}
-
-function AdminLinkSection() {
-  const { t } = useTranslation("navigation");
-  return (
-    <section className="flex justify-end">
-      <Link className="btn-primary gap-2" to="/admin">
-        <Shield size={16} />
-        {t("admin")}
-      </Link>
-    </section>
   );
 }
 

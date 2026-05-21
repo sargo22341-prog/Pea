@@ -101,6 +101,7 @@ describe("App – auth gate", () => {
             username: "alice",
             role: "user",
             defaultChartRange: "1d",
+            projectionEndAge: 90,
             assetNewsEnabled: true,
             localPeaSearchEnabled: true,
             newsLanguageFrEnabled: true,

@@ -11,6 +11,7 @@ import { authRouter } from "./api/auth.routes.js";
 import { importRouter } from "./api/import.routes.js";
 import { marketRouter } from "./api/market.routes.js";
 import { newsRouter } from "./api/news.routes.js";
+import { objectivesRouter } from "./api/objectives.routes.js";
 import { portfolioRouter } from "./api/portfolio.routes.js";
 import { searchRouter } from "./api/search.routes.js";
 import { topAndLosersRouter } from "./api/top-and-losers.routes.js";
@@ -31,6 +32,7 @@ apiRouter.use((req, _res, next) => runWithYahooUsageSource(`navigation utilisate
 apiRouter.use(searchRouter);
 apiRouter.use(marketRouter);
 apiRouter.use(newsRouter);
+apiRouter.use(objectivesRouter);
 apiRouter.use(assetIconsRouter);
 apiRouter.use(assetsRouter);
 apiRouter.use(topAndLosersRouter);

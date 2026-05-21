@@ -14,6 +14,7 @@ import type {
 import { adminApi } from "./admin-api";
 import { assetApi } from "./asset-api";
 import { marketApi } from "./market-api";
+import { objectivesApi } from "./objectives-api";
 import { portfolioApi } from "./portfolio-api";
 import { request } from "./api-core";
 import { clearNativeAuthToken, isNativeApp, setNativeAuthToken } from "./native-auth";
@@ -60,6 +61,7 @@ const authApi = {
     watchlistDefaultSortKey?: WatchlistSortKey;
     watchlistDefaultSortDirection?: SortDirection;
     defaultChartRange?: RangeKey;
+    projectionEndAge?: number;
     localPeaSearchEnabled?: boolean;
     assetNewsEnabled?: boolean;
     newsLanguages?: NewsLanguage[];
@@ -105,6 +107,7 @@ const importApi = {
 export const api = {
   ...marketApi,
   ...portfolioApi,
+  ...objectivesApi,
   ...assetApi,
   ...adminApi,
   ...authApi,

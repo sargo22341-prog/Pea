@@ -28,6 +28,7 @@ import { unifiedChartCandlesMigration } from "./027-unified-chart-candles.js";
 import { snapshotSplitMigration } from "./028-snapshot-split.js";
 import { bootstrapAdminMigration } from "./029-bootstrap-admin.js";
 import { userLanguageMigration } from "./030-user-language.js";
+import { objectivesMigration } from "./031-objectives.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -60,5 +61,6 @@ export const migrations: Migration[] = [
   unifiedChartCandlesMigration,
   snapshotSplitMigration,
   bootstrapAdminMigration,
-  userLanguageMigration
+  userLanguageMigration,
+  objectivesMigration
 ];

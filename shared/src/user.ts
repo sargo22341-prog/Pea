@@ -17,6 +17,7 @@ export interface User {
   watchlistDefaultSortKey: WatchlistSortKey;
   watchlistDefaultSortDirection: SortDirection;
   defaultChartRange: RangeKey;
+  projectionEndAge: number;
   localPeaSearchEnabled: boolean;
   assetNewsEnabled: boolean;
   newsLanguages: NewsLanguage[];

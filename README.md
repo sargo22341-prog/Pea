@@ -32,6 +32,7 @@ Fonctionnalites principales :
 - vue annuelle des dividendes avec repartition mensuelle et trimestrielle ;
 - actualites Yahoo Finance, filtrables sur les actifs suivis ;
 - imports Boursorama CSV et avis d'operes PDF ;
+- objectifs financiers et projections patrimoniales via la page technique `/objectives` ;
 - mode prive pour masquer les montants personnels.
 
 ### Apercu

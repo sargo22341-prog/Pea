@@ -36,6 +36,8 @@
     "dashboardSort": "Default dashboard sort",
     "watchlistSort": "Default watchlist sort",
     "chartRange": "Default chart range",
+    "projectionEndAge": "Projection end age",
+    "projectionEndAgeHelp": "Used for annuity goals. Allowed value: 70 to 120.",
     "interfaceLanguage": "Interface language",
     "interfaceLanguageHelp": "Choose the language used for application text.",
     "privateMode": "Private mode",
