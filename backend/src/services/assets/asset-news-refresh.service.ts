@@ -1,4 +1,4 @@
-import type { NewsArticle, NewsLanguage } from "@pea/shared";
+import type { NewsLanguage } from "@pea/shared";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { marketEventsService } from "../market/events/market-events.service.js";
 import { logger } from "../shared/logger.service.js";
