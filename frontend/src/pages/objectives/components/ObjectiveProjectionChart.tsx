@@ -2,7 +2,8 @@ import type { ObjectiveProjection } from "@pea/shared";
 import { Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
 import { money } from "../../../lib/format";
 import type { ObjectiveChartRange } from "../types";
 import { ObjectiveProjectionLegend } from "./ObjectiveProjectionLegend";
@@ -64,7 +65,7 @@ export function ObjectiveProjectionChart({ projection }: { projection: Objective
         </div>
       ) : null}
       <div className="h-80 min-w-0">
-        <ResponsiveContainer height="100%" width="100%">
+        <SafeResponsiveContainer>
           <LineChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid stroke="#263844" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" minTickGap={28} stroke="#94a3b8" tick={{ fontSize: 12 }} />
@@ -89,7 +90,7 @@ export function ObjectiveProjectionChart({ projection }: { projection: Objective
             <Line dataKey="objective" dot={false} name={t(projectionSeries.required.labelKey)} stroke={projectionSeries.required.color} strokeDasharray="2 5" strokeWidth={2} type="monotone" />
             <ObjectiveReachMarker label={reachLabel} point={reachPoint} />
           </LineChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
       <p className="mt-3 flex gap-2 text-xs text-slate-400">
         <Info className="mt-0.5 shrink-0 text-sky" size={14} />

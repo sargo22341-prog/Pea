@@ -40,7 +40,10 @@
       "required": "Goal threshold",
       "requiredDescription": "Minimum capital required to reach your goal with the current parameters."
     },
-    "possibleIncome": "Possible annuity: {{amount}} / month"
+    "possibleIncome": "Possible annuity: {{amount}} / month",
+    "paidIncome": "Paid annuity: {{amount}} / month",
+    "incomeGapPositive": "Available margin: +{{amount}} / month",
+    "incomeGapNegative": "Gap to cover: -{{amount}} / month"
   },
   "contributions": {
     "title": "Year contributions",

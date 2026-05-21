@@ -13,6 +13,7 @@ interface ObjectiveProjectionTooltipPayload {
   value?: number | string;
   payload?: {
     possibleMonthlyIncome?: number;
+    paidMonthlyIncome?: number;
   };
 }
 
@@ -26,6 +27,10 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
   const { t } = useTranslation("objectives");
   if (!active || !payload?.length) return null;
   const possibleMonthlyIncome = payload.find((item) => item.payload?.possibleMonthlyIncome !== undefined)?.payload?.possibleMonthlyIncome;
+  const paidMonthlyIncome = payload.find((item) => item.payload?.paidMonthlyIncome !== undefined)?.payload?.paidMonthlyIncome;
+  const incomeGap = possibleMonthlyIncome !== undefined && paidMonthlyIncome !== undefined
+    ? possibleMonthlyIncome - paidMonthlyIncome
+    : undefined;
 
   return (
     <div className="max-w-72 rounded-lg border border-line bg-panel p-3 text-sm shadow-xl">
@@ -55,6 +60,18 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
         <p className="mt-2 text-xs text-emerald-200">
           {t("chart.possibleIncome", { amount: money(possibleMonthlyIncome, "EUR") })}
         </p>
+      ) : null}
+      {paidMonthlyIncome !== undefined ? (
+        <div className="mt-2 space-y-1 border-t border-line/70 pt-2 text-xs">
+          <p className="text-slate-300">
+            {t("chart.paidIncome", { amount: money(paidMonthlyIncome, "EUR") })}
+          </p>
+          {incomeGap !== undefined ? (
+            <p className={incomeGap >= 0 ? "text-emerald-200" : "text-rose-200"}>
+              {t(incomeGap >= 0 ? "chart.incomeGapPositive" : "chart.incomeGapNegative", { amount: money(Math.abs(incomeGap), "EUR") })}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

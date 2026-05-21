@@ -109,6 +109,10 @@ function shouldApplyMonthlySavings(input: ObjectiveInput, effectiveAnnuityStartA
   return effectiveAnnuityStartAge === undefined;
 }
 
+function isAnnuityObjective(input: ObjectiveInput) {
+  return input.type !== "fixed_capital";
+}
+
 export class ObjectiveCalculatorService {
   calculate(input: ObjectiveInput, portfolio: ObjectivePortfolioSnapshot, now = new Date()): ObjectiveProjection {
     const missingData = this.requiredFields(input);
@@ -192,12 +196,16 @@ export class ObjectiveCalculatorService {
         targetCapital = monthTargetCapital;
       }
       const date = addYears(now, month / 12).toISOString();
+      const paidMonthlyIncome = isAnnuityObjective(input) && effectiveAnnuityStartAge !== undefined && age >= effectiveAnnuityStartAge
+        ? monthlyIncomeAtAge(input, age)
+        : undefined;
       series.push({
         date,
         age,
         projected: capital,
         objective: inferAnnuityStart ? monthTargetCapital : objectiveValues[month] ?? targetCapital,
-        possibleMonthlyIncome: this.possibleMonthlyIncome(input, capital, age)
+        possibleMonthlyIncome: this.possibleMonthlyIncome(input, capital, age, mRate),
+        paidMonthlyIncome
       });
       if (month > 0 && month <= 12) {
         contributions.push({ month: date.slice(0, 7), amount: monthSavings, kind: "estimated" });
@@ -273,8 +281,18 @@ export class ObjectiveCalculatorService {
     return this.targetCapital(input, age, 0, monthlyRateValue);
   }
 
-  private possibleMonthlyIncome(input: ObjectiveInput, capital: number, age: number) {
-    if (!["annuity_preserve_capital", "annuity_target_final_capital"].includes(input.type)) return undefined;
+  private possibleMonthlyIncome(input: ObjectiveInput, capital: number, age: number, monthlyRateValue: number) {
+    if (!isAnnuityObjective(input)) return undefined;
+    if (input.type === "annuity_consuming_capital") {
+      const months = Math.max(1, Math.round((projectionEndAge(input.assumptions) - age) * 12));
+      const protectedCapital = input.config.finalCapitalTarget ?? 0;
+      const spendableCapital = Math.max(0, capital - protectedCapital / Math.pow(1 + monthlyRateValue, months));
+      const portfolioIncome = monthlyRateValue === 0
+        ? spendableCapital / months
+        : spendableCapital * monthlyRateValue / (1 - Math.pow(1 + monthlyRateValue, -months));
+      const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;
+      return portfolioIncome + pension;
+    }
     const protectedCapital = input.type === "annuity_target_final_capital" ? input.config.finalCapitalTarget ?? 0 : 0;
     const portfolioIncome = Math.max(0, (capital - protectedCapital) * withdrawalRate(input.assumptions) / 12);
     const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;

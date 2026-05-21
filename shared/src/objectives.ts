@@ -53,6 +53,7 @@ export interface ObjectiveSeriesPoint {
   projected?: number;
   objective?: number;
   possibleMonthlyIncome?: number;
+  paidMonthlyIncome?: number;
 }
 
 export interface ObjectiveContributionPoint {

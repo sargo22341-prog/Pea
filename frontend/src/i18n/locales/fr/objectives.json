@@ -40,7 +40,10 @@
       "required": "Seuil objectif",
       "requiredDescription": "Capital minimum requis pour atteindre votre objectif avec les paramètres actuels."
     },
-    "possibleIncome": "Rente possible: {{amount}} / mois"
+    "possibleIncome": "Rente possible: {{amount}} / mois",
+    "paidIncome": "Rente versee: {{amount}} / mois",
+    "incomeGapPositive": "Marge disponible: +{{amount}} / mois",
+    "incomeGapNegative": "Ecart a couvrir: -{{amount}} / mois"
   },
   "contributions": {
     "title": "Versements de l'annee",

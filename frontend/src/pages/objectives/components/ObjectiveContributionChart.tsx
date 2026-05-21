@@ -2,7 +2,8 @@ import type { ObjectiveContributionPoint } from "@pea/shared";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Tooltip, XAxis, YAxis } from "recharts";
+import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
 import { money } from "../../../lib/format";
 import { ObjectiveContributionTooltip } from "./ObjectiveContributionTooltip";
 
@@ -43,7 +44,7 @@ export function ObjectiveContributionChart({ data }: { data: ObjectiveContributi
         </div>
       </div>
       <div className="h-44">
-        <ResponsiveContainer height="100%" width="100%">
+        <SafeResponsiveContainer>
           <BarChart data={chartData}>
             <CartesianGrid stroke="#263844" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" stroke="#94a3b8" tick={{ fill: "#cbd5e1", fontSize: 11 }} />
@@ -55,7 +56,7 @@ export function ObjectiveContributionChart({ data }: { data: ObjectiveContributi
               ))}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
+        </SafeResponsiveContainer>
       </div>
       <div className="mt-3 flex gap-3 text-xs text-slate-400">
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />{t("contributions.real")}</span>

@@ -171,7 +171,34 @@ test("annuity projections stop future savings after the rent starts by default",
   assert.equal(projection.status, "ready");
   assert.equal(projection.summary?.reachedAge, 60);
   assert.equal(firstProjectedMonth?.projected, 399_000);
+  assert.equal(projection.series.find((point) => point.projected !== undefined && point.age === 60)?.paidMonthlyIncome, 1000);
+  assert.ok(projection.series.find((point) => point.projected !== undefined && point.age === 60)?.possibleMonthlyIncome);
   assert.equal(projection.contributions.find((point) => point.kind === "estimated")?.amount, 0);
+});
+
+test("annuity projections expose indexed paid income and possible income gap data", () => {
+  const projection = objectiveCalculatorService.calculate({
+    title: "Indexed rent",
+    type: "annuity_consuming_capital",
+    active: true,
+    config: { monthlyIncome: 1000, indexIncomeToInflation: true },
+    assumptions: {
+      currentAge: 60,
+      futureMonthlySavings: 0,
+      inflationRate: 12,
+      annualReturnRate: 0,
+      taxRate: 0,
+      projectionEndAge: 90,
+      statePensionMonthly: 0,
+      statePensionStartAge: 67,
+      scenario: "normal"
+    }
+  }, { ...portfolio, currentCapital: 2_000_000, averageMonthlySavings: 0 });
+
+  const firstYear = projection.series.find((point) => point.projected !== undefined && point.age > 60 && point.paidMonthlyIncome !== undefined);
+  assert.equal(projection.status, "ready");
+  assert.ok((firstYear?.paidMonthlyIncome ?? 0) > 1000);
+  assert.ok((firstYear?.possibleMonthlyIncome ?? 0) > 0);
 });
 
 test("annuity projections can keep saving after the rent starts when explicitly enabled", () => {
@@ -298,6 +325,57 @@ test("objective portfolio snapshot uses portfolio market value history for real 
     const snapshot = await objectivePortfolioService.snapshot(1, 35);
     assert.deepEqual(snapshot.realSeries.map((point) => point.real), [1000, 2500, 3800]);
     assert.equal(snapshot.currentCapital, 3800);
+  } finally {
+    portfolioService.summary = originalSummary;
+    portfolioService.performance = originalPerformance;
+    portfolioRepository.listPositions = originalListPositions;
+  }
+});
+
+test("objective portfolio snapshot starts real wealth at first investment date", async () => {
+  const originalSummary = portfolioService.summary;
+  const originalPerformance = portfolioService.performance;
+  const originalListPositions = portfolioRepository.listPositions;
+  const originalListTransactionSequence = portfolioRepository.listTransactionSequence;
+  try {
+    portfolioService.summary = async () => ({ totalValue: 3800 }) as never;
+    portfolioService.performance = async () => [
+      { date: "2025-01-01T00:00:00.000Z", value: 0, invested: 0, gain: 0, gainPercent: 0 },
+      { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 },
+      { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
+    ] as never;
+    portfolioRepository.listPositions = () => [{ id: 1 }] as never;
+    portfolioRepository.listTransactionSequence = () => [
+      { traded_at: "2026-02-01T14:30:00.000Z", quantity: 10, price: 200, total_fees: 0, type: "buy" }
+    ] as never;
+
+    const snapshot = await objectivePortfolioService.snapshot(1, 35);
+    assert.deepEqual(snapshot.realSeries.map((point) => point.date), [
+      "2026-02-01T00:00:00.000Z",
+      "2026-03-01T00:00:00.000Z"
+    ]);
+  } finally {
+    portfolioService.summary = originalSummary;
+    portfolioService.performance = originalPerformance;
+    portfolioRepository.listPositions = originalListPositions;
+    portfolioRepository.listTransactionSequence = originalListTransactionSequence;
+  }
+});
+
+test("objective portfolio snapshot keeps real wealth history when no investment date is available", async () => {
+  const originalSummary = portfolioService.summary;
+  const originalPerformance = portfolioService.performance;
+  const originalListPositions = portfolioRepository.listPositions;
+  try {
+    portfolioService.summary = async () => ({ totalValue: 3800 }) as never;
+    portfolioService.performance = async () => [
+      { date: "2026-01-01T00:00:00.000Z", value: 1000, invested: 1000, gain: 0, gainPercent: 0 },
+      { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 }
+    ] as never;
+    portfolioRepository.listPositions = () => [] as never;
+
+    const snapshot = await objectivePortfolioService.snapshot(1, 35);
+    assert.equal(snapshot.realSeries.length, 2);
   } finally {
     portfolioService.summary = originalSummary;
     portfolioService.performance = originalPerformance;

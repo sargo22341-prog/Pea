@@ -13,6 +13,10 @@ function monthKey(date: Date) {
   return date.toISOString().slice(0, 7);
 }
 
+function dayStartTime(date: Date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
 export class ObjectivePortfolioService {
   async snapshot(userId: number, currentAge?: number): Promise<ObjectivePortfolioSnapshot> {
     const summary = await portfolioService.summary("1d", userId);
@@ -23,14 +27,28 @@ export class ObjectivePortfolioService {
     const monthly = new Map<string, number>();
     const sorted = [...transactions].sort((a, b) => new Date(a.traded_at).getTime() - new Date(b.traded_at).getTime());
     const now = new Date();
-    const realSeries: ObjectiveSeriesPoint[] = performance.map((point) => {
-      const date = new Date(point.date);
-      return {
-        date: point.date,
-        age: currentAge === undefined || !Number.isFinite(date.getTime()) ? 0 : Math.max(0, currentAge - (now.getTime() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000)),
-        real: Math.max(0, Number(point.value) || 0)
-      };
-    });
+    const firstInvestmentTime = sorted
+      .map((transaction) => {
+        const date = new Date(transaction.traded_at);
+        const amount = Number(transaction.quantity) * Number(transaction.price) + Number(transaction.total_fees ?? 0);
+        const signed = transaction.type === "sell" ? -amount : amount;
+        return signed > 0 && Number.isFinite(date.getTime()) ? dayStartTime(date) : undefined;
+      })
+      .find((time): time is number => time !== undefined);
+    const realSeries: ObjectiveSeriesPoint[] = performance
+      .filter((point) => {
+        if (firstInvestmentTime === undefined) return true;
+        const date = new Date(point.date);
+        return Number.isFinite(date.getTime()) && dayStartTime(date) >= firstInvestmentTime;
+      })
+      .map((point) => {
+        const date = new Date(point.date);
+        return {
+          date: point.date,
+          age: currentAge === undefined || !Number.isFinite(date.getTime()) ? 0 : Math.max(0, currentAge - (now.getTime() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000)),
+          real: Math.max(0, Number(point.value) || 0)
+        };
+      });
 
     for (const transaction of sorted) {
       const date = new Date(transaction.traded_at);

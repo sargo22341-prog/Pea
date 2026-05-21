@@ -30,6 +30,7 @@ function SafeResponsiveContainerInner({ children }: { children: ReactElement }) 
 
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
     let lastEmitted: ContainerSize | null = null;
+    const supportsResizeObserver = typeof ResizeObserver !== "undefined";
 
     const measure = () => {
       const rect = node.getBoundingClientRect();
@@ -47,6 +48,8 @@ function SafeResponsiveContainerInner({ children }: { children: ReactElement }) 
 
     // Première mesure synchrone : on a besoin d'une taille immédiatement pour rendre.
     measure();
+
+    if (!supportsResizeObserver) return undefined;
 
     const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(node);

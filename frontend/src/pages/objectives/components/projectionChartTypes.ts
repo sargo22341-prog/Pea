@@ -5,4 +5,6 @@ export interface ProjectionChartPoint {
   real?: number;
   projected?: number;
   objective?: number;
+  possibleMonthlyIncome?: number;
+  paidMonthlyIncome?: number;
 }
