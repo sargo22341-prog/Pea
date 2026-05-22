@@ -135,7 +135,7 @@ class MarketSection {
     marketSession: AssetDetails["marketSession"];
   }>> {
     let marketUnavailable = false;
-    const quote = await marketSnapshotService.getQuote(symbol).catch((error) => {
+    const quote = await marketSnapshotService.getQuote(symbol, { allowStaleWhileRefresh: true }).catch((error) => {
       if (!isMarketDataUnavailable(error)) throw error;
       marketUnavailable = true;
       return positionFallbackQuote;

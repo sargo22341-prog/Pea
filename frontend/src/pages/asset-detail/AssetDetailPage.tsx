@@ -90,8 +90,11 @@ export function AssetDetailPage({ user }: { user: User }) {
 
   useMarketEventReload({
     debounceMs: 300,
-    eventTypes: ["asset-annex-updated"],
-    filterEvent: (payload) => payload.symbol?.toUpperCase() === symbol.toUpperCase(),
+    eventTypes: ["asset-annex-updated", "market-snapshot-updated"],
+    filterEvent: (payload) => {
+      const key = symbol.toUpperCase();
+      return payload.symbol?.toUpperCase() === key || payload.symbols?.some((item) => item.toUpperCase() === key) === true;
+    },
     reload: asset.reload,
     reloadOnFocus: false,
     reloadOnVisibility: false

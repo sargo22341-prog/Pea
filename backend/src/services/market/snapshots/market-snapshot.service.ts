@@ -9,6 +9,8 @@ import { marketSnapshotRepository } from "../../../repositories/market/market-sn
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { getLastTradingDay, isMarketOpen } from "../calendars/marketCalendar.service.js";
 import { marketDataGateway } from "../data/market-data-gateway.service.js";
+import { marketEventsService } from "../events/market-events.service.js";
+import { logger } from "../../shared/logger.service.js";
 
 function optionalNumber(value: unknown): number | undefined {
   if (value == null) return undefined;
@@ -18,6 +20,7 @@ function optionalNumber(value: unknown): number | undefined {
 
 export class MarketSnapshotService {
   private snapshotQuoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
+  private snapshotRefreshInFlight = new Map<string, Promise<Quote>>();
   private readonly maxSnapshotQuoteCacheEntries = 500;
 
   async refreshMarketSnapshot(asset: AssetRow | string): Promise<Quote> {
@@ -29,7 +32,7 @@ export class MarketSnapshotService {
     return result.quote;
   }
 
-  async getQuote(symbol: string, options: { forceRefresh?: boolean } = {}): Promise<Quote> {
+  async getQuote(symbol: string, options: { forceRefresh?: boolean; allowStaleWhileRefresh?: boolean } = {}): Promise<Quote> {
     const key = symbol.toUpperCase();
     const knownAsset = assetRepository.findBySymbol(key);
     if (options.forceRefresh || !knownAsset) {
@@ -56,6 +59,12 @@ export class MarketSnapshotService {
         this.writeSnapshotQuoteCache(key, snapshot, Date.now() + 30_000);
         return snapshot;
       }
+    }
+    if (snapshot && options.allowStaleWhileRefresh && config.enableMarketLiveRefresh) {
+      const staleQuote = { ...snapshot, stale: true };
+      this.writeSnapshotQuoteCache(key, staleQuote, Date.now() + 30_000);
+      this.refreshSnapshotInBackground(knownAsset);
+      return staleQuote;
     }
     return this.refreshMarketSnapshot(knownAsset);
   }
@@ -170,6 +179,32 @@ export class MarketSnapshotService {
     if (!lastCheckedAt) return false;
     const checkedAt = new Date(lastCheckedAt).getTime();
     return Number.isFinite(checkedAt) && Date.now() - checkedAt < chartConfigService.getSnapshotRefreshIntervalMs();
+  }
+
+  private refreshSnapshotInBackground(asset: AssetRow) {
+    const key = asset.symbol.toUpperCase();
+    if (this.snapshotRefreshInFlight.has(key)) return;
+
+    const promise = this.refreshMarketSnapshot(asset)
+      .then((quote) => {
+        const updatedAt = new Date().toISOString();
+        marketEventsService.emitToAll("market-snapshot-updated", { symbol: key, symbols: [key], updatedAt });
+        marketEventsService.emitToAll("asset-annex-updated", { symbol: key, updatedAt });
+        return quote;
+      })
+      .catch((error) => {
+        logger.warn("market-data", "background snapshot refresh failed", {
+          symbol: key,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      })
+      .finally(() => {
+        this.snapshotRefreshInFlight.delete(key);
+      });
+
+    this.snapshotRefreshInFlight.set(key, promise);
+    void promise.catch(() => undefined);
   }
 
   private writeSnapshotQuoteCache(symbol: string, quote: Quote, expiresAt: number) {

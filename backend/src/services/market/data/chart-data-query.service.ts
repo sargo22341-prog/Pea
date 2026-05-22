@@ -46,7 +46,7 @@ export class ChartDataQueryService {
       return cached;
     }
 
-    const quote = range === "1d" ? await marketSnapshotService.getQuote(asset.symbol).catch(() => undefined) : undefined;
+    const quote = range === "1d" ? await marketSnapshotService.getQuote(asset.symbol, { allowStaleWhileRefresh: config.enableMarketLiveRefresh }).catch(() => undefined) : undefined;
     const now = options.intradayNow ?? new Date();
     const forceIntradayOpen = range === "1d" && options.forceIntradayOpen;
     if (config.enableMarketLiveRefresh && !forceIntradayOpen) {
@@ -160,7 +160,7 @@ export class ChartDataQueryService {
   }
 
   async getPreviousClosePrice(asset: AssetRow): Promise<{ price: number; datetime?: string } | undefined> {
-    const row = await marketSnapshotService.getQuote(asset.symbol);
+    const row = await marketSnapshotService.getQuote(asset.symbol, { allowStaleWhileRefresh: config.enableMarketLiveRefresh });
     if (row.previousClose) return { price: row.previousClose };
     return this.getStoredPreviousClosePrice(asset);
   }
