@@ -112,7 +112,7 @@ type YahooClientAdapter = {
   quoteCombine(symbol: string): Promise<YahooQuoteRaw>;
   quoteSummary(symbol: string, options: { modules: string[] }): Promise<YahooSummaryRaw>;
   chart(symbol: string, options: YahooRawRecord): Promise<YahooChartRaw>;
-  search(query: string, options: YahooRawRecord): Promise<YahooSearchRaw>;
+  search(query: string, options: YahooRawRecord, moduleOptions?: YahooRawRecord): Promise<YahooSearchRaw>;
   screener(options: YahooRawRecord, queryOptions?: unknown, validationOptions?: YahooRawRecord): Promise<YahooScreenerRaw>;
   fundamentalsTimeSeries(symbol: string, options: YahooRawRecord): Promise<YahooFinancialTimeSeriesRaw>;
 };
@@ -140,7 +140,7 @@ export function yahooChart(symbol: string, options: YahooRawRecord) {
 }
 
 export function yahooSearch(query: string, options: YahooRawRecord) {
-  return client.search(query, options);
+  return client.search(query, options, { validateResult: false });
 }
 
 export function yahooScreener(scrIds: string, count: number) {

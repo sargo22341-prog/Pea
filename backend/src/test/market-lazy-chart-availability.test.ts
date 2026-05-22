@@ -75,6 +75,35 @@ test("live stored intraday pending open still serves older candles when availabl
   assert.equal(result.availabilityStatus, undefined);
 });
 
+test("live stored intraday pending open serves latest known intraday candles from any stored interval", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { getMarketCalendar } = await import("./services/market/calendars/getMarketCalendar.ts");
+    const { marketRunRepository } = await import("./repositories/market/market-run.repository.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("7203.T", "Toyota", "Tokyo");
+    const calendar = getMarketCalendar("7203.T", "Tokyo");
+    marketRunRepository.ensure({ marketKey: calendar.market, tradingDate: "2026-05-12", timezone: calendar.timezone, assetsCount: 1 });
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = '7203.T'").get();
+    db.prepare(
+      "INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, source) VALUES (?, '1d', '15m', '2026-05-11T00:00:00.000Z', '2026-05-11T00:15:00.000Z', 100, 101, 99, 100, 'seed'), (?, '1d', '15m', '2026-05-11T00:15:00.000Z', '2026-05-11T00:30:00.000Z', 100, 102, 100, 101, 'seed')"
+    ).run(asset.id, asset.id);
+    const chart = await marketDataService.getChartData("7203.T", "1d", { intradayNow: new Date("2026-05-11T23:30:00.000Z") });
+    console.log("__RESULT__" + JSON.stringify({
+      points: chart.timestamps.length,
+      interval: chart.interval,
+      availabilityStatus: chart.availabilityStatus
+    }));
+  `);
+
+  assert.equal(result.points, 2);
+  assert.equal(result.interval, "15m");
+  assert.equal(result.availabilityStatus, undefined);
+});
+
 test("live stored non-intraday empty chart queues initial range construction", () => {
   const result = runBackendScript(`
     process.env.ENABLE_MARKET_LIVE_REFRESH = "true";

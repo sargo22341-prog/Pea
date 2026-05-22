@@ -110,6 +110,7 @@ async function waitForPendingUpdates() {
 describe("AssetDetailPage lazy chart refresh", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("does not post chart-refresh in a loop when backend reports skipped-fresh", async () => {
@@ -146,6 +147,33 @@ describe("AssetDetailPage lazy chart refresh", () => {
     await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
     await waitForPendingUpdates();
 
+    expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches once when the lazy chart refresh finishes without an SSE update", async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.asset)
+      .mockResolvedValueOnce(assetDto(1) as never)
+      .mockResolvedValueOnce(assetDto(2) as never);
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "started" });
+
+    renderPage();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(45_001);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    vi.useRealTimers();
+
+    await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
 
@@ -192,7 +220,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a temporary pending-open message for empty intraday charts", async () => {
+  it("shows a temporary pending-open message and requests the latest known intraday chart", async () => {
     vi.mocked(api.asset).mockResolvedValue({
       ...assetDto(),
       chart: {
@@ -202,12 +230,13 @@ describe("AssetDetailPage lazy chart refresh", () => {
         availabilityStatus: "pending_open_confirmation"
       }
     } as never);
-    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-market-closed" });
+    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "started" });
 
     renderPage();
 
     await screen.findByText("Donnees intraday pas encore disponibles, marche pas encore confirme ouvert");
-    expect(api.requestChartRefresh).not.toHaveBeenCalled();
+    await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
+    expect(api.requestChartRefresh).toHaveBeenCalledWith({ scope: "asset", symbol: "ASML.AS", range: "1d" });
   });
 
   it("shows persisted 52 week range, average 3M volume and ex-date when present", async () => {

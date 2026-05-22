@@ -70,6 +70,23 @@ export class CandleRepository {
     }));
   }
 
+  readLatestIntradayCandles(assetId: number): { interval: ChartInterval; points: HistoryPoint[] } | undefined {
+    const latest = db
+      .prepare(
+        `SELECT interval
+         FROM chart_candles
+         WHERE asset_id = ? AND range_key = '1d'
+         ORDER BY datetime_start DESC
+         LIMIT 1`
+      )
+      .get(assetId) as { interval?: ChartInterval } | undefined;
+    if (!latest?.interval) return undefined;
+    return {
+      interval: latest.interval,
+      points: this.readCandles(assetId, "1d", latest.interval)
+    };
+  }
+
   countCandles(assetId: number, range: RangeKey | string, interval: ChartInterval) {
     const storedRange = normalizeStoredRange(range);
     const row = db

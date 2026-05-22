@@ -73,7 +73,6 @@ export function useAssetChartLifecycle({
 
   useEffect(() => {
     if (range !== "1d" || !asset?.chart) return;
-    if (asset.chart.availabilityStatus === "pending_open_confirmation") return;
     const key = `${symbol.toUpperCase()}:1d`;
     const cacheVersion = chartCacheVersion(asset.chart);
     const guard = lazyChartGuard.current;
@@ -98,17 +97,23 @@ export function useAssetChartLifecycle({
     current.requestedForCacheVersion = cacheVersion;
     current.lastRefreshRequestedAt = now;
 
+    const waitForRefreshCompletion = () => {
+      current.refreshInProgress = true;
+      setChartRefreshing(true);
+      if (current.timeout) window.clearTimeout(current.timeout);
+      current.timeout = window.setTimeout(() => {
+        current.refreshInProgress = false;
+        current.timeout = undefined;
+        current.suppressUntil = Date.now() + lazyChartRetryCooldownMs;
+        setChartRefreshing(false);
+        void reload();
+      }, lazyChartRefreshTimeoutMs);
+    };
+
     api.requestChartRefresh({ scope: "asset", symbol, range: "1d" })
       .then((result) => {
         if (result.status === "started" || result.status === "in-progress") {
-          current.refreshInProgress = true;
-          setChartRefreshing(true);
-          if (current.timeout) window.clearTimeout(current.timeout);
-          current.timeout = window.setTimeout(() => {
-            current.refreshInProgress = false;
-            current.timeout = undefined;
-            setChartRefreshing(false);
-          }, lazyChartRefreshTimeoutMs);
+          waitForRefreshCompletion();
           return;
         }
 
@@ -123,7 +128,7 @@ export function useAssetChartLifecycle({
         current.lastRefreshRequestedAt = Date.now();
         setChartRefreshing(false);
       });
-  }, [asset?.chart, range, symbol]);
+  }, [asset?.chart, range, reload, symbol]);
 
   useMarketEventReload({
     debounceMs: 0,

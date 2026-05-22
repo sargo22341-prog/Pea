@@ -179,9 +179,20 @@ export class ChartDataQueryService {
     const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
     const initialPoints = filterRangePoints(rawPoints, range, asset, now);
     const pendingOpen = storedRange === "1d" && intradayAvailabilityStatus(asset, now) === "pending_open_confirmation";
-    const points = pendingOpen && initialPoints.length < 2 ? latestStoredMarketDatePoints(rawPoints, asset) : initialPoints;
+    let effectiveInterval = interval;
+    let points = pendingOpen && initialPoints.length < 2 ? latestStoredMarketDatePoints(rawPoints, asset) : initialPoints;
+    if (pendingOpen && points.length < 2) {
+      const latestIntraday = candleRepository.readLatestIntradayCandles(asset.id);
+      if (latestIntraday) {
+        const fallbackPoints = latestStoredMarketDatePoints(latestIntraday.points, asset);
+        if (fallbackPoints.length >= 2) {
+          effectiveInterval = latestIntraday.interval;
+          points = fallbackPoints;
+        }
+      }
+    }
     const baseline = storedRange === "1d" ? this.getStoredPreviousClosePrice(asset) : undefined;
-    const payload = compactHistory(asset.symbol, storedRange, interval, points, baseline, getMarketSessionInfo(asset.symbol, quote?.exchange ?? asset.exchange));
+    const payload = compactHistory(asset.symbol, storedRange, effectiveInterval, points, baseline, getMarketSessionInfo(asset.symbol, quote?.exchange ?? asset.exchange));
     if (points.length < 2) {
       if (config.enableMarketLiveRefresh && storedRange === "1d") {
         return {
