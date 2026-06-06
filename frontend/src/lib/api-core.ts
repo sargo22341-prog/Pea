@@ -7,6 +7,8 @@ export const baseUrl = import.meta.env.PROD ? "" : import.meta.env.VITE_API_BASE
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const maxInFlightRequests = 500;
 const defaultRequestTimeoutMs = 20_000;
+const retryableStatusCodes = new Set([502, 503, 504]);
+const retryDelaysMs = [350, 900];
 
 export class ApiError extends Error {
   readonly status: number;
@@ -75,11 +77,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   logNativeRequest(path, url);
   let response: Response;
   try {
-    response = await fetchWithTimeout(url, {
+    response = await fetchWithRetry(url, {
       ...init,
       headers,
       credentials: "include"
-    });
+    }, init?.signal ?? undefined);
   } catch (error) {
     logNativeNetworkError(path, url, error);
     throw createNetworkApiError(error, url);
@@ -114,11 +116,11 @@ export async function requestBlob(path: string, init?: RequestInit): Promise<Blo
   logNativeRequest(path, url);
   let response: Response;
   try {
-    response = await fetchWithTimeout(url, {
+    response = await fetchWithRetry(url, {
       ...init,
       headers,
       credentials: "include"
-    });
+    }, init?.signal ?? undefined);
   } catch (error) {
     logNativeNetworkError(path, url, error);
     throw createNetworkApiError(error, url);
@@ -183,7 +185,7 @@ function createNetworkApiError(error: unknown, url: string) {
   const text = `${details.message ?? ""} ${causeMessage}`;
   const isTimeout = details.name === "AbortError" || /timeout|timed out|aborted/i.test(text);
   const isSsl = /ssl|cert|certificate|trust|authority|handshake|ERR_CERT/i.test(text);
-  const parsed = getServerUrlDetails(url);
+  const parsed = getNetworkTargetDetails(url);
 
   const message = isTimeout
     ? `Timeout reseau apres ${defaultRequestTimeoutMs / 1000}s vers ${parsed.hostname}.`
@@ -200,6 +202,13 @@ function createNetworkApiError(error: unknown, url: string) {
       ...details
     }
   });
+}
+
+function getNetworkTargetDetails(url: string) {
+  const absoluteUrl = url.startsWith("http://") || url.startsWith("https://")
+    ? url
+    : new URL(url, window.location.origin).toString();
+  return getServerUrlDetails(absoluteUrl);
 }
 
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = defaultRequestTimeoutMs) {
@@ -221,6 +230,43 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, time
     window.clearTimeout(timeout);
     signal?.removeEventListener("abort", abort);
   }
+}
+
+async function fetchWithRetry(url: string, init: RequestInit = {}, externalSignal?: AbortSignal) {
+  const canRetry = isRetryableRequest(init);
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+    if (externalSignal?.aborted) throw abortError();
+    try {
+      const response = await fetchWithTimeout(url, init);
+      if (!canRetry || !retryableStatusCodes.has(response.status) || attempt === retryDelaysMs.length) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+      if (!canRetry || externalSignal?.aborted || attempt === retryDelaysMs.length) throw error;
+    }
+    await delay(retryDelaysMs[attempt], externalSignal);
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Requete echouee apres retry.");
+}
+
+function isRetryableRequest(init: RequestInit = {}) {
+  const method = String(init.method ?? "GET").toUpperCase();
+  return method === "GET" || method === "HEAD";
+}
+
+function delay(ms: number, signal?: AbortSignal) {
+  if (signal?.aborted) return Promise.reject(abortError());
+  return new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      window.clearTimeout(timeout);
+      reject(abortError());
+    }, { once: true });
+  });
 }
 
 export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | undefined> {

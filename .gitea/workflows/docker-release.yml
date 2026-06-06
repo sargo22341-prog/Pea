@@ -26,7 +26,6 @@ on:
 env:
   IMAGE_NAME: pea-portfolio
   REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
-  DOCKER_API_VERSION: "1.43"
 
 jobs:
   version:

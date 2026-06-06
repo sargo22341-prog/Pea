@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
-import { ApiError, isApiError } from "../lib/api-core";
+import { ApiError, isApiError, request } from "../lib/api-core";
 import { isInsecureServerUrl, normalizeServerUrl, resolveServerPath } from "../lib/native-auth";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -15,6 +15,7 @@ describe("api client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("dedupes concurrent GET requests for the same portfolio resource", async () => {
@@ -57,6 +58,76 @@ describe("api client", () => {
       expect(isApiError(error)).toBe(true);
       expect((error as ApiError).status).toBe(429);
     }
+  });
+
+  it("reports relative web API network failures without treating the server URL as invalid", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("Timeout reseau", "AbortError")));
+
+    await expect(api.positionsPerformance("1d")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: expect.stringContaining("Timeout reseau")
+    });
+    await expect(api.positionsPerformance("1d")).rejects.not.toMatchObject({
+      message: expect.stringContaining("URL serveur invalide")
+    });
+  });
+
+  it("retries transient network failures for GET requests", async () => {
+    const fetchSpy = vi.fn()
+      .mockRejectedValueOnce(new DOMException("connexion transitoire", "NetworkError"))
+      .mockResolvedValueOnce(jsonResponse([{ id: 1 }]));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(api.positionsPerformance("1d")).resolves.toEqual([{ id: 1 }]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry mutating requests", async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new DOMException("connexion transitoire", "NetworkError"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(request("/api/test", { method: "POST", body: JSON.stringify({ ok: true }) })).rejects.toMatchObject({
+      status: 0
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconnects web SSE after an EventSource error", async () => {
+    vi.useFakeTimers();
+    const instances: Array<{
+      url: string;
+      init?: EventSourceInit;
+      onerror?: () => void;
+      onopen?: () => void;
+      addEventListener: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+    }> = [];
+    class TestEventSource {
+      onerror?: () => void;
+      onopen?: () => void;
+      addEventListener = vi.fn();
+      close = vi.fn();
+      constructor(public url: string, public init?: EventSourceInit) {
+        instances.push(this);
+      }
+    }
+    vi.stubGlobal("EventSource", TestEventSource);
+
+    const subscription = api.subscribeMarketEvents(() => undefined);
+    subscription.addEventListener("portfolio-chart-updated");
+    expect(instances).toHaveLength(1);
+    expect(instances[0].addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
+
+    instances[0].onerror?.();
+    expect(instances[0].close).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(instances).toHaveLength(2);
+    expect(instances[1].url).toBe("/api/market/events");
+    expect(instances[1].init).toEqual({ withCredentials: true });
+    expect(instances[1].addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
+    subscription.close();
   });
 
   it("returns undefined for 204 responses", async () => {

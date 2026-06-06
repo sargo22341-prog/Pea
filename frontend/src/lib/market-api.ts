@@ -19,15 +19,58 @@ import { isNativeApp } from "./native-auth";
 
 export type { MarketEventPayload } from "@pea/shared";
 
+const sseReconnectDelaysMs = [1_000, 3_000, 10_000, 30_000];
+
 export function subscribeMarketEvents(onEvent: (eventName: string, payload: unknown) => void) {
   if (!isNativeApp()) {
-    const eventSource = new EventSource(apiUrl("/api/market/events"), { withCredentials: true });
+    let closed = false;
+    let retryAttempt = 0;
+    let retryTimer: number | undefined;
+    let eventSource: EventSource | undefined;
+    const registeredEvents = new Set<string>();
+
+    function attachEvent(eventName: string) {
+      eventSource?.addEventListener(eventName, (event) => {
+        onEvent(eventName, JSON.parse((event as MessageEvent).data));
+      });
+    }
+
+    function connect() {
+      if (closed) return;
+      eventSource?.close();
+      eventSource = new EventSource(apiUrl("/api/market/events"), { withCredentials: true });
+      eventSource.onopen = () => {
+        retryAttempt = 0;
+      };
+      eventSource.onerror = () => {
+        if (closed) return;
+        scheduleReconnect();
+      };
+      for (const eventName of registeredEvents) attachEvent(eventName);
+    }
+
+    function scheduleReconnect() {
+      if (retryTimer !== undefined) return;
+      eventSource?.close();
+      const delay = sseReconnectDelaysMs[Math.min(retryAttempt, sseReconnectDelaysMs.length - 1)];
+      retryAttempt += 1;
+      retryTimer = window.setTimeout(() => {
+        retryTimer = undefined;
+        connect();
+      }, delay);
+    }
+
+    connect();
+
     return {
-      close: () => eventSource.close(),
+      close: () => {
+        closed = true;
+        if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+        eventSource?.close();
+      },
       addEventListener: (eventName: string) => {
-        eventSource.addEventListener(eventName, (event) => {
-          onEvent(eventName, JSON.parse((event as MessageEvent).data));
-        });
+        registeredEvents.add(eventName);
+        attachEvent(eventName);
       }
     };
   }
