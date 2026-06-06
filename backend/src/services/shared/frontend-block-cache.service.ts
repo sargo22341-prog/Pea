@@ -5,6 +5,7 @@ import { nowMs } from "./cache.service.js";
 export type FrontendBlock =
   | "portfolio-summary"
   | "watchlist"
+  | "watchlist-item"
   | "analysis"
   | "dividends";
 

@@ -1,6 +1,9 @@
+import type { AssetChartDto } from "@pea/shared";
+
 export interface PortfolioMarketDataOptions {
   forceIntradayOpen?: boolean;
   intradayNow?: Date;
+  chartDataCache?: Map<string, Promise<AssetChartDto>>;
 }
 
 export type TransactionMutationInput = {

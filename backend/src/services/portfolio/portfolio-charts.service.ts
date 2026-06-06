@@ -1,4 +1,4 @@
-import type { MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioTransactionMarker, Position, RangeKey } from "@pea/shared";
+import type { AssetChartDto, MarketSessionDto, PortfolioChartDto, PortfolioFullDto, PortfolioTransactionMarker, Position, RangeKey } from "@pea/shared";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { portfolioChartRepository } from "../../repositories/portfolio/portfolio-chart.repository.js";
 import { requireUserId } from "../auth/user-context.js";
@@ -7,6 +7,7 @@ import { marketDataService } from "../market/data/market-data.service.js";
 import { nowMs, toDisplayRange } from "../shared/cache.service.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
 import { buildTransactionCache, getQuantityAtTime, positionFromTransactionCache } from "./portfolio-calculations.js";
+import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
@@ -44,6 +45,8 @@ export class PortfolioChartsService {
   async chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
     const resolvedUserId = requireUserId(userId);
     const cacheUserId = String(resolvedUserId);
+    const chartDataCache = options.chartDataCache ?? new Map<string, Promise<AssetChartDto>>();
+    const cachedOptions = { ...options, chartDataCache };
 
     if (!options.forceIntradayOpen && !options.intradayNow) {
       const cacheKey = this.chartCacheKey(cacheUserId, range);
@@ -51,7 +54,7 @@ export class PortfolioChartsService {
       if (cached) return cached;
     }
 
-    const points = await portfolioPerformanceService.performance(range, options, resolvedUserId);
+    const points = await portfolioPerformanceService.performance(range, cachedOptions, resolvedUserId);
     const positions = portfolioReadService.listPositions(resolvedUserId);
     const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
@@ -78,12 +81,12 @@ export class PortfolioChartsService {
     const lastGain = gain[gain.length - 1] ?? firstGain;
     const firstInvested = invested[0] ?? 0;
     const lastInvested = invested[invested.length - 1] ?? firstInvested;
-    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(resolvedUserId, options) : undefined;
+    const baseline = range === "1d" ? await this.portfolioIntradayBaseline(resolvedUserId, cachedOptions) : undefined;
     const performanceStart = baseline?.price ?? first;
     const performanceEuro = range === "1d" && baseline ? last - performanceStart : lastGain - firstGain;
     const performanceBase = range === "1d" && baseline ? performanceStart : firstInvested || lastInvested;
     const cachedAt = nowMs();
-    const preparation = await this.portfolioPreparationState(range, resolvedUserId, options);
+    const preparation = await this.portfolioPreparationState(range, resolvedUserId, cachedOptions);
     const payload: PortfolioChartDto = {
       userId: cacheUserId,
       range: toDisplayRange(range),
@@ -104,7 +107,7 @@ export class PortfolioChartsService {
     };
 
     if (!payload.isPreparing && !options.forceIntradayOpen && !options.intradayNow) {
-      const ttl = PortfolioChartsService.CHART_CACHE_TTL_MS[range] ?? 4 * 60 * 60 * 1000;
+      const ttl = Math.max(PortfolioChartsService.CHART_CACHE_TTL_MS[range] ?? 4 * 60 * 60 * 1000, portfolioCacheTtlMs(range, positions));
       const expiresAt = cachedAt + ttl;
       const cacheKey = this.chartCacheKey(cacheUserId, range);
       portfolioChartRepository.upsertChartCache({ cacheKey, userId: cacheUserId, range, payload, cachedAt, expiresAt });
@@ -181,7 +184,7 @@ export class PortfolioChartsService {
     let price = 0;
     const datetimes: string[] = [];
     for (const position of positions) {
-      const chart = await marketDataService.getChartData(position.symbol, "1d", options).catch(() => undefined);
+      const chart = await this.getChartData(position.symbol, "1d", options).catch(() => undefined);
       if (!chart?.baselinePrice || !Number.isFinite(chart.baselinePrice)) continue;
       let quantity: number;
       const entry = txCache.get(position.id);
@@ -206,7 +209,7 @@ export class PortfolioChartsService {
     const missingAssets: string[] = [];
     const jobIds: string[] = [];
     for (const position of portfolioReadService.listPositions(userId)) {
-      const chart = await marketDataService.getChartData(position.symbol, range, options);
+      const chart = await this.getChartData(position.symbol, range, options);
       if (chart.isPreparing) {
         missingAssets.push(position.symbol);
         if (chart.jobId) jobIds.push(chart.jobId);
@@ -218,6 +221,16 @@ export class PortfolioChartsService {
       missingRanges: missingAssets.length > 0 ? [range] : undefined,
       jobId: jobIds[0]
     };
+  }
+
+  private getChartData(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}) {
+    if (!options.chartDataCache) return marketDataService.getChartData(symbol, range, options);
+    const key = `${symbol.toUpperCase()}:${range}`;
+    const cached = options.chartDataCache.get(key);
+    if (cached) return cached;
+    const promise = marketDataService.getChartData(symbol, range, options);
+    options.chartDataCache.set(key, promise);
+    return promise;
   }
 }
 

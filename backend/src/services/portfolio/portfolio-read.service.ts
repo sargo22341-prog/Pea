@@ -2,13 +2,13 @@ import type { PortfolioSummary, Position, PositionTransactionStats, PositionWith
 import { config } from "../../config.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { currentUserId, requireUserId } from "../auth/user-context.js";
-import { chartConfigService } from "../market/charts/chart-config.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
 import { nowMs } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { buildTransactionCache, computeTotalDividendsReceived, positionFromTransactionCache, type PositionTransactionCache } from "./portfolio-calculations.js";
+import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 import type { EditablePortfolioTransaction } from "@pea/shared";
 
@@ -100,7 +100,7 @@ export class PortfolioReadService {
       currency: "EUR",
       positions
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
+    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, portfolioCacheTtlMs(range, basePositions), range);
     return payload;
   }
 

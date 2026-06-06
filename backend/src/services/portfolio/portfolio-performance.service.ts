@@ -15,6 +15,7 @@ import {
   positionFromTransactionCache,
   type PositionTransactionCache
 } from "./portfolio-calculations.js";
+import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { portfolioPerformanceCache } from "./portfolio-performance-cache.service.js";
 import { portfolioQueryService } from "./portfolio-query.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
@@ -199,9 +200,11 @@ export class PortfolioPerformanceService {
   async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
     const resolvedUserId = requireUserId(userId);
     if (!options.forceIntradayOpen && !options.intradayNow) {
+      const positions = portfolioQueryService.listPositions(resolvedUserId);
       return portfolioPerformanceCache.getOrCompute({
         userId: resolvedUserId,
         range,
+        ttlMs: portfolioCacheTtlMs(range, positions),
         compute: () => this.calculatePositionsPerformance(range, options, resolvedUserId)
       });
     }
@@ -336,7 +339,7 @@ export class PortfolioPerformanceService {
 
   private async safeHistory(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<HistoryPoint[]> {
     try {
-      const chart = await marketDataService.getChartData(symbol, range, options);
+      const chart = await this.getChartData(symbol, range, options);
       return chart.timestamps.map((timestamp, index) => ({
         date: new Date(timestamp).toISOString(),
         close: chart.prices[index]
@@ -365,6 +368,16 @@ export class PortfolioPerformanceService {
       if (isMarketDataUnavailable(error)) return { quote: undefined, stale: true };
       throw error;
     }
+  }
+
+  private getChartData(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}) {
+    if (!options.chartDataCache) return marketDataService.getChartData(symbol, range, options);
+    const key = `${symbol.toUpperCase()}:${range}`;
+    const cached = options.chartDataCache.get(key);
+    if (cached) return cached;
+    const promise = marketDataService.getChartData(symbol, range, options);
+    options.chartDataCache.set(key, promise);
+    return promise;
   }
 }
 

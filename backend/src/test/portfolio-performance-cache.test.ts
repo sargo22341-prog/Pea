@@ -280,3 +280,88 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
   assert.equal(result.chartCalls, 3);
 });
 
+test("portfolio full reuses chart data once per symbol during a closed-market cache miss", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, previous_close, currency, source, updated_at, last_checked_at) VALUES (?, 'POSTPOST', 110, 100, 'EUR', 'seed', '2026-05-06T16:00:00.000Z', '2026-05-06T16:00:00.000Z')").run(asset.id);
+    let chartCalls = 0;
+    marketDataService.getChartData = async (symbol, range) => {
+      chartCalls += 1;
+      return {
+        symbol,
+        range,
+        interval: "5m",
+        timestamps: [1000, 2000],
+        prices: [100, 110],
+        baselinePrice: 100,
+        baselineDatetime: new Date(1000).toISOString(),
+        cachedAt: Date.now(),
+        expiresAt: Date.now() + 60000
+      };
+    };
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 110, previousClose: 100, change: 10, changePercent: 10, currency: "EUR", marketState: "POSTPOST" });
+    const output = await runWithUser(1, async () => portfolioService.full("1d", 1));
+    console.log("__RESULT__" + JSON.stringify({ chartCalls, points: output.chart.timestamps.length, baselinePrice: output.chart.baselinePrice }));
+  `);
+
+  assert.equal(result.chartCalls, 1);
+  assert.equal(result.points, 2);
+  assert.equal(result.baselinePrice, 100);
+});
+
+test("portfolio 1d summary and chart caches stay warm after every portfolio asset is closed", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { portfolioService } = await import("./services/portfolio/portfolio.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    ${seedUser}
+    ${helpers}
+    addTracked("AAA.PA", "AAA", "Paris");
+    const asset = db.prepare("SELECT id FROM assets WHERE symbol = 'AAA.PA'").get();
+    db.prepare("INSERT INTO asset_quote_snapshot (asset_id, market_state, last_price, previous_close, currency, source, updated_at, last_checked_at) VALUES (?, 'POSTPOST', 110, 100, 'EUR', 'seed', '2026-05-06T16:00:00.000Z', '2026-05-06T16:00:00.000Z')").run(asset.id);
+    marketDataService.getChartData = async (symbol, range) => ({
+      symbol,
+      range,
+      interval: "5m",
+      timestamps: [1000, 2000],
+      prices: [100, 110],
+      baselinePrice: 100,
+      baselineDatetime: new Date(1000).toISOString(),
+      cachedAt: Date.now(),
+      expiresAt: Date.now() + 60000
+    });
+    marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 110, previousClose: 100, change: 10, changePercent: 10, currency: "EUR", marketState: "POSTPOST" });
+    const before = Date.now();
+    await runWithUser(1, async () => {
+      await portfolioService.full("1d", 1);
+      await portfolioService.positionsPerformance("1d");
+    });
+    const summary = db.prepare("SELECT expires_at, cached_at FROM frontend_block_cache WHERE cache_key = '1:portfolio-summary:1d'").get();
+    const chart = db.prepare("SELECT expires_at, cached_at FROM portfolio_chart_cache WHERE cache_key = '1:1d:calendar-ranges-v2'").get();
+    const positionsPerformance = db.prepare("SELECT expires_at, cached_at FROM portfolio_positions_performance_cache WHERE cache_key = '1:1d'").get();
+    console.log("__RESULT__" + JSON.stringify({
+      summaryTtl: Number(summary.expires_at) - before,
+      chartTtl: Number(chart.expires_at) - before,
+      positionsPerformanceTtl: Number(positionsPerformance.expires_at) - before,
+      summaryCachedAt: summary.cached_at,
+      chartCachedAt: chart.cached_at,
+      positionsPerformanceCachedAt: positionsPerformance.cached_at
+    }));
+  `);
+
+  assert.ok(result.summaryTtl > 48 * 60 * 60 * 1000);
+  assert.ok(result.chartTtl > 48 * 60 * 60 * 1000);
+  assert.ok(result.positionsPerformanceTtl > 48 * 60 * 60 * 1000);
+});
+

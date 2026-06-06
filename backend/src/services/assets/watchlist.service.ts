@@ -9,6 +9,7 @@ import { marketEventsService } from "../market/events/market-events.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { invalidateFrontendBlockCache } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { marketAwareCacheTtlMs } from "../portfolio/portfolio-cache-ttl.js";
 
 function mapWatchlistRow(row: WatchlistRow): WatchlistItem {
   return {
@@ -31,7 +32,7 @@ export class WatchlistService {
       if (cached) return cached;
     }
     const rows = watchlistRepository.list(resolvedUserId);
-    const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range)));
+    const payload = await Promise.all(rows.map((row) => this.enrich(mapWatchlistRow(row), range, resolvedUserId)));
     if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "watchlist", payload, chartConfigService.getSnapshotRefreshIntervalMs(), range);
     return payload;
   }
@@ -58,7 +59,7 @@ export class WatchlistService {
     if (!row) throw new Error("Watchlist introuvable apres insertion.");
     this.invalidateWatchlistCache(resolvedUserId);
     marketEventsService.emitToUser(resolvedUserId, "watchlist-assets-updated", { symbols: [key], updatedAt: new Date().toISOString() });
-    return this.enrich(mapWatchlistRow(row), "1d");
+    return this.enrich(mapWatchlistRow(row), "1d", resolvedUserId);
   }
 
   remove(symbol: string, userId?: number | string): boolean {
@@ -83,12 +84,20 @@ export class WatchlistService {
 
   private invalidateWatchlistCache(userId: string | number) {
     invalidateFrontendBlockCache({ userId, block: "watchlist" });
+    invalidateFrontendBlockCache({ userId, block: "watchlist-item" });
   }
 
-  private async enrich(item: WatchlistItem, range: RangeKey): Promise<WatchlistItem> {
+  private async enrich(item: WatchlistItem, range: RangeKey, userId: string | number): Promise<WatchlistItem> {
+    const cacheUserId = String(userId);
+    const itemCacheKey = `${range}:${item.symbol.toUpperCase()}`;
+    if (config.enableMarketLiveRefresh) {
+      const cached = frontendBlockCache.read<WatchlistItem>(cacheUserId, "watchlist-item", itemCacheKey);
+      if (cached) return cached;
+    }
+
     try {
       const [quote, chart] = await Promise.all([marketSnapshotService.getQuote(item.symbol), marketDataService.getChartData(item.symbol, range)]);
-      return {
+      const payload = {
         ...item,
         name: item.name || quote.name,
         currency: item.currency || quote.currency,
@@ -96,6 +105,8 @@ export class WatchlistService {
         history: chart.timestamps.map((timestamp, index) => ({ date: new Date(timestamp).toISOString(), close: chart.prices[index] })),
         marketDataUnavailable: Boolean(quote.stale || quote.unavailable)
       };
+      if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "watchlist-item", payload, marketAwareCacheTtlMs(range, quote), itemCacheKey);
+      return payload;
     } catch (error) {
       if (!isMarketDataUnavailable(error)) throw error;
       return {

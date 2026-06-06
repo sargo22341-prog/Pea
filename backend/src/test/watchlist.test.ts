@@ -229,3 +229,52 @@ test("watchlist add/remove invalide le cache frontend et la liste est relue imme
   assert.equal(result.afterRemoveList.length, 0);
   assert.equal(result.events.filter((entry: any) => entry.event === "watchlist-assets-updated").length, 2);
 });
+
+test("watchlist stores closed-market item cache longer per asset", () => {
+  const result = runBackendScript(`
+    process.env.ENABLE_MARKET_LIVE_REFRESH = "true";
+    const { db } = await import("./db.ts");
+    const { runWithUser } = await import("./services/auth/user-context.ts");
+    const { watchlistService } = await import("./services/assets/watchlist.service.ts");
+    const { marketDataService } = await import("./services/market/data/market-data.service.ts");
+    const { marketSnapshotService } = await import("./services/market/snapshots/market-snapshot.service.ts");
+    db.prepare("INSERT INTO users (username, password_hash) VALUES ('tester', 'hash')").run();
+    db.prepare("INSERT INTO watchlist (user_id, symbol, name, exchange, currency) VALUES (1, 'AAA.PA', 'AAA', 'Paris', 'EUR'), (1, 'BBB', 'BBB', 'New York', 'USD')").run();
+    const before = Date.now();
+    let quoteCalls = 0;
+    let chartCalls = 0;
+    marketSnapshotService.getQuote = async (symbol) => {
+      quoteCalls += 1;
+      const key = String(symbol).toUpperCase();
+      return {
+        symbol: key,
+        name: key,
+        price: key === 'AAA.PA' ? 110 : 210,
+        previousClose: key === 'AAA.PA' ? 100 : 200,
+        currency: key === 'AAA.PA' ? 'EUR' : 'USD',
+        exchange: key === 'AAA.PA' ? 'Paris' : 'New York',
+        marketState: key === 'AAA.PA' ? 'POSTPOST' : 'REGULAR'
+      };
+    };
+    marketDataService.getChartData = async (symbol, range) => {
+      chartCalls += 1;
+      return { symbol, range, interval: "5m", timestamps: [1000, 2000], prices: [100, 110], cachedAt: before, expiresAt: before + 60000 };
+    };
+    const output = await runWithUser(1, async () => {
+      const first = await watchlistService.list("1d");
+      const rows = db.prepare("SELECT cache_key, expires_at FROM frontend_block_cache WHERE block = 'watchlist-item' ORDER BY cache_key").all();
+      return { first, rows };
+    });
+    console.log("__RESULT__" + JSON.stringify({ ...output, quoteCalls, chartCalls, before }));
+  `);
+
+  assert.equal(result.first.length, 2);
+  assert.equal(result.quoteCalls, 2);
+  assert.equal(result.chartCalls, 2);
+  const closed = result.rows.find((row: any) => String(row.cache_key).includes("AAA.PA"));
+  const open = result.rows.find((row: any) => String(row.cache_key).includes("BBB"));
+  assert.ok(closed, JSON.stringify(result.rows));
+  assert.ok(open, JSON.stringify(result.rows));
+  assert.ok(Number(closed.expires_at) - result.before > 48 * 60 * 60 * 1000);
+  assert.ok(Number(open.expires_at) - result.before < 10 * 60 * 1000);
+});

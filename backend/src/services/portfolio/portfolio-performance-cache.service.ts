@@ -29,7 +29,7 @@ function cacheKey(userId: string | number, range: RangeKey) {
 export class PortfolioPerformanceCacheService {
   private inFlight = new Map<string, Promise<PositionRangePerformance[]>>();
 
-  async getOrCompute(input: { userId: string | number; range: RangeKey; compute: ComputePerformance; allowStale?: boolean }) {
+  async getOrCompute(input: { userId: string | number; range: RangeKey; compute: ComputePerformance; allowStale?: boolean; ttlMs?: number }) {
     const userId = String(input.userId);
     const versions = this.versions(userId, input.range);
     const key = cacheKey(userId, input.range);
@@ -54,14 +54,14 @@ export class PortfolioPerformanceCacheService {
     portfolioPerformanceCacheRepository.invalidate(input);
   }
 
-  private refreshInBackground(input: { userId: string; range: RangeKey; versions: CacheVersions; compute: ComputePerformance }) {
+  private refreshInBackground(input: { userId: string; range: RangeKey; versions: CacheVersions; compute: ComputePerformance; ttlMs?: number }) {
     const key = cacheKey(input.userId, input.range);
     if (this.inFlight.has(key)) return;
     marketEventsService.emitToUser(input.userId, "portfolio-performance-refresh-started", { range: input.range, startedAt: new Date().toISOString() });
     void this.computeAndStore({ ...input, emitEvents: true }).catch(() => undefined);
   }
 
-  private computeAndStore(input: { userId: string; range: RangeKey; versions: CacheVersions; compute: ComputePerformance; emitEvents: boolean }) {
+  private computeAndStore(input: { userId: string; range: RangeKey; versions: CacheVersions; compute: ComputePerformance; emitEvents: boolean; ttlMs?: number }) {
     const key = cacheKey(input.userId, input.range);
     const existing = this.inFlight.get(key);
     if (existing) return existing;
@@ -69,7 +69,7 @@ export class PortfolioPerformanceCacheService {
     const promise = input.compute().then((payload) => {
       const cachedAt = nowMs();
       const versions = this.versions(input.userId, input.range);
-      const expiresAt = cachedAt + (cacheTtlMs[input.range] ?? 4 * 60 * 60 * 1000);
+      const expiresAt = cachedAt + (input.ttlMs ?? cacheTtlMs[input.range] ?? 4 * 60 * 60 * 1000);
       portfolioPerformanceCacheRepository.upsert({
         cacheKey: key,
         userId: input.userId,
