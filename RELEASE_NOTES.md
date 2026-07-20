@@ -1,4 +1,4 @@
 
 ## Notes de release
 
-- Update dependance
+- Update dependance et passage a node 26
