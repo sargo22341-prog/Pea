@@ -8,8 +8,9 @@ import { Collapsible } from "../../components/common/feedback";
 import { ServerSettingsSection } from "../../components/common/ServerSettings";
 import { UserPreferencesSection } from "./components/UserPreferencesSection";
 import { api } from "../../lib/api";
+import type { User } from "@pea/shared";
 
-export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
+export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Promise<void>; user: User }) {
   const { t } = useTranslation(["navigation", "settings"]);
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ export function SettingsPage({ onUserUpdated }: { onUserUpdated?: () => Promise<
       <ServerSettingsSection onToggle={() => toggleSection("server")} open={openSection === "server"} />
       <AccountSettingsSection onToggle={() => toggleSection("account")} open={openSection === "account"} />
       <UserPreferencesSection onToggle={() => toggleSection("preferences")} onUserUpdated={onUserUpdated} open={openSection === "preferences"} />
-      <AssetIconsSettingsSection onToggle={() => toggleSection("icons")} open={openSection === "icons"} />
+      {user.role === "admin" && <AssetIconsSettingsSection onToggle={() => toggleSection("icons")} open={openSection === "icons"} />}
       <Collapsible onToggle={() => toggleSection("imports")} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
         <CsvImportSection />
         <ImportAvisOperesPdf />

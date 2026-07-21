@@ -1,4 +1,5 @@
 import express from "express";
+import { requireAdmin } from "../../middleware/auth.js";
 import { iconService } from "../../services/assets/icon.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -39,6 +40,7 @@ assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
 
 assetIconsRouter.post(
   "/assets/:symbol/icon",
+  requireAdmin,
   asyncRoute(async (req, res) => {
     const upload = await parseMultipartIcon(req);
     const symbol = routeParam(req.params.symbol, "symbol");
@@ -50,7 +52,7 @@ assetIconsRouter.post(
   })
 );
 
-assetIconsRouter.delete("/assets/:symbol/icon", asyncRoute(async (req, res) => {
+assetIconsRouter.delete("/assets/:symbol/icon", requireAdmin, asyncRoute(async (req, res) => {
   const symbol = routeParam(req.params.symbol, "symbol");
   iconService.resetIcon(symbol);
   logger.debug("icons", "icon delete", { symbol: symbol.toUpperCase() });

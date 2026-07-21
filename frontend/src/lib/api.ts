@@ -55,6 +55,7 @@ const authApi = {
     username?: string;
     password?: string;
     confirmPassword?: string;
+    currentPassword?: string;
     profileIconUrl?: string | null;
     dashboardDefaultSortKey?: DashboardSortKey;
     dashboardDefaultSortDirection?: SortDirection;

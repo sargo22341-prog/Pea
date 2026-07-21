@@ -18,6 +18,7 @@ export function useAccountSettings() {
   const { t } = useTranslation(["settings"]);
   const me = useAsync(() => api.me());
   const [username, setUsername] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profilePreview, setProfilePreview] = useState("");
@@ -38,6 +39,7 @@ export function useAccountSettings() {
         username: username || me.data?.user?.username,
         password: password || undefined,
         confirmPassword: password ? confirmPassword : undefined,
+        currentPassword: willChangeCredentials ? currentPassword : undefined,
       });
       if (willChangeCredentials) {
         setToast({ tone: "success", text: t("account.updatedLogout", { ns: "settings" }) });
@@ -90,6 +92,7 @@ export function useAccountSettings() {
 
   return {
     confirmPassword,
+    currentPassword,
     deleteProfileIcon,
     me,
     password,
@@ -97,6 +100,7 @@ export function useAccountSettings() {
     profileFailed,
     profilePreview,
     setConfirmPassword,
+    setCurrentPassword,
     setPassword,
     setProfileFailed,
     setUsername,

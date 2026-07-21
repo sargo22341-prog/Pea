@@ -128,7 +128,7 @@ test("le changement de mot de passe invalide toutes les sessions existantes", ()
         const miseAJour = await fetch(\`\${baseUrl}/api/auth/me\`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Cookie: cookieInitial },
-          body: JSON.stringify({ password: nouveauMotDePasse, confirmPassword: nouveauMotDePasse })
+          body: JSON.stringify({ currentPassword: motDePasse, password: nouveauMotDePasse, confirmPassword: nouveauMotDePasse })
         });
 
         // La session initiale ne doit plus authentifier l'utilisateur
@@ -218,7 +218,7 @@ test("la reconnexion avec le nouveau mot de passe fonctionne après invalidation
         await fetch(\`\${baseUrl}/api/auth/me\`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ password: nouveauMotDePasse, confirmPassword: nouveauMotDePasse })
+          body: JSON.stringify({ currentPassword: motDePasseInitial, password: nouveauMotDePasse, confirmPassword: nouveauMotDePasse })
         });
 
         // Reconnexion avec l'ancien mot de passe — doit échouer

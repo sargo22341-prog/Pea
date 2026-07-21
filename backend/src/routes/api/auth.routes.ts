@@ -15,8 +15,12 @@ import { parseMultipartIcon } from "../shared/multipart.js";
 export const authRouter = express.Router();
 const passwordSchema = z.string().min(10, "Le mot de passe doit contenir au moins 10 caracteres.");
 const authSensitiveRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
-const passwordChangeRateLimit: RequestHandler = (req, res, next) => {
-  if (typeof req.body === "object" && req.body !== null && "password" in req.body) {
+const credentialChangeRateLimit: RequestHandler = (req, res, next) => {
+  if (
+    typeof req.body === "object" &&
+    req.body !== null &&
+    ("password" in req.body || "currentPassword" in req.body || "username" in req.body)
+  ) {
     authSensitiveRateLimit(req, res, next);
     return;
   }
@@ -82,11 +86,12 @@ authRouter.post("/logout", asyncRoute(async (req, res) => {
   res.status(204).send();
 }));
 
-authRouter.patch("/me", requireAuth, passwordChangeRateLimit, asyncRoute(async (req, res) => {
+authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async (req, res) => {
   const body = z.object({
     username: z.string().trim().min(1).optional(),
     password: passwordSchema.optional(),
     confirmPassword: z.string().optional(),
+    currentPassword: z.string().min(1).optional(),
     profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),

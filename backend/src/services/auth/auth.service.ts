@@ -237,6 +237,7 @@ export class AuthService {
     input: {
       username?: string;
       password?: string;
+      currentPassword?: string;
       profileIconUrl?: string | null;
       dashboardDefaultSortKey?: DashboardSortKey;
       dashboardDefaultSortDirection?: SortDirection;
@@ -255,6 +256,10 @@ export class AuthService {
     if (!current) throw new HttpError(404, "Utilisateur introuvable.");
 
     const username = input.username?.trim() || String(current.username);
+    const credentialsChanged = username !== String(current.username) || Boolean(input.password);
+    if (credentialsChanged && (!input.currentPassword || !(await bcrypt.compare(input.currentPassword, String(current.password_hash))))) {
+      throw new HttpError(401, "Mot de passe actuel invalide.");
+    }
     const profileIconUrl = input.profileIconUrl === undefined ? current.profile_icon_url : input.profileIconUrl || null;
     const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : String(current.password_hash);
     const dashboardSortKey = input.dashboardDefaultSortKey ?? current.dashboard_default_sort_key ?? "name";

@@ -148,7 +148,7 @@ function AuthenticatedApp() {
             <Route path="/dividends" element={<DividendsPage />} />
             <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
             <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} />} />
+            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
             <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
             <Route path="*" element={<Navigate replace to="/" />} />
           </Route>

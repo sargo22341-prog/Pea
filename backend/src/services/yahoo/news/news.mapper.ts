@@ -15,11 +15,25 @@ function newsPublishedAt(item: YahooNewsRaw) {
 
 function newsImageUrl(item: YahooNewsRaw) {
   const direct = safeString(item?.thumbnail?.originalUrl) || safeString(item?.thumbnail?.url) || safeString(item?.imageUrl);
-  if (direct) return direct;
+  if (direct) return normalizeExternalHttpsUrl(direct);
 
   const resolutions = rawArray<{ url?: string }>(item?.thumbnail?.resolutions);
   const image = resolutions.find((resolution) => safeString(resolution?.url)) ?? resolutions[0];
-  return safeString(image?.url) || undefined;
+  return normalizeExternalHttpsUrl(image?.url);
+}
+
+export function normalizeExternalHttpsUrl(value: unknown) {
+  const raw = safeString(value);
+  if (!raw) return undefined;
+
+  try {
+    const url = new URL(raw.startsWith("//") ? `https:${raw}` : raw);
+    if (url.protocol === "http:") url.protocol = "https:";
+    if (url.protocol !== "https:" || !url.hostname) return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeRelatedTickers(item: YahooNewsRaw) {
@@ -30,7 +44,7 @@ function normalizeRelatedTickers(item: YahooNewsRaw) {
 
 function normalizeNewsArticle(item: YahooNewsRaw): NewsArticle | null {
   const title = safeString(item?.title);
-  const url = safeString(item?.link) || safeString(item?.url);
+  const url = normalizeExternalHttpsUrl(item?.link) || normalizeExternalHttpsUrl(item?.url);
   if (!title || !url) return null;
 
   const publisher = safeString(item?.publisher) || safeString(item?.provider);

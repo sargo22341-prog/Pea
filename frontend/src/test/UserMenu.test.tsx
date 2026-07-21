@@ -89,10 +89,27 @@ describe("UserMenu", () => {
   it("does not show the server administration button in settings anymore", () => {
     render(
       <MemoryRouter>
-        <SettingsPage />
+        <SettingsPage user={baseUser} />
       </MemoryRouter>
     );
 
     expect(screen.queryByRole("link", { name: /administration serveur/i })).not.toBeInTheDocument();
+  });
+
+  it("shows asset icon settings only to admins", () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <SettingsPage user={baseUser} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText("Asset icons")).not.toBeInTheDocument();
+
+    unmount();
+    render(
+      <MemoryRouter>
+        <SettingsPage user={{ ...baseUser, role: "admin" }} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText("Asset icons")).toBeInTheDocument();
   });
 });

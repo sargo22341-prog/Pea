@@ -10,6 +10,7 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
   const { t } = useTranslation(["common", "settings"]);
   const {
     confirmPassword,
+    currentPassword,
     deleteProfileIcon,
     me,
     password,
@@ -17,6 +18,7 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
     profileFailed,
     profilePreview,
     setConfirmPassword,
+    setCurrentPassword,
     setPassword,
     setProfileFailed,
     setUsername,
@@ -73,6 +75,10 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
             <label>
               <span className="muted mb-1 block">{t("fields.username", { ns: "common" })}</span>
               <input className="input" onChange={(event) => setUsername(event.target.value)} placeholder={user?.username} />
+            </label>
+            <label>
+              <span className="muted mb-1 block">{t("account.currentPassword", { ns: "settings" })}</span>
+              <input className="input" onChange={(event) => setCurrentPassword(event.target.value)} type="password" value={currentPassword} />
             </label>
             <label>
               <span className="muted mb-1 block">{t("account.newPassword", { ns: "settings" })}</span>
