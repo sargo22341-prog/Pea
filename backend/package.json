@@ -14,7 +14,7 @@
   "dependencies": {
     "@pea/shared": "file:../shared",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.9.0",
+    "better-sqlite3": "^12.11.1",
     "bottleneck": "^2.19.5",
     "busboy": "^1.6.0",
     "cors": "^2.8.6",

@@ -15,3 +15,4 @@ Dockerfile.tmp
 .claude/
 *.keystore
 frontend/android/keystore.base64
+AGENTS.md
