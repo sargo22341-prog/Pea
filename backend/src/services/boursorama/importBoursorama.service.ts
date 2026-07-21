@@ -125,7 +125,6 @@ async function assertYahooSymbolExists(symbol: string) {
     throw new Error(`Ticker Yahoo introuvable: ${key}.`);
   }
 }
-
 export async function previewBoursoramaImport(content: string): Promise<BoursoramaRow[]> {
   const parsed = parseBoursoramaCsv(content);
   const rows: BoursoramaRow[] = [];
@@ -153,16 +152,13 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
   }
   return rows;
 }
-
 export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { action?: "replace" | "merge" | "ignore" }>) {
   const imported: string[] = [];
   const skipped: string[] = [];
   const errors: Array<{ line: number; message: string }> = [];
-
   if (rows.length > maxImportRows) {
     return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
   }
-
   for (const row of rows) {
     try {
       if (row.action === "ignore" || !row.symbol) {
@@ -193,15 +189,12 @@ export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { acti
       errors.push({ line: row.line, message: error instanceof Error ? error.message : "Import impossible." });
     }
   }
-
   return { imported, skipped, errors };
 }
-
 export async function previewBoursoramaUpdate(content: string): Promise<BoursoramaUpdateRow[]> {
   const previewRows = await previewBoursoramaImport(content);
   const csvSymbols = new Set(previewRows.map((row) => row.symbol).filter(Boolean).map((symbol) => String(symbol).toUpperCase()));
   const rows: BoursoramaUpdateRow[] = [];
-
   for (const row of previewRows) {
     const existing = row.symbol ? portfolioRepository.findPositionBySymbol(row.symbol, currentUserId()) : undefined;
     const currentQuantity = existing ? Number(existing.quantity) : undefined;
@@ -228,7 +221,6 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
       positionId: existing?.id
     });
   }
-
   const existingRows = portfolioRepository.listPositions(currentUserId());
   for (const existing of existingRows) {
     const symbol = String(existing.symbol).toUpperCase();
@@ -257,19 +249,15 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
       positionId: Number(existing.id)
     });
   }
-
   return rows;
 }
-
 export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
   const imported: string[] = [];
   const skipped: string[] = [];
   const errors: Array<{ line: number; message: string }> = [];
-
   if (rows.length > maxImportRows) {
     return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
   }
-
   for (const row of rows) {
     try {
       if (row.proposedAction === "ignore" || row.proposedAction === "unchanged" || !row.symbol) {
@@ -306,7 +294,5 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
       errors.push({ line: row.line, message: error instanceof Error ? error.message : "Mise a jour impossible." });
     }
   }
-
   return { imported, skipped, errors };
 }
-

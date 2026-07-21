@@ -10,7 +10,7 @@ import { marketEventsService } from "../../services/market/events/market-events.
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
 import { watchlistService } from "../../services/assets/watchlist.service.js";
 import { dividendService } from "../../services/portfolio/dividend.service.js";
-import { portfolioAnalysisService } from "../../services/portfolio/portfolio-analysis.service.js";
+import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { invalidateFrontendBlockCache, invalidateUserAssetCaches } from "../../services/shared/cache.service.js";
 import { logger } from "../../services/shared/logger.service.js";

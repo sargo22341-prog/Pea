@@ -1,7 +1,7 @@
 import { Building2, Coins, Percent, Repeat2 } from "lucide-react";
 import type { AllocationChartItem, AssetFundDetails } from "@pea/shared";
 import { AssetInfoTile } from "./AssetInfoTile";
-import { SectorAllocationChart } from "../../../components/charts/SectorAllocationChart";
+import { SectorAllocationChart } from "../../../components/charts/allocation/SectorAllocationChart";
 
 const SECTOR_LABELS: Record<string, string> = {
   realestate: "Immobilier",

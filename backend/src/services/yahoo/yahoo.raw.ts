@@ -41,16 +41,41 @@ export interface YahooSearchRaw extends YahooRawRecord {
   news?: YahooNewsRaw[];
 }
 
+export interface YahooSummaryModuleRaw extends YahooRawRecord {
+  country?: unknown;
+  family?: unknown;
+  incomeStatementHistory?: YahooRawRecord[];
+  logoUrl?: unknown;
+  profitMargins?: unknown;
+  quoteType?: unknown;
+  sector?: unknown;
+  sectorDisp?: unknown;
+  sectorWeightings?: unknown;
+  typeDisp?: unknown;
+}
+
+export interface YahooCalendarEventsRaw extends YahooSummaryModuleRaw {
+  dividendDate?: unknown;
+  earnings?: {
+    earningsCallDate?: unknown;
+    earningsDate?: unknown;
+    isEarningsDateEstimate?: unknown;
+  };
+  exDividendDate?: unknown;
+}
+
 export interface YahooSummaryRaw extends YahooRawRecord {
-  summaryProfile?: YahooRawRecord;
-  assetProfile?: YahooRawRecord;
-  price?: YahooRawRecord;
-  summaryDetail?: YahooRawRecord;
-  calendarEvents?: YahooRawRecord;
-  financialData?: YahooRawRecord;
-  fundProfile?: YahooRawRecord;
-  fundPerformance?: YahooRawRecord;
-  topHoldings?: YahooRawRecord;
+  summaryProfile?: YahooSummaryModuleRaw;
+  assetProfile?: YahooSummaryModuleRaw;
+  price?: YahooSummaryModuleRaw;
+  quoteType?: YahooSummaryModuleRaw;
+  summaryDetail?: YahooSummaryModuleRaw;
+  calendarEvents?: YahooCalendarEventsRaw;
+  financialData?: YahooSummaryModuleRaw;
+  fundProfile?: YahooSummaryModuleRaw;
+  fundPerformance?: YahooSummaryModuleRaw;
+  topHoldings?: YahooSummaryModuleRaw;
+  incomeStatementHistory?: YahooSummaryModuleRaw;
 }
 
 export interface YahooChartPointRaw extends YahooRawRecord {

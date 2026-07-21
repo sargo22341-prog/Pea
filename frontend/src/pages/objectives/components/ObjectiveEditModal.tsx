@@ -189,9 +189,7 @@ export function ObjectiveEditModal({
             <X size={18} />
           </button>
         </div>
-
         {error ? <div className="mb-4 rounded-lg border border-coral/40 bg-coral/10 p-3 text-sm text-rose-100">{error}</div> : null}
-
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t("objectives:form.fields.title")}>
             <input className="input" onChange={(event) => update("title", event.target.value)} value={form.title} />
@@ -202,7 +200,6 @@ export function ObjectiveEditModal({
             </select>
           </Field>
         </div>
-
         <section className="mt-5">
           <h3 className="mb-3 text-sm font-semibold uppercase text-slate-400">{t("objectives:form.objectSection")}</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -248,7 +245,6 @@ export function ObjectiveEditModal({
             ) : null}
           </div>
         </section>
-
         <section className="mt-5">
           <h3 className="mb-3 text-sm font-semibold uppercase text-slate-400">{t("objectives:form.assumptionsSection")}</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -292,7 +288,6 @@ export function ObjectiveEditModal({
           </Field>
           </div>
         </section>
-
         <div className="mt-5 flex justify-end gap-2">
           <button className="btn-ghost" onClick={onClose} type="button">{t("common:actions.cancel")}</button>
           <button className="btn-primary" disabled={saving} type="submit">{saving ? t("common:states.preparing") : t("common:actions.save")}</button>

@@ -1,7 +1,7 @@
 import type { CurrencyCode } from "@pea/shared";
 import { Bar, BarChart, Tooltip, XAxis, YAxis } from "recharts";
 import { useTranslation } from "react-i18next";
-import { usePrivacy } from "../../../contexts/PrivacyContext";
+import { usePrivacy } from "../../../contexts/privacy-context";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
 import { money } from "../../../lib/format";

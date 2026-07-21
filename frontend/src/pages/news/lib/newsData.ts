@@ -240,14 +240,12 @@ function mergeAssetNewsPage(user: User, page: NewsAssetsPage) {
   entry.fullyLoaded = !page.hasMore || entry.loadedOffsets.size * assetNewsBatchSize >= page.totalAssets;
   return entry;
 }
-
 /**
  * Calcule l'identite stable d'un article pour eviter les doublons entre vagues.
  */
 function newsArticleIdentity(article: NewsArticle) {
   return article.url || `${article.title}:${article.publishedAt ?? ""}`;
 }
-
 /**
  * Fusionne deux occurrences du meme article en conservant tous les actifs lies.
  */
@@ -259,7 +257,6 @@ function mergeRelatedAssets(existing: NewsArticle | undefined, incoming: NewsArt
   }
   return { ...existing, relatedAssets };
 }
-
 /**
  * Trie les actualites par date de publication decroissante.
  */
@@ -270,7 +267,6 @@ function sortNewsArticlesByDate(articles: NewsArticle[]) {
     return bTime - aTime;
   });
 }
-
 /**
  * Recupere les actualites globales avec deduplication et cache local.
  */
@@ -281,7 +277,6 @@ function fetchGlobalNews(user: User, page: number) {
   const existing = globalNewsInFlight.get(key);
   if (existing) return existing;
   if (globalNewsInFlight.size >= maxNewsInFlightRequests) return Promise.reject(new Error("Trop de requetes d'actualites en cours."));
-
   // Le cache in-flight reste independant des AbortSignal pour eviter d'afficher
   // une erreur d'annulation lors d'un remount React ou d'un changement rapide de mode.
   const request = api.globalNews(page).then((pageData) => {
@@ -294,7 +289,6 @@ function fetchGlobalNews(user: User, page: number) {
   globalNewsInFlight.set(key, request);
   return request;
 }
-
 function trimMapByInsertion<TKey, TValue>(cache: Map<TKey, TValue>, maxEntries: number) {
   while (cache.size > maxEntries) {
     const oldestKey = cache.keys().next().value as TKey | undefined;

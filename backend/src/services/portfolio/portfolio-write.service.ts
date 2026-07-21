@@ -34,7 +34,6 @@ export class PortfolioWriteService {
       ...input,
       symbol: input.symbol.toUpperCase()
     });
-
     let quoteName: string | undefined;
     try {
       const quote = await marketSnapshotService.getQuote(parsed.symbol, { forceRefresh: true });
@@ -42,10 +41,8 @@ export class PortfolioWriteService {
     } catch (error) {
       if (!isMarketDataUnavailable(error)) throw error;
     }
-
     const name = parsed.name || quoteName || parsed.symbol;
     const existing = portfolioRepository.findPositionBySymbol(parsed.symbol, userId);
-
     const position = db.transaction(() => {
       if (existing) {
         const oldQuantity = Number(existing.quantity);
@@ -54,7 +51,6 @@ export class PortfolioWriteService {
           newQuantity === 0
             ? parsed.averageBuyPrice
             : (oldQuantity * Number(existing.average_buy_price) + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
-
         portfolioRepository.mergePositionSnapshot(existing.id, {
           quantity: newQuantity,
           averageBuyPrice: weightedAverage,
@@ -67,7 +63,6 @@ export class PortfolioWriteService {
           userId
         );
       }
-
       const savedPosition = portfolioRepository.findPositionBySymbol(parsed.symbol, userId)!;
       portfolioRepository.insertBuyTransactionNow(savedPosition.id, {
         quantity: parsed.quantity,
@@ -79,10 +74,8 @@ export class PortfolioWriteService {
     });
     await marketDataService.ensureAssetInitialized(parsed.symbol);
     if (options.scheduleConstruction !== false) dataConstructionQueue.enqueueAssetConstruction(parsed.symbol);
-
     return portfolioReadService.enrichPosition(mapPosition(position));
   }
-
   ensurePosition(symbol: string, name: string, currency = "EUR", userId?: number | string): Position {
     const resolvedUserId = requireUserId(userId);
     const normalizedSymbol = symbol.toUpperCase();
@@ -93,7 +86,6 @@ export class PortfolioWriteService {
     this.invalidatePositionCaches(created.id, resolvedUserId, normalizedSymbol);
     return mapPosition(created);
   }
-
   importAvisTransaction(input: {
     symbol: string;
     name: string;
@@ -139,11 +131,9 @@ export class PortfolioWriteService {
       return position;
     });
   }
-
   recomputePositionFromDatedTransactions(positionId: number) {
     const rows = portfolioRepository.listRecomputeRows(positionId);
     if (!rows.length) return;
-
     let quantity = 0;
     let costBasis = 0;
     for (const row of rows) {
@@ -158,11 +148,9 @@ export class PortfolioWriteService {
         costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
       }
     }
-
     const averageBuyPrice = quantity > 0 ? costBasis / quantity : 0;
     portfolioRepository.updatePositionValuation(positionId, quantity, averageBuyPrice);
   }
-
   createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     const position = portfolioRepository.findPositionById(positionId, resolvedUserId);
@@ -175,7 +163,6 @@ export class PortfolioWriteService {
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-
   updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
@@ -188,7 +175,6 @@ export class PortfolioWriteService {
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
@@ -198,7 +184,6 @@ export class PortfolioWriteService {
       this.invalidatePositionCaches(positionId, resolvedUserId);
     });
   }
-
   recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     const existing = portfolioRepository.findPositionById(positionId, resolvedUserId);
@@ -209,7 +194,6 @@ export class PortfolioWriteService {
       portfolioRepository.deletePosition(positionId, resolvedUserId);
       return;
     }
-
     let quantity = 0;
     let costBasis = 0;
     for (const row of rows) {
@@ -224,11 +208,9 @@ export class PortfolioWriteService {
         costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
       }
     }
-
     portfolioRepository.updatePositionValuation(positionId, quantity, quantity > 0 ? costBasis / quantity : 0);
     portfolioReadService.persistUserAssetPosition(resolvedUserId, positionId);
   }
-
   assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
     if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
       throw new HttpError(400, "La quantite doit etre strictement positive.");
@@ -236,7 +218,6 @@ export class PortfolioWriteService {
     if (!Number.isFinite(input.price) || input.price < 0) {
       throw new HttpError(400, "Le prix doit etre positif ou nul.");
     }
-
     const rows = portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[];
     const mutation: TransactionSequenceRow = {
       id: transactionIdToReplace,
@@ -251,7 +232,6 @@ export class PortfolioWriteService {
       : [...rows, mutation];
     this.assertTransactionSequenceDoesNotGoNegative(nextRows);
   }
-
   deletePosition(id: number, userId?: number | string): boolean {
     const resolvedUserId = requireUserId(userId);
     const existing = portfolioRepository.findPositionById(id, resolvedUserId);
@@ -262,7 +242,6 @@ export class PortfolioWriteService {
     });
     return true;
   }
-
   replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     const existing = portfolioRepository.findPositionById(id, resolvedUserId);
@@ -272,7 +251,6 @@ export class PortfolioWriteService {
       this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
     });
   }
-
   async updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {
     const resolvedUserId = requireUserId(userId);
     const parsed = createPositionSchema
@@ -280,7 +258,6 @@ export class PortfolioWriteService {
       .parse(input);
     const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) throw new HttpError(404, "Position introuvable");
-
     db.transaction(() => {
       portfolioRepository.updatePositionSnapshot(id, {
         quantity: parsed.quantity,
@@ -290,17 +267,14 @@ export class PortfolioWriteService {
       });
       this.invalidatePositionCaches(id, resolvedUserId);
     });
-
     const row = portfolioRepository.findPositionById(id, resolvedUserId)!;
     return portfolioReadService.enrichPosition(mapPosition(row));
   }
-
   invalidatePositionCaches(positionId: number, userId: number | string, fallbackSymbol?: string) {
     const row = portfolioRepository.findPositionById(positionId, userId);
     invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
     objectiveProjectionInvalidationService.invalidateUser(userId, "portfolio position changed");
   }
-
   private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {
     let quantity = 0;
     const sortedRows = [...rows].sort((a, b) => {
@@ -310,7 +284,6 @@ export class PortfolioWriteService {
       if (dateOrder !== 0) return dateOrder;
       return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
     });
-
     for (const row of sortedRows) {
       const rowQuantity = Number(row.quantity);
       if (row.type === "buy") quantity += rowQuantity;
@@ -322,5 +295,4 @@ export class PortfolioWriteService {
     }
   }
 }
-
 export const portfolioWriteService = new PortfolioWriteService();

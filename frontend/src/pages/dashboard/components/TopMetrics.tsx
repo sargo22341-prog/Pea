@@ -1,7 +1,7 @@
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
 import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { usePrivacy } from "../../../contexts/PrivacyContext";
+import { usePrivacy } from "../../../contexts/privacy-context";
 import { formatRangeLabel, money, percent } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { Metric } from "./Metric";

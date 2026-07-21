@@ -6,55 +6,7 @@ import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
 import { marketEventsService } from "../events/market-events.service.js";
 
-type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
-
-/**
- * Priorité par type de tâche (plus petit = plus prioritaire).
- * Les `finalize` post-close passent avant les `candles` pour ne pas bloquer la fraîcheur des
- * dashboards le matin suivant. `calendar-events` et `dividends` finissent en queue car peu
- * critiques pour la consultation immédiate.
- */
-const PRIORITY_BY_TYPE: Record<TaskType, number> = {
-  finalize: 10,
-  snapshot: 20,
-  candles: 30,
-  "rebuild-stored": 40,
-  financials: 50,
-  dividends: 60,
-  "calendar-events": 70
-};
-
-interface ConstructionTask {
-  key: string;
-  type: TaskType;
-  symbol?: string;
-  range?: string;
-  marketKey?: string;
-  tradingDate?: string;
-  phase?: string;
-  message: string;
-}
-
-/**
- * Concurrence maximale : 4 workers simultanés. Couplé au lock par symbole côté
- * `marketDataService`, deux tâches sur le même symbole restent sérialisées tandis que
- * différents symboles avancent en parallèle.
- */
-const MAX_CONCURRENT_TASKS = 4;
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function taskKey(task: Omit<ConstructionTask, "key">) {
-  if (task.marketKey && task.tradingDate && task.phase) {
-    return `${task.marketKey}:${task.tradingDate}:${task.phase}:${task.type}:${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase();
-  }
-  return task.type === "candles" || task.type === "finalize" || task.type === "rebuild-stored"
-    ? `${task.type}:${task.symbol ?? "all"}:${task.range ?? "all"}`.toUpperCase()
-    : `${task.symbol ?? "all"}:${task.type}`.toUpperCase();
-}
-
+import { MAX_CONCURRENT_TASKS, PRIORITY_BY_TYPE, currentMessage, jobStatus, nowIso, parseErrors, rowToTask, taskKey, type ConstructionTask, type TaskType } from "./data-construction-task.js";
 export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
@@ -303,11 +255,9 @@ export class DataConstructionQueueService {
       import("../../../repositories/market/asset.repository.js"),
       import("../data/market-data-gateway.service.js")
     ]);
-
     if (!task.symbol) return;
     let asset = assetRepository.findBySymbol(task.symbol);
     if (!asset) asset = await marketDataService.ensureAssetInitialized(task.symbol);
-
     if (task.type === "candles") await marketDataService.refreshCandlesForAsset(asset, task.range ? [task.range as StoredChartRange] : undefined);
     if (task.type === "finalize") await marketDataService.finalizePostCloseForAsset(asset);
     if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset, task.range ? [task.range as StoredChartRange] : undefined);
@@ -322,7 +272,6 @@ export class DataConstructionQueueService {
       await financialsService.refreshFinancials(asset);  // fundamentalsTimeSeries → upsert asset_financials
     }
   }
-
   private toDto(job: DataConstructionJobSummary): DataConstructionJobDto {
     const totalTasks = Number(job.total_tasks ?? 0);
     const completedTasks = Number(job.completed_tasks ?? 0);
@@ -346,41 +295,4 @@ export class DataConstructionQueueService {
     };
   }
 }
-
-function rowToTask(row: DataConstructionTaskRow): ConstructionTask {
-  return {
-    key: row.task_key,
-    type: row.type as TaskType,
-    symbol: row.symbol ?? undefined,
-    range: row.range ?? undefined,
-    marketKey: row.market_key ?? undefined,
-    tradingDate: row.trading_date ?? undefined,
-    phase: row.phase ?? undefined,
-    message: row.message
-  };
-}
-
-function jobStatus(totalTasks: number, completedTasks: number, failedTasks: number, runningTasks: number): DataConstructionJobDto["status"] {
-  if (totalTasks === 0) return "idle";
-  if (completedTasks + failedTasks >= totalTasks) return failedTasks > 0 ? "error" : "success";
-  if (runningTasks > 0) return "running";
-  return "queued";
-}
-
-function currentMessage(status: DataConstructionJobDto["status"], message: string, currentTaskLabel?: string) {
-  if (status === "success") return "Construction terminee";
-  if (status === "error") return "Construction terminee avec erreurs";
-  return currentTaskLabel ?? message;
-}
-
-function parseErrors(value?: string | null) {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
-
 export const dataConstructionQueue = new DataConstructionQueueService();

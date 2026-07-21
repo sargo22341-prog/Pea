@@ -2,7 +2,7 @@ import type { CurrencyCode } from "@pea/shared";
 import { CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { usePrivacy } from "../../../contexts/PrivacyContext";
+import { usePrivacy } from "../../../contexts/privacy-context";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { money } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";

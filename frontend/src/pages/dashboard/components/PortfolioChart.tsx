@@ -1,7 +1,7 @@
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
 import { Suspense, lazy, memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { usePrivacy } from "../../../contexts/PrivacyContext";
+import { usePrivacy } from "../../../contexts/privacy-context";
 import type { AssetComparisonSerie } from "../../../hooks/useAssetComparisonSeries";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../../lib/timezone";
 import { ChartSkeleton } from "./DashboardSkeletons";
@@ -11,7 +11,7 @@ const PriceHistoryChart = lazy(() =>
 );
 
 const PortfolioComparisonChart = lazy(() =>
-  import("../../../components/charts/PortfolioComparisonChart").then((module) => ({ default: module.PortfolioComparisonChart }))
+  import("../../../components/charts/comparison/PortfolioComparisonChart").then((module) => ({ default: module.PortfolioComparisonChart }))
 );
 
 const fallbackIntradaySession: MarketSessionDto = {

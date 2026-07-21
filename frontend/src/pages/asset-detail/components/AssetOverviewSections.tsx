@@ -1,7 +1,7 @@
 import type { AssetDetails, RangeKey } from "@pea/shared";
 import { useTranslation } from "react-i18next";
-import { DividendLineChartSection } from "../../../components/charts/DividendLineChartSection";
-import { FinancialComboChart } from "../../../components/charts/FinancialComboChart";
+import { DividendLineChartSection } from "../../../components/charts/financial/DividendLineChartSection";
+import { FinancialComboChart } from "../../../components/charts/financial/FinancialComboChart";
 import { AssetMarketInfo } from "./AssetMarketInfo";
 import { AssetPositionSummary } from "./AssetPositionSummary";
 

@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { dividendService } from "../../services/portfolio/dividend.service.js";
-import { portfolioAnalysisService } from "../../services/portfolio/portfolio-analysis.service.js";
+import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";

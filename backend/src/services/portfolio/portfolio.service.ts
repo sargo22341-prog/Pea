@@ -14,7 +14,7 @@ import type {
   UserAssetPositionDto
 } from "@pea/shared";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
-import { portfolioChartService } from "./portfolio-chart.service.js";
+import { portfolioChartsService } from "./portfolio-charts.service.js";
 import { portfolioCommandService } from "./portfolio-command.service.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioQueryService } from "./portfolio-query.service.js";
@@ -125,7 +125,7 @@ export class PortfolioService {
   }
 
   full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {
-    return portfolioChartService.full(range, userId, options);
+    return portfolioChartsService.full(range, userId, options);
   }
 
   summary(range: RangeKey = "1d", userId?: number | string): Promise<PortfolioSummary> {
@@ -137,7 +137,7 @@ export class PortfolioService {
   }
 
   chart(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioChartDto> {
-    return portfolioChartService.chart(range, userId, options);
+    return portfolioChartsService.chart(range, userId, options);
   }
 
   userAssetPosition(userId: string | number, symbol: string): UserAssetPositionDto | undefined {

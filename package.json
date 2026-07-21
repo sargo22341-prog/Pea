@@ -19,7 +19,8 @@
     "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm test -w backend && npm test -w frontend",
-    "lint": "eslint backend frontend shared"
+    "lint": "eslint backend frontend shared",
+    "quality:architecture": "node scripts/check-architecture.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

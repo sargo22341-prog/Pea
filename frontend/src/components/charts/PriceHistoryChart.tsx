@@ -5,7 +5,7 @@ import { useElementSize } from "../../hooks/useElementSize";
 import type { PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatHistoryTick, formatHistoryTooltipLabel } from "./chartAxis";
 import { useChartMarkerModel } from "./chart-markers.helpers";
-import { ComparisonChart } from "./ComparisonChart";
+import { ComparisonChart } from "./comparison/ComparisonChart";
 import { HistoryTooltip } from "./PriceHistoryTooltip";
 import { asChartTooltipPayload } from "./rechartsTypes";
 import { SafeResponsiveContainer } from "./SafeResponsiveContainer";
@@ -13,7 +13,7 @@ import { TransactionMarkerOverlay } from "./TransactionMarkers";
 import { useChartDataModel } from "./useChartDataModel";
 
 export { ComparisonChart };
-export type { ComparisonSerie } from "./ComparisonChart";
+export type { ComparisonSerie } from "./comparison/ComparisonChart";
 
 interface PriceHistoryChartProps {
   data: PriceHistoryInputPoint[];

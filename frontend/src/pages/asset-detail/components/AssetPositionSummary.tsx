@@ -1,7 +1,7 @@
 import type { PositionRangePerformance, PositionTransactionStats, PositionWithMarket, RangeKey } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Coins, ReceiptText, WalletCards } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { usePrivacy } from "../../../contexts/PrivacyContext";
+import { usePrivacy } from "../../../contexts/privacy-context";
 import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { toneClass, toneFromNumber } from "../../../utils/assetTone";

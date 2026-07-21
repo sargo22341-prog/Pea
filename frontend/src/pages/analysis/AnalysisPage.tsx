@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetIcon } from "../../components/common/AssetIcon";
-import { CountryAllocationChart } from "../../components/charts/CountryAllocationChart";
-import { FinancialComboChart } from "../../components/charts/FinancialComboChart";
-import { NetMarginBarChart } from "../../components/charts/NetMarginBarChart";
-import { PortfolioTreemap } from "../../components/charts/PortfolioTreemap";
-import { SectorAllocationChart } from "../../components/charts/SectorAllocationChart";
+import { CountryAllocationChart } from "../../components/charts/allocation/CountryAllocationChart";
+import { FinancialComboChart } from "../../components/charts/financial/FinancialComboChart";
+import { NetMarginBarChart } from "../../components/charts/financial/NetMarginBarChart";
+import { PortfolioTreemap } from "../../components/charts/allocation/PortfolioTreemap";
+import { SectorAllocationChart } from "../../components/charts/allocation/SectorAllocationChart";
 import { EmptyState } from "../../components/common/EmptyState";
 import { useAsync } from "../../hooks/useAsync";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";

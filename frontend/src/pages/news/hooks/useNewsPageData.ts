@@ -35,12 +35,6 @@ export function useNewsPageData(user: User) {
   const userCachePart = user.newsLanguages.join(",");
 
   useEffect(() => {
-    debugNews("mode initial selectionne", { mode: activeMode });
-    // Ce log ne doit s'executer qu'au premier montage pour verifier le mode initial.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     const controller = new AbortController();
     if (activeMode === "assets") {
       void loadAssetMode(user, controller.signal, setAssetNews, "initial-or-switch");

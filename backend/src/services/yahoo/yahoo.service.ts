@@ -19,7 +19,7 @@ export class YahooService implements MarketDataProvider {
     return fetchQuoteBatch(symbols);
   }
 
-  fundamentals(symbol: string): Promise<MarketDataResult<any>> {
+  fundamentals(symbol: string) {
     return fetchFundamentals(symbol);
   }
 

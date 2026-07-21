@@ -233,7 +233,6 @@ export class ObjectiveCalculatorService {
       contributions
     };
   }
-
   private targetCapital(input: ObjectiveInput, currentAge: number, currentCapital: number, monthlyRateValue: number) {
     const config = input.config;
     if (input.type === "fixed_capital") return config.targetAmount ?? 0;
@@ -258,7 +257,6 @@ export class ObjectiveCalculatorService {
       finalCapital: config.finalCapitalTarget ?? 0
     });
   }
-
   private withdrawalForMonth(input: ObjectiveInput, age: number, month: number, startAge?: number) {
     const config = input.config;
     const starts = age >= (startAge ?? Number.POSITIVE_INFINITY);
@@ -267,7 +265,6 @@ export class ObjectiveCalculatorService {
     if (age > projectionEndAge(input.assumptions)) return 0;
     return netPortfolioIncomeAtAge(input, age);
   }
-
   private targetCapitalForAge(input: ObjectiveInput, age: number, monthlyRateValue: number) {
     if (input.type === "annuity_consuming_capital") {
       return capitalNeededForObjectiveAnnuity(input, age, monthlyRateValue);
@@ -280,7 +277,6 @@ export class ObjectiveCalculatorService {
     }
     return this.targetCapital(input, age, 0, monthlyRateValue);
   }
-
   private possibleMonthlyIncome(input: ObjectiveInput, capital: number, age: number, monthlyRateValue: number) {
     if (!isAnnuityObjective(input)) return undefined;
     if (input.type === "annuity_consuming_capital") {
@@ -299,5 +295,4 @@ export class ObjectiveCalculatorService {
     return portfolioIncome + pension;
   }
 }
-
 export const objectiveCalculatorService = new ObjectiveCalculatorService();

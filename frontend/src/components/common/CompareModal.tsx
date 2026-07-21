@@ -1,7 +1,7 @@
 import { Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
-import { COMPARE_COLORS } from "../charts/compareColors";
+import { COMPARE_COLORS } from "../charts/comparison/compareColors";
 
 interface SelectedAsset {
   symbol: string;
