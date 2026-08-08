@@ -99,7 +99,7 @@ volume `/app/data`, car ce ne sont pas des donnees utilisateur.
 
 ## Developpement local
 
-Prerequis : Node.js 20+ et npm 10+.
+Prerequis : Node.js 26+ et npm 10+.
 
 Copiez `.env.dev.example` vers `.env` :
 

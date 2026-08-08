@@ -1,4 +1,9 @@
-FROM node:26-bookworm-slim AS build
+FROM node:26-bookworm-slim AS native-base
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends g++ make python3 \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM native-base AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -12,6 +17,15 @@ COPY backend backend
 COPY frontend frontend
 RUN npm run build
 
+FROM native-base AS production-dependencies
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+COPY shared/package.json shared/package.json
+COPY backend/package.json backend/package.json
+COPY frontend/package.json frontend/package.json
+RUN npm ci --omit=dev -w backend
+
 FROM node:26-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
@@ -20,7 +34,7 @@ COPY package.json package-lock.json* ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
-RUN npm ci --omit=dev -w backend
+COPY --from=production-dependencies /app/node_modules node_modules
 
 COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/backend/dist backend/dist

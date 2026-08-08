@@ -29,7 +29,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: 26
           cache: npm
 
       - name: Login to GitHub Container Registry
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: 26
           cache: npm
 
       - name: Check Node
@@ -198,7 +198,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: 26
           cache: npm
 
       - name: Check Java and Android
