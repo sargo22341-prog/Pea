@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { StaleBadge } from "../../../components/common/StaleBadge";
 import { useAsync } from "../../../hooks/useAsync";
-import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
+import { marketSnapshotConcernsSymbols, useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
 import { money, percent } from "../../../lib/format";
 import { SortableSection, type SortOption } from "./SortableSection";
@@ -46,10 +46,15 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
     timeout: undefined as number | undefined
   });
   const watchlistReload = watchlist.reload;
+  const watchlistSymbols = useMemo(
+    () => new Set(watchlist.data?.map((item) => item.symbol.toUpperCase()) ?? []),
+    [watchlist.data]
+  );
 
   useMarketEventReload({
     debounceMs: 400,
     eventTypes: watchlistReloadEvents,
+    filterEvent: (payload) => marketSnapshotConcernsSymbols(payload, watchlistSymbols),
     onEvent: (payload: MarketEventPayload) => {
       if (payload.type === "watchlist-chart-refresh-started") {
         lazyChartGuard.current.refreshInProgress = true;

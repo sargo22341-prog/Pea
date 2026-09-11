@@ -1,11 +1,11 @@
 import type { MarketEventType, RangeKey, User } from "@pea/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../../components/common/EmptyState";
 import { PortfolioEvolutionSection } from "./components/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "./components/DashboardSkeletons";
 import { TopMetrics } from "./components/TopMetrics";
 import { useAsync } from "../../hooks/useAsync";
-import { useMarketEventReload, type MarketEventPayload } from "../../hooks/useMarketEventReload";
+import { marketSnapshotConcernsSymbols, useMarketEventReload, type MarketEventPayload } from "../../hooks/useMarketEventReload";
 import { api } from "../../lib/api";
 
 const lazyChartRetryCooldownMs = 60_000;
@@ -55,10 +55,15 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   }, []);
 
   const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
+  const portfolioSymbols = useMemo(
+    () => new Set(summary?.positions.map((position) => position.symbol.toUpperCase()) ?? []),
+    [summary]
+  );
 
   useMarketEventReload({
     debounceMs: 400,
     eventTypes: portfolioReloadEvents,
+    filterEvent: (payload) => marketSnapshotConcernsSymbols(payload, portfolioSymbols),
     onEvent: (payload: MarketEventPayload) => {
       if (payload.type === "portfolio-chart-refresh-started") {
         lazyChartGuard.current.refreshInProgress = true;

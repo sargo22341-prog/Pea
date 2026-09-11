@@ -66,6 +66,59 @@ test("missing profile icon returns an empty 404 for image tags", () => {
   assert.equal(result.body, "");
 });
 
+test("JSON API responses are compressed while the market SSE stream stays uncompressed", () => {
+  const result = runBackendScript(`
+    import { app } from "./app.ts";
+
+    const password = "correct horse battery staple";
+    const server = app.listen(0, "127.0.0.1", async () => {
+      const address = server.address();
+      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
+      const controller = new AbortController();
+      try {
+        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+        });
+        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
+        await fetch(\`\${baseUrl}/api/auth/me\`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Cookie: cookie },
+          body: JSON.stringify({ localPeaSearchEnabled: true })
+        });
+        const search = await fetch(\`\${baseUrl}/api/search/enriched?q=amundi\`, {
+          headers: { Cookie: cookie, "Accept-Encoding": "gzip" }
+        });
+        const results = await search.json();
+        const events = await fetch(\`\${baseUrl}/api/market/events\`, {
+          headers: { Cookie: cookie, "Accept-Encoding": "gzip" },
+          signal: controller.signal
+        });
+        console.log("__RESULT__" + JSON.stringify({
+          searchStatus: search.status,
+          searchEncoding: search.headers.get("content-encoding"),
+          resultCount: results.length,
+          eventsStatus: events.status,
+          eventsType: events.headers.get("content-type"),
+          eventsEncoding: events.headers.get("content-encoding")
+        }));
+      } finally {
+        controller.abort();
+        server.closeAllConnections();
+        server.close();
+      }
+    });
+  `);
+
+  assert.equal(result.searchStatus, 200);
+  assert.ok(result.resultCount >= 5, "local PEA search should return a payload above the compression threshold");
+  assert.equal(result.searchEncoding, "gzip");
+  assert.equal(result.eventsStatus, 200);
+  assert.match(result.eventsType, /text\/event-stream/);
+  assert.equal(result.eventsEncoding, null);
+});
+
 test("static JSON cache rejects non-whitelisted SQL targets", () => {
   const result = runBackendScript(`
     import { readStaticJsonCache } from "./services/shared/cache.service.ts";

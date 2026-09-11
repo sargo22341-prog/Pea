@@ -1,5 +1,5 @@
 import type { AssetChartDto, AssetDetails, RangeKey } from "@pea/shared";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../../../lib/dataConstruction";
@@ -33,16 +33,17 @@ export function useAssetChartLifecycle({
 
   const assetChartPreparing = Boolean(asset?.chart?.isPreparing);
   const chartPendingOpenConfirmation = asset?.chart?.availabilityStatus === "pending_open_confirmation";
-  const currentChartPoints = chartDtoToPoints(asset?.chart);
-  const displayChart = currentChartPoints.length > 1 ? asset?.chart : lastRenderableChart;
-  const chartPoints = chartDtoToPoints(displayChart);
+  // Mémoïsé : une nouvelle référence de points à chaque render invaliderait le `memo` du
+  // graphique et forcerait Recharts à tout redessiner (toast, modale, favori...).
+  const displayChart = (asset?.chart?.timestamps.length ?? 0) > 1 ? asset?.chart : lastRenderableChart;
+  const chartPoints = useMemo(() => chartDtoToPoints(displayChart), [displayChart]);
 
   useEffect(() => {
     setLastRenderableChart(undefined);
   }, [symbol, range]);
 
   useEffect(() => {
-    if (asset?.quote.symbol.toUpperCase() === symbol.toUpperCase() && asset.chart && chartDtoToPoints(asset.chart).length > 1) {
+    if (asset?.quote.symbol.toUpperCase() === symbol.toUpperCase() && asset.chart && asset.chart.timestamps.length > 1) {
       setLastRenderableChart(asset.chart);
     }
   }, [asset?.chart, asset?.quote.symbol, symbol]);

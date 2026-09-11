@@ -1,3 +1,4 @@
+import compression from "compression";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -18,6 +19,11 @@ const devCorsOrigins = new Set(["http://localhost", "https://localhost", "capaci
 const configuredCorsOrigins = new Set(config.corsOrigins);
 
 export const app = express();
+
+function shouldCompressResponse(req: express.Request, res: express.Response) {
+  if (String(res.getHeader("Content-Type") ?? "").includes("text/event-stream")) return false;
+  return compression.filter(req, res);
+}
 
 // Active uniquement derriere un reverse proxy de confiance, afin que req.ip
 // utilise l'adresse client transmise par le proxy pour le rate-limit.
@@ -59,6 +65,9 @@ if (config.nodeEnv !== "production" || configuredCorsOrigins.size > 0) {
     })
   );
 }
+// Compresse les réponses JSON et les bundles statiques. Le flux SSE est exclu :
+// une réponse compressée serait bufferisée par zlib et les événements arriveraient en retard.
+app.use(compression({ filter: shouldCompressResponse }));
 app.use(express.json());
 if (config.debug) {
   app.use(

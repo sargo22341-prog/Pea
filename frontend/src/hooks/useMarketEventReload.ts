@@ -18,6 +18,19 @@ export type UseMarketEventReloadOptions = {
   reloadOnVisibility?: boolean;
 };
 
+/**
+ * `market-snapshot-updated` est aussi diffusé à tous les clients lorsqu'un snapshot d'actif est
+ * rafraîchi en arrière-plan (avec `symbol`/`symbols`). Ce filtre ignore ces événements quand ils
+ * ne concernent aucun des symboles affichés, pour éviter des rechargements inutiles.
+ * Les autres événements, ou un snapshot sans symbole (déjà ciblé par utilisateur), sont conservés.
+ */
+export function marketSnapshotConcernsSymbols(payload: MarketEventPayload, symbols: ReadonlySet<string>) {
+  if (payload.type !== "market-snapshot-updated") return true;
+  const eventSymbols = payload.symbols?.length ? payload.symbols : payload.symbol ? [payload.symbol] : [];
+  if (eventSymbols.length === 0) return true;
+  return eventSymbols.some((symbol) => symbols.has(symbol.toUpperCase()));
+}
+
 export function useMarketEventReload({
   debounceMs = 400,
   enabled = true,

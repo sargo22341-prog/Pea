@@ -9,6 +9,10 @@ import { useLatestRef } from "./useLatestRef";
  *   - Re-déclenchement uniquement quand `reloadKey` change (sinon stable, pas de boucle).
  *   - Anti-race via `requestId` : seul le dernier appel mute l'état React.
  *   - `AbortSignal` propagé au loader pour fetch cancel.
+ *   - Stale-while-revalidate : un `reload()` manuel (SSE, focus, après mutation) garde les
+ *     données affichées et ne repasse pas `loading` à `true`. Seuls le premier chargement et un
+ *     changement de `reloadKey` affichent l'état de chargement. Cela évite de démonter les
+ *     sous-arbres conditionnés par `loading` (skeletons, sections enfants) à chaque rafraîchissement.
  *
  * Convention d'usage :
  *   - `loader` peut être inline (`() => api.foo()`), il sera lu via ref donc pas de
@@ -22,15 +26,19 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
   const [loading, setLoading] = useState(true);
   const loaderRef = useLatestRef(loader);
   const requestIdRef = useRef(0);
+  const hasDataRef = useRef(false);
 
-  const reload = useCallback(async (signal?: AbortSignal) => {
+  const load = useCallback(async (signal: AbortSignal | undefined, background: boolean) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
-    setLoading(true);
+    if (!background) setLoading(true);
     setError(null);
     try {
       const result = await loaderRef.current(signal);
-      if (!signal?.aborted && requestId === requestIdRef.current) setData(result);
+      if (!signal?.aborted && requestId === requestIdRef.current) {
+        hasDataRef.current = true;
+        setData(result);
+      }
     } catch (err) {
       if (!signal?.aborted && requestId === requestIdRef.current) {
         setError(err instanceof Error ? err.message : i18n.t("errors:unknown"));
@@ -40,11 +48,13 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
     }
   }, [loaderRef]);
 
+  const reload = useCallback((signal?: AbortSignal) => load(signal, hasDataRef.current), [load]);
+
   useEffect(() => {
     const controller = new AbortController();
-    void reload(controller.signal);
+    void load(controller.signal, false);
     return () => controller.abort();
-  }, [reloadKey, reload]);
+  }, [reloadKey, load]);
 
   return { data, error, loading, reload };
 }

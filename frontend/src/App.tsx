@@ -148,7 +148,7 @@ function AuthenticatedApp() {
               <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
               <Route path="/portfolio" element={<Navigate replace to="/news" />} />
               <Route path="/analysis" element={<AnalysisPage />} />
-              <Route path="/search" element={<SearchPage />} />
+              <Route path="/search" element={<SearchPage user={me.data.user} />} />
               <Route path="/dividends" element={<DividendsPage />} />
               <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
               <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />

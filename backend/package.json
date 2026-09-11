@@ -17,6 +17,7 @@
     "better-sqlite3": "^13.0.3",
     "bottleneck": "^2.19.5",
     "busboy": "^1.6.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/busboy": "^1.5.4",
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
