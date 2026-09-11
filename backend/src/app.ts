@@ -106,6 +106,11 @@ if (config.nodeEnv === "production") {
       }
     }
   }));
+  // Un chunk absent (ancien build) doit renvoyer 404, pas index.html en text/html.
+  app.use("/assets", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(404).end();
+  });
   app.get(/.*/, (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.sendFile(path.join(frontendDist, "index.html"));

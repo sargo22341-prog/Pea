@@ -1,7 +1,8 @@
 import { MARKET_EVENT_TYPES } from "@pea/shared";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AppErrorBoundary } from "./components/common/AppErrorBoundary";
 import { NavigationEffects } from "./components/common/NavigationEffects";
 import { Shell } from "./components/common/Shell";
 import { ServerSetupPage } from "./components/common/ServerSettings";
@@ -9,19 +10,20 @@ import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
 import { i18n } from "./i18n";
+import { lazyWithReload } from "./lib/lazy-with-reload";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
 import { AuthPage } from "./pages/auth/AuthPage";
 
-const AssetDetailPage = lazy(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
-const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })));
-const DividendsPage = lazy(() => import("./pages/dividends/DividendsPage").then((module) => ({ default: module.DividendsPage })));
-const AnalysisPage = lazy(() => import("./pages/analysis/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
-const NewsPage = lazy(() => import("./pages/news/NewsPage").then((module) => ({ default: module.NewsPage })));
-const ObjectivePage = lazy(() => import("./pages/objectives/ObjectivePage").then((module) => ({ default: module.ObjectivePage })));
-const SearchPage = lazy(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
-const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
-const AdminPage = lazy(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
+const AssetDetailPage = lazyWithReload(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
+const DashboardPage = lazyWithReload(() => import("./pages/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })));
+const DividendsPage = lazyWithReload(() => import("./pages/dividends/DividendsPage").then((module) => ({ default: module.DividendsPage })));
+const AnalysisPage = lazyWithReload(() => import("./pages/analysis/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
+const NewsPage = lazyWithReload(() => import("./pages/news/NewsPage").then((module) => ({ default: module.NewsPage })));
+const ObjectivePage = lazyWithReload(() => import("./pages/objectives/ObjectivePage").then((module) => ({ default: module.ObjectivePage })));
+const SearchPage = lazyWithReload(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
+const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
+const AdminPage = lazyWithReload(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 function LoadingPage() {
   const { t } = useTranslation();
@@ -70,6 +72,7 @@ function useSystemBars() {
 }
 
 function AuthenticatedApp() {
+  const location = useLocation();
   const me = useAsync(() => api.me());
   const { t } = useTranslation(["common", "errors"]);
   const userId = me.data?.user?.id;
@@ -137,23 +140,25 @@ function AuthenticatedApp() {
   return (
     <PrivacyProvider privacyEnabled={me.data.user.privacyModeEnabled}>
       <NavigationEffects />
-      <Suspense fallback={<LoadingPage />}>
-        <Routes>
-          <Route element={<Shell user={me.data.user} />}>
-            <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
-            <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
-            <Route path="/portfolio" element={<Navigate replace to="/news" />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/dividends" element={<DividendsPage />} />
-            <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
-            <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-            <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
-            <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
-            <Route path="*" element={<Navigate replace to="/" />} />
-          </Route>
-        </Routes>
-      </Suspense>
+      <AppErrorBoundary resetKey={location.pathname}>
+        <Suspense fallback={<LoadingPage />}>
+          <Routes>
+            <Route element={<Shell user={me.data.user} />}>
+              <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
+              <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
+              <Route path="/portfolio" element={<Navigate replace to="/news" />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/dividends" element={<DividendsPage />} />
+              <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
+              <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
+              <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
+              <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
+              <Route path="*" element={<Navigate replace to="/" />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </AppErrorBoundary>
     </PrivacyProvider>
   );
 }

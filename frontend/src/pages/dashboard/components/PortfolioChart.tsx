@@ -1,16 +1,17 @@
 import type { MarketSessionDto, PortfolioChartDto, RangeKey } from "@pea/shared";
-import { Suspense, lazy, memo, useMemo } from "react";
+import { Suspense, memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import type { AssetComparisonSerie } from "../../../hooks/useAssetComparisonSeries";
+import { lazyWithReload } from "../../../lib/lazy-with-reload";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../../lib/timezone";
 import { ChartSkeleton } from "./DashboardSkeletons";
 
-const PriceHistoryChart = lazy(() =>
+const PriceHistoryChart = lazyWithReload(() =>
   import("../../../components/charts/PriceHistoryChart").then((module) => ({ default: module.PriceHistoryChart }))
 );
 
-const PortfolioComparisonChart = lazy(() =>
+const PortfolioComparisonChart = lazyWithReload(() =>
   import("../../../components/charts/comparison/PortfolioComparisonChart").then((module) => ({ default: module.PortfolioComparisonChart }))
 );
 

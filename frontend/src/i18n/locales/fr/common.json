@@ -26,6 +26,11 @@
     "personalAccess": "Acces personnel au portefeuille PEA.",
     "validation": "Validation..."
   },
+  "appError": {
+    "title": "La page n'a pas pu s'afficher.",
+    "description": "Une nouvelle version de l'application est peut-etre disponible ou la connexion au serveur a ete interrompue.",
+    "reload": "Recharger la page"
+  },
   "common": {
     "confirmation": "Confirmation",
     "loading": "Chargement...",

@@ -1,11 +1,6 @@
-const CACHE_NAME = "pea-portfolio-v3";
+const CACHE_NAME = "pea-portfolio-v4";
 const APP_SHELL = ["/manifest.webmanifest", "/pea-icon.png"];
 const ASSET_PATH_PREFIX = "/assets/";
-
-async function purgeAppCaches() {
-  const keys = await caches.keys();
-  await Promise.all(keys.filter((key) => key.startsWith("pea-portfolio-")).map((key) => caches.delete(key)));
-}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -39,19 +34,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith(ASSET_PATH_PREFIX)) {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        // Evite de conserver un graphe de chunks Vite incoherent apres deploiement.
-        await purgeAppCaches();
-        return new Response("Asset indisponible. Rechargez la page.", {
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-          status: 503
-        });
-      })
-    );
-    return;
-  }
+  // Les chunks Vite ne passent pas par le service worker : une reponse 503 text/plain
+  // cassait les imports dynamiques. L'app gere elle-meme le rechargement (lazyWithReload).
+  if (url.pathname.startsWith(ASSET_PATH_PREFIX)) return;
 
   if (!APP_SHELL.includes(url.pathname)) return;
 

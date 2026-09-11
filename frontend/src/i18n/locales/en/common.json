@@ -26,6 +26,11 @@
     "personalAccess": "Personal access to your PEA portfolio.",
     "validation": "Validating..."
   },
+  "appError": {
+    "title": "This page could not be displayed.",
+    "description": "A new version of the app may be available, or the connection to the server was interrupted.",
+    "reload": "Reload page"
+  },
   "common": {
     "confirmation": "Confirmation",
     "loading": "Loading...",
