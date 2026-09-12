@@ -1,6 +1,7 @@
 import type { AssetDetails, Quote } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight, BadgeEuro, BarChart3, CalendarDays, CircleDollarSign, Database, Gauge, Landmark, Percent, Timer, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MOTION } from "../../../components/common/motion";
 import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../../../lib/format";
 import { type InfoTone, toneFromNumber } from "../../../utils/assetTone";
 import { AssetInfoTile } from "./AssetInfoTile";
@@ -109,9 +110,9 @@ function Range52Slider({
         <span className="text-right">{money(high52, currency)}</span>
       </div>
       <div className="relative h-2 rounded-full bg-slate-950/80 shadow-[inset_0_1px_4px_rgba(0,0,0,0.55)]">
-        <div className={`h-full rounded-full ${progressClass}`} style={{ width: `${percentPosition}%` }} />
+        <div className={`h-full rounded-full ${MOTION.gaugeFill} ${progressClass}`} style={{ width: `${percentPosition}%` }} />
         <div
-          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 ${thumbClass}`}
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 ${MOTION.gaugeThumb} ${thumbClass}`}
           style={{ left: `${percentPosition}%` }}
         />
       </div>

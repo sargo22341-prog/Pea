@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { MOTION, staggerDelay } from "../../components/common/motion";
+import { MOTION, flashClass, staggerDelay } from "../../components/common/motion";
 import { ConfirmDialog } from "../../components/common/feedback/ConfirmDialog";
 
 describe("staggerDelay", () => {
@@ -20,6 +20,14 @@ describe("staggerDelay", () => {
   it("ignore une position invalide", () => {
     expect(staggerDelay(Number.NaN)).toBeUndefined();
     expect(staggerDelay(-2)).toBeUndefined();
+  });
+});
+
+describe("surbrillance d'une valeur", () => {
+  it("choisit la teinte selon le sens de variation", () => {
+    expect(flashClass("up")).toBe(MOTION.flashUp);
+    expect(flashClass("down")).toBe(MOTION.flashDown);
+    expect(flashClass("none")).toBe("");
   });
 });
 

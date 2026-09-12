@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents";
 import { CompareModal } from "../../components/common/CompareModal";
+import { MOTION } from "../../components/common/motion";
 import { NewsArticleList } from "../../components/common/NewsArticleList";
 import { useAsync } from "../../hooks/useAsync";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
@@ -198,58 +199,61 @@ export function AssetDetailPage({ user }: { user: User }) {
   const displayPrice = marketInfo?.regularMarketPrice ?? quote.price;
 
   return (
-    <div className="space-y-6">
-      <AssetDetailHeader
-        displayPrice={displayPrice}
-        marketUnavailable={marketUnavailable}
-        onAdd={() => void openPositionEditor()}
-        onEdit={() => setEditing(true)}
-        onToggleWatchlist={() => void toggleWatchlist()}
-        peaEligibilityStatus={asset.data.peaEligibility.status}
-        positionExists={Boolean(position)}
-        quote={quote}
-        rangeChange={rangeChange}
-        rangeChangePercent={rangeChangePercent}
-        stale={asset.data.stale}
-        watchlisted={watchlisted}
-      />
+    <>
+      <div className={`space-y-6 ${MOTION.stagger}`}>
+        <AssetDetailHeader
+          displayPrice={displayPrice}
+          marketUnavailable={marketUnavailable}
+          onAdd={() => void openPositionEditor()}
+          onEdit={() => setEditing(true)}
+          onToggleWatchlist={() => void toggleWatchlist()}
+          peaEligibilityStatus={asset.data.peaEligibility.status}
+          positionExists={Boolean(position)}
+          quote={quote}
+          rangeChange={rangeChange}
+          rangeChangePercent={rangeChangePercent}
+          stale={asset.data.stale}
+          watchlisted={watchlisted}
+        />
 
-      {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
-      {openingPositionEditor ? <div className="card border-mint/40 p-3 text-sm text-mint">{t("openingPositionEditor")}</div> : null}
+        {toast && <div className="card border-mint/40 p-3 text-sm text-mint">{toast}</div>}
+        {openingPositionEditor ? <div className="card border-mint/40 p-3 text-sm text-mint">{t("openingPositionEditor")}</div> : null}
 
-      <AssetHistorySection
-        chart={chart}
-        chartPendingOpenConfirmation={chartPendingOpenConfirmation}
-        chartPoints={chartPoints}
-        chartRefreshing={chartRefreshing}
-        compareTargetsCount={compareTargets.length}
-        comparisonError={comparisonError}
-        comparisonSeries={comparisonSeries}
-        displayChart={displayChart}
-        loading={asset.loading}
-        marketSession={marketSession}
-        onCompare={() => setComparing(true)}
-        onRangeChange={(nextRange) => setRange("user-click", nextRange)}
-        preparingSymbols={preparingSymbols}
-        quoteCurrency={quote.currency}
-        range={range}
-        stale={asset.data.stale}
-        symbol={symbol}
-        userTimezone={userTimezone}
-      />
+        <AssetHistorySection
+          chart={chart}
+          chartPendingOpenConfirmation={chartPendingOpenConfirmation}
+          chartPoints={chartPoints}
+          chartRefreshing={chartRefreshing}
+          compareTargetsCount={compareTargets.length}
+          comparisonError={comparisonError}
+          comparisonSeries={comparisonSeries}
+          displayChart={displayChart}
+          loading={asset.loading}
+          marketSession={marketSession}
+          onCompare={() => setComparing(true)}
+          onRangeChange={(nextRange) => setRange("user-click", nextRange)}
+          preparingSymbols={preparingSymbols}
+          quoteCurrency={quote.currency}
+          range={range}
+          stale={asset.data.stale}
+          symbol={symbol}
+          userTimezone={userTimezone}
+        />
 
-      <AssetOverviewSections asset={asset.data} currentPrice={displayPrice} firstPriceOfRange={firstClose} range={range} />
+        <AssetOverviewSections asset={asset.data} currentPrice={displayPrice} firstPriceOfRange={firstClose} range={range} />
 
-      <AssetCalendarEvents symbol={symbol} />
+        <AssetCalendarEvents symbol={symbol} />
 
-      {asset.data.analystConsensus ? (
-        <AssetAnalystConsensus currency={quote.currency ?? "EUR"} data={asset.data.analystConsensus} />
-      ) : null}
+        {asset.data.analystConsensus ? (
+          <AssetAnalystConsensus currency={quote.currency ?? "EUR"} data={asset.data.analystConsensus} />
+        ) : null}
 
-      {asset.data.isEtf && asset.data.fundDetails ? <AssetEtfFundDetails data={asset.data.fundDetails} /> : null}
+        {asset.data.isEtf && asset.data.fundDetails ? <AssetEtfFundDetails data={asset.data.fundDetails} /> : null}
 
-      {user.assetNewsEnabled && <NewsArticleList articles={news} />}
+        {user.assetNewsEnabled && <NewsArticleList articles={news} />}
+      </div>
 
+      {/* Fenetres modales hors cascade : un voile `position: fixed` ne doit pas heriter d'un `transform` anime. */}
       {editing && (position ?? draftPosition) && (
         <EditPositionModal
           onClose={() => void closePositionEditor()}
@@ -269,6 +273,6 @@ export function AssetDetailPage({ user }: { user: User }) {
           selected={compareTargets}
         />
       )}
-    </div>
+    </>
   );
 }

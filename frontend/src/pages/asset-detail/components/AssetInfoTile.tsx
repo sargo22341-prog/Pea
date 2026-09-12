@@ -20,14 +20,16 @@ export function AssetInfoTile({
   const isMarket = variant === "market";
   return (
     <div
-      className={
+      className={`group/tile transition duration-200 ease-out ${
         isMarket
-          ? "flex min-h-[92px] items-center gap-3 border-t border-white/[0.05] p-4 first:border-t-0 sm:[&:nth-child(2)]:border-t-0 xl:[&:nth-child(3)]:border-t-0"
-          : "rounded-[16px] border border-white/[0.05] bg-slate-950/45 p-4 shadow-[0_8px_22px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.035)]"
-      }
+          ? "flex min-h-[92px] items-center gap-3 border-t border-white/[0.05] p-4 first:border-t-0 hover:bg-white/[0.02] sm:[&:nth-child(2)]:border-t-0 xl:[&:nth-child(3)]:border-t-0"
+          : "rounded-[16px] border border-white/[0.05] bg-slate-950/45 p-4 shadow-[0_8px_22px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.035)] hover:border-white/[0.12] hover:bg-slate-950/60"
+      }`}
     >
       {icon && (
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${iconToneClass(iconTone)}`}>
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-transform duration-200 ease-out motion-safe:group-hover/tile:scale-110 ${iconToneClass(iconTone)}`}
+        >
           {icon}
         </div>
       )}

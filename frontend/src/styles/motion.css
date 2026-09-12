@@ -29,6 +29,73 @@
     animation: pea-menu-in 0.14s ease-out backwards;
     transform-origin: top right;
   }
+
+  /* Cascade d'entree des sections d'une page : meme pas et meme plafond que `staggerDelay`
+     de `src/components/common/motion.ts`, qui echelonne les lignes de liste en JavaScript.
+     Ici le decalage vient du CSS pour qu'une section conditionnelle qui apparait plus tard
+     ne force pas le remontage des sections suivantes. */
+  .motion-stagger {
+    --pea-stagger-step: 35ms;
+  }
+
+  .motion-stagger > * {
+    animation: pea-rise 0.28s ease-out backwards;
+  }
+
+  .motion-stagger > *:nth-child(2) {
+    animation-delay: calc(1 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(3) {
+    animation-delay: calc(2 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(4) {
+    animation-delay: calc(3 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(5) {
+    animation-delay: calc(4 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(6) {
+    animation-delay: calc(5 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(7) {
+    animation-delay: calc(6 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(8) {
+    animation-delay: calc(7 * var(--pea-stagger-step));
+  }
+
+  .motion-stagger > *:nth-child(n + 9) {
+    animation-delay: calc(8 * var(--pea-stagger-step));
+  }
+
+  .motion-pop {
+    animation: pea-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+
+  .motion-flash-up {
+    animation: pea-flash-up 1.1s ease-out;
+  }
+
+  .motion-flash-down {
+    animation: pea-flash-down 1.1s ease-out;
+  }
+
+  .motion-gauge-fill {
+    animation: pea-gauge-fill 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    transform-origin: left center;
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .motion-gauge-thumb {
+    animation: pea-fade-in 0.65s ease-out backwards;
+    transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 @keyframes pea-fade-in {
@@ -77,6 +144,54 @@
   }
 }
 
+@keyframes pea-pop {
+  from {
+    transform: scale(0.55);
+  }
+
+  60% {
+    transform: scale(1.18);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@keyframes pea-flash-up {
+  from {
+    background-color: rgba(74, 222, 128, 0.22);
+    box-shadow: 0 0 18px rgba(74, 222, 128, 0.28);
+  }
+
+  to {
+    background-color: transparent;
+    box-shadow: 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+@keyframes pea-flash-down {
+  from {
+    background-color: rgba(251, 113, 133, 0.22);
+    box-shadow: 0 0 18px rgba(251, 113, 133, 0.28);
+  }
+
+  to {
+    background-color: transparent;
+    box-shadow: 0 0 0 rgba(251, 113, 133, 0);
+  }
+}
+
+@keyframes pea-gauge-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
 @keyframes stale-refresh-pulse {
   0%,
   100% {
@@ -98,9 +213,20 @@
 
   .motion-dialog,
   .motion-fade-in,
+  .motion-flash-down,
+  .motion-flash-up,
+  .motion-gauge-fill,
+  .motion-gauge-thumb,
   .motion-menu,
   .motion-overlay,
-  .motion-rise {
+  .motion-pop,
+  .motion-rise,
+  .motion-stagger > * {
     animation: none;
+  }
+
+  .motion-gauge-fill,
+  .motion-gauge-thumb {
+    transition: none;
   }
 }
