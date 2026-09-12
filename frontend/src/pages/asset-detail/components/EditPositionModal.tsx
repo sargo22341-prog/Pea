@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
+import { MOTION } from "../../../components/common/motion";
 
 type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "quantity" | "price" | "executedPrice" | "totalFees"> & {
   quantity: string;
@@ -167,8 +168,8 @@ export function EditPositionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center">
-      <div className="card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0 bg-ink/85">
+    <div className={`fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`}>
+      <div className={`card max-h-[90vh] w-full max-w-5xl overflow-hidden p-0 bg-ink/85 ${MOTION.dialog}`}>
         <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">{t("portfolio:position.title", { symbol: position.symbol })}</h2>

@@ -2,6 +2,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
+import { MOTION } from "../motion";
 
 export function ConfirmDialog({
   title,
@@ -31,12 +32,12 @@ export function ConfirmDialog({
   }, [onCancel]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/60 p-4 sm:items-center sm:justify-center" onClick={onCancel} role="presentation">
+    <div className={`fixed inset-0 z-[60] flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`} onClick={onCancel} role="presentation">
       <div
         aria-describedby="confirm-dialog-description"
         aria-labelledby="confirm-dialog-title"
         aria-modal="true"
-        className="w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur"
+        className={`w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur ${MOTION.dialog}`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >

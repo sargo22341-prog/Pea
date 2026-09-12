@@ -1,0 +1,106 @@
+/* Couche de mouvement de l'application.
+   Toutes les animations sont regroupees ici et neutralisees par prefers-reduced-motion.
+   Le remplissage `backwards` evite de conserver un `transform` apres l'animation : un
+   `transform` residuel ferait de l'element un bloc conteneur pour les overlays
+   `position: fixed` descendants. */
+
+@layer components {
+  .stale-refreshing {
+    animation: stale-refresh-pulse 2.4s ease-in-out infinite;
+  }
+
+  .motion-fade-in {
+    animation: pea-fade-in 0.18s ease-out backwards;
+  }
+
+  .motion-rise {
+    animation: pea-rise 0.28s ease-out backwards;
+  }
+
+  .motion-overlay {
+    animation: pea-fade-in 0.16s ease-out backwards;
+  }
+
+  .motion-dialog {
+    animation: pea-dialog-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .motion-menu {
+    animation: pea-menu-in 0.14s ease-out backwards;
+    transform-origin: top right;
+  }
+}
+
+@keyframes pea-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pea-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pea-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pea-menu-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stale-refresh-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: none;
+  }
+
+  50% {
+    opacity: 0.94;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stale-refreshing {
+    animation: none;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22);
+  }
+
+  .motion-dialog,
+  .motion-fade-in,
+  .motion-menu,
+  .motion-overlay,
+  .motion-rise {
+    animation: none;
+  }
+}

@@ -54,6 +54,7 @@ export function DividendsPage() {
         currency={dividendOverview.currency}
         monthlyDividends={dividendOverview.monthlyDividends}
         onYearChange={setYear}
+        projectedYear={dividendOverview.projectedYear}
         total={dividendOverview.total}
         year={year}
         years={dividendOverview.years}

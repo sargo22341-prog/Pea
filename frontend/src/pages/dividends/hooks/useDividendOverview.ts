@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { DividendGroup } from "../components/DividendGroupedList";
 import type { MonthlyDividend } from "../components/DividendAnnualEstimate";
 import { FALLBACK_TIMEZONE } from "../../../lib/timezone";
+import { projectDividendYear, type DividendOverviewEvent } from "../utils/projectDividendYear";
 
 const currentYear = new Date().getUTCFullYear();
 
@@ -17,7 +18,10 @@ export function useDividendOverview({
   upcoming?: PortfolioDividendEvent[];
   year: string;
 }) {
-  const allEvents = useMemo(() => [...upcoming, ...past], [past, upcoming]);
+  const knownEvents = useMemo<DividendOverviewEvent[]>(() => [...upcoming, ...past], [past, upcoming]);
+  // L'annee suivante n'existe pas cote serveur : elle est projetee ici a partir des deux dernieres.
+  const projectedEvents = useMemo(() => projectDividendYear(knownEvents, currentYear + 1), [knownEvents]);
+  const allEvents = useMemo(() => [...knownEvents, ...projectedEvents], [knownEvents, projectedEvents]);
   const years = useMemo(() => {
     const knownYears = new Set([String(currentYear), ...allEvents.map((event) => String(event.year))]);
     return [...knownYears].sort((a, b) => Number(b) - Number(a));
@@ -35,6 +39,7 @@ export function useDividendOverview({
     currency: displayCurrency,
     groups,
     monthlyDividends,
+    projectedYear: projectedEvents.length ? String(currentYear + 1) : undefined,
     stale,
     total,
     years
@@ -45,7 +50,7 @@ export function getCurrentDividendYear() {
   return currentYear;
 }
 
-function groupDividendsByMonth(events: PortfolioDividendEvent[], year: number, fallbackCurrency: CurrencyCode): MonthlyDividend[] {
+function groupDividendsByMonth(events: DividendOverviewEvent[], year: number, fallbackCurrency: CurrencyCode): MonthlyDividend[] {
   const months: MonthlyDividend[] = Array.from({ length: 12 }, (_, index) => {
     const date = new Date(Date.UTC(year, index, 1));
     return {
@@ -88,7 +93,7 @@ function groupDividendsByMonth(events: PortfolioDividendEvent[], year: number, f
   }));
 }
 
-function groupDividendsByAsset(events: PortfolioDividendEvent[], year: number): DividendGroup[] {
+function groupDividendsByAsset(events: DividendOverviewEvent[], year: number): DividendGroup[] {
   const groups = new Map<string, DividendGroup>();
 
   for (const event of events) {
@@ -104,6 +109,7 @@ function groupDividendsByAsset(events: PortfolioDividendEvent[], year: number): 
       dividendPercent: event.dividendPercent,
       yieldOnCostPercent: event.yieldOnCostPercent,
       hasEstimated: false,
+      hasProjected: false,
       stale: false
     };
     const quarter = quarterIndex(event.date);
@@ -112,6 +118,7 @@ function groupDividendsByAsset(events: PortfolioDividendEvent[], year: number): 
     existing.total += safeNumber(event.totalAmount);
     existing.quarters[quarter] += safeNumber(event.totalAmount);
     existing.hasEstimated = existing.hasEstimated || event.status === "estimated";
+    existing.hasProjected = existing.hasProjected || event.projected === true;
     existing.stale = existing.stale || event.stale;
     existing.dividendPercent = firstFinite(existing.dividendPercent, event.dividendPercent);
     existing.yieldOnCostPercent = firstFinite(existing.yieldOnCostPercent, event.yieldOnCostPercent);

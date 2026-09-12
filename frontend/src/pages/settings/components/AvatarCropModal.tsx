@@ -1,6 +1,7 @@
 import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MOTION } from "../../../components/common/motion";
 
 const PREVIEW_SIZE = 240;
 const OUTPUT_SIZE = 512;
@@ -119,11 +120,11 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 ${MOTION.overlay}`}
       onClick={onCancel}
     >
       <div
-        className="relative w-full max-w-sm rounded-xl bg-panel shadow-2xl"
+        className={`relative w-full max-w-sm rounded-xl bg-panel shadow-2xl ${MOTION.dialog}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">

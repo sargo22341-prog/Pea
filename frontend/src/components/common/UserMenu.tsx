@@ -3,6 +3,7 @@ import { ChevronDown, Settings, Shield, Target } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
+import { MOTION } from "./motion";
 
 interface UserMenuProps {
   user: User;
@@ -12,7 +13,7 @@ interface UserMenuProps {
   compact?: boolean;
 }
 
-const itemClass = "flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-panel2 hover:text-mint";
+const itemClass = "flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-panel2 hover:text-mint";
 
 export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, shouldLoadProfileIcon, user }: UserMenuProps) {
   const { t } = useTranslation("navigation");
@@ -66,7 +67,7 @@ export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, 
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-md border border-line bg-panel shadow-glow" role="menu">
+        <div className={`absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-md border border-line bg-panel shadow-glow ${MOTION.menu}`} role="menu">
           <NavLink className={itemClass} onClick={() => setOpen(false)} role="menuitem" to="/objectives">
             <Target size={16} />
             {t("objectives")}

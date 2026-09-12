@@ -4,8 +4,14 @@ import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
+import { MOTION } from "../../../components/common/motion";
 import { money } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
+import { projectionBasisYears } from "../utils/projectDividendYear";
+
+/** Barres pleines pour les montants connus ou estimes, attenuees pour une annee projetee. */
+const BAR_COLOR = "#22c55e";
+const PROJECTED_BAR_COLOR = "#22c55e80";
 
 export interface MonthlyDividendEntry {
   symbol: string;
@@ -26,21 +32,33 @@ interface DividendAnnualEstimateProps {
   currency: CurrencyCode;
   monthlyDividends: MonthlyDividend[];
   onYearChange: (year: string) => void;
+  projectedYear?: string;
   total: number;
   year: string;
   years: string[];
 }
 
-export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChange, total, year, years }: DividendAnnualEstimateProps) {
+export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChange, projectedYear, total, year, years }: DividendAnnualEstimateProps) {
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
+  const showingProjection = projectedYear !== undefined && year === projectedYear;
+  const projectionBasis = showingProjection ? projectionBasisYears(Number(year)) : undefined;
 
   return (
     <section className="card overflow-hidden">
       <div className="flex flex-col gap-4 border-b border-line p-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="muted">{t("dividendsPage.annualEstimate", { ns: "dashboard" })}</p>
+          <p className="muted">
+            {showingProjection
+              ? t("dividendsPage.projectionTitle", { ns: "dashboard", year })
+              : t("dividendsPage.annualEstimate", { ns: "dashboard" })}
+          </p>
           <p className="mt-1 text-3xl font-bold text-mint">{masquerValeur(money(total, currency), prive)}</p>
+          {projectionBasis && (
+            <p className={`mt-1 text-xs text-slate-500 ${MOTION.fadeIn}`}>
+              {t("dividendsPage.projectionBasis", { ns: "dashboard", base: projectionBasis.base, reference: projectionBasis.reference })}
+            </p>
+          )}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
           <h2 className="font-semibold sm:pb-2">{t("dividendsPage.monthlyForecast", { ns: "dashboard" })}</h2>
@@ -48,7 +66,9 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
             <span className="muted mb-2 block">{t("dividendsPage.year", { ns: "dashboard" })}</span>
             <select className="input" onChange={(event) => onYearChange(event.target.value)} value={year}>
               {years.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item === projectedYear ? t("dividendsPage.projectedOption", { ns: "dashboard", year: item }) : item}
+                </option>
               ))}
             </select>
           </label>
@@ -65,7 +85,7 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
               cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
               wrapperStyle={{ outline: "none" }}
             />
-            <Bar dataKey="total" fill="#22c55e" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="total" fill={showingProjection ? PROJECTED_BAR_COLOR : BAR_COLOR} radius={[6, 6, 0, 0]} />
           </BarChart>
         </SafeResponsiveContainer>
       </div>

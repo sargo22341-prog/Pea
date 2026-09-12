@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { MOTION } from "../motion";
 
 export function Collapsible({
   title,
@@ -36,7 +37,7 @@ export function Collapsible({
         <span className="font-semibold">{title}</span>
         <ChevronDown className={`text-slate-400 transition ${open ? "rotate-180" : ""}`} size={18} />
       </button>
-      {open && <div className="space-y-4 p-4">{children}</div>}
+      {open && <div className={`space-y-4 p-4 ${MOTION.rise}`}>{children}</div>}
     </section>
   );
 }

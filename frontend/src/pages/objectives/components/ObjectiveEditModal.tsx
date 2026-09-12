@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
+import { MOTION } from "../../../components/common/motion";
 import { ObjectiveAssumptionsSection } from "./form/ObjectiveAssumptionsSection";
 import { Field } from "./form/ObjectiveFormControls";
 import { ObjectiveSimulationSection } from "./form/ObjectiveSimulationSection";
@@ -51,8 +52,8 @@ export function ObjectiveEditModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 sm:place-items-center sm:p-4">
-      <form className="max-h-[92vh] w-full overflow-auto rounded-t-lg border border-line bg-panel p-4 shadow-xl sm:max-w-3xl sm:rounded-lg" onSubmit={submit}>
+    <div className={`fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 sm:place-items-center sm:p-4 ${MOTION.overlay}`}>
+      <form className={`max-h-[92vh] w-full overflow-auto rounded-t-lg border border-line bg-panel p-4 shadow-xl sm:max-w-3xl sm:rounded-lg ${MOTION.dialog}`} onSubmit={submit}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{t("objectives:form.title")}</h2>

@@ -29,7 +29,8 @@ Fonctionnalites principales :
 
 - dashboard de portefeuille avec positions, watchlist, performance et calendrier ;
 - fiche detaillee par actif avec historique, informations marche et dividendes ;
-- vue annuelle des dividendes avec repartition mensuelle et trimestrielle ;
+- vue annuelle des dividendes avec repartition mensuelle et trimestrielle, et projection
+  de l'annee suivante estimee a partir des deux annees precedentes ;
 - actualites Yahoo Finance, filtrables sur les actifs suivis ;
 - imports Boursorama CSV et avis d'operes PDF ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,

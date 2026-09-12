@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
+import { MOTION } from "../../../components/common/motion";
 import { api, type MarketDataRebuildRange } from "../../../lib/api";
 import { hasDataConstructionJob, notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 
@@ -153,8 +154,8 @@ function ConfirmActionDialog({ action, onCancel, onConfirm }: { action: QuickAct
   }, [onCancel]);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center" onClick={onCancel} role="presentation">
-      <div aria-describedby="quick-action-confirm-description" aria-labelledby="quick-action-confirm-title" aria-modal="true" className="w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur" onClick={(event) => event.stopPropagation()} role="dialog">
+    <div className={`fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`} onClick={onCancel} role="presentation">
+      <div aria-describedby="quick-action-confirm-description" aria-labelledby="quick-action-confirm-title" aria-modal="true" className={`w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur ${MOTION.dialog}`} onClick={(event) => event.stopPropagation()} role="dialog">
         <div className="flex items-start gap-3 border-b border-line p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-amber/40 bg-amber/10 text-amber">
             <AlertTriangle size={20} />

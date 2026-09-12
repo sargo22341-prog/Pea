@@ -67,6 +67,10 @@
     "groupedList": "Liste regroupee par action",
     "shares": "{{quantity}} titres",
     "estimated": "Inclut estime",
-    "cached": "Donnees en cache"
+    "cached": "Donnees en cache",
+    "projectedOption": "{{year}} (projection)",
+    "projectionTitle": "Projection {{year}}",
+    "projectionBasis": "Projection estimee a partir de {{base}} et {{reference}}",
+    "projected": "Annee projetee"
   }
 }

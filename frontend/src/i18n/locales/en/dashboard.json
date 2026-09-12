@@ -67,6 +67,10 @@
     "groupedList": "List grouped by stock",
     "shares": "{{quantity}} shares",
     "estimated": "Includes estimates",
-    "cached": "Cached data"
+    "cached": "Cached data",
+    "projectedOption": "{{year}} (projection)",
+    "projectionTitle": "{{year}} projection",
+    "projectionBasis": "Projection estimated from {{base}} and {{reference}}",
+    "projected": "Projected year"
   }
 }

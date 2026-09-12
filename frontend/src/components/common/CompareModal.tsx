@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
+import { MOTION } from "./motion";
 import { COMPARE_COLORS } from "../charts/comparison/compareColors";
 
 interface SelectedAsset {
@@ -27,10 +28,10 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center"
+      className={`fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="card w-full max-w-md space-y-4 p-4">
+      <div className={`card w-full max-w-md space-y-4 p-4 ${MOTION.dialog}`}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{t("portfolio:compare.title")}</h2>
           <button className="btn-ghost" onClick={onClose} type="button">

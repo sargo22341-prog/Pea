@@ -1,10 +1,11 @@
 import type { User } from "@pea/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { getMobileNavItems } from "./mobileNavItems";
+import { MOTION } from "./motion";
 import { UserMenu } from "./UserMenu";
 
 function navButtonClass({ isActive }: NavLinkRenderProps) {
@@ -12,11 +13,12 @@ function navButtonClass({ isActive }: NavLinkRenderProps) {
 }
 
 function mobileNavClass({ isActive }: NavLinkRenderProps) {
-  return `min-w-0 flex flex-col items-center gap-1 px-0.5 py-3 text-[10px] ${isActive ? "text-mint" : "text-slate-400"}`;
+  return `min-w-0 flex flex-col items-center gap-1 px-0.5 py-3 text-[10px] transition-colors ${isActive ? "text-mint" : "text-slate-400"}`;
 }
 
 export function Shell({ user }: { user: User }) {
   const { t } = useTranslation(["common", "navigation"]);
+  const location = useLocation();
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
   const [hasProfileIcon, setHasProfileIcon] = useState(() => Boolean(user.hasProfileIcon));
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
@@ -83,7 +85,10 @@ export function Shell({ user }: { user: User }) {
       </header>
 
       <main className="mx-auto max-w-6xl min-w-0 px-2 py-4 sm:px-4 sm:py-6">
-        <Outlet />
+        {/* La cle par chemin rejoue l'animation d'entree a chaque navigation. */}
+        <div className={MOTION.rise} key={location.pathname}>
+          <Outlet />
+        </div>
       </main>
 
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-ink/95 lg:hidden" data-system-bars-bottom="#071014" style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}>
