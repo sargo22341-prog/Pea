@@ -23,6 +23,10 @@ const fallbackIntradaySession: MarketSessionDto = {
   sessions: [{ open: "09:00", close: "17:30" }]
 };
 
+// Références stables : des littéraux inline casseraient le memo de PriceHistoryChart à chaque rendu.
+const chartMargin = { left: 0, right: 0, top: 16, bottom: 0 };
+const noTransactionMarkers: PortfolioChartDto["transactionMarkers"] = [];
+
 export const PortfolioChart = memo(function PortfolioChart({
   chart,
   range,
@@ -41,6 +45,10 @@ export const PortfolioChart = memo(function PortfolioChart({
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
   const chartData = useMemo(() => toChartPoints(chart), [chart]);
+  const comparisons = useMemo(
+    () => comparisonSeries.map((serie) => ({ key: serie.symbol, label: serie.symbol, timestamps: serie.timestamps, prices: serie.prices })),
+    [comparisonSeries]
+  );
   const marketSession = range === "1d" ? chart.marketSession ?? fallbackIntradaySession : undefined;
   const showComparison = comparisonSeries.length > 0;
   const waitingForComparison = comparisonLoading && !showComparison;
@@ -69,12 +77,7 @@ export const PortfolioChart = memo(function PortfolioChart({
         {showComparison ? (
           <PortfolioComparisonChart
             chart={chart}
-            comparisons={comparisonSeries.map((serie) => ({
-              key: serie.symbol,
-              label: serie.symbol,
-              timestamps: serie.timestamps,
-              prices: serie.prices
-            }))}
+            comparisons={comparisons}
             maskValues={prive}
             range={range}
             userTimezone={userTimezone}
@@ -85,13 +88,13 @@ export const PortfolioChart = memo(function PortfolioChart({
             baselinePrice={chart.baselinePrice}
             data={chartData}
             hideXAxisTicks
-            margin={{ left: 0, right: 0, top: 16, bottom: 0 }}
+            margin={chartMargin}
             maskValues={prive}
             minTickGap={28}
             marketSession={marketSession}
             oneDayTooltipFormat="time"
             range={range}
-            transactionMarkers={range === "1d" ? [] : chart.transactionMarkers}
+            transactionMarkers={range === "1d" ? noTransactionMarkers : chart.transactionMarkers}
             userTimezone={userTimezone}
           />
         )}

@@ -1,6 +1,6 @@
 import type { PositionRangePerformance, PositionWithMarket } from "@pea/shared";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { AssetIcon } from "../../../components/common/AssetIcon";
@@ -9,7 +9,9 @@ import { masquerValeur } from "../../../lib/privacy";
 import { MiniSparkline } from "./MiniSparkline";
 import { sparklineTone } from "./sparklineTone";
 
-export function PositionRows({
+// Memo : les bascules d'état du parent (indicateur de rafraîchissement, rendu du dashboard)
+// ne re-rendent pas toutes les lignes tant que les données affichées sont inchangées.
+export const PositionRows = memo(function PositionRows({
   error,
   performanceById,
   positions,
@@ -36,7 +38,7 @@ export function PositionRows({
       ))}
     </div>
   );
-}
+});
 
 function LazyPositionRow({
   position,

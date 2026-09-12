@@ -164,6 +164,16 @@ export class PortfolioRepository {
       .sort(compareTransactionAsc);
   }
 
+  sumTransactionFees(userId: number | string): number {
+    const row = db.prepare(
+      `SELECT COALESCE(SUM(t.total_fees), 0) AS total
+       FROM transactions t
+       JOIN positions p ON p.id = t.position_id
+       WHERE p.user_id = ?`
+    ).get(ensureUserId(userId)) as { total: number | null } | undefined;
+    return Number(row?.total ?? 0);
+  }
+
   insertManualTransaction(positionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)

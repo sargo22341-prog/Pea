@@ -13,6 +13,21 @@ interface Client {
   res: Response;
 }
 
+const portfolioRefreshEvents: MarketEventType[] = [
+  "portfolio-market-updated",
+  "portfolio-assets-updated",
+  "portfolio-chart-updated",
+  "portfolio-performance-updated",
+  "dashboard-chart-updated",
+  "analysis-updated",
+  "dividends-updated"
+];
+const watchlistRefreshEvents: MarketEventType[] = ["watchlist-market-updated", "watchlist-assets-updated", "watchlist-chart-updated"];
+
+function formatEvent(event: MarketEventType, payload: Omit<MarketEventPayload, "type">) {
+  return `event: ${event}\ndata: ${JSON.stringify({ type: event, ...payload })}\n\n`;
+}
+
 export class MarketEventsService {
   private clients = new Map<number, Client>();
   private nextClientId = 1;
@@ -57,23 +72,18 @@ export class MarketEventsService {
     const users = this.usersForSymbols(input.symbols);
     if (!users.size) return;
 
+    // Les événements sont sérialisés une seule fois puis envoyés en un seul write par client,
+    // au lieu de deux writes par événement (jusqu'à 22 écritures socket par rafraîchissement).
+    const snapshotChunk = formatEvent("market-snapshot-updated", { markets, updatedAt });
+    const portfolioChunk = portfolioRefreshEvents
+      .map((event) => formatEvent(event, event === "portfolio-performance-updated" ? { markets, range: "1d", updatedAt } : { markets, updatedAt }))
+      .join("");
+    const watchlistChunk = watchlistRefreshEvents.map((event) => formatEvent(event, { markets, updatedAt })).join("");
+
     for (const client of this.clients.values()) {
-      if (!users.has(client.userId)) continue;
-      this.write(client, "market-snapshot-updated", { type: "market-snapshot-updated", markets, updatedAt });
-      if (users.get(client.userId)?.portfolio) {
-        this.write(client, "portfolio-market-updated", { type: "portfolio-market-updated", markets, updatedAt });
-        this.write(client, "portfolio-assets-updated", { type: "portfolio-assets-updated", markets, updatedAt });
-        this.write(client, "portfolio-chart-updated", { type: "portfolio-chart-updated", markets, updatedAt });
-        this.write(client, "portfolio-performance-updated", { type: "portfolio-performance-updated", markets, range: "1d", updatedAt });
-        this.write(client, "dashboard-chart-updated", { type: "dashboard-chart-updated", markets, updatedAt });
-        this.write(client, "analysis-updated", { type: "analysis-updated", markets, updatedAt });
-        this.write(client, "dividends-updated", { type: "dividends-updated", markets, updatedAt });
-      }
-      if (users.get(client.userId)?.watchlist) {
-        this.write(client, "watchlist-market-updated", { type: "watchlist-market-updated", markets, updatedAt });
-        this.write(client, "watchlist-assets-updated", { type: "watchlist-assets-updated", markets, updatedAt });
-        this.write(client, "watchlist-chart-updated", { type: "watchlist-chart-updated", markets, updatedAt });
-      }
+      const impact = users.get(client.userId);
+      if (!impact) continue;
+      this.writeChunk(client, `${snapshotChunk}${impact.portfolio ? portfolioChunk : ""}${impact.watchlist ? watchlistChunk : ""}`);
     }
   }
 
@@ -120,9 +130,12 @@ export class MarketEventsService {
   }
 
   private write(client: Client, event: MarketEventType, payload: MarketEventPayload) {
+    this.writeChunk(client, formatEvent(event, payload));
+  }
+
+  private writeChunk(client: Client, chunk: string) {
     try {
-      client.res.write(`event: ${event}\n`);
-      client.res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      client.res.write(chunk);
     } catch (error) {
       logger.warn("market-data", "market SSE write failed", { userId: client.userId, error: error instanceof Error ? error.message : String(error) });
       this.clients.delete(client.id);

@@ -36,12 +36,13 @@ function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return Promise.reject(abortError());
 
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      signal.addEventListener("abort", () => reject(abortError()), { once: true });
-    })
-  ]);
+  // L'écouteur est retiré dès que la requête partagée se termine : sinon un signal longue durée
+  // conserverait un écouteur (et sa closure) par requête effectuée.
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 /**
@@ -261,11 +262,15 @@ function isRetryableRequest(init: RequestInit = {}) {
 function delay(ms: number, signal?: AbortSignal) {
   if (signal?.aborted) return Promise.reject(abortError());
   return new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
+    const onAbort = () => {
       window.clearTimeout(timeout);
       reject(abortError());
-    }, { once: true });
+    };
+    const timeout = window.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 

@@ -83,9 +83,7 @@ export class PortfolioReadService {
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
     const totalDividendsReceived = computeTotalDividendsReceived(positions, txCache);
-    const totalFees = portfolioRepository.listPositions(resolvedUserId)
-      .flatMap((position) => portfolioRepository.listTransactionSequence(position.id))
-      .reduce((sum, transaction) => sum + Number(transaction.total_fees ?? 0), 0);
+    const totalFees = portfolioRepository.sumTransactionFees(resolvedUserId);
     const totalPerformance = totalValue - totalCost;
 
     const payload = {
