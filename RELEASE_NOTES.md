@@ -1,11 +1,12 @@
 
 ## Notes de release
 
-- objectifs : nouvelle option « Simulation de la courbe » avec quatre formes de projection
+feat(objectifs): ajouter des modes de simulation de la courbe de projection
 
-  - courbe lisse (comportement historique, aucune variation aleatoire) ;
-  - projection stochastique : rendement mensuel tire au hasard autour de la tendance (volatilite annuelle reglable) ;
-  - chocs aleatoires : crises tirees au hasard (frequence et baisse moyenne reglables) suivies d'une reprise partielle ;
-  - Monte-Carlo : des centaines de trajectoires combinant volatilite et chocs, affichees en courbe mediane, bande 10 %-90 % et probabilite d'atteindre l'objectif.
-
-- chaque tirage est reproductible grace a une graine enregistree : la courbe ne change plus a chaque recalcul automatique, et le bouton « Nouveau tirage » permet d'explorer un autre scenario
+- propose quatre formes de courbe: lisse, stochastique, chocs aleatoires et Monte-Carlo
+- rend chaque tirage reproductible via une graine enregistree et un bouton de nouveau tirage
+- affiche la bande 10 %-90 % et la probabilite de reussite en mode Monte-Carlo
+- borne les parametres de simulation cote Zod et cote calcul
+- decoupe le calculateur d'objectifs et la modale d'edition en modules dedies
+- supprime le code mort du calculateur et pre-calcule la ligne de seuil
+- ajoute les tests de simulation backend et les tests d'interface associes
