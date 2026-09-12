@@ -14,6 +14,8 @@ interface ObjectiveProjectionTooltipPayload {
   payload?: {
     possibleMonthlyIncome?: number;
     paidMonthlyIncome?: number;
+    projectedLow?: number;
+    projectedHigh?: number;
   };
 }
 
@@ -28,6 +30,7 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
   if (!active || !payload?.length) return null;
   const possibleMonthlyIncome = payload.find((item) => item.payload?.possibleMonthlyIncome !== undefined)?.payload?.possibleMonthlyIncome;
   const paidMonthlyIncome = payload.find((item) => item.payload?.paidMonthlyIncome !== undefined)?.payload?.paidMonthlyIncome;
+  const point = payload.find((item) => item.payload?.projectedLow !== undefined && item.payload?.projectedHigh !== undefined)?.payload;
   const incomeGap = possibleMonthlyIncome !== undefined && paidMonthlyIncome !== undefined
     ? possibleMonthlyIncome - paidMonthlyIncome
     : undefined;
@@ -51,6 +54,11 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
             );
           })}
       </div>
+      {point ? (
+        <p className="mt-2 text-xs text-slate-300">
+          {t("chart.rangeValue", { high: money(point.projectedHigh!, "EUR"), low: money(point.projectedLow!, "EUR") })}
+        </p>
+      ) : null}
       {payload.some((item) => item.dataKey === "objective") ? (
         <p className="mt-3 border-t border-line/70 pt-2 text-xs text-slate-400">
           {t(projectionSeries.required.descriptionKey)}

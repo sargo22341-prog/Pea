@@ -9,9 +9,17 @@ export const projectionSeries = {
     color: "#38bdf8",
     descriptionKey: "chart.series.projectedDescription"
   },
+  range: {
+    labelKey: "chart.series.range",
+    color: "#38bdf8",
+    descriptionKey: "chart.series.rangeDescription"
+  },
   required: {
     labelKey: "chart.series.required",
     color: "#f59e0b",
     descriptionKey: "chart.series.requiredDescription"
   }
 } as const;
+
+/** Opacite de la bande Monte-Carlo: visible sans masquer les courbes. */
+export const projectionRangeOpacity = 0.18;

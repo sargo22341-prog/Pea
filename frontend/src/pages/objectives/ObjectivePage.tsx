@@ -1,4 +1,4 @@
-import type { User } from "@pea/shared";
+import { OBJECTIVE_SIMULATION_DEFAULTS, type User } from "@pea/shared";
 import { Edit3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,11 @@ export function ObjectivePage({ user }: { user: User }) {
 
       {projection.status === "missing_data" ? <ObjectiveMissingDataState items={projection.missingData} /> : null}
       {projection.summary ? <ObjectiveSummaryCards summary={projection.summary} /> : null}
-      <ObjectiveProjectionChart projection={projection} />
+      <ObjectiveProjectionChart
+        mode={objective.assumptions.simulationMode ?? OBJECTIVE_SIMULATION_DEFAULTS.mode}
+        projection={projection}
+        successProbability={projection.summary?.successProbability}
+      />
       <ObjectiveExplanationMessage objective={objective} projection={projection} />
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">

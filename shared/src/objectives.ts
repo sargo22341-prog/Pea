@@ -1,3 +1,5 @@
+import type { ObjectiveSimulationMode } from "./objective-simulation.js";
+
 export type ObjectiveType =
   | "fixed_capital"
   | "annuity_consuming_capital"
@@ -17,6 +19,16 @@ export interface ObjectiveAssumptions {
   statePensionMonthly: number;
   statePensionStartAge: number;
   scenario: ObjectiveScenario;
+  /** Forme de la courbe de projection: lisse, volatile, avec chocs ou Monte-Carlo. */
+  simulationMode?: ObjectiveSimulationMode;
+  /** Volatilite annuelle en % (modes stochastique et Monte-Carlo). */
+  simulationVolatility?: number;
+  /** Nombre moyen d'annees entre deux chocs (modes chocs et Monte-Carlo). */
+  simulationShockFrequency?: number;
+  /** Baisse moyenne en % d'un choc (modes chocs et Monte-Carlo). */
+  simulationShockSeverity?: number;
+  /** Graine du tirage aleatoire, pour une courbe reproductible entre deux recalculs. */
+  simulationSeed?: number;
 }
 
 export interface ObjectiveConfig {
@@ -44,6 +56,8 @@ export interface ObjectiveSummary {
   leadLagMonths?: number;
   progressPercent: number;
   message: string;
+  /** Part des trajectoires Monte-Carlo qui atteignent l'objectif, en %. */
+  successProbability?: number;
 }
 
 export interface ObjectiveSeriesPoint {
@@ -51,6 +65,10 @@ export interface ObjectiveSeriesPoint {
   age: number;
   real?: number;
   projected?: number;
+  /** Borne basse (10e centile) de l'intervalle Monte-Carlo. */
+  projectedLow?: number;
+  /** Borne haute (90e centile) de l'intervalle Monte-Carlo. */
+  projectedHigh?: number;
   objective?: number;
   possibleMonthlyIncome?: number;
   paidMonthlyIncome?: number;

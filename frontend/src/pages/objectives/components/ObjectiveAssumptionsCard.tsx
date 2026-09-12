@@ -1,9 +1,17 @@
-import type { ObjectiveAssumptions } from "@pea/shared";
+import {
+  OBJECTIVE_SIMULATION_DEFAULTS,
+  objectiveSimulationIsRandom,
+  objectiveSimulationUsesShocks,
+  objectiveSimulationUsesVolatility,
+  type ObjectiveAssumptions
+} from "@pea/shared";
 import { useTranslation } from "react-i18next";
 import { formatObjectiveMoney } from "../utils/formatObjective";
 
 export function ObjectiveAssumptionsCard({ assumptions }: { assumptions: ObjectiveAssumptions }) {
   const { t } = useTranslation("objectives");
+  const defaults = OBJECTIVE_SIMULATION_DEFAULTS;
+  const mode = assumptions.simulationMode ?? defaults.mode;
   const rows = [
     [t("assumptions.currentAge"), assumptions.currentAge ? t("settings.ageValue", { age: assumptions.currentAge }) : t("assumptions.toComplete")],
     [t("assumptions.futureSavings"), assumptions.futureMonthlySavings === undefined || assumptions.futureMonthlySavings === null ? t("assumptions.historicalFallback") : t("assumptions.monthlyMoney", { amount: formatObjectiveMoney(assumptions.futureMonthlySavings) })],
@@ -13,7 +21,20 @@ export function ObjectiveAssumptionsCard({ assumptions }: { assumptions: Objecti
     [t("assumptions.withdrawal"), assumptions.withdrawalRate ? t("assumptions.percent", { value: assumptions.withdrawalRate }) : t("values.na")],
     [t("assumptions.projectionEndAge"), assumptions.projectionEndAge ? t("settings.ageValue", { age: assumptions.projectionEndAge }) : t("settings.ageValue", { age: 90 })],
     [t("assumptions.statePension"), t("assumptions.statePensionValue", { amount: formatObjectiveMoney(assumptions.statePensionMonthly), age: assumptions.statePensionStartAge })],
-    [t("assumptions.scenario"), t(`form.fields.${assumptions.scenario}`)]
+    [t("assumptions.scenario"), t(`form.fields.${assumptions.scenario}`)],
+    [t("assumptions.simulationMode"), t(`form.simulationModes.${mode}`)],
+    ...(objectiveSimulationUsesVolatility(mode)
+      ? [[t("assumptions.simulationVolatility"), t("assumptions.percent", { value: assumptions.simulationVolatility ?? defaults.annualVolatility })]]
+      : []),
+    ...(objectiveSimulationUsesShocks(mode)
+      ? [[t("assumptions.simulationShocks"), t("assumptions.simulationShocksValue", {
+        severity: assumptions.simulationShockSeverity ?? defaults.shockSeverity,
+        years: assumptions.simulationShockFrequency ?? defaults.shockFrequencyYears
+      })]]
+      : []),
+    ...(objectiveSimulationIsRandom(mode)
+      ? [[t("assumptions.simulationSeed"), String(assumptions.simulationSeed ?? defaults.seed)]]
+      : [])
   ];
 
   return (

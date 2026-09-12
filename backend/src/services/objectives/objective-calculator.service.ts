@@ -1,124 +1,49 @@
 import type {
-  ObjectiveAssumptions,
-  ObjectiveConfig,
   ObjectiveContributionPoint,
   ObjectiveInput,
   ObjectiveMissingData,
   ObjectiveProjection,
-  ObjectiveSeriesPoint
+  ObjectiveSeriesPoint,
+  ObjectiveSummary
 } from "@pea/shared";
+import {
+  buildObjectiveLine,
+  isAnnuityObjective,
+  monthlyIncomeAtAge,
+  monthlyReturn,
+  monthsBetweenAges,
+  possibleMonthlyIncome,
+  projectionEndAge,
+  targetCapitalAtAge
+} from "./objective-capital-math.js";
 import type { ObjectivePortfolioSnapshot } from "./objective-portfolio.service.js";
+import { resolveSimulationSettings } from "./simulation/simulation-settings.js";
+import { runSimulation } from "./simulation/trajectory-runner.js";
+import { requiredObjectiveFields } from "./objective-required-fields.js";
 
-const defaultProjectionEndAge = 90;
+const minProjectionMonths = 12;
+const estimatedContributionMonths = 12;
+const projectionRefreshHour = 23;
 
-function addYears(date: Date, years: number) {
+function addMonths(date: Date, months: number) {
   const next = new Date(date);
-  next.setMonth(next.getMonth() + Math.round(years * 12));
+  next.setMonth(next.getMonth() + months);
   return next;
 }
 
 function nextUpdateAt(now: Date) {
   const next = new Date(now);
-  next.setHours(23, 0, 0, 0);
+  next.setHours(projectionRefreshHour, 0, 0, 0);
   if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
   return next.toISOString();
 }
 
-function missing(field: string, label: string): ObjectiveMissingData {
-  return { field, label };
-}
-
-function annualReturn(assumptions: ObjectiveAssumptions) {
-  const scenarioDelta = assumptions.scenario === "prudent" ? -2 : assumptions.scenario === "optimistic" ? 2 : 0;
-  const gross = assumptions.annualReturnRate + scenarioDelta;
-  const afterTax = gross * (1 - assumptions.taxRate / 100);
-  return afterTax / 100;
-}
-
-function monthlyReturn(assumptions: ObjectiveAssumptions) {
-  return Math.pow(1 + annualReturn(assumptions), 1 / 12) - 1;
-}
-
-function withdrawalRate(assumptions: ObjectiveAssumptions) {
-  return Math.max(0.001, (assumptions.withdrawalRate ?? 4) / 100);
-}
-
-function projectionEndAge(assumptions: ObjectiveAssumptions) {
-  return Math.min(120, Math.max(70, assumptions.projectionEndAge ?? defaultProjectionEndAge));
-}
-
-function monthsBetweenAges(currentAge: number, targetAge?: number) {
-  if (targetAge === undefined) return undefined;
-  return Math.max(0, Math.round((targetAge - currentAge) * 12));
-}
-
-function capitalNeededForAnnuity(input: {
-  monthlyIncome: number;
-  months: number;
-  monthlyRate: number;
-  inflationRate: number;
-  indexed: boolean;
-  finalCapital: number;
-}) {
-  let required = input.finalCapital / Math.pow(1 + input.monthlyRate, input.months);
-  for (let month = 1; month <= input.months; month += 1) {
-    const inflationFactor = input.indexed ? Math.pow(1 + input.inflationRate / 100, month / 12) : 1;
-    const payment = input.monthlyIncome * inflationFactor;
-    required += payment / Math.pow(1 + input.monthlyRate, month);
-  }
-  return required;
-}
-
-function capitalNeededForObjectiveAnnuity(input: ObjectiveInput, startAge: number, monthlyRateValue: number) {
-  const config = input.config;
-  const endAge = projectionEndAge(input.assumptions);
-  const months = Math.max(1, Math.round((endAge - startAge) * 12));
-  let required = (config.finalCapitalTarget ?? 0) / Math.pow(1 + monthlyRateValue, months);
-  for (let month = 1; month <= months; month += 1) {
-    const age = startAge + month / 12;
-    const inflationFactor = config.indexIncomeToInflation ? Math.pow(1 + input.assumptions.inflationRate / 100, month / 12) : 1;
-    const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;
-    const payment = Math.max(0, (config.monthlyIncome ?? 0) * inflationFactor - pension);
-    required += payment / Math.pow(1 + monthlyRateValue, month);
-  }
-  return required;
-}
-
-function monthlyIncomeAtAge(input: ObjectiveInput, age: number) {
-  const yearsFromCurrent = Math.max(0, age - (input.assumptions.currentAge ?? age));
-  return (input.config.monthlyIncome ?? 0) * (input.config.indexIncomeToInflation ? Math.pow(1 + input.assumptions.inflationRate / 100, yearsFromCurrent) : 1);
-}
-
-function netPortfolioIncomeAtAge(input: ObjectiveInput, age: number) {
-  const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;
-  return Math.max(0, monthlyIncomeAtAge(input, age) - pension);
-}
-
-function buildObjectiveLine(config: ObjectiveConfig, assumptions: ObjectiveAssumptions, months: number, startCapital: number, targetCapital: number): number[] {
-  const currentAge = assumptions.currentAge ?? 0;
-  const targetMonths = monthsBetweenAges(currentAge, config.targetAge) ?? months;
-  return Array.from({ length: months + 1 }, (_, month) => {
-    const ratio = targetMonths <= 0 ? 1 : Math.min(1, month / targetMonths);
-    return startCapital + (targetCapital - startCapital) * ratio;
-  });
-}
-
-function shouldApplyMonthlySavings(input: ObjectiveInput, effectiveAnnuityStartAge: number | undefined) {
-  if (input.type === "fixed_capital") return true;
-  if (input.config.continueSavingsAfterAnnuityStart) return true;
-  return effectiveAnnuityStartAge === undefined;
-}
-
-function isAnnuityObjective(input: ObjectiveInput) {
-  return input.type !== "fixed_capital";
-}
-
 export class ObjectiveCalculatorService {
   calculate(input: ObjectiveInput, portfolio: ObjectivePortfolioSnapshot, now = new Date()): ObjectiveProjection {
-    const missingData = this.requiredFields(input);
+    const missingData: ObjectiveMissingData[] = requiredObjectiveFields(input);
     const currentAge = input.assumptions.currentAge;
-    if (currentAge === undefined) missingData.unshift(missing("assumptions.currentAge", "Age actuel"));
-    if (missingData.length) {
+    if (currentAge === undefined) missingData.unshift({ field: "assumptions.currentAge", label: "Age actuel" });
+    if (missingData.length || currentAge === undefined) {
       return {
         status: "missing_data",
         missingData,
@@ -129,170 +54,107 @@ export class ObjectiveCalculatorService {
       };
     }
 
-    const projection = this.project(input, portfolio, now, currentAge!);
     return {
       status: "ready",
       missingData: [],
-      ...projection,
+      ...this.project(input, portfolio, now, currentAge),
       lastUpdatedAt: now.toISOString(),
       nextUpdateAt: nextUpdateAt(now)
     };
   }
 
-  private requiredFields(input: ObjectiveInput): ObjectiveMissingData[] {
-    const config = input.config;
-    const items: ObjectiveMissingData[] = [];
-    const need = (condition: boolean, field: string, label: string) => {
-      if (condition) items.push(missing(field, label));
-    };
-    if (input.type === "fixed_capital") {
-      need(!config.targetAmount, "config.targetAmount", "Montant cible");
-      need(!config.targetAge, "config.targetAge", "Age cible");
-    }
-    if (input.type === "annuity_consuming_capital") {
-      need(!config.monthlyIncome, "config.monthlyIncome", "Rente mensuelle voulue");
-    }
-    if (input.type === "annuity_preserve_capital") {
-      need(!config.monthlyIncome, "config.monthlyIncome", "Rente mensuelle voulue");
-    }
-    if (input.type === "annuity_target_final_capital") {
-      need(!config.monthlyIncome, "config.monthlyIncome", "Rente mensuelle voulue");
-      need(config.finalCapitalTarget === undefined, "config.finalCapitalTarget", "Capital final voulu");
-    }
-    return items;
-  }
-
-  private project(input: ObjectiveInput, portfolio: ObjectivePortfolioSnapshot, now: Date, currentAge: number): Omit<ObjectiveProjection, "status" | "missingData" | "lastUpdatedAt" | "nextUpdateAt"> {
+  private project(
+    input: ObjectiveInput,
+    portfolio: ObjectivePortfolioSnapshot,
+    now: Date,
+    currentAge: number
+  ): Pick<ObjectiveProjection, "summary" | "series" | "contributions"> {
     const config = input.config;
     const assumptions = input.assumptions;
-    const mRate = monthlyReturn(assumptions);
+    const baseMonthlyReturn = monthlyReturn(assumptions);
     const endAge = projectionEndAge(assumptions);
-    const maxMonths = Math.max(12, Math.round(((config.targetAge ?? endAge) - currentAge) * 12));
+    const maxMonths = Math.max(minProjectionMonths, Math.round(((config.targetAge ?? endAge) - currentAge) * 12));
     const monthlySavings = assumptions.futureMonthlySavings ?? portfolio.averageMonthlySavings;
-    let targetCapital = this.targetCapital(input, currentAge, portfolio.currentCapital, mRate);
-    const series: ObjectiveSeriesPoint[] = [...portfolio.realSeries];
-    let capital = portfolio.currentCapital;
-    let reachedMonth: number | undefined;
-    let effectiveAnnuityStartAge: number | undefined;
-    const inferAnnuityStart = input.type !== "fixed_capital";
+    const annuity = isAnnuityObjective(input);
+    const initialTargetCapital = targetCapitalAtAge(input, currentAge, baseMonthlyReturn);
+    const thresholdByMonth = annuity
+      ? Array.from({ length: maxMonths + 1 }, (_, month) => targetCapitalAtAge(input, currentAge + month / 12, baseMonthlyReturn))
+      : new Array<number>(maxMonths + 1).fill(initialTargetCapital);
+    const objectiveLine = annuity
+      ? thresholdByMonth
+      : buildObjectiveLine(config, assumptions, maxMonths, portfolio.currentCapital, initialTargetCapital);
 
-    const objectiveValues = buildObjectiveLine(config, assumptions, maxMonths, portfolio.currentCapital, targetCapital);
+    const outcome = runSimulation(
+      {
+        input,
+        currentAge,
+        startCapital: portfolio.currentCapital,
+        monthlySavings,
+        maxMonths,
+        thresholdByMonth
+      },
+      resolveSimulationSettings(assumptions),
+      baseMonthlyReturn
+    );
+
+    const series: ObjectiveSeriesPoint[] = [...portfolio.realSeries];
     const contributions: ObjectiveContributionPoint[] = [...portfolio.contributions];
     for (let month = 0; month <= maxMonths; month += 1) {
       const age = currentAge + month / 12;
-      const monthSavings = shouldApplyMonthlySavings(input, effectiveAnnuityStartAge) ? monthlySavings : 0;
-      if (month > 0) {
-        capital = capital * (1 + mRate) + monthSavings;
-        capital -= this.withdrawalForMonth(input, age, month, effectiveAnnuityStartAge);
-        if (input.type === "annuity_preserve_capital" && effectiveAnnuityStartAge !== undefined) {
-          capital = Math.max(capital, targetCapital);
-        }
-        capital = Math.max(0, capital);
-      }
-      const monthTargetCapital = inferAnnuityStart ? this.targetCapitalForAge(input, age, mRate) : targetCapital;
-      if (reachedMonth === undefined && capital >= monthTargetCapital) {
-        reachedMonth = month;
-        effectiveAnnuityStartAge = age;
-        targetCapital = monthTargetCapital;
-      }
-      const date = addYears(now, month / 12).toISOString();
-      const paidMonthlyIncome = isAnnuityObjective(input) && effectiveAnnuityStartAge !== undefined && age >= effectiveAnnuityStartAge
-        ? monthlyIncomeAtAge(input, age)
-        : undefined;
+      const capital = outcome.capitals[month] ?? 0;
+      const date = addMonths(now, month).toISOString();
       series.push({
         date,
         age,
         projected: capital,
-        objective: inferAnnuityStart ? monthTargetCapital : objectiveValues[month] ?? targetCapital,
-        possibleMonthlyIncome: this.possibleMonthlyIncome(input, capital, age, mRate),
-        paidMonthlyIncome
+        projectedLow: outcome.lowCapitals?.[month],
+        projectedHigh: outcome.highCapitals?.[month],
+        objective: objectiveLine[month] ?? initialTargetCapital,
+        possibleMonthlyIncome: possibleMonthlyIncome(input, capital, age, baseMonthlyReturn),
+        paidMonthlyIncome: annuity && outcome.reachedMonth !== undefined && month >= outcome.reachedMonth
+          ? monthlyIncomeAtAge(input, age)
+          : undefined
       });
-      if (month > 0 && month <= 12) {
-        contributions.push({ month: date.slice(0, 7), amount: monthSavings, kind: "estimated" });
+      if (month > 0 && month <= estimatedContributionMonths) {
+        contributions.push({ month: date.slice(0, 7), amount: outcome.savings[month] ?? 0, kind: "estimated" });
       }
     }
 
-    const targetMonth = monthsBetweenAges(currentAge, config.targetAge) ?? maxMonths;
-    const leadLagMonths = reachedMonth === undefined ? undefined : targetMonth - reachedMonth;
-    const reachedAge = reachedMonth === undefined ? undefined : currentAge + reachedMonth / 12;
-    const reachedDate = reachedMonth === undefined ? undefined : addYears(now, reachedMonth / 12).toISOString();
-    const progressPercent = targetCapital > 0 ? Math.min(100, Math.round((portfolio.currentCapital / targetCapital) * 1000) / 10) : 100;
     return {
-      summary: {
-        currentCapital: portfolio.currentCapital,
-        targetCapital,
-        reachedAge,
-        reachedDate,
-        leadLagMonths,
-        progressPercent,
-        message: reachedAge
-          ? "objectives.summaryMessage.reachable"
-          : "objectives.summaryMessage.unreachable"
-      },
+      summary: this.summary(input, portfolio, currentAge, maxMonths, now, outcome, initialTargetCapital),
       series,
       contributions
     };
   }
-  private targetCapital(input: ObjectiveInput, currentAge: number, currentCapital: number, monthlyRateValue: number) {
-    const config = input.config;
-    if (input.type === "fixed_capital") return config.targetAmount ?? 0;
-    if (input.type === "annuity_preserve_capital") {
-      return netPortfolioIncomeAtAge(input, currentAge) * 12 / withdrawalRate(input.assumptions);
-    }
-    if (input.type === "annuity_consuming_capital") {
-      return capitalNeededForObjectiveAnnuity(input, currentAge, monthlyRateValue);
-    }
-    if (input.type === "annuity_target_final_capital") {
-      return capitalNeededForObjectiveAnnuity(input, currentAge, monthlyRateValue);
-    }
-    const startAge = currentAge;
-    const endAge = projectionEndAge(input.assumptions);
-    const months = Math.max(1, Math.round((endAge - startAge) * 12));
-    return capitalNeededForAnnuity({
-      monthlyIncome: config.monthlyIncome ?? 0,
-      months,
-      monthlyRate: monthlyRateValue,
-      inflationRate: input.assumptions.inflationRate,
-      indexed: Boolean(config.indexIncomeToInflation),
-      finalCapital: config.finalCapitalTarget ?? 0
-    });
-  }
-  private withdrawalForMonth(input: ObjectiveInput, age: number, month: number, startAge?: number) {
-    const config = input.config;
-    const starts = age >= (startAge ?? Number.POSITIVE_INFINITY);
-    if (!starts || !config.monthlyIncome) return 0;
-    if (input.type === "annuity_preserve_capital") return 0;
-    if (age > projectionEndAge(input.assumptions)) return 0;
-    return netPortfolioIncomeAtAge(input, age);
-  }
-  private targetCapitalForAge(input: ObjectiveInput, age: number, monthlyRateValue: number) {
-    if (input.type === "annuity_consuming_capital") {
-      return capitalNeededForObjectiveAnnuity(input, age, monthlyRateValue);
-    }
-    if (input.type === "annuity_preserve_capital") {
-      return netPortfolioIncomeAtAge(input, age) * 12 / withdrawalRate(input.assumptions);
-    }
-    if (input.type === "annuity_target_final_capital") {
-      return capitalNeededForObjectiveAnnuity(input, age, monthlyRateValue);
-    }
-    return this.targetCapital(input, age, 0, monthlyRateValue);
-  }
-  private possibleMonthlyIncome(input: ObjectiveInput, capital: number, age: number, monthlyRateValue: number) {
-    if (!isAnnuityObjective(input)) return undefined;
-    if (input.type === "annuity_consuming_capital") {
-      const months = Math.max(1, Math.round((projectionEndAge(input.assumptions) - age) * 12));
-      const protectedCapital = input.config.finalCapitalTarget ?? 0;
-      const spendableCapital = Math.max(0, capital - protectedCapital / Math.pow(1 + monthlyRateValue, months));
-      const portfolioIncome = monthlyRateValue === 0
-        ? spendableCapital / months
-        : spendableCapital * monthlyRateValue / (1 - Math.pow(1 + monthlyRateValue, -months));
-      const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;
-      return portfolioIncome + pension;
-    }
-    const protectedCapital = input.type === "annuity_target_final_capital" ? input.config.finalCapitalTarget ?? 0 : 0;
-    const portfolioIncome = Math.max(0, (capital - protectedCapital) * withdrawalRate(input.assumptions) / 12);
-    const pension = age >= input.assumptions.statePensionStartAge ? input.assumptions.statePensionMonthly : 0;
-    return portfolioIncome + pension;
+
+  private summary(
+    input: ObjectiveInput,
+    portfolio: ObjectivePortfolioSnapshot,
+    currentAge: number,
+    maxMonths: number,
+    now: Date,
+    outcome: ReturnType<typeof runSimulation>,
+    initialTargetCapital: number
+  ): ObjectiveSummary {
+    const targetCapital = outcome.reachedTarget ?? initialTargetCapital;
+    const targetMonth = monthsBetweenAges(currentAge, input.config.targetAge) ?? maxMonths;
+    const reachedMonth = outcome.reachedMonth;
+    const progressPercent = targetCapital > 0
+      ? Math.min(100, Math.round((portfolio.currentCapital / targetCapital) * 1000) / 10)
+      : 100;
+    return {
+      currentCapital: portfolio.currentCapital,
+      targetCapital,
+      reachedAge: reachedMonth === undefined ? undefined : currentAge + reachedMonth / 12,
+      reachedDate: reachedMonth === undefined ? undefined : addMonths(now, reachedMonth).toISOString(),
+      leadLagMonths: reachedMonth === undefined ? undefined : targetMonth - reachedMonth,
+      progressPercent,
+      successProbability: outcome.successProbability,
+      message: reachedMonth === undefined
+        ? "objectives.summaryMessage.unreachable"
+        : "objectives.summaryMessage.reachable"
+    };
   }
 }
+
 export const objectiveCalculatorService = new ObjectiveCalculatorService();

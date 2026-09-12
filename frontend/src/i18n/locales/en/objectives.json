@@ -38,12 +38,22 @@
       "projected": "Future projection",
       "projectedDescription": "Projected wealth with current assumptions.",
       "required": "Goal threshold",
-      "requiredDescription": "Minimum capital required to reach your goal with the current parameters."
+      "requiredDescription": "Minimum capital required to reach your goal with the current parameters.",
+      "range": "10%-90% range",
+      "rangeDescription": "Band containing 80% of the simulated trajectories."
     },
     "possibleIncome": "Possible annuity: {{amount}} / month",
     "paidIncome": "Paid annuity: {{amount}} / month",
     "incomeGapPositive": "Available margin: +{{amount}} / month",
-    "incomeGapNegative": "Gap to cover: -{{amount}} / month"
+    "incomeGapNegative": "Gap to cover: -{{amount}} / month",
+    "rangeValue": "Range: {{low}} to {{high}}",
+    "successProbability": "Probability of reaching the goal: {{value}}% of simulated trajectories",
+    "simulationHelp": {
+      "deterministic": "The selected simulation mode is a smooth curve: no unexpected event is simulated.",
+      "stochastic": "The selected mode adds random monthly volatility: one possible trajectory among many.",
+      "shocks": "The selected mode simulates random crises followed by partial recoveries.",
+      "monte_carlo": "The chart shows the median trajectory and the band between the 10th and 90th percentile of the simulations."
+    }
   },
   "contributions": {
     "title": "Year contributions",
@@ -80,7 +90,12 @@
     "historicalFallback": "Historical average",
     "monthlyMoney": "{{amount}} / month",
     "percent": "{{value}} %",
-    "statePensionValue": "{{amount}} / month at {{age}}"
+    "statePensionValue": "{{amount}} / month at {{age}}",
+    "simulationMode": "Simulation",
+    "simulationVolatility": "Annual volatility",
+    "simulationShocks": "Shocks",
+    "simulationShocksValue": "about -{{severity}}% every {{years}} years",
+    "simulationSeed": "Random seed"
   },
   "progress": {
     "title": "Current progress",
@@ -129,7 +144,27 @@
       "withdrawalRate": "Annual withdrawal rate",
       "projectionEndAge": "Projection end age",
       "statePension": "Monthly state pension",
-      "statePensionStartAge": "State pension start age"
+      "statePensionStartAge": "State pension start age",
+      "simulationMode": "Curve shape",
+      "simulationVolatility": "Annual volatility (%)",
+      "simulationShockFrequency": "Shock frequency (years between crises)",
+      "simulationShockSeverity": "Average shock drawdown (%)",
+      "simulationSeed": "Random seed",
+      "simulationSeedHelp": "The same seed always gives the same curve on every refresh. Change it to explore another scenario.",
+      "simulationNewDraw": "New draw"
+    },
+    "simulationSection": "Curve simulation",
+    "simulationModes": {
+      "deterministic": "Smooth curve (no randomness)",
+      "stochastic": "Stochastic projection (volatility)",
+      "shocks": "Random shocks (crises and recoveries)",
+      "monte_carlo": "Monte Carlo (median and range)"
+    },
+    "simulationModeHelp": {
+      "deterministic": "Steady month-by-month growth with no random variation: the curve shows the average trend.",
+      "stochastic": "Each month gets a random return around the trend, like real market volatility.",
+      "shocks": "The trend is interrupted by randomly drawn crises: a sharp drop followed by a partial recovery.",
+      "monte_carlo": "Hundreds of trajectories combining volatility and shocks; the curve shows the median and the 10%-90% range."
     }
   }
 }

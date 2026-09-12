@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { OBJECTIVE_SIMULATION_DEFAULTS, OBJECTIVE_SIMULATION_LIMITS, OBJECTIVE_SIMULATION_MODES } from "@pea/shared";
+
+const simulationLimits = OBJECTIVE_SIMULATION_LIMITS;
+const simulationDefaults = OBJECTIVE_SIMULATION_DEFAULTS;
 
 export const objectiveTypeSchema = z.enum([
   "fixed_capital",
@@ -17,7 +21,12 @@ export const objectiveAssumptionsSchema = z.object({
   projectionEndAge: z.coerce.number().int().min(70).max(120).default(90).optional(),
   statePensionMonthly: z.coerce.number().min(0).default(1000),
   statePensionStartAge: z.coerce.number().int().min(0).max(120).default(67),
-  scenario: z.enum(["prudent", "normal", "optimistic"]).default("normal")
+  scenario: z.enum(["prudent", "normal", "optimistic"]).default("normal"),
+  simulationMode: z.enum(OBJECTIVE_SIMULATION_MODES).default(simulationDefaults.mode),
+  simulationVolatility: z.coerce.number().min(simulationLimits.volatility.min).max(simulationLimits.volatility.max).default(simulationDefaults.annualVolatility),
+  simulationShockFrequency: z.coerce.number().min(simulationLimits.shockFrequencyYears.min).max(simulationLimits.shockFrequencyYears.max).default(simulationDefaults.shockFrequencyYears),
+  simulationShockSeverity: z.coerce.number().min(simulationLimits.shockSeverity.min).max(simulationLimits.shockSeverity.max).default(simulationDefaults.shockSeverity),
+  simulationSeed: z.coerce.number().int().min(simulationLimits.seed.min).max(simulationLimits.seed.max).default(simulationDefaults.seed)
 });
 
 export const objectiveConfigSchema = z.object({
@@ -43,6 +52,11 @@ export const objectiveInputSchema = z.object({
     projectionEndAge: 90,
     statePensionMonthly: 1000,
     statePensionStartAge: 67,
-    scenario: "normal"
+    scenario: "normal",
+    simulationMode: simulationDefaults.mode,
+    simulationVolatility: simulationDefaults.annualVolatility,
+    simulationShockFrequency: simulationDefaults.shockFrequencyYears,
+    simulationShockSeverity: simulationDefaults.shockSeverity,
+    simulationSeed: simulationDefaults.seed
   })
 });

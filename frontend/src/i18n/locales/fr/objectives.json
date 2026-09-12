@@ -38,12 +38,22 @@
       "projected": "Projection future",
       "projectedDescription": "Patrimoine projete avec les hypotheses actuelles.",
       "required": "Seuil objectif",
-      "requiredDescription": "Capital minimum requis pour atteindre votre objectif avec les paramètres actuels."
+      "requiredDescription": "Capital minimum requis pour atteindre votre objectif avec les paramètres actuels.",
+      "range": "Intervalle 10 %-90 %",
+      "rangeDescription": "Zone dans laquelle se situent 80 % des trajectoires simulees."
     },
     "possibleIncome": "Rente possible: {{amount}} / mois",
     "paidIncome": "Rente versee: {{amount}} / mois",
     "incomeGapPositive": "Marge disponible: +{{amount}} / mois",
-    "incomeGapNegative": "Ecart a couvrir: -{{amount}} / mois"
+    "incomeGapNegative": "Ecart a couvrir: -{{amount}} / mois",
+    "rangeValue": "Intervalle: {{low}} a {{high}}",
+    "successProbability": "Probabilite d'atteindre l'objectif: {{value}} % des trajectoires simulees",
+    "simulationHelp": {
+      "deterministic": "Le mode de simulation retenu est une courbe lisse: aucun evenement imprevu n'est simule.",
+      "stochastic": "Le mode retenu ajoute une volatilite mensuelle aleatoire: une trajectoire possible parmi d'autres.",
+      "shocks": "Le mode retenu simule des crises aleatoires suivies de reprises partielles.",
+      "monte_carlo": "La courbe affiche la trajectoire mediane et la bande entre le 10e et le 90e centile des simulations."
+    }
   },
   "contributions": {
     "title": "Versements de l'annee",
@@ -80,7 +90,12 @@
     "historicalFallback": "Moyenne historique",
     "monthlyMoney": "{{amount}} / mois",
     "percent": "{{value}} %",
-    "statePensionValue": "{{amount}} / mois a {{age}} ans"
+    "statePensionValue": "{{amount}} / mois a {{age}} ans",
+    "simulationMode": "Simulation",
+    "simulationVolatility": "Volatilite annuelle",
+    "simulationShocks": "Chocs",
+    "simulationShocksValue": "-{{severity}} % environ tous les {{years}} ans",
+    "simulationSeed": "Graine du tirage"
   },
   "progress": {
     "title": "Progression actuelle",
@@ -129,7 +144,27 @@
       "withdrawalRate": "% de retrait annuel",
       "projectionEndAge": "Age de fin de projection",
       "statePension": "Retraite etat mensuelle",
-      "statePensionStartAge": "Age debut retraite etat"
+      "statePensionStartAge": "Age debut retraite etat",
+      "simulationMode": "Forme de la courbe",
+      "simulationVolatility": "Volatilite annuelle (%)",
+      "simulationShockFrequency": "Frequence des chocs (annees entre deux crises)",
+      "simulationShockSeverity": "Baisse moyenne d'un choc (%)",
+      "simulationSeed": "Graine du tirage",
+      "simulationSeedHelp": "Une meme graine redonne exactement la meme courbe a chaque recalcul. Changez-la pour explorer un autre scenario.",
+      "simulationNewDraw": "Nouveau tirage"
+    },
+    "simulationSection": "Simulation de la courbe",
+    "simulationModes": {
+      "deterministic": "Courbe lisse (sans aleatoire)",
+      "stochastic": "Projection stochastique (volatilite)",
+      "shocks": "Chocs aleatoires (crises et reprises)",
+      "monte_carlo": "Monte-Carlo (mediane et intervalle)"
+    },
+    "simulationModeHelp": {
+      "deterministic": "Croissance reguliere mois apres mois, sans variation aleatoire: la courbe montre la tendance moyenne.",
+      "stochastic": "Chaque mois recoit un rendement tire au hasard autour de la tendance, comme la volatilite reelle des marches.",
+      "shocks": "La tendance est interrompue par des crises tirees au hasard: chute marquee puis reprise partielle.",
+      "monte_carlo": "Des centaines de trajectoires combinant volatilite et chocs; la courbe affiche la mediane et l'intervalle 10 %-90 %."
     }
   }
 }
