@@ -2,55 +2,11 @@ import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shar
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { currentDateTimeLocalValue, toDateTimeLocalValue } from "../../../lib/dateTimeInput";
+import { toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { MOTION } from "../../../components/common/motion";
-
-type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "quantity" | "price" | "executedPrice" | "totalFees"> & {
-  quantity: string;
-  price: string;
-  executedPrice: string;
-  totalFees: string;
-};
-
-function toFormRow(row: EditablePortfolioTransaction): EditableTransactionFormRow {
-  return {
-    ...row,
-    quantity: String(row.quantity),
-    price: String(row.price),
-    executedPrice: String(row.executedPrice ?? row.price),
-    totalFees: String(row.totalFees ?? 0)
-  };
-}
-
-function draftTransaction(position: PositionWithMarket): EditableTransactionFormRow {
-  const now = currentDateTimeLocalValue();
-  return {
-    id: `draft-${Date.now()}`,
-    positionId: position.id,
-    assetId: String(position.id),
-    source: "manual",
-    dateExecution: now,
-    tradedAt: now,
-    assetName: position.name,
-    ticker: position.symbol,
-    type: "buy",
-    quantity: "",
-    executedPrice: "",
-    price: "",
-    totalFees: "0",
-    currency: position.currency,
-    createdAt: now
-  };
-}
-
-function parseNonNegativeNumber(value: string, label: string, t: (key: string, options?: Record<string, unknown>) => string) {
-  if (!value.trim()) throw new Error(t("errors:required", { field: label }));
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue) || numberValue < 0) throw new Error(t("errors:invalidField", { field: label }));
-  return numberValue;
-}
+import { draftTransaction, errorMessage, maxSellQuantity, parseNonNegativeNumber, toFormRow, type EditableTransactionFormRow } from "./editTransactionForm";
 
 export function EditPositionModal({
   position,
@@ -80,7 +36,9 @@ export function EditPositionModal({
         const nextRows = transactions.map(toFormRow);
         setRows(nextRows.length || !startWithDraft ? nextRows : [draftTransaction(position)]);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t("errors:loadFailed")))
+      .catch((err) => {
+        if (alive) setError(err instanceof Error ? err.message : t("errors:loadFailed"));
+      })
       .finally(() => {
         if (alive) setLoading(false);
       });
@@ -98,15 +56,15 @@ export function EditPositionModal({
       current.map((row, rowIndex) => {
         if (rowIndex !== index) return row;
         const numericQuantity = Number(row.quantity);
-        const quantity = type === "sell" && Number.isFinite(numericQuantity) ? String(Math.min(numericQuantity, position.quantity)) : row.quantity;
+        const quantity = type === "sell" && Number.isFinite(numericQuantity) ? String(Math.min(numericQuantity, maxSellQuantity(row, position))) : row.quantity;
         return { ...row, type, quantity };
       })
     );
   }
 
-  function patchTransactionQuantity(index: number, rawValue: string, type: EditablePortfolioTransaction["type"]) {
+  function patchTransactionQuantity(index: number, rawValue: string, row: EditableTransactionFormRow) {
     const value = Number(rawValue);
-    const quantity = rawValue.trim() && Number.isFinite(value) && type === "sell" ? String(Math.min(value, position.quantity)) : rawValue;
+    const quantity = rawValue.trim() && Number.isFinite(value) && row.type === "sell" ? String(Math.min(value, maxSellQuantity(row, position))) : rawValue;
     patchRow(index, { quantity });
   }
 
@@ -134,8 +92,9 @@ export function EditPositionModal({
       setError(t("errors:quantityStrictlyPositive"));
       return;
     }
-    if (row.type === "sell" && quantity > position.quantity) {
-      setError(t("portfolio:position.soldQuantityTooHigh", { quantity: position.quantity }));
+    const sellLimit = maxSellQuantity(row, position);
+    if (row.type === "sell" && quantity > sellLimit) {
+      setError(t("portfolio:position.soldQuantityTooHigh", { quantity: sellLimit }));
       return;
     }
     setError(null);
@@ -147,24 +106,32 @@ export function EditPositionModal({
       totalFees,
       currency: row.currency
     } as const;
-    const nextRows = row.id.startsWith("draft-")
-      ? await api.createPositionTransaction(position.id, payload)
-      : await api.updatePositionTransaction(position.id, row.id, payload);
-    setRows(nextRows.map(toFormRow));
-    await onSaved();
+    try {
+      const nextRows = row.id.startsWith("draft-")
+        ? await api.createPositionTransaction(position.id, payload)
+        : await api.updatePositionTransaction(position.id, row.id, payload);
+      setRows(nextRows.map(toFormRow));
+      await onSaved();
+    } catch (saveError) {
+      setError(errorMessage(saveError, t));
+    }
   }
 
   async function remove(row: EditableTransactionFormRow) {
-    if (row.id.startsWith("legacy-")) return setPendingDelete(null);
+    setPendingDelete(null);
+    if (row.id.startsWith("legacy-")) return;
     if (row.id.startsWith("draft-")) {
       setRows((current) => current.filter((item) => item.id !== row.id));
-      setPendingDelete(null);
       return;
     }
-    await api.deletePositionTransaction(position.id, row.id);
-    setRows((current) => current.filter((item) => item.id !== row.id));
-    setPendingDelete(null);
-    await onSaved();
+    try {
+      await api.deletePositionTransaction(position.id, row.id);
+      setError(null);
+      setRows((current) => current.filter((item) => item.id !== row.id));
+      await onSaved();
+    } catch (deleteError) {
+      setError(errorMessage(deleteError, t));
+    }
   }
 
   return (
@@ -218,7 +185,7 @@ export function EditPositionModal({
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.quantity")}</span>
-                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => patchTransactionQuantity(index, event.target.value, row.type)} step="any" type="number" value={row.quantity} />
+                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => patchTransactionQuantity(index, event.target.value, row)} step="any" type="number" value={row.quantity} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.price")}</span>
@@ -236,7 +203,7 @@ export function EditPositionModal({
                         <Save size={16} />
                         {t("portfolio:position.save")}
                       </button>
-                      <button className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => setPendingDelete(row)} type="button">
+                      <button aria-label={t("common:actions.delete")} className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => setPendingDelete(row)} type="button">
                         <Trash2 size={16} />
                       </button>
                     </div>

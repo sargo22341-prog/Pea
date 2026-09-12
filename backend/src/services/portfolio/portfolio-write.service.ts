@@ -10,6 +10,7 @@ import { marketSnapshotService } from "../market/snapshots/market-snapshot.servi
 import { objectiveProjectionInvalidationService } from "../objectives/objective-projection-invalidation.service.js";
 import { invalidateUserAssetCaches } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { replayTransactions, transactionTimeMs } from "./portfolio-calculations.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { TransactionMutationInput, TransactionSequenceRow } from "./portfolio.types.js";
 
@@ -22,9 +23,20 @@ const createPositionSchema = z.object({
   notes: z.string().trim().optional()
 });
 
+const quantityTolerance = 0.000001;
+const negativeSaleMessage = "Cette vente rendrait la quantite detenue negative.";
+const negativeDeletionMessage = "Cette suppression rendrait la quantite detenue negative.";
+
+/** Normalise une date de transaction en ISO UTC, comme les saisies manuelles validées par l'API. */
+function normalizeTradedAt(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new HttpError(400, "Date de transaction invalide.");
+  return date.toISOString();
+}
+
 /**
- * `PortfolioWriteService` (anciennement `PortfolioCommandService`) : gère toutes les mutations
- * du portefeuille (createPosition, transactions CRUD, deletePosition, recompute, replace import).
+ * `PortfolioWriteService` : gère toutes les mutations du portefeuille (createPosition,
+ * transactions CRUD, deletePosition, recompute, replace import).
  * Les opérations sont sérialisées par transaction DB et invalident les caches dérivés.
  */
 export class PortfolioWriteService {
@@ -102,10 +114,11 @@ export class PortfolioWriteService {
     rawTextSnippet?: string | null;
   }) {
     const userId = currentUserId();
+    const tradedAt = normalizeTradedAt(input.tradedAt);
     return db.transaction(() => {
       const position = this.ensurePosition(input.symbol, input.name, input.currency, userId);
       this.assertValidTransactionMutation(position.id, {
-        tradedAt: input.tradedAt,
+        tradedAt,
         type: input.type,
         quantity: input.quantity,
         price: input.price,
@@ -118,7 +131,7 @@ export class PortfolioWriteService {
         quantity: input.quantity,
         price: input.price,
         currency: input.currency,
-        tradedAt: input.tradedAt,
+        tradedAt,
         sourceFileName: input.sourceFileName,
         assetName: input.assetName,
         isin: input.isin,
@@ -126,30 +139,10 @@ export class PortfolioWriteService {
         totalFees: input.totalFees,
         rawTextSnippet: input.rawTextSnippet
       });
-      this.recomputePositionFromDatedTransactions(position.id);
+      this.recomputePositionFromAnyTransactions(position.id, userId);
       this.invalidatePositionCaches(position.id, userId, input.symbol);
       return position;
     });
-  }
-  recomputePositionFromDatedTransactions(positionId: number) {
-    const rows = portfolioRepository.listRecomputeRows(positionId);
-    if (!rows.length) return;
-    let quantity = 0;
-    let costBasis = 0;
-    for (const row of rows) {
-      const rowQuantity = Number(row.quantity);
-      if (row.type === "buy") {
-        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
-        quantity += rowQuantity;
-        costBasis += buyCost;
-      } else if (row.type === "sell") {
-        const averageCost = quantity > 0 ? costBasis / quantity : 0;
-        quantity -= rowQuantity;
-        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-      }
-    }
-    const averageBuyPrice = quantity > 0 ? costBasis / quantity : 0;
-    portfolioRepository.updatePositionValuation(positionId, quantity, averageBuyPrice);
   }
   createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
@@ -178,6 +171,10 @@ export class PortfolioWriteService {
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
+    if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
+    // Supprimer un achat dont dépend une vente ultérieure rendrait l'historique incohérent.
+    const remainingRows = (portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[]).filter((row) => Number(row.id) !== transactionId);
+    this.assertTransactionSequenceDoesNotGoNegative(remainingRows, negativeDeletionMessage);
     db.transaction(() => {
       portfolioRepository.deleteTransaction(positionId, transactionId);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
@@ -194,20 +191,7 @@ export class PortfolioWriteService {
       portfolioRepository.deletePosition(positionId, resolvedUserId);
       return;
     }
-    let quantity = 0;
-    let costBasis = 0;
-    for (const row of rows) {
-      const rowQuantity = Number(row.quantity);
-      if (row.type === "buy") {
-        const buyCost = rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
-        quantity += rowQuantity;
-        costBasis += buyCost;
-      } else if (row.type === "sell") {
-        const averageCost = quantity > 0 ? costBasis / quantity : 0;
-        quantity -= rowQuantity;
-        costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-      }
-    }
+    const { quantity, costBasis } = replayTransactions(rows);
     portfolioRepository.updatePositionValuation(positionId, quantity, quantity > 0 ? costBasis / quantity : 0);
     portfolioReadService.persistUserAssetPosition(resolvedUserId, positionId);
   }
@@ -230,7 +214,7 @@ export class PortfolioWriteService {
     const nextRows = transactionIdToReplace
       ? rows.map((row) => (Number(row.id) === transactionIdToReplace ? mutation : row))
       : [...rows, mutation];
-    this.assertTransactionSequenceDoesNotGoNegative(nextRows);
+    this.assertTransactionSequenceDoesNotGoNegative(nextRows, negativeSaleMessage);
   }
   deletePosition(id: number, userId?: number | string): boolean {
     const resolvedUserId = requireUserId(userId);
@@ -275,12 +259,10 @@ export class PortfolioWriteService {
     invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
     objectiveProjectionInvalidationService.invalidateUser(userId, "portfolio position changed");
   }
-  private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[]) {
+  private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[], message: string) {
     let quantity = 0;
     const sortedRows = [...rows].sort((a, b) => {
-      const timeA = new Date(a.traded_at).getTime();
-      const timeB = new Date(b.traded_at).getTime();
-      const dateOrder = (Number.isFinite(timeA) ? timeA : 0) - (Number.isFinite(timeB) ? timeB : 0);
+      const dateOrder = transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at);
       if (dateOrder !== 0) return dateOrder;
       return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
     });
@@ -288,10 +270,8 @@ export class PortfolioWriteService {
       const rowQuantity = Number(row.quantity);
       if (row.type === "buy") quantity += rowQuantity;
       if (row.type === "sell") quantity -= rowQuantity;
-      if (quantity < -0.000001) {
-        throw new HttpError(400, "Cette vente rendrait la quantite detenue negative.");
-      }
-      if (Math.abs(quantity) < 0.000001) quantity = 0;
+      if (quantity < -quantityTolerance) throw new HttpError(400, message);
+      if (Math.abs(quantity) < quantityTolerance) quantity = 0;
     }
   }
 }

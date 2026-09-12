@@ -14,14 +14,30 @@ import type {
   TopAndLosersResponse,
   WatchlistItem
 } from "@pea/shared";
-import { apiUrl, dedupedRequest, request, requestHeaders, resolveApiUrl } from "./api-core";
-import { isNativeApp } from "./native-auth";
+import { apiUrl, dedupedRequest, request, requestHeaders, resolveApiUrl } from "../api-core";
+import { isNativeApp } from "../native-auth";
 
 export type { MarketEventPayload } from "@pea/shared";
 
 const sseReconnectDelaysMs = [1_000, 3_000, 10_000, 30_000];
+const nativeSseReconnectDelayMs = 1_500;
+
+/** Un événement illisible est ignoré : il ne doit ni lever dans le listener ni couper le flux. */
+function parseEventPayload(eventName: string, data: string): { ok: true; payload: unknown } | { ok: false } {
+  try {
+    return { ok: true, payload: JSON.parse(data) };
+  } catch (error) {
+    console.warn("Evenement marche illisible ignore.", { eventName, error });
+    return { ok: false };
+  }
+}
 
 export function subscribeMarketEvents(onEvent: (eventName: string, payload: unknown) => void) {
+  function dispatch(eventName: string, data: string) {
+    const parsed = parseEventPayload(eventName, data);
+    if (parsed.ok) onEvent(eventName, parsed.payload);
+  }
+
   if (!isNativeApp()) {
     let closed = false;
     let retryAttempt = 0;
@@ -31,7 +47,7 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
 
     function attachEvent(eventName: string) {
       eventSource?.addEventListener(eventName, (event) => {
-        onEvent(eventName, JSON.parse((event as MessageEvent).data));
+        dispatch(eventName, String((event as MessageEvent).data));
       });
     }
 
@@ -69,6 +85,8 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
         eventSource?.close();
       },
       addEventListener: (eventName: string) => {
+        // Un second enregistrement ajouterait un listener en double et dupliquerait chaque événement.
+        if (registeredEvents.has(eventName)) return;
         registeredEvents.add(eventName);
         attachEvent(eventName);
       }
@@ -91,14 +109,15 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
         });
         if (!response.ok || !response.body) throw new Error(`Flux marche indisponible (${response.status}).`);
         await readEventStream(response.body, (eventName, data) => {
-          if (!registeredEvents.has(eventName)) return;
-          onEvent(eventName, JSON.parse(data));
+          if (registeredEvents.has(eventName)) dispatch(eventName, data);
         });
       } catch (error) {
         if (closed || controller.signal.aborted) return;
         console.warn("Reconnexion au flux marche apres erreur.", error);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
+      // Attendre aussi après une fin de flux normale : sinon un serveur qui ferme la connexion
+      // immédiatement provoquerait une boucle de reconnexion sans pause.
+      if (!closed) await new Promise((resolve) => setTimeout(resolve, nativeSseReconnectDelayMs));
     }
   }
 

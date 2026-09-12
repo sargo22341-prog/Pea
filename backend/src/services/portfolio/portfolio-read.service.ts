@@ -154,7 +154,7 @@ export class PortfolioReadService {
       costBasis,
       performance,
       performancePercent: costBasis ? (performance / costBasis) * 100 : 0,
-      estimatedAnnualDividend: quote?.dividendRate ? quote.dividendRate * position.quantity : undefined,
+      estimatedAnnualDividend: quote?.dividendRate ? quote.dividendRate * effectivePosition.quantity : undefined,
       marketDataUnavailable: !quote || quote.unavailable
     };
   }

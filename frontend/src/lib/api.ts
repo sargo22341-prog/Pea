@@ -11,16 +11,16 @@ import type {
   User,
   WatchlistSortKey
 } from "@pea/shared";
-import { adminApi } from "./admin-api";
-import { assetApi } from "./asset-api";
-import { marketApi } from "./market-api";
-import { objectivesApi } from "./objectives-api";
-import { portfolioApi } from "./portfolio-api";
+import { adminApi } from "./api-clients/admin-api";
+import { assetApi } from "./api-clients/asset-api";
+import { marketApi } from "./api-clients/market-api";
+import { objectivesApi } from "./api-clients/objectives-api";
+import { portfolioApi } from "./api-clients/portfolio-api";
 import { request } from "./api-core";
 import { clearNativeAuthToken, isNativeApp, setNativeAuthToken } from "./native-auth";
 
-export type { MarketDataRebuildRange, YahooUsageStatsFilters } from "./admin-api";
-export type { MarketEventPayload } from "./market-api";
+export type { MarketDataRebuildRange, YahooUsageStatsFilters } from "./api-clients/admin-api";
+export type { MarketEventPayload } from "./api-clients/market-api";
 
 type NativeAuthResponse = {
   user: User;

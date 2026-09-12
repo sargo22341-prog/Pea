@@ -11,6 +11,8 @@
   "pricePositiveOrZero": "Price must be positive or zero.",
   "quantityStrictlyPositive": "Quantity must be strictly positive.",
   "saleWouldMakeQuantityNegative": "This sale would make the held quantity negative.",
+  "deletionWouldMakeQuantityNegative": "This deletion would make the held quantity negative.",
+  "invalidRequest": "Invalid request.",
   "serverUrlNotConfigured": "Server URL is not configured.",
   "tooManyRequestsInProgress": "Too many requests in progress.",
   "transactionNotFound": "Transaction not found",

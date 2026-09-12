@@ -1,6 +1,7 @@
-import type { DividendEvent, PortfolioPerformancePoint, Position, PositionWithMarket } from "@pea/shared";
+import type { DividendEvent, HistoryPoint, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
+import { logger } from "../shared/logger.service.js";
 
 /**
  * Représente une ligne de transaction brute telle que lue depuis la base.
@@ -24,10 +25,52 @@ export interface PositionTransactionCache {
   transactions: TransactionRow[];
 }
 
+type ReplayableTransaction = {
+  type: string;
+  quantity: number | string;
+  price: number | string;
+  total_fees?: number | string | null;
+  traded_at?: string;
+};
+
+/**
+ * Horodatage d'une transaction. Une date illisible vaut 0 afin que l'ordre reste déterministe.
+ */
+export function transactionTimeMs(tradedAt: string) {
+  const time = new Date(tradedAt).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+/**
+ * Rejoue des transactions triées par date croissante avec la méthode du coût moyen pondéré :
+ * une vente réduit le coût au prorata du coût moyen unitaire au moment de la vente.
+ * Source de vérité unique pour la quantité détenue et le coût d'acquisition d'une position.
+ *
+ * @param rows Transactions triées par date croissante.
+ * @param untilMs Instant cible : les transactions postérieures sont ignorées.
+ */
+export function replayTransactions(rows: ReplayableTransaction[], untilMs = Number.POSITIVE_INFINITY) {
+  let quantity = 0;
+  let costBasis = 0;
+  for (const row of rows) {
+    if (untilMs !== Number.POSITIVE_INFINITY && row.traded_at !== undefined && transactionTimeMs(row.traded_at) > untilMs) break;
+    const rowQuantity = Number(row.quantity);
+    if (row.type === "buy") {
+      quantity += rowQuantity;
+      costBasis += rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
+    } else if (row.type === "sell") {
+      const averageCost = quantity > 0 ? costBasis / quantity : 0;
+      quantity -= rowQuantity;
+      costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
+    }
+  }
+  return { quantity, costBasis };
+}
+
 /**
  * Charge en une seule passe toutes les transactions datées pour un ensemble
- * d'identifiants de positions. Remplace les appels répétés à hasDatedTransactions()
- * et aux sélecteurs individuels dans les boucles de calcul.
+ * d'identifiants de positions. Remplace les appels répétés aux sélecteurs
+ * individuels dans les boucles de calcul.
  *
  * @param positionIds Liste des identifiants de positions à charger.
  * @returns Map positionId → cache de transactions.
@@ -46,13 +89,16 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
   const placeholders = positionIds.map(() => "?").join(", ");
   const rows = db
     .prepare(
-      `SELECT position_id, type, quantity, price, total_fees, traded_at
+      `SELECT id, position_id, type, quantity, price, total_fees, traded_at
        FROM transactions
        WHERE position_id IN (${placeholders})
-         AND traded_at IS NOT NULL
-       ORDER BY traded_at ASC, id ASC`
+         AND traded_at IS NOT NULL`
     )
-    .all(...positionIds) as Array<TransactionRow & { position_id: number }>;
+    .all(...positionIds) as Array<TransactionRow & { id: number; position_id: number }>;
+
+  // Tri sur l'instant réel : l'ordre textuel SQL est faux dès que des dates portent des
+  // fuseaux ou formats différents, et les calculs "à un instant" s'arrêtent au premier dépassement.
+  rows.sort((a, b) => transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at) || Number(a.id) - Number(b.id));
 
   for (const row of rows) {
     const entry = cache.get(row.position_id);
@@ -71,77 +117,35 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
 }
 
 /**
- * Calcule la quantité détenue à un instant précis à partir d'un tableau de
- * transactions déjà triées par date croissante (garanti par buildTransactionCache).
+ * Calcule la quantité détenue à un instant précis.
  *
- * @param transactions Transactions de la position, triées par traded_at ASC.
+ * @param transactions Transactions de la position, triées par date croissante (garanti par buildTransactionCache).
  * @param timeMs Timestamp Unix en millisecondes représentant l'instant cible.
- * @returns Quantité détenue à cet instant.
  */
 export function getQuantityAtTime(transactions: TransactionRow[], timeMs: number): number {
-  let quantity = 0;
-  for (const row of transactions) {
-    if (new Date(row.traded_at).getTime() > timeMs) break;
-    if (row.type === "buy") quantity += row.quantity;
-    else if (row.type === "sell") quantity -= row.quantity;
-  }
-  return quantity;
+  return replayTransactions(transactions, timeMs).quantity;
 }
 
 /**
  * Calcule le coût total d'acquisition (cost basis) à un instant précis.
- * Utilise la méthode du coût moyen pondéré : lors d'une vente, le coût est
- * réduit proportionnellement au coût moyen unitaire au moment de la vente.
  *
- * @param transactions Transactions de la position, triées par traded_at ASC.
+ * @param transactions Transactions de la position, triées par date croissante.
  * @param timeMs Timestamp Unix en millisecondes représentant l'instant cible.
- * @returns Coût total investi net à cet instant.
  */
 export function getCostBasisAtTime(transactions: TransactionRow[], timeMs: number): number {
-  let quantity = 0;
-  let costBasis = 0;
-
-  for (const row of transactions) {
-    if (new Date(row.traded_at).getTime() > timeMs) break;
-
-    const rowQuantity = row.quantity;
-    if (row.type === "buy") {
-      quantity += rowQuantity;
-      costBasis += rowQuantity * row.price + (row.total_fees ?? 0);
-    } else if (row.type === "sell") {
-      const averageCost = quantity > 0 ? costBasis / quantity : 0;
-      quantity -= rowQuantity;
-      costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-    }
-  }
-
-  return costBasis;
+  return replayTransactions(transactions, timeMs).costBasis;
 }
 
 /**
  * Reconstruit la quantité et le prix moyen d'une position à partir du cache
- * de transactions déjà chargé en mémoire. Remplace positionFromDatedTransactions
- * qui faisait une requête DB supplémentaire même quand txCache était disponible.
+ * de transactions déjà chargé en mémoire.
  *
  * @param position Position de référence (id, symbol, name…).
- * @param transactions Transactions triées par traded_at ASC issues du cache.
- * @returns Position avec quantité et averageBuyPrice recalculés depuis l'historique.
+ * @param transactions Transactions triées par date croissante issues du cache.
  */
 export function positionFromTransactionCache(position: Position, transactions: TransactionRow[]): Position {
   if (!transactions.length) return position;
-  let quantity = 0;
-  let costBasis = 0;
-  for (const row of transactions) {
-    const rowQuantity = row.quantity;
-    if (row.type === "buy") {
-      quantity += rowQuantity;
-      costBasis += rowQuantity * row.price + (row.total_fees ?? 0);
-    } else if (row.type === "sell") {
-      const averageCost = quantity > 0 ? costBasis / quantity : 0;
-      quantity -= rowQuantity;
-      costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-    }
-  }
+  const { quantity, costBasis } = replayTransactions(transactions);
   return {
     ...position,
     quantity,
@@ -150,13 +154,30 @@ export function positionFromTransactionCache(position: Position, transactions: T
 }
 
 /**
+ * Montant des dividendes déjà versés pour une position, en tenant compte de la quantité
+ * détenue à la date de chaque événement lorsque l'historique de transactions est disponible.
+ */
+export function dividendsReceivedFor(
+  position: Pick<Position, "quantity">,
+  dividends: DividendEvent[],
+  entry?: PositionTransactionCache,
+  now = Date.now()
+): number {
+  let total = 0;
+  for (const event of dividends) {
+    const eventTime = new Date(event.date).getTime();
+    if (!Number.isFinite(eventTime) || eventTime > now) continue;
+    const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, eventTime) : position.quantity;
+    total += event.amount * quantity;
+  }
+  return total;
+}
+
+/**
  * Calcule le total des dividendes reçus pour toutes les positions en mémoire.
- * Remplace la boucle N+1 qui appelait readDividends() + getQuantityHeldAtDate()
- * pour chaque position × chaque événement dividende.
  *
  * @param positions Liste des positions enrichies avec quote.
  * @param txCache Cache de transactions déjà chargé par buildTransactionCache.
- * @returns Somme totale des dividendes reçus.
  */
 export function computeTotalDividendsReceived(
   positions: PositionWithMarket[],
@@ -169,47 +190,44 @@ export function computeTotalDividendsReceived(
     let dividends: DividendEvent[];
     try {
       dividends = dividendsService.readDividends(position.symbol);
-    } catch {
+    } catch (error) {
+      logger.warn("portfolio", "dividends unavailable for received total", {
+        symbol: position.symbol,
+        error: error instanceof Error ? error.message : String(error)
+      });
       continue;
     }
-
-    const entry = txCache.get(position.id);
-    for (const event of dividends) {
-      const eventTime = new Date(event.date).getTime();
-      if (!Number.isFinite(eventTime) || eventTime > now) continue;
-
-      let quantity: number;
-      if (entry?.hasDated) {
-        quantity = getQuantityAtTime(entry.transactions, eventTime);
-      } else {
-        quantity = position.quantity;
-      }
-
-      total += event.amount * quantity;
-    }
+    total += dividendsReceivedFor(position, dividends, txCache.get(position.id), now);
   }
 
   return total;
 }
 
+/** Dernier instant connu d'un historique de prix (0 si vide). */
+export function maxHistoryTime(points: HistoryPoint[]) {
+  return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
+}
+
+/** Instant de la transaction la plus récente d'une position (0 si aucune). */
+export function latestTransactionTime(entry?: PositionTransactionCache) {
+  return entry?.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0) ?? 0;
+}
+
 /**
- * Réduit un tableau de points de performance à au plus maxPoints éléments en
- * conservant uniformément le premier, le dernier et des points intermédiaires
- * régulièrement espacés. Utilisé pour les grandes plages (5y, 10y, all) dont
- * les milliers de points quotidiens ralentissent la sérialisation JSON et
- * l'interpolation côté frontend.
+ * Réduit une série à au plus maxPoints éléments en conservant le premier, le dernier et
+ * des points intermédiaires régulièrement espacés. Utilisé pour les grandes plages et les
+ * mini-graphiques dont les milliers de points ralentissent la sérialisation et le rendu.
  *
- * @param points Points de performance triés par date croissante.
- * @param maxPoints Nombre maximum de points à conserver.
+ * @param points Points triés par date croissante.
+ * @param maxPoints Nombre maximum de points à conserver (au moins 2).
  * @returns Sous-ensemble réduit, ou l'original si déjà sous le seuil.
  */
-export function downsamplePoints(points: PortfolioPerformancePoint[], maxPoints: number): PortfolioPerformancePoint[] {
+export function downsamplePoints<T>(points: T[], maxPoints: number): T[] {
   if (points.length <= maxPoints) return points;
-  const result: PortfolioPerformancePoint[] = [];
+  const result: T[] = [];
   const last = points.length - 1;
   for (let index = 0; index < maxPoints; index += 1) {
-    const sourceIndex = Math.round((index * last) / (maxPoints - 1));
-    result.push(points[sourceIndex]);
+    result.push(points[Math.round((index * last) / (maxPoints - 1))]);
   }
   return result;
 }

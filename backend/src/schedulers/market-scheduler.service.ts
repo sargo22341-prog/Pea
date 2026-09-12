@@ -8,7 +8,7 @@ import { marketOpenTask } from "../jobs/market/market-open.task.js";
 import { marketCloseTask } from "../jobs/market/market-close.task.js";
 import { marketLogRepository } from "../repositories/market/market-log.repository.js";
 import { marketRunRepository, type MarketDailyRunRow } from "../repositories/market/market-run.repository.js";
-import { schedulerLockRepository } from "../repositories/market/scheduler-lock.repository.js";
+import { schedulerLockRepository, type SchedulerLockLease } from "../repositories/market/scheduler-lock.repository.js";
 import { schedulerHealthRepository } from "../repositories/market/scheduler-health.repository.js";
 import { trackedMarketRepository, type TrackedMarketRow } from "../repositories/market/tracked-market.repository.js";
 import { weeklyRefreshTask } from "../jobs/market/weekly-refresh.task.js";
@@ -20,6 +20,10 @@ const tickIntervalMs = 5 * 60 * 1000;
 const tickLockTtlMs = 4 * 60 * 1000;
 const processOwnerId = `${schedulerName}:${process.pid}:${randomUUID()}`;
 const tickLockKey = `${schedulerName}:tick`;
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export class MarketSchedulerService {
   private timer?: NodeJS.Timeout;
@@ -48,18 +52,24 @@ export class MarketSchedulerService {
   async tick(now = new Date()) {
     if (this.running) return;
     const startedAt = performance.now();
-    const lease = schedulerLockRepository.acquire(tickLockKey, tickLockTtlMs, now.getTime(), processOwnerId);
+    // Le tick est lancé sans attente (setInterval) : aucune erreur ne doit s'en échapper,
+    // sinon le rejet non géré arrêterait le processus Node.
+    let lease: SchedulerLockLease | undefined;
+    try {
+      lease = schedulerLockRepository.acquire(tickLockKey, tickLockTtlMs, now.getTime(), processOwnerId);
+    } catch (error) {
+      logger.error("market-data", "market scheduler lock acquisition failed", { error: errorMessage(error) });
+      return;
+    }
     if (!lease) {
       logger.debug("market-data", "market scheduler tick skipped because lock is held");
       return;
     }
-    const heartbeat = setInterval(() => {
-      const renewed = schedulerLockRepository.renew(lease, tickLockTtlMs);
-      if (!renewed) logger.warn("market-data", "market scheduler lock heartbeat lost", { lock: lease.key });
-    }, Math.max(1_000, Math.floor(tickLockTtlMs / 3)));
+    const activeLease = lease;
+    const heartbeat = setInterval(() => this.renewLease(activeLease), Math.max(1_000, Math.floor(tickLockTtlMs / 3)));
     this.running = true;
-    schedulerHealthRepository.markTick(schedulerName, now);
     try {
+      schedulerHealthRepository.markTick(schedulerName, now);
       const groups = trackedMarketRepository.syncFromTrackedAssets();
       // Parallélise par marché : un fetch Yahoo bloquant sur NYSE n'empêche plus Euronext de
       // tourner. `allSettled` garantit qu'une erreur isolée n'avorte pas les autres marchés ;
@@ -82,14 +92,30 @@ export class MarketSchedulerService {
       marketLogRepository.cleanupOlderThan(90, now);
       schedulerHealthRepository.markSuccess(schedulerName, now);
     } catch (error) {
-      schedulerHealthRepository.markError(schedulerName, error, now);
-      logger.error("market-data", "market scheduler tick failed", { error: error instanceof Error ? error.message : String(error) });
+      logger.error("market-data", "market scheduler tick failed", { error: errorMessage(error) });
+      try {
+        schedulerHealthRepository.markError(schedulerName, error, now);
+      } catch (healthError) {
+        logger.warn("market-data", "market scheduler health update failed", { error: errorMessage(healthError) });
+      }
     } finally {
       clearInterval(heartbeat);
       this.running = false;
       this.lastTickDurationMs = Math.round(performance.now() - startedAt);
       this.lastTickFinishedAt = new Date().toISOString();
-      schedulerLockRepository.release(lease);
+      try {
+        schedulerLockRepository.release(activeLease);
+      } catch (error) {
+        logger.warn("market-data", "market scheduler lock release failed", { lock: activeLease.key, error: errorMessage(error) });
+      }
+    }
+  }
+
+  private renewLease(lease: SchedulerLockLease) {
+    try {
+      if (!schedulerLockRepository.renew(lease, tickLockTtlMs)) logger.warn("market-data", "market scheduler lock heartbeat lost", { lock: lease.key });
+    } catch (error) {
+      logger.warn("market-data", "market scheduler lock heartbeat failed", { lock: lease.key, error: errorMessage(error) });
     }
   }
 

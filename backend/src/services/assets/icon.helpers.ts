@@ -45,11 +45,6 @@ export function mapIcon(row: AssetIconRow): AssetIcon {
   };
 }
 
-export function extensionForMime(mimeType: string) {
-  if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
-  return "png";
-}
-
 export function normalizeWebsite(value?: string) {
   if (!value) return undefined;
   try {

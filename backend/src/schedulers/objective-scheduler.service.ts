@@ -23,7 +23,12 @@ export class ObjectiveSchedulerService {
     const runDate = now.toISOString().slice(0, 10);
     if (now.getHours() !== 23 || this.lastRunDate === runDate) return;
     this.lastRunDate = runDate;
-    await objectiveProjectionRefreshTask.run(now);
+    // Tick lancé sans attente par setInterval : un rejet non géré arrêterait le processus.
+    try {
+      await objectiveProjectionRefreshTask.run(now);
+    } catch (error) {
+      logger.error("portfolio", "daily objective projection refresh failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 }
 

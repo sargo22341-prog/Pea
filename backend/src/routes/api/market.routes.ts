@@ -6,19 +6,12 @@ import { chartRefreshService } from "../../services/market/charts/chart-refresh.
 import { marketEventsService } from "../../services/market/events/market-events.service.js";
 import { marketDataService } from "../../services/market/data/market-data.service.js";
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
+import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { routeParam } from "../shared/params.js";
 
 export const marketRouter = express.Router();
-
-function intradayDebugClock(range: string) {
-  if (range !== "1d" || !config.debugDate) return undefined;
-  return {
-    forceIntradayOpen: true,
-    intradayNow: config.debugDate
-  };
-}
 
 // Compat: endpoint kept for scripts/tests and older UI paths; rich screens use /assets or dashboard DTOs.
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {

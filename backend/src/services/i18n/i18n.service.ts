@@ -19,7 +19,9 @@ const en: Record<string, string> = {
   "Transaction introuvable": "Transaction not found",
   "La quantite doit etre strictement positive.": "Quantity must be strictly positive.",
   "Le prix doit etre positif ou nul.": "Price must be positive or zero.",
-  "Cette vente rendrait la quantite detenue negative.": "This sale would make the held quantity negative."
+  "Cette vente rendrait la quantite detenue negative.": "This sale would make the held quantity negative.",
+  "Cette suppression rendrait la quantite detenue negative.": "This deletion would make the held quantity negative.",
+  "Requete invalide.": "Invalid request."
 };
 
 function languageFromRequest(req: express.Request): AppLanguage {

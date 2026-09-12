@@ -25,3 +25,7 @@ export function detectSupportedImageMime(buffer: Buffer): SupportedImageMime | u
 export function isSupportedImageMime(mimeType: string) {
   return mimeType.toLowerCase() === "image/png" || mimeType.toLowerCase() === "image/jpeg" || mimeType.toLowerCase() === "image/jpg";
 }
+
+export function extensionForImageMime(mimeType: SupportedImageMime) {
+  return mimeType === "image/jpeg" ? "jpg" : "png";
+}

@@ -18,7 +18,7 @@ export interface ChartDataOptions {
   forceIntradayOpen?: boolean;
   intradayNow?: Date;
 }
-export { cloneChartDto, intradayChartCache, intradayChartMemoryStats, intradayRefreshInFlight, pruneIntradayChartCache, readIntradayChartCache, writeIntradayChartCache } from "./intraday-chart-cache.js";
+export { intradayChartCache, intradayChartMemoryStats, intradayRefreshInFlight, readIntradayChartCache, writeIntradayChartCache } from "./intraday-chart-cache.js";
 
 export function intradayCacheKey(symbol: string, interval: ChartInterval, options: ChartDataOptions) {
   const forcedAt = options.forceIntradayOpen ? options.intradayNow?.toISOString() ?? "forced-open" : "live";

@@ -30,9 +30,8 @@ export const QUOTE_COMBINE_STALE_REJECT_S = 6 * HOUR;
 export const SEARCH_FRESH_TTL_S = 24 * HOUR;
 export const SEARCH_STALE_REJECT_S = 7 * DAY;
 
-// Historiques 1d (intraday) : nécessite la fraîcheur intra-jour. Le cache n'est servi en stale
-// que dans une fenêtre courte (un jour ouvré) pour éviter d'afficher l'historique de la veille.
-export const HISTORY_INTRADAY_FRESH_TTL_S = 15 * MINUTE;
+// Historiques 1d (intraday) : le cache n'est servi en stale que dans une fenêtre courte
+// (un jour ouvré) pour éviter d'afficher l'historique de la veille.
 export const HISTORY_INTRADAY_STALE_REJECT_S = 2 * DAY;
 
 // Historiques 1w : agrégation hebdomadaire, fraîche pendant 15 minutes, rejet à 14 jours.
@@ -55,8 +54,3 @@ export const DIVIDENDS_STALE_REJECT_S = 90 * DAY;
 // jours pour éviter d'afficher des fondamentaux trop vieux dans /analysis.
 export const FUNDAMENTALS_FRESH_TTL_S = 7 * DAY;
 export const FUNDAMENTALS_STALE_REJECT_S = 60 * DAY;
-
-// Frontend block cache (DTO portfolio summary, analysis, dividendes, watchlist).
-// TTL gouvernés par chartConfigService côté front, mais on définit une borne de rejet
-// applicable par cache-service.
-export const FRONTEND_BLOCK_STALE_REJECT_S = 24 * HOUR;

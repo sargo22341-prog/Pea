@@ -27,10 +27,6 @@ export function isInsideAnySession(localMinutes: number, sessions: MarketSession
   return sessions.some((session) => localMinutes >= toMinutes(session.openTime) && localMinutes <= toMinutes(session.closeTime));
 }
 
-export function isAfterFinalClose(localMinutes: number, sessions: MarketSession[]) {
-  return localMinutes > toMinutes(getFinalCloseTime(sessions));
-}
-
 function normalizeMarketInput(symbol?: string, exchange?: string) {
   return `${symbol ?? ""} ${exchange ?? ""}`.trim().toUpperCase();
 }

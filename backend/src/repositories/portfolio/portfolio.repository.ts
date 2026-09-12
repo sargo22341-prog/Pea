@@ -204,10 +204,11 @@ export class PortfolioRepository {
   }
 
   insertBuyTransactionNow(positionId: number, input: { quantity: number; price: number; currency: string }) {
+    // ISO UTC explicite, comme les saisies manuelles : CURRENT_TIMESTAMP n'a pas de fuseau.
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
-       VALUES (?, 'buy', ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).run(positionId, input.quantity, input.price, input.currency);
+       VALUES (?, 'buy', ?, ?, ?, ?)`
+    ).run(positionId, input.quantity, input.price, input.currency, new Date().toISOString());
   }
 
   updateManualTransaction(positionId: number, transactionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
@@ -224,27 +225,6 @@ export class PortfolioRepository {
 
   transactionExists(positionId: number, transactionId: number) {
     return Boolean(db.prepare("SELECT id FROM transactions WHERE id = ? AND position_id = ?").get(transactionId, positionId));
-  }
-
-  hasDatedTransactions(positionId: number) {
-    const row = db.prepare("SELECT COUNT(*) AS count FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL").get(positionId) as { count?: number } | undefined;
-    return Number(row?.count ?? 0) > 0;
-  }
-
-  listQuantityEvents(positionId: number) {
-    return db
-      .prepare("SELECT type, quantity, traded_at FROM transactions WHERE position_id = ? AND traded_at IS NOT NULL ORDER BY traded_at ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; traded_at: string }>;
-  }
-
-  listRecomputeRows(positionId: number) {
-    return db
-      .prepare("SELECT type, quantity, price, total_fees FROM transactions WHERE position_id = ? ORDER BY traded_at ASC, id ASC")
-      .all(positionId) as Array<{ type: string; quantity: number; price: number; total_fees?: number }>;
-  }
-
-  resetPositionValuation(positionId: number) {
-    db.prepare("UPDATE positions SET quantity = 0, average_buy_price = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(positionId);
   }
 
   updatePositionValuation(positionId: number, quantity: number, averageBuyPrice: number) {

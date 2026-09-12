@@ -1,5 +1,5 @@
 import type { ObjectiveDto, ObjectiveInput, ObjectiveListDto } from "@pea/shared";
-import { request } from "./api-core";
+import { request } from "../api-core";
 
 function objectiveBase(userId: number | string) {
   return `/api/users/${userId}/objectives`;

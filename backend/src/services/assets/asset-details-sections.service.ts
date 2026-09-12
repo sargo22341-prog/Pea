@@ -8,11 +8,13 @@ import type {
   RangeKey
 } from "@pea/shared";
 import { config } from "../../config.js";
+import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { financialsService } from "../market/financials/financials.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
+import { buildTransactionCache, dividendsReceivedFor } from "../portfolio/portfolio-calculations.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
@@ -61,14 +63,6 @@ function firstPrice(...values: unknown[]): number | undefined {
   return undefined;
 }
 
-function intradayDebugClock(range: string) {
-  if (range !== "1d" || !config.debugDate) return undefined;
-  return {
-    forceIntradayOpen: true,
-    intradayNow: config.debugDate
-  };
-}
-
 export function shouldQueueAnnexRefresh(input: {
   dividends: DividendEvent[];
   extraData: ExtraAssetData;
@@ -106,13 +100,7 @@ export class PortfolioSection {
         })
       : undefined;
     const dividendsReceived = position
-      ? dividends.reduce((sum, event) => {
-          if (new Date(event.date).getTime() > Date.now()) return sum;
-          const quantity = portfolioService.hasDatedTransactions(position.id)
-            ? portfolioService.getQuantityHeldAtDate(position.id, event.date)
-            : position.quantity;
-          return sum + quantity * event.amount;
-        }, 0)
+      ? dividendsReceivedFor(position, dividends, buildTransactionCache([position.id]).get(position.id))
       : 0;
 
     return {
@@ -126,7 +114,7 @@ export class PortfolioSection {
 }
 
 export class MarketSection {
-  async load(symbol: string, range: RangeKey, user: AuthUser, positionFallbackQuote: Quote): Promise<SectionResult<{
+  async load(symbol: string, range: RangeKey, positionFallbackQuote: Quote): Promise<SectionResult<{
     quote: Quote;
     assetStatic: Awaited<ReturnType<typeof assetDataService.static>>;
     assetChart: Awaited<ReturnType<typeof assetDataService.chart>>;

@@ -38,3 +38,15 @@ perf(dashboard): réduire les traitements, écritures SSE et re-renders inutiles
 - mémoïse la liste des positions et stabilise les props du graphique portefeuille
 - ajoute les tests de frais, de regroupement SSE et de libération des écouteurs
 
+fix(portefeuille): fiabiliser les transactions, les tâches de fond et le client temps réel
+
+- refuse la suppression d'une transaction rendant la quantité négative et renvoie 404 si elle est absente
+- enregistre les dates de transaction en ISO UTC, migre les dates CURRENT_TIMESTAMP et trie sur l'instant réel
+- empêche les ticks des schedulers de produire des rejets non gérés arrêtant le processus
+- renvoie 400/413 pour un JSON malformé ou trop volumineux et ne masque plus les erreurs SQL en 409
+- affiche les erreurs serveur dans la modale des transactions et autorise l'édition d'une vente existante
+- ignore les événements SSE illisibles, évite les listeners en double et temporise la reconnexion native
+- centralise le calcul du coût moyen pondéré, le sous-échantillonnage et l'horloge de debug
+- supprime les ré-exports legacy, le code mort et la dépendance vite de production
+- range les clients API frontend dans lib/api-clients pour respecter la limite de fichiers
+- ajoute les tests de régression backend et frontend associés

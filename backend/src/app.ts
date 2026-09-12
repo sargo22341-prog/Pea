@@ -20,6 +20,16 @@ const configuredCorsOrigins = new Set(config.corsOrigins);
 
 export const app = express();
 
+/**
+ * Erreurs client levées par les middlewares HTTP (JSON malformé, corps trop volumineux...) :
+ * `http-errors` les marque `expose` avec un statut 4xx qu'il faut conserver au lieu d'un 500.
+ */
+function exposedClientErrorStatus(error: unknown) {
+  if (!error || typeof error !== "object") return undefined;
+  const { expose, status } = error as { expose?: unknown; status?: unknown };
+  return expose === true && typeof status === "number" && status >= 400 && status < 500 ? status : undefined;
+}
+
 function shouldCompressResponse(req: express.Request, res: express.Response) {
   if (String(res.getHeader("Content-Type") ?? "").includes("text/event-stream")) return false;
   return compression.filter(req, res);
@@ -137,6 +147,13 @@ app.use((error: unknown, req: express.Request, res: express.Response, _next: exp
     if (error.status >= 500) logger.error("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
     else logger.warn("api", "HTTP error", { status: error.status, message: error.message, details: error.details });
     res.status(error.status).json({ message: translateForRequest(req, error.message), details: error.details });
+    return;
+  }
+
+  const clientStatus = exposedClientErrorStatus(error);
+  if (clientStatus) {
+    logger.warn("api", "client request rejected", { status: clientStatus, message: error instanceof Error ? error.message : String(error) });
+    res.status(clientStatus).json({ message: translateForRequest(req, "Requete invalide.") });
     return;
   }
 

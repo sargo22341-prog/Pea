@@ -46,16 +46,6 @@ export function queueSystemBarsRefresh() {
   });
 }
 
-export function destroySystemBars() {
-  if (!initialized) return;
-  initialized = false;
-  window.cancelAnimationFrame(refreshHandle);
-  window.removeEventListener("resize", queueSystemBarsRefresh);
-  window.removeEventListener("orientationchange", queueSystemBarsRefresh);
-  observer?.disconnect();
-  observer = null;
-}
-
 async function applySystemBars() {
   await refreshStatusBarInset();
 

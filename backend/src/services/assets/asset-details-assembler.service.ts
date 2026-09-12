@@ -31,7 +31,7 @@ export class AssetDetailsAssembler {
   async assemble(input: AssembleInput): Promise<AssetDetails> {
     const symbol = input.symbol.toUpperCase();
     const initialPortfolio = await this.portfolio.load(symbol, input.range, input.user, []);
-    const market = await this.market.load(symbol, input.range, input.user, initialPortfolio.quoteFallback);
+    const market = await this.market.load(symbol, input.range, initialPortfolio.quoteFallback);
     const fundamentals = await this.fundamentals.load(symbol, market.data.quote);
     const [portfolio, news] = await Promise.all([
       this.portfolio.load(symbol, input.range, input.user, fundamentals.dividends, market.data.quote),

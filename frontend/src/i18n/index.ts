@@ -64,7 +64,9 @@ const legacyErrorKeys: Record<string, string> = {
   "Transaction introuvable": "transactionNotFound",
   "La quantite doit etre strictement positive.": "quantityStrictlyPositive",
   "Le prix doit etre positif ou nul.": "pricePositiveOrZero",
-  "Cette vente rendrait la quantite detenue negative.": "saleWouldMakeQuantityNegative"
+  "Cette vente rendrait la quantite detenue negative.": "saleWouldMakeQuantityNegative",
+  "Cette suppression rendrait la quantite detenue negative.": "deletionWouldMakeQuantityNegative",
+  "Requete invalide.": "invalidRequest"
 };
 
 function initialLanguage(): AppLanguage {

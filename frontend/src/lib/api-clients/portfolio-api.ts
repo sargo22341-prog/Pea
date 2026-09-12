@@ -12,7 +12,7 @@ import type {
   RangeKey,
   UpdatePositionInput
 } from "@pea/shared";
-import { dedupedRequest, request } from "./api-core";
+import { dedupedRequest, request } from "../api-core";
 
 type PositionTransactionInput = {
   tradedAt: string;

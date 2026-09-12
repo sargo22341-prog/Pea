@@ -94,7 +94,7 @@ export class ChartDataQueryService {
           flagDate: latestFinalizedForRange,
           lastChartDate: latestChartDate ?? "none"
         });
-        void storedRangeRebuilderService.rebuildFromFinalData(asset, [storedRange]);
+        storedRangeRebuilderService.rebuildFromFinalData(asset, [storedRange]);
       }
     }
 

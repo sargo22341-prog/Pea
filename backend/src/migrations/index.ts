@@ -30,6 +30,7 @@ import { bootstrapAdminMigration } from "./accounts/029-bootstrap-admin.js";
 import { userLanguageMigration } from "./accounts/030-user-language.js";
 import { objectivesMigration } from "./accounts/031-objectives.js";
 import { userPreferencesColumnsMigration } from "./accounts/032-user-preferences-columns.js";
+import { transactionTradedAtIsoMigration } from "./portfolio/033-transaction-traded-at-iso.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -64,5 +65,6 @@ export const migrations: Migration[] = [
   bootstrapAdminMigration,
   userLanguageMigration,
   objectivesMigration,
-  userPreferencesColumnsMigration
+  userPreferencesColumnsMigration,
+  transactionTradedAtIsoMigration
 ];

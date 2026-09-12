@@ -80,11 +80,6 @@ export function isAppLanguage(value: unknown): value is AppLanguage {
   return value === "fr" || value === "en";
 }
 
-export function extensionForMime(mimeType: string) {
-  if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
-  return "png";
-}
-
 export function rowToAuthUser(row: UserRow): AuthUser {
   const languages: NewsLanguage[] = [];
   if (row.news_language_fr_enabled === undefined || row.news_language_fr_enabled === null || Boolean(row.news_language_fr_enabled)) languages.push("fr");

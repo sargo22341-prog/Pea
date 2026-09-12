@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";
 import { assetIconRepository, type KnownAssetRow } from "../../repositories/assets/asset-icon.repository.js";
-import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
+import { detectSupportedImageMime, extensionForImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 import { currentUserId } from "../auth/user-context.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { logger } from "../shared/logger.service.js";
 
-import { domainFromWebsite, extensionForMime, failureCooldownMs, fetchWithTimeout, iconsDir, isEtfCandidate, mapIcon, maxAutoFetchMs, normalizeSymbol, normalizeWebsite, placeholderSvg, readCachedQuote, type AssetIcon, type LogoCandidate } from "./icon.helpers.js";
+import { domainFromWebsite, failureCooldownMs, fetchWithTimeout, iconsDir, isEtfCandidate, mapIcon, maxAutoFetchMs, normalizeSymbol, normalizeWebsite, placeholderSvg, readCachedQuote, type AssetIcon, type LogoCandidate } from "./icon.helpers.js";
 export type { AssetIcon } from "./icon.helpers.js";
 
 let logoDevConfigLogged = false;
@@ -41,12 +41,13 @@ export class IconService {
     return icon?.filePath && icon.mimeType && fs.existsSync(icon.filePath) ? icon : undefined;
   }
 
-  async saveIconFromBuffer(symbol: string, buffer: Buffer, mimeType: string, source: "auto" | "manual" = "manual"): Promise<AssetIcon> {
+  /** Le type d'image est déduit de la signature binaire, jamais du type MIME déclaré. */
+  async saveIconFromBuffer(symbol: string, buffer: Buffer, source: "auto" | "manual" = "manual"): Promise<AssetIcon> {
     const key = normalizeSymbol(symbol);
     if (!key) throw new Error("Symbole invalide.");
     const cleanMime = detectSupportedImageMime(buffer);
     if (!cleanMime) throw new Error("Image invalide.");
-    const extension = extensionForMime(cleanMime);
+    const extension = extensionForImageMime(cleanMime);
     const filePath = path.join(iconsDir, `${key}.${extension}`);
 
     for (const candidate of ["png", "jpg"]) {
@@ -67,15 +68,15 @@ export class IconService {
     if (this.isEtf(key)) return this.getCached(key);
     if (this.hasRecentFailure(key) || this.hasRecentPending(key)) return this.getCached(key);
 
-    this.markIconPending(key);
     try {
+      this.markIconPending(key);
       const metadata = this.getAssetMetadata(key);
       let website = metadata.website;
       this.logLogoDevConfig();
       if (config.logoDevApiKey) {
         const logoDevUrls = this.buildLogoDevCandidates(key, metadata.name);
         const logo = await this.fetchFirstAllowedImage(key, logoDevUrls);
-        if (logo) return this.saveIconFromBuffer(key, logo.buffer, logo.mimeType, "auto");
+        if (logo) return this.saveIconFromBuffer(key, logo, "auto");
       }
 
       if (!website) logger.debug("icons", "website lookup via Yahoo assetProfile", { symbol: key });
@@ -85,12 +86,12 @@ export class IconService {
         const domainCandidates = this.buildLogoDevDomainCandidates(website);
         if (!domainCandidates.length) logger.debug("icons", "logo.dev website skipped, no domain", { symbol: key });
         const logo = await this.fetchFirstAllowedImage(key, domainCandidates);
-        if (logo) return this.saveIconFromBuffer(key, logo.buffer, logo.mimeType, "auto");
+        if (logo) return this.saveIconFromBuffer(key, logo, "auto");
       }
 
       const candidates = this.buildFaviconCandidates(website);
       const favicon = await this.fetchFirstAllowedImage(key, candidates);
-      if (favicon) return this.saveIconFromBuffer(key, favicon.buffer, favicon.mimeType, "auto");
+      if (favicon) return this.saveIconFromBuffer(key, favicon, "auto");
       logger.debug("icons", "icon fetch failed", { symbol: key, reason: "no candidate succeeded" });
       this.markIconAsFailed(key);
     } catch (error) {
@@ -239,7 +240,7 @@ export class IconService {
         continue;
       }
       logger.debug("icons", "icon fetch ok", { symbol, source: candidate.source, label: candidate.label, mimeType: detectedMimeType, size: buffer.length });
-      return { buffer, mimeType: detectedMimeType };
+      return buffer;
     }
     return undefined;
   }

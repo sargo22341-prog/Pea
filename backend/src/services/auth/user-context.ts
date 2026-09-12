@@ -28,15 +28,6 @@ export function currentUserId(): number {
 }
 
 /**
- * Variante non-throw : retourne `undefined` si aucun contexte. À utiliser uniquement pour les
- * opérations qui peuvent légitimement tourner hors HTTP (logging multi-user, télémétrie,
- * fallback de cache global).
- */
-export function optionalCurrentUserId(): number | undefined {
-  return userContext.getStore();
-}
-
-/**
  * Résout l'identifiant utilisateur à utiliser : valeur explicite si fournie, sinon contexte ALS.
  * Lève si aucun des deux n'est disponible.
  */

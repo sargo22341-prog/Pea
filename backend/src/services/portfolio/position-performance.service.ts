@@ -9,14 +9,17 @@ import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import {
   buildTransactionCache,
+  downsamplePoints,
   getCostBasisAtTime,
   getQuantityAtTime,
+  latestTransactionTime,
+  maxHistoryTime,
   positionFromTransactionCache,
   type PositionTransactionCache
 } from "./portfolio-calculations.js";
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { portfolioPerformanceCache } from "./portfolio-performance-cache.service.js";
-import { portfolioQueryService } from "./portfolio-query.service.js";
+import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
 
 function finiteMarketNumber(value: unknown): number | undefined {
@@ -25,35 +28,7 @@ function finiteMarketNumber(value: unknown): number | undefined {
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
-function downsampleMiniChartPoints(points: PositionMiniChart["points"], maxPoints = 40): PositionMiniChart["points"] {
-  if (points.length <= maxPoints) return points;
-  const result: PositionMiniChart["points"] = [];
-  const last = points.length - 1;
-  for (let index = 0; index < maxPoints; index += 1) {
-    const point = points[Math.round((index * last) / (maxPoints - 1))];
-    if (point) result.push(point);
-  }
-  return result;
-}
-
-function downsampleHistoryForMiniChart(points: HistoryPoint[], maxPoints = 40): HistoryPoint[] {
-  if (points.length <= maxPoints) return points;
-  const result: HistoryPoint[] = [];
-  const last = points.length - 1;
-  for (let index = 0; index < maxPoints; index += 1) {
-    const point = points[Math.round((index * last) / (maxPoints - 1))];
-    if (point) result.push(point);
-  }
-  return result;
-}
-
-function maxHistoryTime(points: HistoryPoint[]) {
-  return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
-}
-
-function latestTransactionTime(entry?: PositionTransactionCache) {
-  return entry?.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0) ?? 0;
-}
+const miniChartMaxPoints = 40;
 
 function shouldUseCurrentHoldingForClosedIntraday(range: RangeKey, history: HistoryPoint[], entry?: PositionTransactionCache) {
   const lastHistoryTime = maxHistoryTime(history);
@@ -64,7 +39,7 @@ export class PositionPerformanceService {
   async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
     const resolvedUserId = requireUserId(userId);
     if (!options.forceIntradayOpen && !options.intradayNow) {
-      const positions = portfolioQueryService.listPositions(resolvedUserId);
+      const positions = portfolioReadService.listPositions(resolvedUserId);
       return portfolioPerformanceCache.getOrCompute({
         userId: resolvedUserId,
         range,
@@ -84,7 +59,7 @@ export class PositionPerformanceService {
   }
 
   private async calculatePositionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
-    const positions = portfolioQueryService.listPositions(userId);
+    const positions = portfolioReadService.listPositions(userId);
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
     const txCache = buildTransactionCache(positions.map((p) => p.id));
     return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options, txCache)));
@@ -177,7 +152,7 @@ export class PositionPerformanceService {
     useCurrentHoldingForClosedIntraday?: boolean;
     stale: boolean;
   }): PositionMiniChart {
-    const sampledHistory = downsampleHistoryForMiniChart(input.history, 40);
+    const sampledHistory = downsamplePoints(input.history, miniChartMaxPoints);
     const rawPoints = sampledHistory
       .map((point) => {
         const timestamp = new Date(point.date).getTime();
@@ -194,7 +169,7 @@ export class PositionPerformanceService {
 
     return {
       range: input.range,
-      points: downsampleMiniChartPoints(rawPoints, 40),
+      points: downsamplePoints(rawPoints, miniChartMaxPoints),
       marketSession: input.range === "1d" ? getMarketSessionInfo(input.position.symbol) : undefined,
       stale: input.stale || input.history.some((point) => point.stale),
       updatedAt: new Date().toISOString()

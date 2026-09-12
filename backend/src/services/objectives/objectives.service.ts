@@ -2,6 +2,7 @@ import type { ObjectiveDto, ObjectiveInput, ObjectiveListDto } from "@pea/shared
 import { objectivesRepository, type ObjectiveRow } from "../../repositories/objectives/objectives.repository.js";
 import { authRepository } from "../../repositories/auth/auth.repository.js";
 import { HttpError } from "../../utils/http-error.js";
+import { logger } from "../shared/logger.service.js";
 import { objectiveCalculatorService } from "./objective-calculator.service.js";
 import { objectivePortfolioService } from "./objective-portfolio.service.js";
 import { mapObjective } from "./objectives.mapper.js";
@@ -54,29 +55,28 @@ export class ObjectivesService {
     return mapObjective(objectivesRepository.find(userId, objectiveId)!);
   }
 
-  async recalculateActive(now = new Date()): Promise<{ recalculated: number; failed: number }> {
-    let recalculated = 0;
-    let failed = 0;
-    for (const row of objectivesRepository.listActive()) {
-      try {
-        await this.recalculateRow(row, now);
-        recalculated += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-    return { recalculated, failed };
+  recalculateActive(now = new Date()): Promise<{ recalculated: number; failed: number }> {
+    return this.recalculateRows(objectivesRepository.listActive(), now);
   }
 
-  async recalculateActiveForUser(userId: number, now = new Date()): Promise<{ recalculated: number; failed: number }> {
+  recalculateActiveForUser(userId: number, now = new Date()): Promise<{ recalculated: number; failed: number }> {
+    return this.recalculateRows(objectivesRepository.listActiveForUser(userId), now);
+  }
+
+  private async recalculateRows(rows: ObjectiveRow[], now: Date) {
     let recalculated = 0;
     let failed = 0;
-    for (const row of objectivesRepository.listActiveForUser(userId)) {
+    for (const row of rows) {
       try {
         await this.recalculateRow(row, now);
         recalculated += 1;
-      } catch {
+      } catch (error) {
         failed += 1;
+        logger.warn("portfolio", "objective projection recalculation failed", {
+          objectiveId: row.id,
+          userId: row.user_id,
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
     return { recalculated, failed };

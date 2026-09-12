@@ -57,10 +57,3 @@ export async function dedupeInFlight<T>(key: string, fn: () => Promise<T>): Prom
 export function inFlightDeduperStats() {
   return { inFlightRequests: inFlight.size };
 }
-
-/**
- * Réinitialise le registre (utilisé par les tests). Ne pas appeler en production.
- */
-export function clearInFlightForTesting() {
-  inFlight.clear();
-}

@@ -6,8 +6,8 @@ import type { AppLanguage, DashboardSortKey, NewsLanguage, RangeKey, SortDirecti
 import { config } from "../../config.js";
 import { authRepository } from "../../repositories/auth/auth.repository.js";
 import { HttpError } from "../../utils/http-error.js";
-import { detectSupportedImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
-import { extensionForMime, hashToken, isAppLanguage, isUsernameUniqueConstraintError, rowToAdminManagedUser, rowToAuthUser, type AdminManagedUser, type AuthUser, type UserRow } from "./auth-user.mapper.js";
+import { detectSupportedImageMime, extensionForImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
+import { hashToken, isAppLanguage, isUsernameUniqueConstraintError, rowToAdminManagedUser, rowToAuthUser, type AdminManagedUser, type AuthUser, type UserRow } from "./auth-user.mapper.js";
 export type { AdminManagedUser, AuthUser } from "./auth-user.mapper.js";
 export { authCookieName } from "./auth-user.mapper.js";
 
@@ -200,7 +200,7 @@ export class AuthService {
 
     const normalizedMime = detectSupportedImageMime(data);
     if (!normalizedMime) throw new HttpError(400, "Image invalide.");
-    const filePath = path.join(profileIconsDirectory, `user-${userId}.${extensionForMime(normalizedMime)}`);
+    const filePath = path.join(profileIconsDirectory, `user-${userId}.${extensionForImageMime(normalizedMime)}`);
     for (const extension of ["png", "jpg"]) {
       const candidate = path.join(profileIconsDirectory, `user-${userId}.${extension}`);
       if (candidate !== filePath && fs.existsSync(candidate)) fs.unlinkSync(candidate);
@@ -248,8 +248,9 @@ export class AuthService {
         bootstrapAdmin: options.bootstrapAdmin,
         profileIconUrl: options.profileIconUrl || null
       });
-    } catch {
-      throw new HttpError(409, "Ce username est deja utilise.");
+    } catch (error) {
+      if (isUsernameUniqueConstraintError(error)) throw new HttpError(409, "Ce username est deja utilise.");
+      throw error;
     }
     const row = authRepository.findUserByUsername(trimmedUsername) as UserRow;
     return rowToAuthUser(row);

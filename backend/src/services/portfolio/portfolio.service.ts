@@ -13,11 +13,10 @@ import type {
   UpdatePositionInput,
   UserAssetPositionDto
 } from "@pea/shared";
-import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { portfolioChartsService } from "./portfolio-charts.service.js";
-import { portfolioCommandService } from "./portfolio-command.service.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
-import { portfolioQueryService } from "./portfolio-query.service.js";
+import { portfolioReadService } from "./portfolio-read.service.js";
+import { portfolioWriteService } from "./portfolio-write.service.js";
 import type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
 
 export type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
@@ -31,97 +30,63 @@ export type { PortfolioMarketDataOptions, TransactionMutationInput } from "./por
  */
 export class PortfolioService {
   listPositions(userId?: number | string): Position[] {
-    return portfolioQueryService.listPositions(userId);
+    return portfolioReadService.listPositions(userId);
   }
 
   getPosition(symbol: string, userId?: number | string): Promise<PositionWithMarket | undefined> {
-    return portfolioQueryService.getPosition(symbol, userId);
+    return portfolioReadService.getPosition(symbol, userId);
   }
 
   createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean; userId?: number | string } = {}): Promise<PositionWithMarket> {
-    return portfolioCommandService.createPosition(input, options);
+    return portfolioWriteService.createPosition(input, options);
   }
 
   ensurePosition(symbol: string, name: string, currency = "EUR", userId?: number | string): Position {
-    return portfolioCommandService.ensurePosition(symbol, name, currency, userId);
+    return portfolioWriteService.ensurePosition(symbol, name, currency, userId);
   }
 
-  importAvisTransaction(input: {
-    symbol: string;
-    name: string;
-    currency: string;
-    type: "buy" | "sell";
-    quantity: number;
-    price: number;
-    tradedAt: string;
-    sourceFileName?: string | null;
-    assetName?: string | null;
-    isin?: string | null;
-    ticker?: string | null;
-    totalFees?: number | null;
-    rawTextSnippet?: string | null;
-  }) {
-    return portfolioCommandService.importAvisTransaction(input);
-  }
-
-  hasDatedTransactions(positionId: number): boolean {
-    return portfolioRepository.hasDatedTransactions(positionId);
-  }
-
-  getQuantityHeldAtDate(assetId: number | string, date: string): number {
-    const time = new Date(date).getTime();
-    if (!Number.isFinite(time)) return 0;
-    const rows = portfolioRepository.listQuantityEvents(Number(assetId));
-    return rows.reduce((quantity, row) => {
-      if (new Date(row.traded_at).getTime() > time) return quantity;
-      if (row.type === "buy") return quantity + Number(row.quantity);
-      if (row.type === "sell") return quantity - Number(row.quantity);
-      return quantity;
-    }, 0);
-  }
-
-  recomputePositionFromDatedTransactions(positionId: number) {
-    return portfolioCommandService.recomputePositionFromDatedTransactions(positionId);
+  importAvisTransaction(input: Parameters<typeof portfolioWriteService.importAvisTransaction>[0]) {
+    return portfolioWriteService.importAvisTransaction(input);
   }
 
   listTransactions(positionId: number, userId?: number | string): EditablePortfolioTransaction[] {
-    return portfolioQueryService.listTransactions(positionId, userId);
+    return portfolioReadService.listTransactions(positionId, userId);
   }
 
   transactionStats(positionId: number, totalDividendsReceived = 0, currency = "EUR", userId?: number | string): PositionTransactionStats {
-    return portfolioQueryService.transactionStats(positionId, totalDividendsReceived, currency, userId);
+    return portfolioReadService.transactionStats(positionId, totalDividendsReceived, currency, userId);
   }
 
   createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
-    return portfolioCommandService.createTransaction(positionId, input, userId);
+    return portfolioWriteService.createTransaction(positionId, input, userId);
   }
 
   updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string) {
-    return portfolioCommandService.updateTransaction(positionId, transactionId, input, userId);
+    return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId);
   }
 
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
-    return portfolioCommandService.deleteTransaction(positionId, transactionId, userId);
+    return portfolioWriteService.deleteTransaction(positionId, transactionId, userId);
   }
 
   recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
-    return portfolioCommandService.recomputePositionFromAnyTransactions(positionId, userId);
+    return portfolioWriteService.recomputePositionFromAnyTransactions(positionId, userId);
   }
 
   assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
-    return portfolioCommandService.assertValidTransactionMutation(positionId, input, transactionIdToReplace);
+    return portfolioWriteService.assertValidTransactionMutation(positionId, input, transactionIdToReplace);
   }
 
   deletePosition(id: number, userId?: number | string): boolean {
-    return portfolioCommandService.deletePosition(id, userId);
+    return portfolioWriteService.deletePosition(id, userId);
   }
 
   replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
-    return portfolioCommandService.replaceImportedPositionSnapshot(id, input, userId);
+    return portfolioWriteService.replaceImportedPositionSnapshot(id, input, userId);
   }
 
   updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {
-    return portfolioCommandService.updatePosition(id, input, userId);
+    return portfolioWriteService.updatePosition(id, input, userId);
   }
 
   full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {
@@ -129,7 +94,7 @@ export class PortfolioService {
   }
 
   summary(range: RangeKey = "1d", userId?: number | string): Promise<PortfolioSummary> {
-    return portfolioQueryService.summary(range, userId);
+    return portfolioReadService.summary(range, userId);
   }
 
   performance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PortfolioPerformancePoint[]> {
@@ -141,7 +106,7 @@ export class PortfolioService {
   }
 
   userAssetPosition(userId: string | number, symbol: string): UserAssetPositionDto | undefined {
-    return portfolioQueryService.userAssetPosition(userId, symbol);
+    return portfolioReadService.userAssetPosition(userId, symbol);
   }
 
   positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {

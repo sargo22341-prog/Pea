@@ -49,7 +49,7 @@ function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
  * Déduplique les requêtes concurrentes vers le même endpoint+paramètres.
  *
  * IMPORTANT : la clé de déduplication est `path` *avec* sa query string. Tous les callers
- * (`portfolio-api.ts`, `market-api.ts`) construisent déjà le path complet
+ * (`api-clients/portfolio-api.ts`, `api-clients/market-api.ts`) construisent déjà le path complet
  * (ex: `/api/portfolio?range=1d`). Si on s'attend à dédupliquer deux paramétrisations
  * différentes du même endpoint, elles auront naturellement deux clés distinctes.
  *

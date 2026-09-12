@@ -1,5 +1,5 @@
 import type { AdminManagedUser, DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
-import { request } from "./api-core";
+import { request } from "../api-core";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
 

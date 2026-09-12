@@ -6,16 +6,13 @@ import {
   downsamplePoints,
   getCostBasisAtTime,
   getQuantityAtTime,
-  positionFromTransactionCache,
-  type PositionTransactionCache
+  latestTransactionTime,
+  maxHistoryTime,
+  positionFromTransactionCache
 } from "./portfolio-calculations.js";
-import { portfolioQueryService } from "./portfolio-query.service.js";
+import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
 import { positionPerformanceService } from "./position-performance.service.js";
-
-function maxHistoryTime(points: HistoryPoint[]) {
-  return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
-}
 
 function minHistoryTime(points: HistoryPoint[]) {
   return points.reduce((earliest, point) => {
@@ -24,14 +21,10 @@ function minHistoryTime(points: HistoryPoint[]) {
   }, Number.POSITIVE_INFINITY);
 }
 
-function latestTransactionTime(entry?: PositionTransactionCache) {
-  return entry?.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0) ?? 0;
-}
-
 export class PortfolioPerformanceService {
   async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PortfolioPerformancePoint[]> {
     const resolvedUserId = requireUserId(userId);
-    const positions = portfolioQueryService.listPositions(resolvedUserId);
+    const positions = portfolioReadService.listPositions(resolvedUserId);
     if (!positions.length) return [];
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 

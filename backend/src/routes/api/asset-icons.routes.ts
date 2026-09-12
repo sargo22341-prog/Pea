@@ -48,7 +48,7 @@ assetIconsRouter.post(
     if (!detectSupportedImageMime(upload.buffer)) throw new HttpError(400, "Image invalide.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("icons", "icon upload", { symbol: symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
-    res.json(await iconService.saveIconFromBuffer(symbol, upload.buffer, upload.mimeType, "manual"));
+    res.json(await iconService.saveIconFromBuffer(symbol, upload.buffer, "manual"));
   })
 );
 

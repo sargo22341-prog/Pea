@@ -11,6 +11,8 @@
   "pricePositiveOrZero": "Le prix doit etre positif ou nul.",
   "quantityStrictlyPositive": "La quantite doit etre strictement positive.",
   "saleWouldMakeQuantityNegative": "Cette vente rendrait la quantite detenue negative.",
+  "deletionWouldMakeQuantityNegative": "Cette suppression rendrait la quantite detenue negative.",
+  "invalidRequest": "Requete invalide.",
   "serverUrlNotConfigured": "URL serveur non configuree.",
   "tooManyRequestsInProgress": "Trop de requetes en cours.",
   "transactionNotFound": "Transaction introuvable",
