@@ -233,6 +233,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # Le paquet SDK "tools" n'est plus distribué par Google ; le défaut "tools platform-tools" échoue.
+          packages: platform-tools
       - name: Check Java and Android
         run: |
           java -version
