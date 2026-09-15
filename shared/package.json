@@ -1,6 +1,7 @@
 {
   "name": "@pea/shared",
   "private": true,
+  "license": "MIT",
   "version": "1.0.17",
   "type": "module",
   "main": "dist/index.js",

@@ -1,6 +1,7 @@
 {
   "name": "pea-portfolio-app",
   "private": true,
+  "license": "MIT",
   "version": "1.0.17",
   "type": "module",
   "engines": {

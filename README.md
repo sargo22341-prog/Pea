@@ -148,3 +148,7 @@ npm test
 | Donnees marche | Yahoo Finance via `yahoo-finance2` |
 | Mobile | Capacitor Android |
 | Deploiement | Docker / Docker Compose |
+
+## Licence
+
+Ce projet est distribue sous licence [MIT](LICENSE).
