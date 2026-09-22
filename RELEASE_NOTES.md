@@ -1,12 +1,12 @@
 
 ## Notes de release
 
-- Update modules npm
+feat(mobile): recharger la page par un geste natif et mettre a jour les dependances
 
-chore(ci): mettre à jour les actions et ajouter la licence MIT
+- ajoute le pull-to-refresh Android avec l'indicateur circulaire natif et un rechargement sans cache
+- suspend le geste pendant l'affichage des fenetres modales pour proteger les saisies en cours
+- passe la chaine Android a Gradle 9.7.1, AGP 9.4.1, google-services 4.5.0, compileSdk 37 et AndroidX a jour
+- met a jour dotenv en version 18 cote backend et realigne allowScripts sur esbuild 0.28.2
+- retire les dependances racine inutilisees qui exposaient une alerte uuid en production
+- ajoute les tests de regression du compteur de suspensions du geste
 
-- passe docker/login-action en v4, setup-buildx-action en v4 et build-push-action en v7
-- passe actions/setup-java en v6, android-actions/setup-android en v4 et upload-artifact en v7
-- applique les mêmes versions aux workflows GitHub et Gitea
-- ajoute la licence MIT, le champ license des workspaces et le label OCI de l'image
-- documente la licence dans le README

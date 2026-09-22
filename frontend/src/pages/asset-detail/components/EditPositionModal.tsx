@@ -2,6 +2,7 @@ import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shar
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
@@ -22,6 +23,7 @@ export function EditPositionModal({
   startWithDraft?: boolean;
 }) {
   const { t } = useTranslation(["common", "errors", "portfolio"]);
+  usePullToRefreshSuspended();
   const [rows, setRows] = useState<EditableTransactionFormRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

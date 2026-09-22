@@ -2,6 +2,7 @@ import { AlertTriangle, X } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
+import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { MOTION } from "../motion";
 
 export function ConfirmDialog({
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
 }) {
   const { t } = useTranslation("common");
+  usePullToRefreshSuspended();
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onCancel();

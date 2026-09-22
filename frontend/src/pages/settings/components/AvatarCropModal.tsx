@@ -1,6 +1,7 @@
 import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { MOTION } from "../../../components/common/motion";
 
 const PREVIEW_SIZE = 240;
@@ -14,6 +15,7 @@ interface AvatarCropModalProps {
 
 export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalProps) {
   const { t } = useTranslation(["common"]);
+  usePullToRefreshSuspended();
   const imgRef = useRef<HTMLImageElement>(null);
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
   const [minScale, setMinScale] = useState(0.1);

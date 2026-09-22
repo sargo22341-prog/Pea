@@ -2,6 +2,7 @@ import type { ObjectiveDto, ObjectiveType } from "@pea/shared";
 import type React from "react";
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
 import { MOTION } from "../../../components/common/motion";
@@ -30,6 +31,7 @@ export function ObjectiveEditModal({
   onSaved: () => Promise<void> | void;
 }) {
   const { t } = useTranslation(["objectives", "common"]);
+  usePullToRefreshSuspended();
   const [form, setForm] = useState(() => objectiveFormFromDto(objective));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

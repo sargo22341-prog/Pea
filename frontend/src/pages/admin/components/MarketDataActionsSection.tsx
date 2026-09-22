@@ -1,6 +1,7 @@
 import type { DataConstructionJobDto } from "@pea/shared";
 import { AlertTriangle, Database, Info, RefreshCcw, X, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
@@ -141,6 +142,7 @@ function InfoTooltip({ info, label }: { info: string; label: string }) {
 
 function ConfirmActionDialog({ action, onCancel, onConfirm }: { action: QuickAction; onCancel: () => void; onConfirm: () => void }) {
   const { t } = useTranslation(["common"]);
+  usePullToRefreshSuspended();
   const Icon = action.icon;
   const label = actionText(t, action);
   const info = actionText(t, action, "Info");

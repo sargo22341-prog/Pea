@@ -19,12 +19,15 @@ public class MainActivity extends BridgeActivity {
   private static final String TAG = "PEA_SSL";
   private static final int APP_BACKGROUND_COLOR = Color.rgb(7, 16, 20);
 
+  private PEAPullToRefresh pullToRefresh;
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     getApplication().setTheme(R.style.AppTheme_NoActionBar);
     setTheme(R.style.AppTheme_NoActionBar);
     supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
     registerPlugin(PEANetworkPlugin.class);
+    registerPlugin(PEAPullToRefreshPlugin.class);
     configureEdgeToEdgeWindow();
     super.onCreate(savedInstanceState);
     hideNativeActionBar();
@@ -32,8 +35,17 @@ public class MainActivity extends BridgeActivity {
     PEASelfHostedSsl.install();
 
     if (getBridge() != null && getBridge().getWebView() != null) {
-      getBridge().getWebView().getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+      WebView webView = getBridge().getWebView();
+      webView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
       getBridge().setWebViewClient(new SelfHostedWebViewClient());
+      pullToRefresh = PEAPullToRefresh.install(webView);
+    }
+  }
+
+  /** Utilisé par {@link PEAPullToRefreshPlugin} pour suspendre le geste pendant une fenêtre modale. */
+  void setPullToRefreshEnabled(boolean enabled) {
+    if (pullToRefresh != null) {
+      pullToRefresh.setEnabled(enabled);
     }
   }
 
@@ -69,6 +81,14 @@ public class MainActivity extends BridgeActivity {
   private class SelfHostedWebViewClient extends BridgeWebViewClient {
     SelfHostedWebViewClient() {
       super(getBridge());
+    }
+
+    @Override
+    public void onPageFinished(WebView view, String url) {
+      super.onPageFinished(view, url);
+      if (pullToRefresh != null) {
+        pullToRefresh.onPageFinished();
+      }
     }
 
     @Override

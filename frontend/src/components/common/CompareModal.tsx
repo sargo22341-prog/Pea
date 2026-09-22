@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
+import { usePullToRefreshSuspended } from "../../hooks/usePullToRefreshSuspended";
 import { MOTION } from "./motion";
 import { COMPARE_COLORS } from "../charts/comparison/compareColors";
 
@@ -22,6 +23,7 @@ const MAX_COMPARE = 4;
 
 export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose, localPeaSearchEnabled }: CompareModalProps) {
   const { t } = useTranslation(["common", "portfolio"]);
+  usePullToRefreshSuspended();
   const { query, setQuery, results, loading } = useEnrichedSearch({ localPeaSearchEnabled });
   const excluded = new Set([currentSymbol, ...selected.map((s) => s.symbol)]);
   const canAdd = selected.length < MAX_COMPARE;
