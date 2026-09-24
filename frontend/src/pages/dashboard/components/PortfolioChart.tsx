@@ -3,7 +3,7 @@ import { Suspense, memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import type { AssetComparisonSerie } from "../../../hooks/useAssetComparisonSeries";
-import { lazyWithReload } from "../../../lib/lazy-with-reload";
+import { lazyWithReload } from "../../../lib/app-loading/lazy-with-reload";
 import { formatMarketSessionHours, normalizeTimeZone } from "../../../lib/timezone";
 import { ChartSkeleton } from "./DashboardSkeletons";
 

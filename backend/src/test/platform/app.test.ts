@@ -101,7 +101,8 @@ test("JSON API responses are compressed while the market SSE stream stays uncomp
           resultCount: results.length,
           eventsStatus: events.status,
           eventsType: events.headers.get("content-type"),
-          eventsEncoding: events.headers.get("content-encoding")
+          eventsEncoding: events.headers.get("content-encoding"),
+          eventsBuffering: events.headers.get("x-accel-buffering")
         }));
       } finally {
         controller.abort();
@@ -117,6 +118,7 @@ test("JSON API responses are compressed while the market SSE stream stays uncomp
   assert.equal(result.eventsStatus, 200);
   assert.match(result.eventsType, /text\/event-stream/);
   assert.equal(result.eventsEncoding, null);
+  assert.equal(result.eventsBuffering, "no");
 });
 
 test("static JSON cache rejects non-whitelisted SQL targets", () => {

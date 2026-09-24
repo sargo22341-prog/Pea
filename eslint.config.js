@@ -35,10 +35,7 @@ export default tseslint.config(
         languageOptions: {
             globals: {
                 caches: "readonly",
-                fetch: "readonly",
-                Response: "readonly",
                 self: "readonly",
-                URL: "readonly",
             },
         },
     },

@@ -47,6 +47,9 @@ export class MarketEventsService {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    // nginx (Nginx Proxy Manager) bufferise les réponses proxifiées : sans cet en-tête,
+    // les événements SSE restent bloqués côté proxy au lieu d'être transmis immédiatement.
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
     this.write(client, "scheduler-health-updated", {
       type: "scheduler-health-updated",

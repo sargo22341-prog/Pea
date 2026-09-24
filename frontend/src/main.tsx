@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
+import { unregisterServiceWorkers } from "./lib/app-loading/service-worker-cleanup";
 import "./i18n";
 import "./styles/index.css";
 
@@ -13,8 +14,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-  });
-}
+void unregisterServiceWorkers(navigator.serviceWorker);

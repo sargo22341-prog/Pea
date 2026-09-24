@@ -10,7 +10,7 @@ import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
 import { i18n } from "./i18n";
-import { lazyWithReload } from "./lib/lazy-with-reload";
+import { lazyWithReload } from "./lib/app-loading/lazy-with-reload";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
 import { AuthPage } from "./pages/auth/AuthPage";
