@@ -2,7 +2,7 @@
   "name": "pea-portfolio-app",
   "private": true,
   "license": "MIT",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "type": "module",
   "engines": {
     "node": ">=26"
