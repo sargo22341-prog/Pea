@@ -84,6 +84,11 @@ Puis ouvrir `http://localhost:4000`.
 Le build frontend est embarque dans l'image Docker. Il n'est pas stocke dans le
 volume `/app/data`, car ce ne sont pas des donnees utilisateur.
 
+Chaque push sur `main` publie une version : image `ghcr.io/sargo22341-prog/pea-portfolio`
+(tags `X.Y.Z` et `latest`) et APK Android signe attache a la
+[GitHub Release](https://github.com/sargo22341-prog/Pea/releases). Fonctionnement et notes de
+version : [docs/release.md](docs/release.md).
+
 ## Env
 
 | Variable | Defaut | Portee | Utilisation |

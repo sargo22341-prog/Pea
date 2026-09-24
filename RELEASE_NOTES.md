@@ -1,12 +1,10 @@
+# Notes de la prochaine version
 
-## Notes de release
+Écrire sous la ligne `<!-- notes -->` les changements de la prochaine version, en français et en
+Markdown (une ligne `- …` par changement). À chaque push sur `main`, la CI publie ce texte comme
+description de la GitHub Release, puis vide la liste dans le commit `chore: bump version to vX.Y.Z`.
+Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
-feat(mobile): recharger la page par un geste natif et mettre a jour les dependances
+<!-- notes -->
 
-- ajoute le pull-to-refresh Android avec l'indicateur circulaire natif et un rechargement sans cache
-- suspend le geste pendant l'affichage des fenetres modales pour proteger les saisies en cours
-- passe la chaine Android a Gradle 9.7.1, AGP 9.4.1, google-services 4.5.0, compileSdk 37 et AndroidX a jour
-- met a jour dotenv en version 18 cote backend et realigne allowScripts sur esbuild 0.28.2
-- retire les dependances racine inutilisees qui exposaient une alerte uuid en production
-- ajoute les tests de regression du compteur de suspensions du geste
-
+- Les nouvelles versions sont publiées automatiquement sur GitHub : image Docker sur ghcr.io et APK Android signé attaché à chaque release.

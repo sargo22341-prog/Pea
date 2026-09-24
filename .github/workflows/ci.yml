@@ -1,0 +1,275 @@
+# Vérification complète (audit, typecheck, lint, architecture, tests, build, image Docker)
+# sur chaque pull request et chaque push.
+# Sur main : montée de version, APK Android signé, commit + tag vX.Y.Z, image ghcr.io et
+# GitHub Release dont le texte vient de RELEASE_NOTES.md (liste vidée dans le commit de version).
+# Fonctionnement, secrets requis et limites : docs/release.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Partie de la version à incrémenter
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 26
+  IMAGE_NAME: pea-portfolio
+
+jobs:
+  verify:
+    name: Vérification
+    # Le workflow ne s'exécute que sur GitHub, même si une copie du dépôt est hébergée ailleurs.
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Auditer les dépendances de production
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Limites d'architecture
+        run: npm run quality:architecture
+
+      - name: Tests
+        run: npm test
+
+      - name: Build applicatif
+        run: npm run build
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build de l'image Docker (sans publication)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          pull: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Montée de version et APK signé
+    needs: [verify]
+    if: github.server_url == 'https://github.com' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Deux montées de version en parallèle produiraient le même numéro.
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Vérifier les secrets de signature
+        run: |
+          # Jamais de release non signée : sans clé, le job s'arrête avant toute montée de version.
+          missing=()
+          [[ -n "$KEYSTORE_BASE64" ]] || missing+=(ANDROID_KEYSTORE_BASE64)
+          [[ -n "$KEYSTORE_PASSWORD" ]] || missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [[ -n "$KEY_ALIAS" ]] || missing+=(ANDROID_KEY_ALIAS)
+          [[ -n "$KEY_PASSWORD" ]] || missing+=(ANDROID_KEY_PASSWORD)
+          if (( ${#missing[@]} )); then
+            echo "::error::Secrets manquants : ${missing[*]} (voir docs/release.md)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v4
+        with:
+          # Le paquet SDK "tools" n'est plus distribué par Google ; le défaut "tools platform-tools" échoue.
+          packages: platform-tools
+
+      - name: Monter la version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          node scripts/release/bump-version.mjs "$BUMP"
+          tag="v$(node -p "require('./package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "::error::Le tag $tag existe déjà."
+            exit 1
+          fi
+
+      - name: Relever puis vider les notes de version
+        run: |
+          # Les notes partent dans la release ; la liste vidée part dans le commit de version.
+          node scripts/release/release-notes.mjs extract "$RUNNER_TEMP/release-notes.md"
+          node scripts/release/release-notes.mjs reset
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Construire les assets web Android
+        run: |
+          npm run build -w shared
+          npm run build:android -w frontend
+
+      - name: Compiler l'APK release signé
+        working-directory: frontend/android
+        env:
+          ANDROID_VERSION_NAME: ${{ steps.version.outputs.version }}
+          ANDROID_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/pea-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --console=plain
+
+      - name: Supprimer la clé du runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/pea-release.keystore"
+
+      - name: Vérifier la signature et la version de l'APK
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          apk="frontend/android/app/build/outputs/apk/release/app-release.apk"
+          build_tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$build_tools/apksigner" verify --print-certs "$apk"
+          badging=$("$build_tools/aapt" dump badging "$apk")
+          grep -q "versionName='$VERSION'" <<< "$badging"
+          grep -q "versionCode='$VERSION_CODE'" <<< "$badging"
+          mkdir -p "$RUNNER_TEMP/release"
+          cp "$apk" "$RUNNER_TEMP/release/pea-portfolio-$VERSION.apk"
+          cp "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/release/"
+
+      - name: Commit et tag de la version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Liste explicite : le build Android régénère des fichiers suivis qui ne doivent pas partir.
+          git add package.json package-lock.json backend/package.json frontend/package.json shared/package.json \
+            frontend/android/app/build.gradle RELEASE_NOTES.md
+          git commit -m "chore: bump version to v$VERSION [skip ci]"
+          git tag -a "v$VERSION" -m "PEA Portfolio $VERSION"
+          # Atomique : si main a avancé pendant le build, ni le commit ni le tag ne sont poussés.
+          git push --atomic origin "HEAD:$GITHUB_REF_NAME" "v$VERSION"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+
+  docker:
+    name: Image Docker ghcr.io
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Nom de l'image
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Construire et publier l'image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          pull: true
+          push: true
+          cache-from: type=gha
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ needs.release.outputs.version }}
+            ${{ steps.image.outputs.name }}:latest
+          labels: |
+            org.opencontainers.image.title=PEA Portfolio
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ needs.release.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+  publish:
+    name: GitHub Release
+    needs: [release, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release
+          path: release
+
+      - name: Publier la GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME:$VERSION"
+          notes=(--notes-file release/notes.md)
+          if [[ -s release/release-notes.md ]]; then
+            cp release/release-notes.md release/notes.md
+          else
+            # Sans notes écrites, GitHub ajoute la liste des commits.
+            : > release/notes.md
+            notes+=(--generate-notes)
+          fi
+          {
+            echo
+            echo "- Image Docker : \`$image\`"
+            echo "- APK Android signé attaché à cette release."
+          } >> release/notes.md
+          gh release create "v$VERSION" "release/pea-portfolio-$VERSION.apk" \
+            --repo "$GITHUB_REPOSITORY" --title "PEA Portfolio v$VERSION" "${notes[@]}"

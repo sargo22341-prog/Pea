@@ -13,7 +13,7 @@ backend/data/
 # Contrôle de version
 .git
 .gitignore
-.gitea
+.github
 
 # Configuration IDE et Claude Code
 .claude
