@@ -163,7 +163,7 @@ export function useAssetChartLifecycle({
 function chartDtoToPoints(chart?: AssetChartDto) {
   if (!chart) return [];
   return chart.timestamps.map((timestamp, index) => ({
-    date: new Date(timestamp).toISOString(),
+    date: timestamp,
     value: chart.prices[index] ?? null
   }));
 }

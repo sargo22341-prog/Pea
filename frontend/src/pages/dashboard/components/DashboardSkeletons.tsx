@@ -21,34 +21,3 @@ export function ChartSkeleton() {
     </div>
   );
 }
-
-export function PositionsSectionSkeleton({ count }: { count: number }) {
-  return (
-    <div className="card overflow-hidden">
-      <div className="flex min-h-[77px] items-center justify-between gap-3 border-b border-line p-4">
-        <div>
-          <h2 className="font-semibold">Positions</h2>
-          <div className="mt-2 h-3 w-28 animate-pulse rounded bg-panel2" />
-        </div>
-        <div className="h-9 w-20 animate-pulse rounded-md bg-panel2" />
-      </div>
-      <div className="divide-y divide-line">
-        {Array.from({ length: count }).map((_, index) => (
-          <div className="min-h-[76px] p-3 sm:min-h-[88px] sm:p-4" key={index}>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-panel2" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="h-4 w-40 max-w-full animate-pulse rounded bg-panel2" />
-                <div className="h-3 w-20 animate-pulse rounded bg-panel2" />
-              </div>
-              <div className="min-w-[92px] space-y-2">
-                <div className="ml-auto h-3 w-20 animate-pulse rounded bg-panel2" />
-                <div className="ml-auto h-3 w-16 animate-pulse rounded bg-panel2" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

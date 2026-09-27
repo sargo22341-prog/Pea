@@ -10,6 +10,7 @@ import type {
 } from "@pea/shared";
 import { config } from "../../config.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
+import { downsampleChartForDisplay } from "../market/charts/chart-display-downsample.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataService, type ChartDataOptions } from "../market/data/market-data.service.js";
@@ -50,8 +51,9 @@ export class AssetDataService {
     };
   }
 
+  /** Graphique d'affichage : les longues periodes sont reduites (voir `downsampleChartForDisplay`). */
   async chart(symbol: string, range: RangeKey, options: ChartDataOptions = {}): Promise<AssetChartDto> {
-    return marketDataService.getChartData(symbol.toUpperCase(), range, options);
+    return downsampleChartForDisplay(await marketDataService.getChartData(symbol.toUpperCase(), range, options), range);
   }
 
   async market(symbol: string): Promise<AssetMarketDto> {

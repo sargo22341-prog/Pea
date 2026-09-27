@@ -6,7 +6,7 @@ import { AssetCalendarEvents } from "../../components/common/AssetCalendarEvents
 import { CompareModal } from "../../components/common/CompareModal";
 import { MOTION } from "../../components/common/motion";
 import { NewsArticleList } from "../../components/common/NewsArticleList";
-import { useAsync } from "../../hooks/useAsync";
+import { useAssetDetailData } from "./hooks/useAssetDetailData";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";
 import { cancelFrame, requestFrame } from "../../lib/animation-frame";
@@ -69,7 +69,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
   const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
   const [toast, setToast] = useState<string | null>(null);
-  const asset = useAsync(() => api.asset(symbol, range), `${symbol}:${range}`);
+  const asset = useAssetDetailData(symbol, range);
   const {
     chartPendingOpenConfirmation,
     chartPoints,

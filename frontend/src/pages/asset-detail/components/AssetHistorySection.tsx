@@ -5,7 +5,7 @@ import { ComparisonChart, PriceHistoryChart } from "../../../components/charts/P
 import { RangeSelector } from "../../../components/common/RangeSelector";
 import { formatMarketSessionHours } from "../../../lib/timezone";
 
-interface ChartPoint { date: string; value: number | null }
+interface ChartPoint { date: string | number; value: number | null }
 
 export function AssetHistorySection({
   chart,

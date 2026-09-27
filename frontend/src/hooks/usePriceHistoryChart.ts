@@ -2,7 +2,8 @@ import type { RangeKey } from "@pea/shared";
 import { useMemo } from "react";
 
 export interface PriceHistoryInputPoint {
-  date: string;
+  /** Instant du point : timestamp en millisecondes (prefere, sans conversion) ou date ISO. */
+  date: string | number;
   value?: number | null;
 }
 
@@ -39,13 +40,13 @@ export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: Ra
 }
 
 export function normalizePriceHistoryPoints(points: PriceHistoryInputPoint[]) {
-  const byDate = new Map<string, PriceHistoryChartPoint>();
+  const byDate = new Map<number, PriceHistoryChartPoint>();
 
   for (const point of points) {
-    const timestamp = new Date(point.date).getTime();
-    if (!point.date || !Number.isFinite(timestamp)) continue;
+    const timestamp = typeof point.date === "number" ? point.date : new Date(point.date).getTime();
+    if (point.date === "" || !Number.isFinite(timestamp)) continue;
     const value = point.value;
-    byDate.set(point.date, {
+    byDate.set(timestamp, {
       date: timestamp,
       value: value != null && Number.isFinite(value) ? value : null
     });

@@ -5,6 +5,7 @@ export interface CacheCleanupResult {
   deleted: Record<string, number>;
   durationMs: number;
   totalDeleted: number;
+  reclaimedPages: number;
 }
 
 export interface CacheCleanupStats {
@@ -64,6 +65,7 @@ export class CacheCleanupService {
       deleted[table] = tableDeleted;
     }
 
+    const reclaimedPages = this.reclaimFreePages();
     const durationMs = Math.round(performance.now() - startedAt);
     const totalDeleted = Object.values(deleted).reduce((sum, count) => sum + count, 0);
     this.lastStats = {
@@ -72,8 +74,20 @@ export class CacheCleanupService {
       deletedRows: deleted,
       totalDeletedRows: totalDeleted
     };
-    logger.info("cache", "expired cache cleanup completed", { deleted, totalDeleted, durationMs });
-    return { deleted, durationMs, totalDeleted };
+    logger.info("cache", "expired cache cleanup completed", { deleted, totalDeleted, reclaimedPages, durationMs });
+    return { deleted, durationMs, totalDeleted, reclaimedPages };
+  }
+
+  /**
+   * Rend au disque les pages SQLite liberees (auto_vacuum incremental, migration 35).
+   * Sans effet si la base n'est pas en mode incremental.
+   */
+  private reclaimFreePages() {
+    const freePages = () => (db.prepare("PRAGMA freelist_count").get() as { freelist_count: number }).freelist_count;
+    const before = freePages();
+    if (before === 0) return 0;
+    db.exec("PRAGMA incremental_vacuum");
+    return before - freePages();
   }
 
   stats(): CacheCleanupStats {

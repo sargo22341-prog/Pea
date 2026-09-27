@@ -1,4 +1,5 @@
-import type { Quote } from "@pea/shared";
+import type { AssetChartDto, Quote } from "@pea/shared";
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import { config } from "../../config.js";
 import { runWithUser } from "../../services/auth/user-context.js";
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
@@ -124,6 +125,12 @@ export class LiveMarketRefreshTask {
     return { enabled: true, updated: updatedSymbols.length, yahooCalls };
   }
 
+  /**
+   * Recalcule les blocs du dashboard apres un rafraichissement live. Les blocs sont calcules l'un
+   * apres l'autre en rendant la main a la boucle d'evenements entre chacun : les requetes HTTP
+   * concurrentes ne restent pas bloquees derriere tout le lot. La courbe et les performances des
+   * positions partagent les donnees de graphique lues pendant ce seul cycle.
+   */
   private async prewarmFrontendBlocks(symbols: string[]) {
     for (const [userId, impact] of this.userImpactsForSymbols(symbols)) {
       await runWithUser(Number(userId), async () => {
@@ -131,16 +138,22 @@ export class LiveMarketRefreshTask {
           invalidateUserAssetCaches(userId);
         }
         if (impact.watchlist) invalidateFrontendBlockCache({ userId, block: "watchlist" });
-        const tasks: Promise<unknown>[] = [];
+        const chartOptions = { chartDataCache: new Map<string, Promise<AssetChartDto>>() };
+        const tasks: [string, () => Promise<unknown>][] = [];
         if (impact.portfolio) tasks.push(
-          portfolioService.summary("1d").catch(() => undefined),
-          portfolioService.chart("1d", userId).catch(() => undefined),
-          portfolioService.positionsPerformance("1d").catch(() => undefined),
-          portfolioAnalysisService.analysis().catch(() => undefined),
-          dividendService.portfolioDividends().catch(() => undefined)
+          ["summary", () => portfolioService.summary("1d")],
+          ["chart", () => portfolioService.chart("1d", userId, chartOptions)],
+          ["positions-performance", () => portfolioService.positionsPerformance("1d", chartOptions)],
+          ["analysis", () => portfolioAnalysisService.analysis()],
+          ["dividends", () => dividendService.portfolioDividends()]
         );
-        if (impact.watchlist) tasks.push(watchlistService.list("1d").catch(() => undefined));
-        await Promise.all(tasks);
+        if (impact.watchlist) tasks.push(["watchlist", () => watchlistService.list("1d")]);
+        for (const [block, task] of tasks) {
+          await task().catch((error: unknown) => {
+            logger.warn("market-data", "live refresh block prewarm failed", { userId, block, error: error instanceof Error ? error.message : String(error) });
+          });
+          await yieldToEventLoop();
+        }
       });
     }
   }

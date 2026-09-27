@@ -53,7 +53,8 @@ function dateTimeFormatter(timeZone: string | undefined, options: Intl.DateTimeF
   return formatter;
 }
 
-function numberFormatter(options: Intl.NumberFormatOptions): Intl.NumberFormat {
+/** Formateur numerique `fr-FR` memorise par options (voir le cache ci-dessus). */
+export function numberFormatter(options: Intl.NumberFormatOptions): Intl.NumberFormat {
   const key = JSON.stringify(options);
   let formatter = numberFormatterCache.get(key);
   if (!formatter) {

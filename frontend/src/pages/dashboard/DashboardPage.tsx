@@ -27,6 +27,13 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
 
   // Un seul appel réseau remplace les deux appels /portfolio et /portfolio/chart distincts.
   const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), selectedRange);
+
+  // Lance les blocs positions et watchlist en même temps que la courbe : leurs composants,
+  // montés une fois le résumé reçu, rejoignent ces requêtes en vol (dédoublonnage par URL).
+  useEffect(() => {
+    api.positionsPerformance(selectedRange).catch(() => undefined);
+    api.watchlist(selectedRange).catch(() => undefined);
+  }, [selectedRange]);
   const summary = portfolioFull.data?.summary ?? null;
   const chart = portfolioFull.data?.chart ?? null;
   const portfolioReload = portfolioFull.reload;

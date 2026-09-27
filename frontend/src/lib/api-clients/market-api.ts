@@ -183,8 +183,8 @@ export const marketApi = {
   subscribeMarketEvents,
   requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
     request<{ status: string }>("/api/market/chart-refresh", { method: "POST", body: JSON.stringify(input) }),
-  history: (symbol: string, range: RangeKey) =>
-    request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
+  history: (symbol: string, range: RangeKey, signal?: AbortSignal) =>
+    request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`, { signal: signal ?? null }),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
   news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
   globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal: signal ?? null }),

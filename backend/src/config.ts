@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidTimeZone, zonedTimeToUtc } from "./services/timezone/date-time.service.js";
@@ -56,6 +57,18 @@ function parseOriginList(value: string | undefined) {
     .filter(Boolean);
 }
 
+/**
+ * Sous `node --test`, un fichier de test qui importe (meme indirectement) `db.ts` sans base dediee
+ * ouvrirait la vraie base `data/pea.sqlite` et y appliquerait les migrations. Le processus de test
+ * recoit alors une base temporaire isolee, supprimee a sa sortie par `db.ts`.
+ */
+function isolatedTestDataDirectory() {
+  if (process.env["PEA_TEST_SQLITE_PATH"] || !process.env["NODE_TEST_CONTEXT"]) return undefined;
+  return path.join(os.tmpdir(), `pea-node-test-${process.pid}-${Date.now()}`);
+}
+
+const isolatedTestDataDir = isolatedTestDataDirectory();
+
 function frontendDistPath() {
   const dockerPath = path.join(appRoot, "frontend-dist");
   if (fs.existsSync(dockerPath)) return dockerPath;
@@ -64,7 +77,8 @@ function frontendDistPath() {
 
 export const config = {
   port: Number(process.env["PORT"] ?? 4000),
-  sqlitePath: process.env["PEA_TEST_SQLITE_PATH"] ?? path.join(appDataDir, "pea.sqlite"),
+  sqlitePath: process.env["PEA_TEST_SQLITE_PATH"] ?? path.join(isolatedTestDataDir ?? appDataDir, "pea.sqlite"),
+  isolatedTestDataDir,
   debug: process.env["DEBUG"] === "true",
   debugDate: parseDebugDate(process.env["DEBUG_DATE"], appTimezone),
   frontendDist: frontendDistPath(),

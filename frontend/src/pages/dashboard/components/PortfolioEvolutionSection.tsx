@@ -6,7 +6,7 @@ import { api } from "../../../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 import { PortfolioCalendarEvents } from "../../../components/common/AssetCalendarEvents";
 import { CompareModal } from "../../../components/common/CompareModal";
-import { ChartSkeleton, PositionsSectionSkeleton } from "./DashboardSkeletons";
+import { ChartSkeleton } from "./DashboardSkeletons";
 import { PortfolioChart } from "./PortfolioChart";
 import { PortfolioEvolutionHeader } from "./PortfolioEvolutionHeader";
 import { PositionList } from "./PositionList";
@@ -38,7 +38,6 @@ export function PortfolioEvolutionSection({
   userTimezone: string;
   localPeaSearchEnabled: boolean;
 }) {
-  const chartReady = Boolean(portfolioChart.data) && !portfolioChart.loading;
   const portfolioChartReload = portfolioChart.reload;
   const portfolioChartPreparing = Boolean(portfolioChart.data?.isPreparing);
   const [comparing, setComparing] = useState(false);
@@ -101,18 +100,15 @@ export function PortfolioEvolutionSection({
 
       <PortfolioCalendarEvents />
 
-      {chartReady ? (
-        <PositionList
-          defaultSortDirection={defaultSortDirection}
-          defaultSortKey={defaultSortKey}
-          positions={summary.positions}
-          range={range}
-        />
-      ) : (
-        <PositionsSectionSkeleton count={Math.max(3, Math.min(summary.positions.length || 3, 6))} />
-      )}
+      {/* Positions et watchlist chargent leurs donnees en parallele de la courbe (sans l'attendre). */}
+      <PositionList
+        defaultSortDirection={defaultSortDirection}
+        defaultSortKey={defaultSortKey}
+        positions={summary.positions}
+        range={range}
+      />
 
-      {chartReady && <WatchlistSection defaultSortDirection={watchlistDefaultSortDirection} defaultSortKey={watchlistDefaultSortKey} range={range} />}
+      <WatchlistSection defaultSortDirection={watchlistDefaultSortDirection} defaultSortKey={watchlistDefaultSortKey} range={range} />
 
       {comparing && (
         <CompareModal

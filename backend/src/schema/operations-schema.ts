@@ -22,8 +22,6 @@ export const operationsSchema = `
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval ON chart_candles(asset_id, range_key, interval);
-  CREATE INDEX IF NOT EXISTS idx_chart_candles_asset_range_interval_start ON chart_candles(asset_id, range_key, interval, datetime_start);
   CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol);
   CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
   CREATE INDEX IF NOT EXISTS idx_transactions_position_traded_at ON transactions(position_id, traded_at);

@@ -1,9 +1,8 @@
-import type { HistoryPoint, Position, PositionMiniChart, PositionRangePerformance, Quote, RangeKey } from "@pea/shared";
+import type { Position, PositionMiniChart, PositionRangePerformance, Quote, RangeKey } from "@pea/shared";
 import { HttpError } from "../../utils/http-error.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { requireUserId } from "../auth/user-context.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
-import { chartHistoryPoints } from "../market/charts/chart-history.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -14,10 +13,10 @@ import {
   getCostBasisAtTime,
   getQuantityAtTime,
   latestTransactionTime,
-  maxHistoryTime,
   positionFromTransactionCache,
   type PositionTransactionCache
 } from "./portfolio-calculations.js";
+import { chartPriceSeries, emptyPriceSeries, lastSeriesTime, type PriceSeries } from "./portfolio-series.js";
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { portfolioPerformanceCache } from "./portfolio-performance-cache.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
@@ -31,8 +30,8 @@ function finiteMarketNumber(value: unknown): number | undefined {
 
 const miniChartMaxPoints = 40;
 
-function shouldUseCurrentHoldingForClosedIntraday(range: RangeKey, history: HistoryPoint[], entry?: PositionTransactionCache) {
-  const lastHistoryTime = maxHistoryTime(history);
+function shouldUseCurrentHoldingForClosedIntraday(range: RangeKey, series: PriceSeries, entry?: PositionTransactionCache) {
+  const lastHistoryTime = lastSeriesTime(series);
   return range === "1d" && lastHistoryTime > 0 && latestTransactionTime(entry) > lastHistoryTime;
 }
 
@@ -74,29 +73,28 @@ export class PositionPerformanceService {
   ): Promise<PositionRangePerformance> {
     const cache = txCache ?? buildTransactionCache([position.id]);
     const entry = cache.get(position.id);
-    const [history, quoteResult] = await Promise.all([
-      this.safeHistory(position.symbol, range, options),
+    const [series, quoteResult] = await Promise.all([
+      this.safeSeries(position.symbol, range, options),
       this.safeQuote(position)
     ]);
-    const validHistory = history.filter((point) => Number.isFinite(point.close)).sort((a, b) => a.date.localeCompare(b.date));
-    const useCurrentHoldingForClosedIntraday = shouldUseCurrentHoldingForClosedIntraday(range, validHistory, entry);
+    const useCurrentHoldingForClosedIntraday = shouldUseCurrentHoldingForClosedIntraday(range, series, entry);
     const effectivePosition = entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
     const quote = quoteResult.quote;
-    const firstPoint = validHistory[0];
-    const lastPoint = validHistory[validHistory.length - 1];
+    const firstClose = series.closes[0];
+    const lastClose = series.closes.at(-1);
     const fallbackCurrentPrice = quote?.price || effectivePosition.averageBuyPrice;
     const snapshotPrice = range === "1d" ? finiteMarketNumber(quote?.price) : undefined;
     const snapshotChange = range === "1d" ? finiteMarketNumber(quote?.change) : undefined;
     const snapshotChangePercent = range === "1d" ? finiteMarketNumber(quote?.changePercent) : undefined;
-    const currentPrice = snapshotPrice || lastPoint?.close || fallbackCurrentPrice;
+    const currentPrice = snapshotPrice || lastClose || fallbackCurrentPrice;
     const intervalStartPrice =
       (range === "1d" && quote?.previousClose ? quote.previousClose : undefined) ||
-      firstPoint?.close ||
+      firstClose ||
       currentPrice ||
       effectivePosition.averageBuyPrice;
 
     const currentMarketValue = effectivePosition.quantity * currentPrice;
-    const firstPointTimeMs = firstPoint ? new Date(firstPoint.date).getTime() : undefined;
+    const firstPointTimeMs = series.times[0];
     const intervalQuantity = useCurrentHoldingForClosedIntraday
       ? effectivePosition.quantity
       : entry?.hasDated && firstPointTimeMs !== undefined
@@ -119,11 +117,11 @@ export class PositionPerformanceService {
     const totalPerformanceValue = currentMarketValue - totalCost;
     const totalPerformancePercent = totalCost ? (totalPerformanceValue / totalCost) * 100 : 0;
     const hasSnapshotPerformance = snapshotPrice !== undefined && (snapshotChange !== undefined || quote?.previousClose !== undefined);
-    const incompleteData = !hasSnapshotPerformance && (!firstPoint || !lastPoint || quoteResult.stale || history.some((point) => point.stale));
+    const incompleteData = !hasSnapshotPerformance && (firstClose === undefined || lastClose === undefined || quoteResult.stale);
     const miniChart = this.positionMiniChart({
       position: effectivePosition,
       range,
-      history: validHistory,
+      series,
       txEntry: entry,
       useCurrentHoldingForClosedIntraday,
       stale: incompleteData
@@ -148,17 +146,17 @@ export class PositionPerformanceService {
   private positionMiniChart(input: {
     position: Position;
     range: RangeKey;
-    history: HistoryPoint[];
+    series: PriceSeries;
     txEntry?: PositionTransactionCache | undefined;
     useCurrentHoldingForClosedIntraday?: boolean | undefined;
     stale: boolean;
   }): PositionMiniChart {
-    const sampledHistory = downsamplePoints(input.history, miniChartMaxPoints);
-    const rawPoints = sampledHistory
-      .map((point) => {
-        const timestamp = new Date(point.date).getTime();
-        const close = point.close;
-        if (!Number.isFinite(timestamp) || !Number.isFinite(close)) return undefined;
+    const sampledIndexes = downsamplePoints(input.series.times.map((_time, index) => index), miniChartMaxPoints);
+    const rawPoints = sampledIndexes
+      .map((index) => {
+        const timestamp = input.series.times[index];
+        const close = input.series.closes[index];
+        if (timestamp === undefined || close === undefined) return undefined;
         const quantity = input.useCurrentHoldingForClosedIntraday
           ? input.position.quantity
           : input.txEntry?.hasDated
@@ -170,19 +168,20 @@ export class PositionPerformanceService {
 
     return {
       range: input.range,
-      points: downsamplePoints(rawPoints, miniChartMaxPoints),
+      points: rawPoints,
       marketSession: input.range === "1d" ? getMarketSessionInfo(input.position.symbol) : undefined,
-      stale: input.stale || input.history.some((point) => point.stale),
+      stale: input.stale,
       updatedAt: new Date().toISOString()
     };
   }
 
-  async safeHistory(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<HistoryPoint[]> {
+  /** Série de prix d'un actif ; vide si les données de marché sont indisponibles. */
+  async safeSeries(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<PriceSeries> {
     try {
       const chart = await this.getChartData(symbol, range, options);
-      return chartHistoryPoints(chart);
+      return chartPriceSeries(chart);
     } catch (error) {
-      if (isMarketDataUnavailable(error)) return [];
+      if (isMarketDataUnavailable(error)) return emptyPriceSeries;
       throw error;
     }
   }

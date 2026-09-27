@@ -23,19 +23,35 @@ export function isValidTimeZone(timeZone: string) {
 }
 
 /**
+ * Un `Intl.DateTimeFormat` coute ~50 µs a construire alors que `formatToParts` n'en coute que
+ * quelques-unes : les courbes convertissent des milliers de candles, on reutilise donc une
+ * instance par timezone. Le formateur est sans etat : l'heure d'ete reste calculee par date.
+ */
+const zonedPartsFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function zonedPartsFormatter(timeZone: string) {
+  let formatter = zonedPartsFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+    zonedPartsFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+/**
  * Lit les composantes civiles d'un instant UTC dans une timezone donnee.
  */
 export function getZonedDateParts(date: Date, timeZone: string): ZonedDateParts {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(date);
+  const parts = zonedPartsFormatter(timeZone).formatToParts(date);
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   const year = Number(value("year"));
   const month = Number(value("month"));

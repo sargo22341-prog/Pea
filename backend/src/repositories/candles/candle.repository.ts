@@ -11,47 +11,57 @@ const STORED_RANGES: readonly StoredChartRange[] = ["1d", "1w", "1m", "all"] as 
  * `chart_candles_1d/1w/1m/all` consolidées par la migration 027.
  */
 export class CandleRepository {
+  /** Ecrit un lot de candles dans une seule transaction (une seule synchronisation disque). */
   upsertCandles(candles: BuiltCandle[]) {
-    for (const candle of candles) {
-      db.prepare(
-        `INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, volume, source)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(asset_id, range_key, interval, datetime_start) DO UPDATE SET
-           datetime_end = excluded.datetime_end,
-           open = excluded.open,
-           high = excluded.high,
-           low = excluded.low,
-           close = excluded.close,
-           volume = excluded.volume,
-           source = excluded.source,
-           updated_at = CURRENT_TIMESTAMP`
-      ).run(
-        candle.assetId,
-        candle.range,
-        candle.interval,
-        candle.datetimeStart,
-        candle.datetimeEnd,
-        candle.open,
-        candle.high,
-        candle.low,
-        candle.close,
-        candle.volume,
-        candle.source
-      );
-    }
+    if (!candles.length) return 0;
+    db.transaction(() => {
+      for (const candle of candles) this.upsertCandle(candle);
+    });
     return candles.length;
   }
 
-  readCandles(assetId: number, range: RangeKey, interval: ChartInterval): HistoryPoint[] {
+  private upsertCandle(candle: BuiltCandle) {
+    db.prepare(
+      `INSERT INTO chart_candles (asset_id, range_key, interval, datetime_start, datetime_end, open, high, low, close, volume, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(asset_id, range_key, interval, datetime_start) DO UPDATE SET
+         datetime_end = excluded.datetime_end,
+         open = excluded.open,
+         high = excluded.high,
+         low = excluded.low,
+         close = excluded.close,
+         volume = excluded.volume,
+         source = excluded.source,
+         updated_at = CURRENT_TIMESTAMP`
+    ).run(
+      candle.assetId,
+      candle.range,
+      candle.interval,
+      candle.datetimeStart,
+      candle.datetimeEnd,
+      candle.open,
+      candle.high,
+      candle.low,
+      candle.close,
+      candle.volume,
+      candle.source
+    );
+  }
+
+  /**
+   * Lit les candles d'une range stockee, triees par date. `sinceIso` borne la lecture aux candles
+   * utiles a la periode affichee (index `asset_id, range_key, interval, datetime_start`).
+   */
+  readCandles(assetId: number, range: RangeKey, interval: ChartInterval, sinceIso?: string): HistoryPoint[] {
     const storedRange = normalizeStoredRange(range);
     const rows = db
       .prepare(
         `SELECT datetime_start, open, high, low, close, volume
          FROM chart_candles
-         WHERE asset_id = ? AND range_key = ? AND interval = ?
+         WHERE asset_id = ? AND range_key = ? AND interval = ? AND datetime_start >= ?
          ORDER BY datetime_start ASC`
       )
-      .all(assetId, storedRange, interval) as {
+      .all(assetId, storedRange, interval, sinceIso ?? "") as {
       datetime_start: string;
       open: number | null;
       high: number | null;
@@ -110,6 +120,13 @@ export class CandleRepository {
        WHERE asset_id = ? AND range_key = 'all' AND interval = '1d'
          AND datetime_start >= ? AND datetime_start <= ?`
     ).run(assetId, startIso, endIso);
+  }
+
+  latestCandleDatetime(assetId: number, range: StoredChartRange, interval: ChartInterval) {
+    const row = db
+      .prepare("SELECT MAX(datetime_start) AS datetime_start FROM chart_candles WHERE asset_id = ? AND range_key = ? AND interval = ?")
+      .get(assetId, range, interval) as { datetime_start?: string | null } | undefined;
+    return row?.datetime_start ?? undefined;
   }
 
   latestIntradayDatetime(assetId: number) {

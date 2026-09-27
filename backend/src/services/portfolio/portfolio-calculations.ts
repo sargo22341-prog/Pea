@@ -1,4 +1,4 @@
-import type { DividendEvent, HistoryPoint, Position, PositionWithMarket } from "@pea/shared";
+import type { DividendEvent, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -25,7 +25,7 @@ export interface PositionTransactionCache {
   transactions: TransactionRow[];
 }
 
-interface ReplayableTransaction {
+export interface ReplayableTransaction {
   type: string;
   quantity: number | string;
   price: number | string;
@@ -50,21 +50,30 @@ export function transactionTimeMs(tradedAt: string) {
  * @param untilMs Instant cible : les transactions postérieures sont ignorées.
  */
 export function replayTransactions(rows: ReplayableTransaction[], untilMs = Number.POSITIVE_INFINITY) {
-  let quantity = 0;
-  let costBasis = 0;
+  const holding: ReplayedHolding = { quantity: 0, costBasis: 0 };
   for (const row of rows) {
     if (untilMs !== Number.POSITIVE_INFINITY && row.traded_at !== undefined && transactionTimeMs(row.traded_at) > untilMs) break;
-    const rowQuantity = Number(row.quantity);
-    if (row.type === "buy") {
-      quantity += rowQuantity;
-      costBasis += rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
-    } else if (row.type === "sell") {
-      const averageCost = quantity > 0 ? costBasis / quantity : 0;
-      quantity -= rowQuantity;
-      costBasis = Math.max(0, costBasis - averageCost * rowQuantity);
-    }
+    applyTransaction(holding, row);
   }
-  return { quantity, costBasis };
+  return holding;
+}
+
+export interface ReplayedHolding {
+  quantity: number;
+  costBasis: number;
+}
+
+/** Applique une transaction à une détention (coût moyen pondéré, voir `replayTransactions`). */
+export function applyTransaction(holding: ReplayedHolding, row: ReplayableTransaction) {
+  const rowQuantity = Number(row.quantity);
+  if (row.type === "buy") {
+    holding.quantity += rowQuantity;
+    holding.costBasis += rowQuantity * Number(row.price) + Number(row.total_fees ?? 0);
+  } else if (row.type === "sell") {
+    const averageCost = holding.quantity > 0 ? holding.costBasis / holding.quantity : 0;
+    holding.quantity -= rowQuantity;
+    holding.costBasis = Math.max(0, holding.costBasis - averageCost * rowQuantity);
+  }
 }
 
 /**
@@ -201,11 +210,6 @@ export function computeTotalDividendsReceived(
   }
 
   return total;
-}
-
-/** Dernier instant connu d'un historique de prix (0 si vide). */
-export function maxHistoryTime(points: HistoryPoint[]) {
-  return points.reduce((latest, point) => Math.max(latest, new Date(point.date).getTime()), 0);
 }
 
 /** Instant de la transaction la plus récente d'une position (0 si aucune). */

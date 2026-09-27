@@ -56,18 +56,30 @@ export function normalizeStoredRange(range: RangeKey): StoredChartRange {
 }
 
 export class ChartConfigService {
+  private cached: { mtimeMs: number; size: number; value: ChartConfig } | undefined;
+
+  constructor(private readonly configPath = config.chartConfigPath) {}
+
   /**
    * Charge le fichier config.json et retombe sur la configuration documentee si
    * le fichier est absent. Les erreurs de format restent explicites.
+   *
+   * Appelee pour chaque lecture de courbe : le contenu valide est memorise et n'est relu que si
+   * la date de modification ou la taille du fichier change (une edition manuelle reste prise en compte).
    */
   loadChartConfig(): ChartConfig {
-    if (!fs.existsSync(config.chartConfigPath)) {
-      fs.mkdirSync(path.dirname(config.chartConfigPath), { recursive: true });
-      fs.writeFileSync(config.chartConfigPath, `${JSON.stringify(defaultConfig, null, 2)}\n`);
+    const stat = fs.statSync(this.configPath, { throwIfNoEntry: false });
+    if (!stat) {
+      fs.mkdirSync(path.dirname(this.configPath), { recursive: true });
+      fs.writeFileSync(this.configPath, `${JSON.stringify(defaultConfig, null, 2)}\n`);
+      this.cached = undefined;
       return defaultConfig;
     }
-    const raw: unknown = JSON.parse(fs.readFileSync(config.chartConfigPath, "utf8"));
-    return this.validateChartConfig(raw);
+    if (this.cached?.mtimeMs === stat.mtimeMs && this.cached.size === stat.size) return this.cached.value;
+    const raw: unknown = JSON.parse(fs.readFileSync(this.configPath, "utf8"));
+    const value = this.validateChartConfig(raw);
+    this.cached = { mtimeMs: stat.mtimeMs, size: stat.size, value };
+    return value;
   }
 
   /**

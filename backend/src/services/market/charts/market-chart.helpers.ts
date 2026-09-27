@@ -6,13 +6,10 @@ import { marketRunRepository } from "../../../repositories/market/market-run.rep
 import { localTradingDate } from "../../../schedulers/market-task.utils.js";
 import { logger } from "../../shared/logger.service.js";
 import { chartConfigService, type ChartInterval, type StoredChartRange } from "./chart-config.service.js";
-import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, getOpenMarketDaysBetween, getPreviousOpenMarketDays, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
+import { getMarketDateKey, getMarketSessionInfo, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
 import { getMarketCalendar } from "../calendars/getMarketCalendar.js";
 export const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
 const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = { "1d": "intraday", "1w": "1W", "1m": "1M", "1y": "1Y", "5y": "5Y", "10y": "10Y", ytd: "YTD", all: "ALL" };
-export const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
-  "1d": 1
-};
 export const INTRADAY_CANDLE_RETENTION_OPEN_DAYS = 30;
 export type ClosePointSource = "snapshot_close" | "yahoo_daily_fallback_close";
 export interface ChartDataOptions {
@@ -70,59 +67,6 @@ export function compactHistory(
   } as AssetChartDto;
 }
 
-export function openMarketWindow(asset: Pick<AssetRow, "symbol" | "exchange">, range: RangeKey | StoredChartRange, endDate = new Date()) {
-  const count = openMarketDayCountByRange[range];
-  const cutoffDate = calendarRangeStart(range, endDate);
-  const days = cutoffDate
-    ? getOpenMarketDaysBetween({ symbol: asset.symbol, exchange: asset.exchange }, cutoffDate, endDate)
-    : count
-      ? getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, endDate, count)
-      : undefined;
-  const oldestDay = days?.at(-1);
-  if (!days || !oldestDay) return undefined;
-  const period1 = cutoffDate ?? oldestDay.period1;
-  return {
-    days,
-    dateSet: new Set(days.map((day) => day.date)),
-    cutoffIso: period1.toISOString(),
-    period1,
-    period2: endDate
-  };
-}
-
-export function shortRangeEndDate(asset: Pick<AssetRow, "symbol" | "exchange">, now = new Date()) {
-  const session = getLastTradingDay(asset.symbol, asset.exchange, now);
-  if (now.getTime() >= session.period1.getTime() && now.getTime() <= session.period2.getTime()) return now;
-  return session.period2;
-}
-
-export function periodForRange(asset: Pick<AssetRow, "symbol" | "exchange">, range: StoredChartRange, now = new Date()) {
-  if (range === "all") return { period1: new Date("2000-01-01"), period2: now };
-  const endDate = openMarketDayCountByRange[range] || calendarRangeStart(range, now) ? shortRangeEndDate(asset, now) : now;
-  const window = openMarketWindow(asset, range, endDate);
-  if (window) return { period1: window.period1, period2: endDate };
-  logger.warn("market-data", "open market window unavailable; using last trading session fallback", {
-    symbol: asset.symbol,
-    exchange: asset.exchange,
-    range,
-    endDate: endDate.toISOString()
-  });
-  return { period1: endDate, period2: endDate };
-}
-
-function calendarRangeStart(range: RangeKey | StoredChartRange, endDate: Date) {
-  const start = new Date(endDate);
-  if (range === "1w") {
-    start.setDate(start.getDate() - 7);
-    return start;
-  }
-  if (range === "1m") {
-    start.setMonth(start.getMonth() - 1);
-    return start;
-  }
-  return undefined;
-}
-
 export function yahooInterval(interval: ChartInterval): "5m" | "15m" | "30m" | "1h" | "1d" {
   if (interval === "2h" || interval === "4h") return "1h";
   return interval;
@@ -138,61 +82,6 @@ export function intervalDurationMs(interval: ChartInterval) {
 
 export function pointLabel(point?: HistoryPoint) {
   return point ? `${point.date}:${point.close}` : undefined;
-}
-
-export function rangeCutoff(range: RangeKey) {
-  const now = new Date();
-  if (range === "1w") {
-    const start = new Date(now);
-    start.setDate(now.getDate() - 7);
-    return start.getTime();
-  }
-  if (range === "1m") {
-    const start = new Date(now);
-    start.setMonth(now.getMonth() - 1);
-    return start.getTime();
-  }
-  if (range === "ytd") return new Date(now.getFullYear(), 0, 1).getTime();
-  if (range === "1y") {
-    const start = new Date(now);
-    start.setFullYear(now.getFullYear() - 1);
-    return start.getTime();
-  }
-  if (range === "5y") {
-    const start = new Date(now);
-    start.setFullYear(now.getFullYear() - 5);
-    return start.getTime();
-  }
-  if (range === "10y") {
-    const start = new Date(now);
-    start.setFullYear(now.getFullYear() - 10);
-    return start.getTime();
-  }
-  return undefined;
-}
-
-export function filterRangePoints(points: HistoryPoint[], range: RangeKey, asset?: Pick<AssetRow, "symbol" | "exchange">, endDate = new Date()) {
-  const window = asset ? openMarketWindow(asset, range, endDate) : undefined;
-  if (asset && window) {
-    return points.filter((point) => window.dateSet.has(getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date))));
-  }
-  const cutoff = rangeCutoff(range);
-  if (!cutoff) return points;
-  return points.filter((point) => new Date(point.date).getTime() >= cutoff);
-}
-
-export function marketDateCount(points: HistoryPoint[], asset: Pick<AssetRow, "symbol" | "exchange">) {
-  return new Set(points.map((point) => getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date)))).size;
-}
-
-export function latestStoredMarketDatePoints(points: HistoryPoint[], asset: Pick<AssetRow, "symbol" | "exchange">) {
-  const byDate = new Map<string, HistoryPoint[]>();
-  for (const point of points) {
-    const date = getMarketDateKey(asset.symbol, asset.exchange, new Date(point.date));
-    byDate.set(date, [...(byDate.get(date) ?? []), point]);
-  }
-  const latestDate = [...byDate.keys()].sort().at(-1);
-  return latestDate ? (byDate.get(latestDate) ?? []).sort((a, b) => a.date.localeCompare(b.date)) : [];
 }
 
 export function storedDailyPointForTradingDay(asset: AssetRow, tradingDay: YahooTradingDay): HistoryPoint | undefined {

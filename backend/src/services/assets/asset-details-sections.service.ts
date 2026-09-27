@@ -87,7 +87,12 @@ export function shouldQueueAnnexRefresh(input: {
 }
 
 export class PortfolioSection {
-  async load(symbol: string, range: RangeKey, user: AuthUser, dividends: DividendEvent[], fallbackQuote?: Quote) {
+  /** Prix de secours si le marche est indisponible : ne calcule ni performance ni statistiques. */
+  async fallbackQuote(symbol: string) {
+    return positionToUnavailableQuote(symbol, await portfolioService.getPosition(symbol));
+  }
+
+  async load(symbol: string, range: RangeKey, user: AuthUser, dividends: DividendEvent[]) {
     const position = await portfolioService.getPosition(symbol);
     const positionRangePerformance = position
       ? await portfolioService.singlePositionPerformance(position.id, range).catch((error: unknown) => {
@@ -107,8 +112,7 @@ export class PortfolioSection {
       position,
       positionRangePerformance,
       userAssetPosition: assetDataService.userPosition(String(user.id), symbol),
-      positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined,
-      quoteFallback: fallbackQuote ?? positionToUnavailableQuote(symbol, position)
+      positionStats: position ? portfolioService.transactionStats(position.id, dividendsReceived, position.currency) : undefined
     };
   }
 }

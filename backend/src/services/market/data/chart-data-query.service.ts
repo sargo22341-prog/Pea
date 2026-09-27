@@ -6,13 +6,12 @@ import { logger } from "../../shared/logger.service.js";
 import { getLastAvailableTradingDayFromYahoo } from "../calendars/marketCalendar.service.js";
 import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, isMarketOpen } from "../calendars/marketCalendar.service.js";
 import { chartConfigService, normalizeStoredRange } from "../charts/chart-config.service.js";
+import { filterRangePoints, latestStoredMarketDatePoints, rangeLowerBoundIso } from "../charts/chart-range-window.js";
 import {
   compactHistory,
-  filterRangePoints,
   intradayAvailabilityStatus,
   intradayCacheKey,
   intervalDurationMs,
-  latestStoredMarketDatePoints,
   pointLabel,
   readIntradayChartCache,
   snapshotPreviousClose,
@@ -79,14 +78,13 @@ export class ChartDataQueryService {
 
     const storedRange = normalizeStoredRange(range);
     const interval = chartConfigService.getIntervalForRange(storedRange);
-    const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
-    const points = filterRangePoints(rawPoints, range, asset);
+    const points = filterRangePoints(candleRepository.readCandles(asset.id, storedRange, interval, rangeLowerBoundIso(range, asset)), range, asset);
     const latestFinalizedTradingDate = storedRange === "1d" ? candleRepository.latestFinalizedTradingDate(asset.id, "1d") : undefined;
 
     if (storedRange !== "1d" && !isMarketOpen(quote?.marketState)) {
       const latestFinalizedForRange = candleRepository.latestFinalizedTradingDate(asset.id, storedRange);
-      const latestChartPoint = rawPoints.length ? rawPoints[rawPoints.length - 1] : undefined;
-      const latestChartDate = latestChartPoint ? getMarketDateKey(asset.symbol, asset.exchange, new Date(latestChartPoint.date)) : undefined;
+      const latestChartDatetime = candleRepository.latestCandleDatetime(asset.id, storedRange, interval);
+      const latestChartDate = latestChartDatetime ? getMarketDateKey(asset.symbol, asset.exchange, new Date(latestChartDatetime)) : undefined;
       if (latestFinalizedForRange && latestChartDate !== latestFinalizedForRange) {
         logger.warn("market-data", "repair rebuild because finalized flag exists but chart missing", {
           symbol: asset.symbol,
@@ -176,11 +174,11 @@ export class ChartDataQueryService {
   private getStoredChartData(asset: AssetRow, range: RangeKey, quote?: Quote, now = new Date()): AssetChartDto {
     const storedRange = normalizeStoredRange(range);
     const interval = chartConfigService.getIntervalForRange(storedRange);
-    const rawPoints = candleRepository.readCandles(asset.id, storedRange, interval);
-    const initialPoints = filterRangePoints(rawPoints, range, asset, now);
+    const initialPoints = filterRangePoints(candleRepository.readCandles(asset.id, storedRange, interval, rangeLowerBoundIso(range, asset, now)), range, asset, now);
     const pendingOpen = storedRange === "1d" && intradayAvailabilityStatus(asset, now) === "pending_open_confirmation";
     let effectiveInterval = interval;
-    let points = pendingOpen && initialPoints.length < 2 ? latestStoredMarketDatePoints(rawPoints, asset) : initialPoints;
+    // Avant confirmation d'ouverture, on retombe sur la derniere seance stockee : lecture complete.
+    let points = pendingOpen && initialPoints.length < 2 ? latestStoredMarketDatePoints(candleRepository.readCandles(asset.id, storedRange, interval), asset) : initialPoints;
     if (pendingOpen && points.length < 2) {
       const latestIntraday = candleRepository.readLatestIntradayCandles(asset.id);
       if (latestIntraday) {

@@ -111,7 +111,7 @@ export const PortfolioChart = memo(function PortfolioChart({
 
 function toChartPoints(chart: PortfolioChartDto) {
   return chart.timestamps.map((timestamp, index) => ({
-    date: new Date(timestamp).toISOString(),
+    date: timestamp,
     value: chart.value[index] ?? null
   }));
 }

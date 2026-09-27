@@ -31,6 +31,8 @@ import { userLanguageMigration } from "./accounts/030-user-language.js";
 import { objectivesMigration } from "./accounts/031-objectives.js";
 import { userPreferencesColumnsMigration } from "./accounts/032-user-preferences-columns.js";
 import { transactionTradedAtIsoMigration } from "./portfolio/033-transaction-traded-at-iso.js";
+import { dropRedundantChartCandleIndexesMigration } from "./storage/034-drop-redundant-chart-candle-indexes.js";
+import { incrementalAutoVacuumMigration } from "./storage/035-incremental-auto-vacuum.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -66,5 +68,7 @@ export const migrations: Migration[] = [
   userLanguageMigration,
   objectivesMigration,
   userPreferencesColumnsMigration,
-  transactionTradedAtIsoMigration
+  transactionTradedAtIsoMigration,
+  dropRedundantChartCandleIndexesMigration,
+  incrementalAutoVacuumMigration
 ];

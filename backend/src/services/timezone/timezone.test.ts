@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
-import { zonedTimeToUtc } from "./date-time.service.js";
+import { getZonedDateParts, zonedTimeToUtc } from "./date-time.service.js";
 
 test("market sessions expose the real exchange timezone and hours", () => {
   assert.deepEqual(getMarketSessionInfo("AIR.PA", "Paris"), {
@@ -52,4 +52,25 @@ test("zoned market hours keep UTC truth across summer and winter time", () => {
   assert.equal(parisWinterOpen.toISOString(), "2026-01-05T08:00:00.000Z");
   assert.equal(nySummerOpen.toISOString(), "2026-07-01T13:30:00.000Z");
   assert.equal(nyWinterOpen.toISOString(), "2026-01-05T14:30:00.000Z");
+});
+
+test("zoned date parts reuse one formatter per timezone and stay correct when timezones alternate", () => {
+  const OriginalDateTimeFormat = Intl.DateTimeFormat;
+  let constructions = 0;
+  const countingDateTimeFormat = function (...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+    constructions += 1;
+    return new OriginalDateTimeFormat(...args);
+  } as unknown as typeof Intl.DateTimeFormat;
+  Intl.DateTimeFormat = countingDateTimeFormat;
+  try {
+    const instant = new Date("2026-01-05T23:30:00.000Z");
+    for (let index = 0; index < 200; index += 1) {
+      assert.equal(getZonedDateParts(instant, "Asia/Tokyo").isoDate, "2026-01-06");
+      assert.equal(getZonedDateParts(instant, "America/Los_Angeles").isoDate, "2026-01-05");
+    }
+    assert.equal(getZonedDateParts(new Date("2026-07-01T22:30:00.000Z"), "Asia/Tokyo").hour, 7);
+  } finally {
+    Intl.DateTimeFormat = OriginalDateTimeFormat;
+  }
+  assert.ok(constructions <= 2, `expected at most one formatter per timezone, got ${constructions}`);
 });

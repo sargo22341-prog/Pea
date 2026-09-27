@@ -15,7 +15,7 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
 - `data/config.json` pilote les intervalles configurables des ranges stockees `1d`, `1w`, `1m`. En prod Docker, ce fichier vit dans le volume `/app/data` pour rester modifiable.
 - `assets` et `asset_profiles` stockent les metadonnees stables issues de `quote()` et `quoteSummary()`. Les champs absents chez Yahoo restent `NULL`.
-- `chart_candles` stocke les candles OHLCV pre-calculees avec `range_key` (`1d`, `1w`, `1m`, `all`) et `UNIQUE(asset_id, range_key, interval, datetime_start)`.
+- `chart_candles` stocke les candles OHLCV pre-calculees avec `range_key` (`1d`, `1w`, `1m`, `all`) et `UNIQUE(asset_id, range_key, interval, datetime_start)`. L'index de cette contrainte sert toutes les lectures ; aucun autre index n'est necessaire sur ces colonnes (migration 34). La base est en `auto_vacuum` incremental (migration 35) : le nettoyage horaire des caches rend les pages liberees au disque.
 - `asset_quote_snapshot`, `asset_quote_range` et `asset_dividend_snapshot` stockent respectivement les champs volatils de cotation, les donnees 52 semaines/volumes et les champs dividendes lents. La vue de compatibilite `asset_market_snapshots` reste disponible en lecture.
 - `asset_financials` est alimente par `fundamentalsTimeSeries` quand disponible. `net_margin` est calcule uniquement si `total_revenue` et `net_income` existent.
 - `asset_dividends` est alimente par `chart(..., events: 'div|split')`. Yahoo ne fournit pas `payment_date` ou `record_date`, donc ces champs ne sont pas crees.
@@ -26,11 +26,13 @@ Ce dossier remplace le cache TTL marche par des tables source de verite backend.
 
 ## Ranges stockees
 
-`1d`, `1w`, `1m` et `all` sont stockes dans `chart_candles` via `range_key`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis les candles `all` au moment de la lecture, sans stockage dedie. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche; aucun calendrier de jours feries manuel n'est maintenu.
+`1d`, `1w`, `1m` et `all` sont stockes dans `chart_candles` via `range_key`. `ytd`, `1y`, `5y` et `10y` sont calcules depuis les candles `all` au moment de la lecture, sans stockage dedie. La lecture SQL est bornee au debut de la periode (`rangeLowerBoundIso`, `charts/chart-range-window.ts`) et le filtrage des jours de marche compare des bornes UTC precalculees par journee, sans conversion de fuseau par candle. Les candles sont construites a l'ajout d'un asset, apres fermeture de marche et via les actions manuelles. Les buckets intraday sont alignes sur l'ouverture du marche; aucun calendrier de jours feries manuel n'est maintenu.
 
 ## Portfolio et Dashboard
 
-Les charts portefeuille sont derives depuis `chart_candles`, les snapshots marche et les transactions utilisateur, puis mis en cache dans les caches derives quand le live refresh est actif. Les achats et ventes n'impactent la valeur qu'a partir de leur date reelle. Les blocs de performance du Dashboard consomment le meme DTO `/portfolio/chart` ou les DTO de performance par position.
+Les charts portefeuille sont derives depuis `chart_candles`, les snapshots marche et les transactions utilisateur, puis mis en cache dans les caches derives quand le live refresh est actif. Les achats et ventes n'impactent la valeur qu'a partir de leur date reelle. Le calcul travaille en timestamps numeriques et rejoue les transactions avec un curseur incremental (`portfolio/portfolio-series.ts`) ; pour `5y`, `10y` et `all`, la timeline est echantillonnee a 520 points avant le calcul (resultat identique a un echantillonnage de la courbe complete).
+
+Les graphiques d'actif renvoyes au navigateur (`/api/history`, fiche actif) sont limites a 1 000 points pour `5y`, `10y` et `all` (algorithme LTTB, `charts/chart-display-downsample.ts`). Les calculs de portefeuille et d'objectifs utilisent toujours la serie complete. Les blocs de performance du Dashboard consomment le meme DTO `/portfolio/chart` ou les DTO de performance par position.
 
 ## Actions rapides
 

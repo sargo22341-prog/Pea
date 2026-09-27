@@ -17,7 +17,11 @@ export function useChartDataModel({
 }) {
   const { chartData, trend } = usePriceHistoryChart(data, range, baselinePrice);
   const compressTimeAxis = range === "1w" || range === "1m";
-  const timeChartData = range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData;
+  // Memoise : un nouveau tableau a chaque rendu invaliderait toutes les donnees derivees du graphique.
+  const timeChartData = useMemo(
+    () => (range === "1d" ? withIntradaySessionPlaceholders(chartData, marketSession) : chartData),
+    [chartData, marketSession, range]
+  );
   const renderData = useMemo(
     () => (compressTimeAxis ? timeChartData.map((point, index) => ({ ...point, x: index })) : timeChartData),
     [compressTimeAxis, timeChartData]

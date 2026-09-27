@@ -1,4 +1,4 @@
-import type { HistoryPoint, PortfolioPerformancePoint, RangeKey } from "@pea/shared";
+import type { PortfolioPerformancePoint, Position, RangeKey } from "@pea/shared";
 import { requireUserId } from "../auth/user-context.js";
 import { logger } from "../shared/logger.service.js";
 import {
@@ -7,18 +7,28 @@ import {
   getCostBasisAtTime,
   getQuantityAtTime,
   latestTransactionTime,
-  maxHistoryTime,
-  positionFromTransactionCache
+  positionFromTransactionCache,
+  type PositionTransactionCache
 } from "./portfolio-calculations.js";
+import { lastSeriesTime, TransactionReplayCursor, type PriceSeries } from "./portfolio-series.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
 import { positionPerformanceService } from "./position-performance.service.js";
 
-function minHistoryTime(points: HistoryPoint[]) {
-  return points.reduce((earliest, point) => {
-    const time = new Date(point.date).getTime();
-    return Number.isFinite(time) ? Math.min(earliest, time) : earliest;
-  }, Number.POSITIVE_INFINITY);
+const maxPointsByRange: Partial<Record<RangeKey, number>> = { "5y": 520, "10y": 520, all: 520 };
+
+interface PositionSeries {
+  position: Position;
+  series: PriceSeries;
+  fallbackPrice: number;
+  entry: PositionTransactionCache | undefined;
+  lastHistoryTime: number;
+  latestTransactionTime: number;
+}
+
+/** Instants valides des transactions d'une position (dates illisibles ignorées). */
+function transactionInstants(entry: PositionTransactionCache | undefined) {
+  return (entry?.transactions ?? []).map((transaction) => new Date(transaction.traded_at).getTime()).filter(Number.isFinite);
 }
 
 export class PortfolioPerformanceService {
@@ -29,124 +39,31 @@ export class PortfolioPerformanceService {
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 
     const txCache = buildTransactionCache(positions.map((p) => p.id));
-    const histories = await Promise.all(
-      positions.map(async (position) => ({
-        position,
-        history: await positionPerformanceService.safeHistory(position.symbol, range, options),
-        fallbackPrice: await positionPerformanceService.safeCurrentPrice(position)
-      }))
+    const items: PositionSeries[] = await Promise.all(
+      positions.map(async (position) => {
+        const series = await positionPerformanceService.safeSeries(position.symbol, range, options);
+        const fallbackPrice = await positionPerformanceService.safeCurrentPrice(position);
+        const entry = txCache.get(position.id);
+        return { position, series, fallbackPrice, entry, lastHistoryTime: lastSeriesTime(series), latestTransactionTime: latestTransactionTime(entry) };
+      })
     );
     const now = options.intradayNow?.getTime() ?? Date.now();
-    const latestHistoryTimeByPosition = new Map<number, number>();
-    const latestTransactionTimeByPosition = new Map<number, number>();
-    for (const item of histories) {
-      latestHistoryTimeByPosition.set(item.position.id, maxHistoryTime(item.history));
-      const entry = txCache.get(item.position.id);
-      latestTransactionTimeByPosition.set(item.position.id, latestTransactionTime(entry));
-    }
-    const transactionDates = range === "1d"
-      ? []
-      : [...txCache.values()]
-          .flatMap((entry) => entry.transactions.map((transaction) => transaction.traded_at))
-          .filter((date) => {
-            const time = new Date(date).getTime();
-            return Number.isFinite(time) && time <= now;
-          });
-    const needsCurrentPoint = histories.some((item) => {
-      const entry = txCache.get(item.position.id);
-      if (!entry?.transactions.length) return false;
-      const lastHistoryTime = latestHistoryTimeByPosition.get(item.position.id) ?? 0;
-      const lastTransactionTime = latestTransactionTimeByPosition.get(item.position.id) ?? 0;
-      return lastTransactionTime > lastHistoryTime;
-    });
-    const latestPortfolioHistoryTime = histories.reduce(
-      (latest, item) => Math.max(latest, latestHistoryTimeByPosition.get(item.position.id) ?? 0),
-      0
-    );
-    const earliestPortfolioHistoryTime = histories.reduce((earliest, item) => Math.min(earliest, minHistoryTime(item.history)), Number.POSITIVE_INFINITY);
-    const currentPointDate = needsCurrentPoint
-      ? new Date(range === "1d" && latestPortfolioHistoryTime > 0 ? latestPortfolioHistoryTime : now).toISOString()
-      : undefined;
-    const transactionStartTime = Number.isFinite(earliestPortfolioHistoryTime) ? earliestPortfolioHistoryTime : 0;
-    const timeline = [...new Set([
-      ...histories.flatMap((item) => item.history.map((point) => point.date)),
-      ...transactionDates.filter((date) => new Date(date).getTime() >= transactionStartTime),
-      ...(currentPointDate ? [currentPointDate] : [])
-    ])]
-      .filter((date) => new Date(date).getTime() <= now)
-      .sort((a, b) => a.localeCompare(b));
+    const timeline = this.timeline(range, items, now);
 
-    if (timeline.length < 2) {
+    if (timeline.times.length < 2) {
       logger.warn("portfolio", "portfolio chart has too few points", {
         range,
-        timelinePoints: timeline.length,
-        assets: histories.map((item) => `${item.position.symbol}:${item.history.length}`).join(",")
+        timelinePoints: timeline.times.length,
+        assets: items.map((item) => `${item.position.symbol}:${item.series.times.length}`).join(",")
       });
-      const fallbackDate = new Date().toISOString();
-      const fallbackTimeMs = new Date(fallbackDate).getTime();
-      const fallbackValue = histories.reduce((sum, item) => {
-        const entry = txCache.get(item.position.id);
-        const quantity = entry?.hasDated ? getQuantityAtTime(entry.transactions, fallbackTimeMs) : item.position.quantity;
-        return sum + item.fallbackPrice * quantity;
-      }, 0);
-      const fallbackInvested = histories.reduce((sum, item) => {
-        const entry = txCache.get(item.position.id);
-        if (entry?.hasDated) return sum + getCostBasisAtTime(entry.transactions, fallbackTimeMs);
-        return sum + item.position.averageBuyPrice * item.position.quantity;
-      }, 0);
-      const fallbackGain = fallbackValue - fallbackInvested;
-      return [{ date: fallbackDate, value: fallbackValue, invested: fallbackInvested, gain: fallbackGain, gainPercent: fallbackInvested ? (fallbackGain / fallbackInvested) * 100 : 0, stale: true }];
+      return [this.fallbackPoint(items)];
     }
 
-    const cursors = new Map<string, number>();
-    const lastPrices = new Map<string, number>();
-    for (const item of histories) {
-      cursors.set(item.position.symbol, 0);
-      lastPrices.set(item.position.symbol, item.fallbackPrice);
-    }
-
-    const rawPoints = timeline.map((date) => {
-      let value = 0;
-      let invested = 0;
-      const dateMs = new Date(date).getTime();
-      const isSyntheticCurrentPoint = currentPointDate !== undefined && date === currentPointDate;
-
-      for (const item of histories) {
-        const symbol = item.position.symbol;
-        let cursor = cursors.get(symbol) ?? 0;
-        for (let point = item.history[cursor]; point && new Date(point.date).getTime() <= dateMs; point = item.history[cursor]) {
-          lastPrices.set(symbol, point.close);
-          cursor += 1;
-        }
-        cursors.set(symbol, cursor);
-
-        const entry = txCache.get(item.position.id);
-        const useCurrentHoldingForClosedIntraday =
-          range === "1d" &&
-          (latestTransactionTimeByPosition.get(item.position.id) ?? 0) > (latestHistoryTimeByPosition.get(item.position.id) ?? 0) &&
-          (latestHistoryTimeByPosition.get(item.position.id) ?? 0) > 0;
-        const currentPosition = useCurrentHoldingForClosedIntraday && entry?.hasDated
-          ? positionFromTransactionCache(item.position, entry.transactions)
-          : item.position;
-        const quantity = useCurrentHoldingForClosedIntraday
-          ? currentPosition.quantity
-          : entry?.hasDated ? getQuantityAtTime(entry.transactions, dateMs) : item.position.quantity;
-        const price = isSyntheticCurrentPoint ? item.fallbackPrice : lastPrices.get(symbol) ?? item.fallbackPrice;
-        value += price * quantity;
-        invested += useCurrentHoldingForClosedIntraday
-          ? currentPosition.averageBuyPrice * currentPosition.quantity
-          : entry?.hasDated
-            ? getCostBasisAtTime(entry.transactions, dateMs)
-            : item.position.averageBuyPrice * quantity;
-      }
-
-      const gain = value - invested;
-      return { date, value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0, stale: histories.some((item) => item.history.some((point) => point.stale)) };
-    });
-
-    const maxPointsByRange: Partial<Record<RangeKey, number>> = { "5y": 520, "10y": 520, all: 520 };
     const maxPoints = maxPointsByRange[range];
-    return maxPoints !== undefined ? downsamplePoints(rawPoints, maxPoints) : rawPoints;
+    // Chaque point ne dépend que de son instant : échantillonner la timeline avant le calcul
+    // donne exactement les mêmes points qu'échantillonner la courbe complète.
+    const times = maxPoints === undefined ? timeline.times : downsamplePoints(timeline.times, maxPoints);
+    return this.valuePoints(range, items, times, timeline.currentPointTime);
   }
 
   positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string) {
@@ -155,6 +72,83 @@ export class PortfolioPerformanceService {
 
   singlePositionPerformance(positionId: number, range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string) {
     return positionPerformanceService.singlePositionPerformance(positionId, range, options, userId);
+  }
+
+  /** Instants de la courbe : points de prix, transactions et éventuel point courant synthétique. */
+  private timeline(range: RangeKey, items: PositionSeries[], now: number) {
+    const needsCurrentPoint = items.some((item) => Boolean(item.entry?.transactions.length) && item.latestTransactionTime > item.lastHistoryTime);
+    const latestPortfolioHistoryTime = items.reduce((latest, item) => Math.max(latest, item.lastHistoryTime), 0);
+    const earliestPortfolioHistoryTime = items.reduce((earliest, item) => Math.min(earliest, item.series.times[0] ?? Number.POSITIVE_INFINITY), Number.POSITIVE_INFINITY);
+    const currentPointTime = needsCurrentPoint ? (range === "1d" && latestPortfolioHistoryTime > 0 ? latestPortfolioHistoryTime : now) : undefined;
+    const transactionStartTime = Number.isFinite(earliestPortfolioHistoryTime) ? earliestPortfolioHistoryTime : 0;
+
+    const instants = new Set<number>();
+    for (const item of items) for (const time of item.series.times) instants.add(time);
+    if (range !== "1d") {
+      for (const item of items) {
+        for (const time of transactionInstants(item.entry)) if (time <= now && time >= transactionStartTime) instants.add(time);
+      }
+    }
+    if (currentPointTime !== undefined) instants.add(currentPointTime);
+    const times = [...instants].filter((time) => time <= now).sort((a, b) => a - b);
+    return { times, currentPointTime };
+  }
+
+  private valuePoints(range: RangeKey, items: PositionSeries[], times: number[], currentPointTime: number | undefined): PortfolioPerformancePoint[] {
+    const states = items.map((item) => {
+      const useCurrentHolding = range === "1d" && item.latestTransactionTime > item.lastHistoryTime && item.lastHistoryTime > 0;
+      return {
+        item,
+        priceIndex: 0,
+        lastPrice: item.fallbackPrice,
+        useCurrentHolding,
+        currentPosition: useCurrentHolding && item.entry?.hasDated ? positionFromTransactionCache(item.position, item.entry.transactions) : item.position,
+        cursor: item.entry?.hasDated ? new TransactionReplayCursor(item.entry.transactions) : undefined
+      };
+    });
+
+    return times.map((time) => {
+      let value = 0;
+      let invested = 0;
+      const isSyntheticCurrentPoint = time === currentPointTime;
+      for (const state of states) {
+        const { series, position } = state.item;
+        while (state.priceIndex < series.times.length && (series.times[state.priceIndex] ?? Number.POSITIVE_INFINITY) <= time) {
+          state.lastPrice = series.closes[state.priceIndex] ?? state.lastPrice;
+          state.priceIndex += 1;
+        }
+        const price = isSyntheticCurrentPoint ? state.item.fallbackPrice : state.lastPrice;
+        if (state.useCurrentHolding) {
+          value += price * state.currentPosition.quantity;
+          invested += state.currentPosition.averageBuyPrice * state.currentPosition.quantity;
+        } else if (state.cursor) {
+          const holding = state.cursor.advanceTo(time);
+          value += price * holding.quantity;
+          invested += holding.costBasis;
+        } else {
+          value += price * position.quantity;
+          invested += position.averageBuyPrice * position.quantity;
+        }
+      }
+      const gain = value - invested;
+      // Les séries issues des graphiques ne portent pas de marqueur "stale" par point.
+      return { date: new Date(time).toISOString(), value, invested, gain, gainPercent: invested ? (gain / invested) * 100 : 0, stale: false };
+    });
+  }
+
+  private fallbackPoint(items: PositionSeries[]): PortfolioPerformancePoint {
+    const fallbackDate = new Date().toISOString();
+    const fallbackTimeMs = new Date(fallbackDate).getTime();
+    const fallbackValue = items.reduce((sum, item) => {
+      const quantity = item.entry?.hasDated ? getQuantityAtTime(item.entry.transactions, fallbackTimeMs) : item.position.quantity;
+      return sum + item.fallbackPrice * quantity;
+    }, 0);
+    const fallbackInvested = items.reduce((sum, item) => {
+      if (item.entry?.hasDated) return sum + getCostBasisAtTime(item.entry.transactions, fallbackTimeMs);
+      return sum + item.position.averageBuyPrice * item.position.quantity;
+    }, 0);
+    const fallbackGain = fallbackValue - fallbackInvested;
+    return { date: fallbackDate, value: fallbackValue, invested: fallbackInvested, gain: fallbackGain, gainPercent: fallbackInvested ? (fallbackGain / fallbackInvested) * 100 : 0, stale: true };
   }
 }
 

@@ -157,7 +157,8 @@ test("fresh SQLite schema contains transaction metadata and useful indexes", () 
   assert.ok(result.watchlistColumns.includes("user_id"));
   assert.ok(result.indexes.includes("idx_transactions_position_traded_at"));
   assert.ok(result.indexes.includes("idx_positions_user_symbol"));
-  assert.ok(result.indexes.includes("idx_chart_candles_asset_range_interval_start"));
+  assert.ok(result.indexes.includes("sqlite_autoindex_chart_candles_1"));
+  assert.ok(!result.indexes.includes("idx_chart_candles_asset_range_interval_start"));
   assert.ok(result.snapshotColumns.includes("market_core_updated_at"));
   assert.ok(result.snapshotColumns.includes("liquidity_updated_at"));
   assert.ok(result.snapshotColumns.includes("range_52w_updated_at"));

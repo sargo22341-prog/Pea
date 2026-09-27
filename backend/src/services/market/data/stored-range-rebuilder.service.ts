@@ -4,7 +4,8 @@ import { candleBuilder } from "../../candles/candle.builder.js";
 import { logger } from "../../shared/logger.service.js";
 import { getLastTradingDay, getMarketDateKey } from "../calendars/marketCalendar.service.js";
 import { chartConfigService, type StoredChartRange } from "../charts/chart-config.service.js";
-import { filterRangePoints, intervalDurationMs, openMarketWindow } from "../charts/market-chart.helpers.js";
+import { intervalDurationMs } from "../charts/market-chart.helpers.js";
+import { filterRangePoints, openMarketWindow } from "../charts/chart-range-window.js";
 
 export class StoredRangeRebuilderService {
   private resolveFinalCloseFromStoredOneDay(asset: AssetRow, tradingDate?: string) {

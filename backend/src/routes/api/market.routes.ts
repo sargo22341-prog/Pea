@@ -4,7 +4,7 @@ import { config } from "../../config.js";
 import { dividendsService } from "../../services/market/dividends/dividends.service.js";
 import { chartRefreshService } from "../../services/market/charts/chart-refresh.service.js";
 import { marketEventsService } from "../../services/market/events/market-events.service.js";
-import { marketDataService } from "../../services/market/data/market-data.service.js";
+import { assetDataService } from "../../services/assets/asset-data.service.js";
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
 import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { parseRange } from "../../utils/range.js";
@@ -61,7 +61,7 @@ marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query["range"]);
-  res.json(await marketDataService.getChartData(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range)));
+  res.json(await assetDataService.chart(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range)));
 }));
 
 marketRouter.get("/dividends/:symbol", asyncRoute((req, res) => {
