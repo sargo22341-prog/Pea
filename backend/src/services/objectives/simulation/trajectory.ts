@@ -16,8 +16,8 @@ export interface TrajectoryParams {
 export interface TrajectoryResult {
   capitals: number[];
   savings: number[];
-  reachedMonth?: number;
-  reachedTarget?: number;
+  reachedMonth?: number | undefined;
+  reachedTarget?: number | undefined;
 }
 
 /**

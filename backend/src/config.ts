@@ -9,23 +9,24 @@ const appRoot = path.resolve(__dirname, "../..");
 const appDataDir = path.join(appRoot, "data");
 const rootEnvPath = path.resolve(__dirname, "../../.env");
 
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ path: rootEnvPath });
-  dotenv.config();
+if (process.env["NODE_ENV"] !== "production") {
+  dotenv.config({ path: rootEnvPath, quiet: true });
+  dotenv.config({ quiet: true });
 }
 
-const initialNodeEnv = process.env.NODE_ENV ?? "production";
+const initialNodeEnv = process.env["NODE_ENV"] ?? "production";
 
 const fallbackTimezone = "Europe/Paris";
-const configuredTimezone = process.env.TZ?.trim() || fallbackTimezone;
+const configuredTimezone = process.env["TZ"]?.trim() || fallbackTimezone;
 const appTimezone = isValidTimeZone(configuredTimezone) ? configuredTimezone : fallbackTimezone;
 
 function parseDebugDate(value: string | undefined, timeZone: string) {
   const raw = value?.trim();
   if (!raw) return undefined;
 
-  const localMatch = raw.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/);
-  if (localMatch) return zonedTimeToUtc(localMatch[1], localMatch[2], timeZone);
+  const localMatch = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/.exec(raw);
+  const [, localDate, localTime] = localMatch ?? [];
+  if (localDate && localTime) return zonedTimeToUtc(localDate, localTime, timeZone);
 
   const parsed = new Date(raw);
   return Number.isFinite(parsed.getTime()) ? parsed : undefined;
@@ -62,17 +63,17 @@ function frontendDistPath() {
 }
 
 export const config = {
-  port: Number(process.env.PORT ?? 4000),
-  sqlitePath: process.env.PEA_TEST_SQLITE_PATH ?? path.join(appDataDir, "pea.sqlite"),
-  debug: process.env.DEBUG === "true",
-  debugDate: parseDebugDate(process.env.DEBUG_DATE, appTimezone),
+  port: Number(process.env["PORT"] ?? 4000),
+  sqlitePath: process.env["PEA_TEST_SQLITE_PATH"] ?? path.join(appDataDir, "pea.sqlite"),
+  debug: process.env["DEBUG"] === "true",
+  debugDate: parseDebugDate(process.env["DEBUG_DATE"], appTimezone),
   frontendDist: frontendDistPath(),
   nodeEnv: initialNodeEnv,
   appTimezone,
-  logoDevApiKey: process.env.LOGO_DEV_API_KEY?.trim() || undefined,
+  logoDevApiKey: process.env["LOGO_DEV_API_KEY"]?.trim() || undefined,
   chartConfigPath: path.join(appDataDir, "config.json"),
-  enableMarketLiveRefresh: parseBoolean(process.env.ENABLE_MARKET_LIVE_REFRESH, true),
-  publicUrl: parsePublicUrl(process.env.PUBLIC_URL),
-  trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
-  corsOrigins: parseOriginList(process.env.CORS_ORIGINS)
+  enableMarketLiveRefresh: parseBoolean(process.env["ENABLE_MARKET_LIVE_REFRESH"], true),
+  publicUrl: parsePublicUrl(process.env["PUBLIC_URL"]),
+  trustProxy: parseBoolean(process.env["TRUST_PROXY"], false),
+  corsOrigins: parseOriginList(process.env["CORS_ORIGINS"])
 };

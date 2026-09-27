@@ -81,7 +81,7 @@ export function PortfolioEvolutionSection({
       <section className="card p-0 sm:p-4">
         <PortfolioEvolutionHeader
           comparisonCount={compareTargets.length}
-          onCompareClick={() => setComparing(true)}
+          onCompareClick={() => { setComparing(true); }}
           range={range}
           setRange={setRange}
         />
@@ -119,7 +119,7 @@ export function PortfolioEvolutionSection({
           currentSymbol="__PORTFOLIO__"
           localPeaSearchEnabled={localPeaSearchEnabled}
           onAdd={addCompareTarget}
-          onClose={() => setComparing(false)}
+          onClose={() => { setComparing(false); }}
           onRemove={removeCompareTarget}
           selected={compareTargets}
         />

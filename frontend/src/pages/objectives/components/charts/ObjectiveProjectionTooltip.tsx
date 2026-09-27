@@ -30,7 +30,11 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
   if (!active || !payload?.length) return null;
   const possibleMonthlyIncome = payload.find((item) => item.payload?.possibleMonthlyIncome !== undefined)?.payload?.possibleMonthlyIncome;
   const paidMonthlyIncome = payload.find((item) => item.payload?.paidMonthlyIncome !== undefined)?.payload?.paidMonthlyIncome;
-  const point = payload.find((item) => item.payload?.projectedLow !== undefined && item.payload?.projectedHigh !== undefined)?.payload;
+  const [rangeBounds] = payload.flatMap((item) => {
+    const low = item.payload?.projectedLow;
+    const high = item.payload?.projectedHigh;
+    return low !== undefined && high !== undefined ? [{ low, high }] : [];
+  });
   const incomeGap = possibleMonthlyIncome !== undefined && paidMonthlyIncome !== undefined
     ? possibleMonthlyIncome - paidMonthlyIncome
     : undefined;
@@ -43,6 +47,7 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
           .filter((item) => item.value !== undefined && item.dataKey && labels[String(item.dataKey)])
           .map((item) => {
             const config = labels[String(item.dataKey)];
+            if (!config) return null;
             return (
               <div className="flex items-center justify-between gap-4" key={String(item.dataKey)}>
                 <span className="inline-flex items-center gap-2 text-slate-300">
@@ -54,9 +59,9 @@ export function ObjectiveProjectionTooltip({ active, label, payload }: Objective
             );
           })}
       </div>
-      {point ? (
+      {rangeBounds ? (
         <p className="mt-2 text-xs text-slate-300">
-          {t("chart.rangeValue", { high: money(point.projectedHigh!, "EUR"), low: money(point.projectedLow!, "EUR") })}
+          {t("chart.rangeValue", { high: money(rangeBounds.high, "EUR"), low: money(rangeBounds.low, "EUR") })}
         </p>
       ) : null}
       {payload.some((item) => item.dataKey === "objective") ? (

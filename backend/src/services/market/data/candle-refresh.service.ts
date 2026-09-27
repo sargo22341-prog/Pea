@@ -74,7 +74,7 @@ export class CandleRefreshService {
         interval,
         yahooInterval: yahooInterval(interval),
         period1: periodWithInclusiveClose.period1.toISOString(),
-        period2: periodWithInclusiveClose.period2?.toISOString(),
+        period2: periodWithInclusiveClose.period2.toISOString(),
         windowStartDate: window?.days[window.days.length - 1]?.date,
         returnedOpenDays: window?.days.length,
         requestedOpenDays: openMarketDayCountByRange[range]
@@ -111,7 +111,7 @@ export class CandleRefreshService {
           yahooPoints: chart.quotes.length,
           validatedPoints: validatedPoints.length,
           period1: periodWithInclusiveClose.period1.toISOString(),
-          period2: periodWithInclusiveClose.period2?.toISOString()
+          period2: periodWithInclusiveClose.period2.toISOString()
         });
         if (distinctMarketDays <= 1) {
           throw new Error(`Yahoo response incomplete for ${asset.symbol} ${range}: ${distinctMarketDays}/${window.days.length} open market days`);
@@ -145,7 +145,7 @@ export class CandleRefreshService {
           marketCloseTime: session.period2.toISOString(),
           candles: candles.length
         });
-        await candleFinalizationService.finalizeClosedOneDayCandles({
+        candleFinalizationService.finalizeClosedOneDayCandles({
           asset,
           session,
           quote,

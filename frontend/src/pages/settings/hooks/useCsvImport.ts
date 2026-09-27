@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 
-type ImportError = { line: number; message: string };
+interface ImportError { line: number; message: string }
 
 function rowsWithImportErrors<T extends { line: number; errors: string[] }>(rows: T[], errors: ImportError[]) {
   if (!errors.length) return rows.map((row) => ({ ...row, errors: row.errors.filter((message) => !message.startsWith("Confirmation:")) }));
@@ -66,7 +66,7 @@ export function useCsvImport() {
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
       setMessage(t("imports.confirmUpdateResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
       setUpdateRows((current) => rowsWithImportErrors(current, result.errors));
-      if (result.errors.length === 0) navigate("/");
+      if (result.errors.length === 0) void navigate("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
     } finally {
@@ -81,7 +81,7 @@ export function useCsvImport() {
       if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
       setMessage(t("imports.confirmImportResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
       setRows((current) => rowsWithImportErrors(current, result.errors));
-      if (result.errors.length === 0) navigate("/");
+      if (result.errors.length === 0) void navigate("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
     } finally {

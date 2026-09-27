@@ -7,8 +7,8 @@ export interface AuthUser {
   id: number;
   username: string;
   role: "admin" | "user";
-  profileIconUrl?: string;
-  hasProfileIcon?: boolean;
+  profileIconUrl?: string | undefined;
+  hasProfileIcon?: boolean | undefined;
   dashboardDefaultSortKey: DashboardSortKey;
   dashboardDefaultSortDirection: SortDirection;
   watchlistDefaultSortKey: WatchlistSortKey;
@@ -82,14 +82,14 @@ export function isAppLanguage(value: unknown): value is AppLanguage {
 
 export function rowToAuthUser(row: UserRow): AuthUser {
   const languages: NewsLanguage[] = [];
-  if (row.news_language_fr_enabled === undefined || row.news_language_fr_enabled === null || Boolean(row.news_language_fr_enabled)) languages.push("fr");
+  if (row.news_language_fr_enabled) languages.push("fr");
   if (row.news_language_en_enabled) languages.push("en");
 
   return {
     id: Number(row.id),
-    username: String(row.username),
+    username: row.username,
     role: row.role === "admin" && Boolean(row.bootstrap_admin) ? "admin" : "user",
-    profileIconUrl: row.profile_icon_url ? String(row.profile_icon_url) : undefined,
+    profileIconUrl: row.profile_icon_url ? row.profile_icon_url : undefined,
     // `has_profile_icon` est mis à jour par les migrations et les opérations d'écriture pour
     // éviter un fs.existsSync() synchrone à chaque requête authentifiée.
     hasProfileIcon: Boolean(row.has_profile_icon),
@@ -99,12 +99,12 @@ export function rowToAuthUser(row: UserRow): AuthUser {
     watchlistDefaultSortDirection: isSortDirection(row.watchlist_default_sort_direction) ? row.watchlist_default_sort_direction : "asc",
     defaultChartRange: isRangeKey(row.default_chart_range) ? row.default_chart_range : "1d",
     projectionEndAge: Number.isFinite(Number(row.projection_end_age)) ? Math.min(120, Math.max(70, Number(row.projection_end_age))) : 90,
-    localPeaSearchEnabled: row.local_pea_search_enabled === undefined || row.local_pea_search_enabled === null ? true : Boolean(row.local_pea_search_enabled),
-    assetNewsEnabled: row.asset_news_enabled === undefined || row.asset_news_enabled === null ? true : Boolean(row.asset_news_enabled),
+    localPeaSearchEnabled: Boolean(row.local_pea_search_enabled),
+    assetNewsEnabled: Boolean(row.asset_news_enabled),
     newsLanguages: languages.length ? languages : ["fr"],
     language: isAppLanguage(row.language) ? row.language : "fr",
     privacyModeEnabled: Boolean(row.privacy_mode_enabled),
-    createdAt: String(row.created_at)
+    createdAt: row.created_at
   };
 }
 

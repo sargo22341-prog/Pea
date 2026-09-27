@@ -13,7 +13,7 @@ export function AssetOverviewSections({
 }: {
   asset: AssetDetails;
   currentPrice: number;
-  firstPriceOfRange?: number;
+  firstPriceOfRange?: number | undefined;
   range: RangeKey;
 }) {
   const { t } = useTranslation("asset");
@@ -53,7 +53,7 @@ export function AssetOverviewSections({
         ) : null}
 
         <div className="min-w-0 flex-1">
-          {dividends && dividends.length > 0 ? (
+          {dividends.length > 0 ? (
             <section className="card overflow-hidden">
               <h2 className="mb-4 font-semibold">{t("dividend")}</h2>
               <DividendLineChartSection

@@ -238,7 +238,7 @@ function isUsMarket(asset: SearchAsset | QuoteAsset) {
   const exchange = safeString(asset.exchange).toUpperCase();
   const quoteType = safeString(asset.quoteType).toUpperCase();
   const hasEeaSuffix = EEA_SUFFIXES.some((suffix) => symbol.endsWith(suffix));
-  return ((!symbol.includes(".") && !hasEeaSuffix && ["EQUITY", "ETF"].includes(quoteType ?? "")) || US_EXCHANGES.some((hint) => exchange.includes(hint)));
+  return ((!symbol.includes(".") && !hasEeaSuffix && ["EQUITY", "ETF"].includes(quoteType)) || US_EXCHANGES.some((hint) => exchange.includes(hint)));
 }
 
 function isEeaCountry(country?: string) {

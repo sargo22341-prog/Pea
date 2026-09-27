@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unregisterServiceWorkers } from "../../lib/app-loading/service-worker-cleanup";
 import swSource from "../../../public/sw.js?raw";
@@ -12,10 +13,11 @@ function loadRetiredServiceWorker() {
     registration: { unregister: vi.fn().mockResolvedValue(true) }
   };
   const caches = {
-    keys: vi.fn().mockResolvedValue(["pea-portfolio-v4", "pea-portfolio-v3"]),
-    delete: vi.fn().mockResolvedValue(true)
+    keys: vi.fn<() => Promise<string[]>>().mockResolvedValue(["pea-portfolio-v4", "pea-portfolio-v3"]),
+    delete: vi.fn<(key: string) => Promise<boolean>>().mockResolvedValue(true)
   };
-  new Function("self", "caches", swSource)(scope, caches);
+  // Execute le script du service worker dans un contexte isole ou `self` et `caches` sont simules.
+  runInNewContext(swSource, { self: scope, caches });
   return { listeners, scope, caches };
 }
 

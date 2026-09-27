@@ -21,7 +21,7 @@ test("production auth cookie is not Secure on HTTP public URL", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } }) as { status: number; setCookie: string };
 
   assert.equal(result.status, 201);
   assert.ok(!result.setCookie.includes("Secure"));
@@ -47,7 +47,7 @@ test("production auth cookie is Secure on HTTPS public URL", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } }) as { status: number; setCookie: string };
 
   assert.equal(result.status, 201);
   assert.ok(result.setCookie.includes("Secure"));
@@ -70,7 +70,7 @@ test("auth setup rejects weak passwords", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { message: string; details: { formErrors: unknown[]; fieldErrors: { password: string[]; confirmPassword: string[] } } } };
 
   assert.equal(result.status, 400);
   assert.match(JSON.stringify(result.body), /10 caracteres/);
@@ -98,7 +98,7 @@ test("auth rate limit is stricter than the global API limit", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "test", env: { PEA_AUTH_BACKOFF_BASE_MS: "1", PEA_AUTH_BACKOFF_MAX_MS: "1" } });
+  `, { nodeEnv: "test", env: { PEA_AUTH_BACKOFF_BASE_MS: "1", PEA_AUTH_BACKOFF_MAX_MS: "1" } }) as { statuses: number[] };
 
   assert.equal(result.statuses.at(-1), 429);
   assert.equal(result.statuses.filter((status: number) => status === 429).length, 1);
@@ -133,7 +133,7 @@ test("auth supports bearer sessions for native mobile clients", () => {
         server.close();
       }
     });
-  `);
+  `) as { setupStatus: number; tokenPresent: boolean; username: string; meBody: { user: { username: string } }; logoutStatus: number; meAfterLogoutBody: { user: null } };
 
   assert.equal(result.setupStatus, 201);
   assert.equal(result.tokenPresent, true);

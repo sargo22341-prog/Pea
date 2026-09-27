@@ -108,7 +108,7 @@ export async function preloadGlobalMode(user: User, page: number) {
   const key = globalCacheKey(user, page);
   if (globalNewsCache.has(key) || globalNewsInFlight.has(key)) return;
   debugNews("prechargement", { mode: "global", endpoint: `/api/news-global?page=${page}` });
-  await fetchGlobalNews(user, page).catch((error) => {
+  await fetchGlobalNews(user, page).catch((error: unknown) => {
     debugNews("prechargement echoue", { mode: "global", error: error instanceof Error ? error.message : String(error) });
   });
 }
@@ -120,7 +120,7 @@ export async function preloadAssetMode(user: User) {
   const key = assetCacheKey(user);
   if (assetNewsCache.get(key)?.loadedOffsets.has(0) || assetNewsInFlight.has(assetPageCacheKey(user, 0))) return;
   debugNews("prechargement", { mode: "assets", endpoint: `/api/news-assets?limit=${assetNewsBatchSize}&offset=0` });
-  await fetchAssetNewsPage(user, 0).then(() => preloadRemainingAssetNews(user)).catch((error) => {
+  await fetchAssetNewsPage(user, 0).then(() => preloadRemainingAssetNews(user)).catch((error: unknown) => {
     debugNews("prechargement echoue", { mode: "assets", error: error instanceof Error ? error.message : String(error) });
   });
 }
@@ -291,7 +291,7 @@ function fetchGlobalNews(user: User, page: number) {
 }
 function trimMapByInsertion<TKey, TValue>(cache: Map<TKey, TValue>, maxEntries: number) {
   while (cache.size > maxEntries) {
-    const oldestKey = cache.keys().next().value as TKey | undefined;
+    const oldestKey = cache.keys().next().value;
     if (oldestKey === undefined) return;
     cache.delete(oldestKey);
   }

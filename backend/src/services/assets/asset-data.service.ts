@@ -26,7 +26,7 @@ function stringOrUndefined(value: unknown) {
 }
 
 function staticAssetType(quoteType?: string): "stock" | "etf" {
-  return String(quoteType ?? "").toUpperCase().includes("ETF") ? "etf" : "stock";
+  return (quoteType ?? "").toUpperCase().includes("ETF") ? "etf" : "stock";
 }
 
 export class AssetDataService {

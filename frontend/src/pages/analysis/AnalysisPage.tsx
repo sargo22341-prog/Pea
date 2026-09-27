@@ -13,7 +13,9 @@ import { api } from "../../lib/api";
 
 type ChartKey = "country" | "sector" | "treemap" | "netMargin" | "financials";
 
-const chartOptions: Array<{ key: ChartKey; labelKey: string }> = [
+interface ChartOption { key: ChartKey; labelKey: string }
+
+const chartOptions: [ChartOption, ...ChartOption[]] = [
   { key: "country", labelKey: "analysis.charts.country" },
   { key: "sector", labelKey: "analysis.charts.sector" },
   { key: "treemap", labelKey: "analysis.charts.treemap" },
@@ -47,11 +49,7 @@ export function AnalysisPage() {
     reload: analysisReload
   });
 
-  useEffect(() => {
-    if (!selectedFinancialSymbol && analysis.data?.financialsByAsset[0]) {
-      setSelectedFinancialSymbol(analysis.data.financialsByAsset[0].symbol);
-    }
-  }, [analysis.data, selectedFinancialSymbol]);
+
 
   const hasAnyData = Boolean(
     analysis.data &&
@@ -81,7 +79,7 @@ export function AnalysisPage() {
         </div>
         <label className="grid gap-1 text-sm text-slate-300 sm:w-80">
           <span>{t("analysis.chart")}</span>
-          <select className="input" onChange={(event) => setSelectedChart(event.target.value as ChartKey)} value={selectedChart}>
+          <select className="input" onChange={(event) => { setSelectedChart(event.target.value as ChartKey); }} value={selectedChart}>
             {chartOptions.map((option) => (
               <option key={option.key} value={option.key}>
                 {t(option.labelKey)}
@@ -108,7 +106,7 @@ export function AnalysisPage() {
           {selectedChart === "financials" && analysis.data?.financialsByAsset.length ? (
             <label className="mb-4 grid gap-1 text-sm text-slate-300 sm:max-w-sm">
               <span>{t("analysis.stock")}</span>
-              <select className="input" onChange={(event) => setSelectedFinancialSymbol(event.target.value)} value={selectedFinancialAsset?.symbol ?? ""}>
+              <select className="input" onChange={(event) => { setSelectedFinancialSymbol(event.target.value); }} value={selectedFinancialAsset?.symbol ?? ""}>
                 {analysis.data.financialsByAsset.map((asset) => (
                   <option key={asset.symbol} value={asset.symbol}>
                     {asset.name}

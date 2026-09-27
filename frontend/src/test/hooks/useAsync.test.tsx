@@ -18,7 +18,7 @@ describe("useAsync", () => {
       .mockReturnValueOnce(second.promise);
 
     const { result } = renderHook(() => useAsync(loader));
-    await waitFor(() => expect(result.current.data).toBe("first"));
+    await waitFor(() => { expect(result.current.data).toBe("first"); });
     expect(result.current.loading).toBe(false);
 
     let reloading!: Promise<void>;
@@ -44,10 +44,10 @@ describe("useAsync", () => {
     const { result, rerender } = renderHook(({ range }) => useAsync(() => loader(range), range), {
       initialProps: { range: "1d" }
     });
-    await waitFor(() => expect(result.current.data).toBe("day"));
+    await waitFor(() => { expect(result.current.data).toBe("day"); });
 
     rerender({ range: "1w" });
-    await waitFor(() => expect(result.current.loading).toBe(true));
+    await waitFor(() => { expect(result.current.loading).toBe(true); });
 
     await act(async () => {
       pending.resolve("week");
@@ -60,10 +60,10 @@ describe("useAsync", () => {
   it("shows loading on a reload triggered before the first load succeeded", async () => {
     const loader = vi.fn()
       .mockRejectedValueOnce(new Error("boom"))
-      .mockReturnValueOnce(new Promise(() => {}));
+      .mockReturnValueOnce(new Promise(() => undefined));
 
     const { result } = renderHook(() => useAsync(loader));
-    await waitFor(() => expect(result.current.error).toBe("boom"));
+    await waitFor(() => { expect(result.current.error).toBe("boom"); });
 
     act(() => {
       void result.current.reload();

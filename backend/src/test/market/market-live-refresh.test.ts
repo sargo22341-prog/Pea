@@ -30,7 +30,7 @@ test("live refresh disabled preserves current behavior and does not call Yahoo",
     marketRunRepository.updateOpen(run.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-06T07:00:00.000Z" });
     const outcome = await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T12:00:00.000Z"));
     console.log("__RESULT__" + JSON.stringify({ calls, outcome }));
-  `);
+  `) as { calls: number; outcome: { enabled: boolean } };
 
   assert.equal(result.calls, 0);
   assert.equal(result.outcome.enabled, false);
@@ -77,10 +77,10 @@ test("live refresh merges eligible multi-market symbols into one Yahoo batch", (
     const snapshots = db.prepare("SELECT COUNT(*) AS count FROM asset_market_snapshots").get();
     const prices = db.prepare("SELECT a.symbol, s.last_price, s.last_checked_at FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id ORDER BY a.symbol").all();
     console.log("__RESULT__" + JSON.stringify({ calls, singleQuoteCalls, quote, outcome, snapshots, prices }));
-  `);
+  `) as { calls: string[][]; singleQuoteCalls: number; quote: { price: number }; outcome: { updated: number }; snapshots: { count: number }; prices: { symbol: string; last_price: number; last_checked_at: string }[] };
 
   assert.equal(result.calls.length, 1);
-  assert.deepEqual(result.calls[0].sort(), ["AAA.PA", "MSFT"]);
+  assert.deepEqual(result.calls[0]?.sort(), ["AAA.PA", "MSFT"]);
   assert.equal(result.singleQuoteCalls, 0);
   assert.equal(result.quote.price, 100);
   assert.equal(result.outcome.updated, 2);
@@ -110,7 +110,7 @@ test("live refresh ne marque le cycle reussi qu'apres succes et retente apres ba
     const second = await task.run(groups.values(), new Date("2026-05-06T08:00:10.000Z")).catch((error) => ({ failed: true, message: error.message }));
     const third = await task.run(groups.values(), new Date("2026-05-06T08:00:31.000Z")).catch((error) => ({ failed: true, message: error.message }));
     console.log("__RESULT__" + JSON.stringify({ calls, first, second, third }));
-  `);
+  `) as { calls: number; first: { failed: boolean }; second: { skipped: string }; third: { failed: boolean } };
 
   assert.equal(result.calls, 4);
   assert.equal(result.first.failed, true);
@@ -143,7 +143,7 @@ test("live refresh succes met a jour l'intervalle de succes", () => {
     const first = await task.run(groups.values(), new Date("2026-05-06T08:00:00.000Z"));
     const second = await task.run(groups.values(), new Date("2026-05-06T08:01:00.000Z"));
     console.log("__RESULT__" + JSON.stringify({ calls, first, second }));
-  `);
+  `) as { calls: number; first: { updated: number }; second: { skipped: string } };
 
   assert.equal(result.calls, 1);
   assert.equal(result.first.updated, 1);
@@ -193,7 +193,7 @@ test("live refresh skips closed markets, lunch pauses, last close window and fre
     marketRunRepository.updateOpen(freshRun.id, { open_status: "confirmed_open", open_confirmed_at: "2026-05-08T07:01:00.000Z" });
     await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-08T07:02:00.000Z"));
     console.log("__RESULT__" + JSON.stringify({ calls }));
-  `);
+  `) as { calls: number };
 
   assert.equal(result.calls, 0);
 });
@@ -231,10 +231,10 @@ test("live refresh falls back by market when global Yahoo batch fails", () => {
     }
     const outcome = await new LiveMarketRefreshTask().run(groups.values(), new Date("2026-05-06T14:00:00.000Z"));
     console.log("__RESULT__" + JSON.stringify({ calls, outcome }));
-  `);
+  `) as { calls: string[][]; outcome: { updated: number } };
 
   assert.equal(result.calls.length, 3);
-  assert.equal(result.calls[0].length, 2);
+  assert.equal(result.calls[0]?.length, 2);
   assert.deepEqual(result.calls.slice(1).map((call: string[]) => call.length), [1, 1]);
   assert.equal(result.outcome.updated, 2);
 });
@@ -285,10 +285,10 @@ test("live refresh prewarms intraday charts only for portfolio assets", () => {
     await task.run(groups.values(), new Date("2026-05-06T12:06:00.000Z"));
     const candles = db.prepare("SELECT a.symbol, COUNT(*) AS count FROM chart_candles c JOIN assets a ON a.id = c.asset_id WHERE c.range_key = '1d' GROUP BY a.symbol ORDER BY a.symbol").all();
     console.log("__RESULT__" + JSON.stringify({ quoteCalls, chartCalls, candles }));
-  `);
+  `) as { quoteCalls: string[][]; chartCalls: string[]; candles: { symbol: string; count: number }[] };
 
   assert.equal(result.quoteCalls.length, 2);
-  assert.deepEqual(result.quoteCalls[0].sort(), ["AAA.PA", "BBB.PA"]);
+  assert.deepEqual(result.quoteCalls[0]?.sort(), ["AAA.PA", "BBB.PA"]);
   assert.deepEqual(result.chartCalls, ["AAA.PA"]);
   assert.deepEqual(result.candles, [{ symbol: "AAA.PA", count: 2 }]);
 });

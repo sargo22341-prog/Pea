@@ -105,18 +105,17 @@ export class PortfolioPerformanceService {
       lastPrices.set(item.position.symbol, item.fallbackPrice);
     }
 
-    const timelineMs = timeline.map((date) => new Date(date).getTime());
-    const rawPoints = timeline.map((date, timelineIndex) => {
+    const rawPoints = timeline.map((date) => {
       let value = 0;
       let invested = 0;
-      const dateMs = timelineMs[timelineIndex];
+      const dateMs = new Date(date).getTime();
       const isSyntheticCurrentPoint = currentPointDate !== undefined && date === currentPointDate;
 
       for (const item of histories) {
         const symbol = item.position.symbol;
         let cursor = cursors.get(symbol) ?? 0;
-        while (cursor < item.history.length && new Date(item.history[cursor].date).getTime() <= dateMs) {
-          lastPrices.set(symbol, item.history[cursor].close);
+        for (let point = item.history[cursor]; point && new Date(point.date).getTime() <= dateMs; point = item.history[cursor]) {
+          lastPrices.set(symbol, point.close);
           cursor += 1;
         }
         cursors.set(symbol, cursor);

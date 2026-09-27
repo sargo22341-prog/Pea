@@ -36,9 +36,9 @@ export function ObjectiveEditModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedType = useMemo(() => objectiveTypes.find((type) => type.value === form.type), [form.type]);
-  const update: ObjectiveFormUpdate = (key, value) => setForm((current: ObjectiveFormState) => ({ ...current, [key]: value }));
+  const update: ObjectiveFormUpdate = (key, value) => { setForm((current: ObjectiveFormState) => ({ ...current, [key]: value })); };
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError(null);
@@ -55,7 +55,7 @@ export function ObjectiveEditModal({
 
   return (
     <div className={`fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 sm:place-items-center sm:p-4 ${MOTION.overlay}`}>
-      <form className={`max-h-[92vh] w-full overflow-auto rounded-t-lg border border-line bg-panel p-4 shadow-xl sm:max-w-3xl sm:rounded-lg ${MOTION.dialog}`} onSubmit={submit}>
+      <form className={`max-h-[92vh] w-full overflow-auto rounded-t-lg border border-line bg-panel p-4 shadow-xl sm:max-w-3xl sm:rounded-lg ${MOTION.dialog}`} onSubmit={(event) => { void submit(event); }}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{t("objectives:form.title")}</h2>
@@ -68,12 +68,12 @@ export function ObjectiveEditModal({
         {error ? <div className="mb-4 rounded-lg border border-coral/40 bg-coral/10 p-3 text-sm text-rose-100">{error}</div> : null}
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t("objectives:form.fields.title")}>
-            <input className="input" onChange={(event) => update("title", event.target.value)} value={form.title} />
+            <input className="input" onChange={(event) => { update("title", event.target.value); }} value={form.title} />
           </Field>
           <Field label={t("objectives:form.fields.type")}>
             <select
               className="input"
-              onChange={(event) => setForm((current) => clearHiddenObjectiveFields(current, event.target.value as ObjectiveType))}
+              onChange={(event) => { setForm((current) => clearHiddenObjectiveFields(current, event.target.value as ObjectiveType)); }}
               value={form.type}
             >
               {objectiveTypes.map((type) => <option key={type.value} value={type.value}>{t(`objectives:${type.labelKey}`)}</option>)}

@@ -2,7 +2,7 @@ import type { NewsArticle, NewsLanguage } from "@pea/shared";
 import { escapeRegExp, normalizeSearchText } from "../utils/text.js";
 
 export function normalizeNewsLanguages(languages?: NewsLanguage[]): NewsLanguage[] {
-  const normalized = [...new Set((languages ?? (["fr"] as NewsLanguage[])).filter((language): language is NewsLanguage => language === "fr" || language === "en"))];
+  const normalized = [...new Set<NewsLanguage>(languages ?? ["fr"])];
   return normalized.length ? normalized : ["fr"];
 }
 

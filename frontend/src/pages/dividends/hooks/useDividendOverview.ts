@@ -13,9 +13,9 @@ export function useDividendOverview({
   upcoming = [],
   year
 }: {
-  currency?: CurrencyCode;
-  past?: PortfolioDividendEvent[];
-  upcoming?: PortfolioDividendEvent[];
+  currency?: CurrencyCode | undefined;
+  past?: PortfolioDividendEvent[] | undefined;
+  upcoming?: PortfolioDividendEvent[] | undefined;
   year: string;
 }) {
   const knownEvents = useMemo<DividendOverviewEvent[]>(() => [...upcoming, ...past], [past, upcoming]);
@@ -68,6 +68,7 @@ function groupDividendsByMonth(events: DividendOverviewEvent[], year: number, fa
     if (!Number.isFinite(date.getTime())) continue;
 
     const month = months[date.getUTCMonth()];
+    if (!month) continue;
     const amount = safeNumber(event.totalAmount);
     const existing = month.entries.find((entry) => entry.symbol === event.symbol);
 
@@ -116,7 +117,7 @@ function groupDividendsByAsset(events: DividendOverviewEvent[], year: number): D
 
     existing.quantity = event.quantity;
     existing.total += safeNumber(event.totalAmount);
-    existing.quarters[quarter] += safeNumber(event.totalAmount);
+    existing.quarters[quarter] = (existing.quarters[quarter] ?? 0) + safeNumber(event.totalAmount);
     existing.hasEstimated = existing.hasEstimated || event.status === "estimated";
     existing.hasProjected = existing.hasProjected || event.projected === true;
     existing.stale = existing.stale || event.stale;

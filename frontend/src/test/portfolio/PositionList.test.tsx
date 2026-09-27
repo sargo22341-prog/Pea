@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PositionList } from "../../pages/dashboard/components/PositionList";
 import { api } from "../../lib/api";
+import { first } from "../utils/first";
 
 vi.mock("../../lib/api", () => ({
   api: {
@@ -15,8 +16,12 @@ class ImmediateIntersectionObserver {
   observe(target: Element) {
     this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
   }
-  disconnect() {}
-  unobserve() {}
+  disconnect() {
+    // Aucun observateur reel a liberer dans ce double de test.
+  }
+  unobserve() {
+    // Les cibles ne sont pas suivies : rien a retirer.
+  }
   takeRecords() {
     return [];
   }
@@ -97,13 +102,13 @@ describe("PositionList mini charts", () => {
     renderList("1w");
     await screen.findByText("AIR LIQUIDE");
 
-    await act(async () => {
+    act(() => {
       window.dispatchEvent(new CustomEvent("pea:market-event", {
         detail: { type: "portfolio-chart-updated", range: "1w", updatedAt: "2026-05-06T12:00:00.000Z" }
       }));
     });
 
-    await waitFor(() => expect(api.positionsPerformance).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(api.positionsPerformance).toHaveBeenCalledTimes(2); });
     expect(vi.mocked(api.positionsPerformance).mock.calls.some((call) => call[0] === "1w" && call.length === 1)).toBe(true);
     expect((await screen.findAllByText(/2.?200/)).length).toBeGreaterThan(0);
   });
@@ -141,7 +146,7 @@ describe("PositionList mini charts", () => {
     renderList();
 
     await screen.findByText("AIR LIQUIDE");
-    const path = screen.getAllByRole("img", { name: /mini-graph 1d/i })[0].querySelector("path");
+    const path = first(screen.getAllByRole("img", { name: /mini-graph 1d/i })).querySelector("path");
     expect(path?.getAttribute("d")).toContain("L 68.2");
   });
 });

@@ -37,10 +37,10 @@ export function aggregateHistoryPoints(points: HistoryPoint[], displayInterval: 
     .sort(([a], [b]) => a - b)
     .map(([bucketTime, bucket]) => {
       const sorted = bucket.sort((a, b) => a.date.localeCompare(b.date));
-      const closes = sorted.map((point) => Number(point.close)).filter(Number.isFinite);
-      const highs = sorted.map((point) => Number(point.high ?? point.close)).filter(Number.isFinite);
-      const lows = sorted.map((point) => Number(point.low ?? point.close)).filter(Number.isFinite);
-      const volumes = sorted.map((point) => Number(point.volume ?? 0)).filter(Number.isFinite);
+      const closes = sorted.map((point) => point.close).filter(Number.isFinite);
+      const highs = sorted.map((point) => point.high ?? point.close).filter(Number.isFinite);
+      const lows = sorted.map((point) => point.low ?? point.close).filter(Number.isFinite);
+      const volumes = sorted.map((point) => point.volume ?? 0).filter(Number.isFinite);
       return {
         date: new Date(bucketTime).toISOString(),
         open: sorted.find((point) => Number.isFinite(Number(point.open)))?.open ?? sorted[0]?.close,

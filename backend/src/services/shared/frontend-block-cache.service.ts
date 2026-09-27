@@ -1,5 +1,4 @@
 import { cacheRepository } from "../../repositories/cache/cache.repository.js";
-import { cacheRegistry } from "./cache-registry.service.js";
 import { nowMs } from "./cache.service.js";
 
 export type FrontendBlock =
@@ -14,9 +13,10 @@ function key(userId: string | number, block: FrontendBlock, range?: string) {
 }
 
 export class FrontendBlockCacheService {
-  read<T>(userId: string | number, block: FrontendBlock, range?: string): T | undefined {
+  /** Charge utile JSON mise en cache ; l'appelant la type selon le bloc demande. */
+  read(userId: string | number, block: FrontendBlock, range?: string): unknown {
     const row = cacheRepository.readFrontendBlock(key(userId, block, range), nowMs());
-    return row ? JSON.parse(row.payload) as T : undefined;
+    return row ? JSON.parse(row.payload) as unknown : undefined;
   }
 
   write(userId: string | number, block: FrontendBlock, payload: unknown, ttlMs: number, range?: string) {
@@ -25,10 +25,6 @@ export class FrontendBlockCacheService {
     cacheRepository.writeFrontendBlock({ cacheKey: key(userId, block, range), userId, block, range, payload, cachedAt, expiresAt });
   }
 
-  invalidate(input: { userId?: string | number; block?: FrontendBlock; symbol?: string }) {
-    void input.symbol;
-    cacheRegistry.invalidate({ type: "frontend-block-changed", userId: input.userId, block: input.block });
-  }
 }
 
 export const frontendBlockCache = new FrontendBlockCacheService();

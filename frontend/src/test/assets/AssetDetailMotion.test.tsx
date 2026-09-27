@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { closestElement } from "../utils/dom";
 import { MOTION } from "../../components/common/motion";
 import { AssetDetailPage } from "../../pages/asset-detail/AssetDetailPage";
 import { api } from "../../lib/api";
@@ -80,7 +81,7 @@ function renderPage() {
 }
 
 function priceElement(amount: string) {
-  const header = screen.getByRole("heading", { level: 1 }).closest("section") as HTMLElement;
+  const header = closestElement(screen.getByRole("heading", { level: 1 }), "section");
   return within(header).getByText((content) => content.replace(/\s/g, "") === amount);
 }
 
@@ -161,7 +162,7 @@ describe("animations de la fiche actif", () => {
 
     fireEvent.click(watchlistButton);
 
-    await waitFor(() => expect(container.querySelector(`.${MOTION.pop}`)).not.toBeNull());
+    await waitFor(() => { expect(container.querySelector(`.${MOTION.pop}`)).not.toBeNull(); });
     expect(screen.getByRole("button", { pressed: true })).toBe(watchlistButton);
   });
 });

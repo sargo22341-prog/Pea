@@ -28,12 +28,12 @@ export function AdminPage() {
         <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
         <p className="muted">{t("admin.subtitle")}</p>
       </div>
-      <UserManagementSection onToggle={() => toggleSection("users")} open={openSection === "users"} />
+      <UserManagementSection onToggle={() => { toggleSection("users"); }} open={openSection === "users"} />
       <DataConstructionSection />
-      <RuntimeHealthSection onToggle={() => toggleSection("runtime")} open={openSection === "runtime"} />
-      <YahooUsageSection onToggle={() => toggleSection("yahooUsage")} open={openSection === "yahooUsage"} />
-      <TrackedMarketsSection onToggle={() => toggleSection("markets")} open={openSection === "markets"} />
-      <MarketDataActionsSection onToggle={() => toggleSection("actions")} open={openSection === "actions"} />
+      <RuntimeHealthSection onToggle={() => { toggleSection("runtime"); }} open={openSection === "runtime"} />
+      <YahooUsageSection onToggle={() => { toggleSection("yahooUsage"); }} open={openSection === "yahooUsage"} />
+      <TrackedMarketsSection onToggle={() => { toggleSection("markets"); }} open={openSection === "markets"} />
+      <MarketDataActionsSection onToggle={() => { toggleSection("actions"); }} open={openSection === "actions"} />
     </div>
   );
 }

@@ -190,7 +190,7 @@ export class MarketOpenTask {
       }
       const storedAsset = assetRepository.findBySymbol(row.quote.symbol) ?? asset;
       valid.push({ ...row, asset: storedAsset });
-      if (row.quote.marketState) marketStates.push(String(row.quote.marketState));
+      if (row.quote.marketState) marketStates.push(row.quote.marketState);
     }
     return {
       valid,

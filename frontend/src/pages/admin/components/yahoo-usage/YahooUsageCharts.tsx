@@ -17,7 +17,7 @@ export function YahooUsageChart({ data, onSelect, title }: { data: YahooUsageBuc
               <XAxis dataKey="key" minTickGap={24} stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} stroke="#94a3b8" tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ background: "#071014", border: "1px solid #1f2937", borderRadius: 6 }} />
-              <Bar dataKey="calls" fill="#38bdf8" onClick={(bucket) => onSelect(chartBucketPayload(bucket))} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="calls" fill="#38bdf8" onClick={(bucket) => { onSelect(chartBucketPayload(bucket)); }} radius={[4, 4, 0, 0]} />
             </BarChart>
           </SafeResponsiveContainer>
         ) : (

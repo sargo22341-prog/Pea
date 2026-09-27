@@ -14,12 +14,12 @@ import { yahooQuoteMemoryStats } from "../yahoo/quotes/quote.job.js";
 import { yahooUsageService } from "../yahoo/yahoo-usage.service.js";
 import { marketScheduler } from "../../schedulers/market-scheduler.service.js";
 
-type CountRow = { count: number };
-type CacheScopeRow = { scope: string; rows: number; expired_rows: number };
+interface CountRow { count: number }
+interface CacheScopeRow { scope: string; rows: number; expired_rows: number }
 
 function count(sql: string, ...params: unknown[]) {
   const row = db.prepare(sql).get(...params) as CountRow | undefined;
-  return Number(row?.count ?? 0);
+  return (row?.count ?? 0);
 }
 
 function ageMs(value?: string | null, nowMs = Date.now()) {
@@ -121,8 +121,8 @@ export class RuntimeHealthService {
         expiredRows: count("SELECT COUNT(*) AS count FROM cache_entries WHERE expires_at IS NOT NULL AND expires_at <= ?", nowMs),
         byScope: rows.map((row) => ({
           scope: row.scope,
-          rows: Number(row.rows ?? 0),
-          expiredRows: Number(row.expired_rows ?? 0)
+          rows: row.rows,
+          expiredRows: row.expired_rows
         }))
       },
       derivedCaches: {

@@ -35,7 +35,7 @@ test("deleting a position returns 204", () => {
         server.close();
       }
     });
-  `);
+  `) as { deleteStatus: number; deleteAgainStatus: number };
 
   assert.equal(result.deleteStatus, 204);
   assert.equal(result.deleteAgainStatus, 404);
@@ -79,7 +79,7 @@ test("deleting the last manual transaction removes the empty position", () => {
         server.close();
       }
     });
-  `);
+  `) as { deleteStatus: number; remainingPositions: number; remainingTransactions: number };
 
   assert.equal(result.deleteStatus, 204);
   assert.equal(result.remainingPositions, 0);
@@ -146,7 +146,7 @@ test("portfolio chart uses current value when manual buy is newer than market hi
       };
     });
     console.log("__RESULT__" + JSON.stringify(output));
-  `);
+  `) as { firstChartValue: number; totalValue: number; lastChartValue: number; lastTimestamp: number; performanceEuro: number; performancePercent: number; miniValues: number[]; miniLastTimestamp: number };
 
   assert.equal(result.firstChartValue, 1500);
   assert.equal(result.totalValue, 1669);
@@ -211,7 +211,7 @@ test("portfolio chart 1w ignores transactions older than the chart history windo
       };
     });
     console.log("__RESULT__" + JSON.stringify(output));
-  `);
+  `) as { firstTimestamp: number; lastTimestamp: number; count: number };
 
   assert.equal(result.firstTimestamp, new Date("2026-05-14T15:30:00.000Z").getTime());
   assert.equal(result.lastTimestamp, new Date("2026-05-20T15:30:00.000Z").getTime());

@@ -1,5 +1,5 @@
-import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import type { SubmitEvent } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
 import { useAsync } from "../../../hooks/useAsync";
@@ -8,7 +8,7 @@ import { api } from "../../../lib/api";
 function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = () => { resolve(reader.result as string); };
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
@@ -23,14 +23,17 @@ export function useAccountSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profilePreview, setProfilePreview] = useState("");
   const [profileCacheBust, setProfileCacheBust] = useState(() => Date.now());
-  const [profileFailed, setProfileFailed] = useState(false);
+  const hasProfileIcon = me.data?.user?.hasProfileIcon;
+  const [profileFailed, setProfileFailed] = useState(() => !hasProfileIcon);
   const [toast, setToast] = useState<SettingsToast | null>(null);
+  // Profil recharge : l'etat d'echec de l'icone est resynchronise pendant le rendu.
+  const [syncedHasProfileIcon, setSyncedHasProfileIcon] = useState(hasProfileIcon);
+  if (syncedHasProfileIcon !== hasProfileIcon) {
+    setSyncedHasProfileIcon(hasProfileIcon);
+    setProfileFailed(!hasProfileIcon);
+  }
 
-  useEffect(() => {
-    setProfileFailed(!me.data?.user?.hasProfileIcon);
-  }, [me.data?.user?.hasProfileIcon]);
-
-  async function submit(event: FormEvent) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setToast(null);
     const willChangeCredentials = username !== "" || password !== "";

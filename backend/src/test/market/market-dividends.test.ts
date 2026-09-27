@@ -12,7 +12,7 @@ test("dividends reading keeps the latest amount when Yahoo corrected a same-date
     db.prepare("INSERT INTO asset_dividends (asset_id, ex_date, amount, currency, updated_at) VALUES (?, '2026-03-30T00:00:00.000Z', 177, 'JPY', '2026-05-11 18:53:08')").run(asset.id);
     const dividends = dividendsService.readDividends('7974.T');
     console.log("__RESULT__" + JSON.stringify({ dividends }));
-  `);
+  `) as { dividends: { symbol: string; date: string; amount: number; currency: string; status: string }[] };
 
   assert.deepEqual(result.dividends.map((dividend: { amount: number }) => dividend.amount), [177]);
 });
@@ -29,7 +29,7 @@ test("dividend refresh replaces stale same-date amounts", () => {
     await dividendsService.refreshDividends(asset);
     const rows = db.prepare("SELECT ex_date, amount FROM asset_dividends WHERE asset_id = ? ORDER BY amount").all(asset.id);
     console.log("__RESULT__" + JSON.stringify({ rows }));
-  `);
+  `) as { rows: { ex_date: string; amount: number }[] };
 
   assert.deepEqual(result.rows, [{ ex_date: "2026-03-30T00:00:00.000Z", amount: 177 }]);
 });

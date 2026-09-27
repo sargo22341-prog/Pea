@@ -26,7 +26,7 @@ export function SwitchField({
         aria-checked={checked}
         aria-label={label}
         className={`mt-0.5 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${checked ? "bg-mint" : "bg-panel2"}`}
-        onClick={() => onChange(!checked)}
+        onClick={() => { onChange(!checked); }}
         role="switch"
         type="button"
       >

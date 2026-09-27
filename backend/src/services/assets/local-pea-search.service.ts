@@ -3,6 +3,7 @@ import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { requireUserId } from "../auth/user-context.js";
+import { primitiveText } from "../../utils/text.js";
 
 interface RawPeaAsset {
   code?: string | null;
@@ -21,16 +22,16 @@ interface RawPeaAsset {
 interface LocalPeaAsset {
   symbol: string;
   name: string;
-  currency?: string;
-  exchange?: string;
-  quoteType?: string;
+  currency?: string | undefined;
+  exchange?: string | undefined;
+  quoteType?: string | undefined;
   searchText: string;
 }
 
 const maxResults = 20;
 
 function normalize(value: unknown) {
-  return String(value ?? "")
+  return primitiveText(value)
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase()
@@ -38,12 +39,12 @@ function normalize(value: unknown) {
 }
 
 function cleanString(value: unknown) {
-  const text = String(value ?? "").trim();
+  const text = primitiveText(value).trim();
   return text || undefined;
 }
 
 function normalizeInstrumentType(item: RawPeaAsset) {
-  if (item.instrumentType) return String(item.instrumentType).toUpperCase();
+  if (item.instrumentType) return item.instrumentType.toUpperCase();
   if (item.etf === true) return "ETF";
   if (item.etf === false) return "EQUITY";
   return undefined;

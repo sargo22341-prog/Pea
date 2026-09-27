@@ -9,12 +9,12 @@ vi.mock("../../components/charts/SafeResponsiveContainer", () => ({
 vi.mock("recharts", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   const Empty = () => null;
-  const LineChart = ({ children, data }: { children: React.ReactNode; data: Array<{ amount: number }> }) => (
+  const LineChart = ({ children, data }: { children: React.ReactNode; data: { amount: number }[] }) => (
     <div data-testid="line-chart">
       {React.Children.map(children, (child) => (React.isValidElement(child) ? React.cloneElement(child, { chartData: data } as never) : child))}
     </div>
   );
-  const Line = ({ chartData = [], label }: { chartData?: Array<{ amount: number }>; label?: React.ReactNode }) => (
+  const Line = ({ chartData = [], label }: { chartData?: { amount: number }[]; label?: React.ReactNode }) => (
     <>
       {chartData.map((point, index) =>
         React.isValidElement(label)

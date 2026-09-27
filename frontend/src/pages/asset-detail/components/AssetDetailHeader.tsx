@@ -26,7 +26,7 @@ export function AssetDetailHeader({
   watchlisted
 }: {
   displayPrice: number;
-  marketUnavailable?: boolean;
+  marketUnavailable?: boolean | undefined;
   onAdd: () => void;
   onEdit: () => void;
   onToggleWatchlist: () => void;
@@ -35,7 +35,7 @@ export function AssetDetailHeader({
   quote: Quote;
   rangeChange: number;
   rangeChangePercent: number;
-  stale?: boolean;
+  stale?: boolean | undefined;
   watchlisted: boolean;
 }) {
   const { t } = useTranslation(["asset", "common"]);

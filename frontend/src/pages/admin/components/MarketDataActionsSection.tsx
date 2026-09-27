@@ -1,4 +1,5 @@
 import type { DataConstructionJobDto } from "@pea/shared";
+import type { TFunction } from "i18next";
 import { AlertTriangle, Database, Info, RefreshCcw, X, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
@@ -39,7 +40,7 @@ const annexActions: QuickAction[] = [
   { key: "cleanup-unlinked-assets", translationKey: "cleanupUnlinked", icon: Database, run: api.cleanupUnlinkedMarketAssets }
 ];
 
-function actionText(t: (key: string, options?: Record<string, unknown>) => string, action: QuickAction, suffix = "") {
+function actionText(t: TFunction, action: QuickAction, suffix = "") {
   return t(`admin.actionsPanel.${action.translationKey}${suffix}`, { ns: "common" });
 }
 
@@ -74,7 +75,7 @@ export function MarketDataActionsSection({ open, onToggle }: { open?: boolean; o
       {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}
       <ActionGroup actions={rebuildActions} onRun={requestAction} running={running} title={t("admin.actionsPanel.rebuildGroup", { ns: "common" })} />
       <ActionGroup actions={annexActions} onRun={requestAction} running={running} title={t("admin.actionsPanel.annexGroup", { ns: "common" })} />
-      {pendingAction && <ConfirmActionDialog action={pendingAction} onCancel={() => setPendingAction(null)} onConfirm={() => void runAction(pendingAction)} />}
+      {pendingAction && <ConfirmActionDialog action={pendingAction} onCancel={() => { setPendingAction(null); }} onConfirm={() => void runAction(pendingAction)} />}
     </Collapsible>
   );
 }
@@ -86,7 +87,7 @@ function ActionGroup({ actions, onRun, running, title }: { actions: QuickAction[
       <h3 className="mb-3 text-sm font-semibold text-slate-300">{title}</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         {actions.map((action) => (
-          <ActionButton icon={action.icon} info={actionText(t, action, "Info")} key={action.key} label={actionText(t, action)} loading={running === action.key} onClick={() => onRun(action)} />
+          <ActionButton icon={action.icon} info={actionText(t, action, "Info")} key={action.key} label={actionText(t, action)} loading={running === action.key} onClick={() => { onRun(action); }} />
         ))}
       </div>
     </section>
@@ -130,7 +131,7 @@ function InfoTooltip({ info, label }: { info: string; label: string }) {
 
   return (
     <div className="group relative shrink-0" ref={wrapperRef}>
-      <button aria-describedby={tooltipId} aria-expanded={open} aria-label={t("admin.actionsPanel.info", { label, ns: "common" })} className="btn-ghost px-2" onClick={() => setOpen((current) => !current)} onFocus={() => setOpen(true)} type="button">
+      <button aria-describedby={tooltipId} aria-expanded={open} aria-label={t("admin.actionsPanel.info", { label, ns: "common" })} className="btn-ghost px-2" onClick={() => { setOpen((current) => !current); }} onFocus={() => { setOpen(true); }} type="button">
         <Info size={16} />
       </button>
       <div className={`pointer-events-none absolute bottom-full right-0 z-30 mb-2 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-line bg-ink px-3 py-2 text-left text-xs font-medium leading-5 text-slate-200 shadow-glow transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 ${open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"}`} id={tooltipId} role="tooltip">
@@ -152,12 +153,12 @@ function ConfirmActionDialog({ action, onCancel, onConfirm }: { action: QuickAct
       if (event.key === "Escape") onCancel();
     }
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    return () => { window.removeEventListener("keydown", closeOnEscape); };
   }, [onCancel]);
 
   return createPortal(
     <div className={`fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`} onClick={onCancel} role="presentation">
-      <div aria-describedby="quick-action-confirm-description" aria-labelledby="quick-action-confirm-title" aria-modal="true" className={`w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur ${MOTION.dialog}`} onClick={(event) => event.stopPropagation()} role="dialog">
+      <div aria-describedby="quick-action-confirm-description" aria-labelledby="quick-action-confirm-title" aria-modal="true" className={`w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur ${MOTION.dialog}`} onClick={(event) => { event.stopPropagation(); }} role="dialog">
         <div className="flex items-start gap-3 border-b border-line p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-amber/40 bg-amber/10 text-amber">
             <AlertTriangle size={20} />

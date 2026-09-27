@@ -1,5 +1,6 @@
 import type { YahooUsageCallDto } from "@pea/shared";
 import { db } from "../../db.js";
+import { parseJsonStringArray } from "../../utils/json.js";
 import type { CountRow, YahooUsageStatsQuery } from "./yahoo-usage.repository.js";
 
 export function normalizeSymbol(value: string) {
@@ -11,15 +12,7 @@ export function shortError(value?: string) {
   return value.replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
-export function parseJsonArray(value: unknown): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(String(value));
-    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
+
 
 export function buildWhere(query: YahooUsageStatsQuery) {
   const clauses: string[] = [];
@@ -70,10 +63,10 @@ export function countRows(sql: string, params: unknown[]) {
 }
 
 export function moduleCounts(whereSql: string, params: unknown[]) {
-  const rows = db.prepare(`SELECT modules_json FROM yahoo_usage_logs ${whereSql}`).all(...params) as Array<{ modules_json?: string | null }>;
+  const rows = db.prepare(`SELECT modules_json FROM yahoo_usage_logs ${whereSql}`).all(...params) as { modules_json?: string | null }[];
   const counts = new Map<string, number>();
   for (const row of rows) {
-    for (const moduleName of parseJsonArray(row.modules_json)) {
+    for (const moduleName of parseJsonStringArray(row.modules_json)) {
       counts.set(moduleName, (counts.get(moduleName) ?? 0) + 1);
     }
   }
@@ -84,11 +77,11 @@ export function moduleCounts(whereSql: string, params: unknown[]) {
 }
 
 export function tickerCounts(whereSql: string, params: unknown[]) {
-  const rows = db.prepare(`SELECT ticker, tickers_json FROM yahoo_usage_logs ${whereSql}`).all(...params) as Array<{ ticker?: string | null; tickers_json?: string | null }>;
+  const rows = db.prepare(`SELECT ticker, tickers_json FROM yahoo_usage_logs ${whereSql}`).all(...params) as { ticker?: string | null; tickers_json?: string | null }[];
   const counts = new Map<string, number>();
   for (const row of rows) {
-    const tickers = parseJsonArray(row.tickers_json);
-    if (!tickers.length && row.ticker) tickers.push(String(row.ticker));
+    const tickers = parseJsonStringArray(row.tickers_json);
+    if (!tickers.length && row.ticker) tickers.push(row.ticker);
     for (const ticker of tickers) {
       counts.set(ticker, (counts.get(ticker) ?? 0) + 1);
     }
@@ -125,13 +118,13 @@ export function mapCallRow(row: {
     createdAt: row.created_at,
     method: row.method,
     ticker: row.ticker ?? undefined,
-    tickers: parseJsonArray(row.tickers_json),
-    tickerCount: Number(row.ticker_count ?? 0),
-    modules: parseJsonArray(row.modules_json),
+    tickers: parseJsonStringArray(row.tickers_json),
+    tickerCount: row.ticker_count,
+    modules: parseJsonStringArray(row.modules_json),
     success: Boolean(row.success),
     errorMessage: row.error_message ?? undefined,
     internalSource: row.internal_source ?? undefined,
-    durationMs: Number(row.duration_ms),
+    durationMs: row.duration_ms,
     range: row.range ?? undefined,
     interval: row.interval ?? undefined,
     cacheHit: Boolean(row.cache_hit),

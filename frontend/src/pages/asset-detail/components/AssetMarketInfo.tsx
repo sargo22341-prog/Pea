@@ -31,7 +31,7 @@ export function AssetMarketInfo({
       <AssetInfoTile icon={<BadgeEuro size={18} />} iconTone="green" label={t("market.lastPrice", { ns: "asset" })} value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label={t("market.dayChange", { ns: "asset" })} tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<Landmark size={18} />} iconTone="slate" label={t("market.exchange", { ns: "asset" })} value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
-      <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label={t("market.currency", { ns: "asset" })} value={info.currency ?? quote.currency ?? "n/a"} variant="market" />
+      <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label={t("market.currency", { ns: "asset" })} value={info.currency ?? quote.currency} variant="market" />
       <AssetInfoTile icon={<BarChart3 size={18} />} iconTone="sky" label={t("market.volume", { ns: "asset" })} value={formatMaybeInteger(info.regularMarketVolume)} variant="market" />
       <div className="col-span-2 xl:col-span-2">
         <AssetInfoTile
@@ -68,8 +68,8 @@ function Range52Slider({
   currentPrice,
   currency
 }: {
-  low52?: number;
-  high52?: number;
+  low52?: number | undefined;
+  high52?: number | undefined;
   currentPrice?: number;
   currency: string;
 }) {

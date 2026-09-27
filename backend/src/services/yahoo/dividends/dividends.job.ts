@@ -27,18 +27,17 @@ export async function fetchDividends(symbol: string, quoteReader: QuoteReader): 
 
       const quote = await quoteReader(key);
       const dividends: DividendEvent[] = rows
-        .filter((row) => row.date != null && row.amount)
-        .map((row) => ({
+        .flatMap((row) => (row.date != null && row.amount ? [{
           symbol: key,
-          date: new Date(row.date!).toISOString(),
+          date: new Date(row.date).toISOString(),
           amount: Number(row.amount),
           currency: quote.data.currency,
           status: "real" as const
-        }));
+        }] : []));
       return dividends;
     },
     () => readCache<DividendEvent[]>("cached_dividends", key, DIVIDENDS_FRESH_TTL_S, DIVIDENDS_STALE_REJECT_S),
-    (data) => writeCache("cached_dividends", key, data)
+    (data) => { writeCache("cached_dividends", key, data); }
   );
 
   return { data: markStaleList(result.data, result.stale), stale: result.stale };

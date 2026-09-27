@@ -1,7 +1,8 @@
 import { App as NativeApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
+import { NavigationType, useLocation, useNavigate, useNavigationType } from "react-router-dom";
+import { cancelFrame, requestFrame } from "../../lib/animation-frame";
 import { isNativeApp } from "../../lib/native-auth";
 
 function isRootPath(pathname: string) {
@@ -48,11 +49,11 @@ function useAndroidBackNavigation() {
       }
 
       if (event.canGoBack) {
-        navigate(-1);
+        void navigate(-1);
         return;
       }
 
-      navigate("/", { replace: true });
+      void navigate("/", { replace: true });
     }).then((listener) => {
       if (active) {
         handle = listener;
@@ -73,14 +74,13 @@ function useScrollToTopOnPushNavigation() {
   const navigationType = useNavigationType();
 
   useLayoutEffect(() => {
-    if (navigationType !== "PUSH") return;
+    if (navigationType !== NavigationType.Push) return;
 
     const restoreScroll = () => {
       window.scrollTo({ left: 0, top: 0, behavior: "auto" });
       document.scrollingElement?.scrollTo({ left: 0, top: 0, behavior: "auto" });
     };
-    const requestFrame = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
-    const cancelFrame = window.cancelAnimationFrame ?? ((handle: number) => window.clearTimeout(handle));
+
     let frameHandle: number | undefined;
 
     restoreScroll();

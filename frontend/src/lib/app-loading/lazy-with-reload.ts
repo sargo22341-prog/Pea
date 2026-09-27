@@ -1,4 +1,5 @@
-import { lazy, type ComponentType } from "react";
+import { lazy } from "react";
+import { reloadPage } from "./page-reload";
 
 const RELOAD_KEY = "pea:chunk-reload-at";
 const RELOAD_COOLDOWN_MS = 10_000;
@@ -16,7 +17,7 @@ function reloadOnceForStaleChunk(): boolean {
   } catch {
     return false;
   }
-  window.location.reload();
+  reloadPage();
   return true;
 }
 
@@ -36,7 +37,10 @@ async function importWithRetry<T>(factory: () => Promise<T>): Promise<T> {
   return factory();
 }
 
-export function lazyWithReload<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+/** Type de composant accepte par React.lazy (repris de sa propre signature). */
+type LazyComponent = Awaited<ReturnType<Parameters<typeof lazy>[0]>>["default"];
+
+export function lazyWithReload<T extends LazyComponent>(factory: () => Promise<{ default: T }>) {
   return lazy(() =>
     importWithRetry(factory).catch((error: unknown) => {
       // Promesse jamais resolue pendant le rechargement : evite un flash d'erreur.

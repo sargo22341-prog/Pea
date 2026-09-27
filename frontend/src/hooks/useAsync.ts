@@ -24,37 +24,48 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeReloadKey, setActiveReloadKey] = useState(reloadKey);
   const loaderRef = useLatestRef(loader);
   const requestIdRef = useRef(0);
   const hasDataRef = useRef(false);
 
-  const load = useCallback(async (signal: AbortSignal | undefined, background: boolean) => {
+  // Changement de `reloadKey` : l'etat de chargement est ajuste pendant le rendu, pas dans l'effet,
+  // pour eviter un rendu en cascade (seules des mises a jour asynchrones partent de l'effet).
+  if (!Object.is(activeReloadKey, reloadKey)) {
+    setActiveReloadKey(reloadKey);
+    setLoading(true);
+    setError(null);
+  }
+
+  const fetchData = useCallback(async (signal: AbortSignal | undefined) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
-    if (!background) setLoading(true);
-    setError(null);
+    const isCurrent = () => !signal?.aborted && requestId === requestIdRef.current;
     try {
       const result = await loaderRef.current(signal);
-      if (!signal?.aborted && requestId === requestIdRef.current) {
+      if (isCurrent()) {
         hasDataRef.current = true;
         setData(result);
+        setError(null);
       }
     } catch (err) {
-      if (!signal?.aborted && requestId === requestIdRef.current) {
-        setError(err instanceof Error ? err.message : i18n.t("errors:unknown"));
-      }
+      if (isCurrent()) setError(err instanceof Error ? err.message : i18n.t("errors:unknown"));
     } finally {
-      if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [loaderRef]);
 
-  const reload = useCallback((signal?: AbortSignal) => load(signal, hasDataRef.current), [load]);
+  const reload = useCallback((signal?: AbortSignal) => {
+    if (!hasDataRef.current) setLoading(true);
+    setError(null);
+    return fetchData(signal);
+  }, [fetchData]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal, false);
-    return () => controller.abort();
-  }, [reloadKey, load]);
+    void fetchData(controller.signal);
+    return () => { controller.abort(); };
+  }, [reloadKey, fetchData]);
 
   return { data, error, loading, reload };
 }

@@ -54,7 +54,7 @@ test("deleting a transaction is rejected when a later sale would exceed the held
         server.close();
       }
     });
-  `);
+  `) as { rejectedStatus: number; rejectedMessage: string; quantityAfterRejection: number; missingStatus: number; acceptedStatus: number; quantityAfterSellDeletion: number };
 
   assert.equal(result.rejectedStatus, 400);
   assert.match(result.rejectedMessage, /suppression rendrait la quantite detenue negative/);

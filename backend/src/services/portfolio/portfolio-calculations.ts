@@ -25,13 +25,13 @@ export interface PositionTransactionCache {
   transactions: TransactionRow[];
 }
 
-type ReplayableTransaction = {
+interface ReplayableTransaction {
   type: string;
   quantity: number | string;
   price: number | string;
   total_fees?: number | string | null;
   traded_at?: string;
-};
+}
 
 /**
  * Horodatage d'une transaction. Une date illisible vaut 0 afin que l'ordre reste déterministe.
@@ -94,11 +94,11 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
        WHERE position_id IN (${placeholders})
          AND traded_at IS NOT NULL`
     )
-    .all(...positionIds) as Array<TransactionRow & { id: number; position_id: number }>;
+    .all(...positionIds) as (TransactionRow & { id: number; position_id: number })[];
 
   // Tri sur l'instant réel : l'ordre textuel SQL est faux dès que des dates portent des
   // fuseaux ou formats différents, et les calculs "à un instant" s'arrêtent au premier dépassement.
-  rows.sort((a, b) => transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at) || Number(a.id) - Number(b.id));
+  rows.sort((a, b) => transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at) || a.id - b.id);
 
   for (const row of rows) {
     const entry = cache.get(row.position_id);
@@ -106,9 +106,9 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
     entry.hasDated = true;
     entry.transactions.push({
       type: row.type,
-      quantity: Number(row.quantity),
-      price: Number(row.price),
-      total_fees: row.total_fees == null ? null : Number(row.total_fees),
+      quantity: row.quantity,
+      price: row.price,
+      total_fees: row.total_fees ?? null,
       traded_at: row.traded_at
     });
   }
@@ -227,7 +227,8 @@ export function downsamplePoints<T>(points: T[], maxPoints: number): T[] {
   const result: T[] = [];
   const last = points.length - 1;
   for (let index = 0; index < maxPoints; index += 1) {
-    result.push(points[Math.round((index * last) / (maxPoints - 1))]);
+    const point = points[Math.round((index * last) / (maxPoints - 1))];
+    if (point !== undefined) result.push(point);
   }
   return result;
 }

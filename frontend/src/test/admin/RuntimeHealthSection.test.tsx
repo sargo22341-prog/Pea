@@ -143,7 +143,7 @@ describe("RuntimeHealthSection", () => {
     render(<RuntimeHealthSection />);
     openRuntimeMonitoring();
 
-    await waitFor(() => expect(screen.getAllByText("Planificateur attention").length).toBeGreaterThan(0));
+    await waitFor(() => { expect(screen.getAllByText("Planificateur attention").length).toBeGreaterThan(0); });
     expect(screen.getAllByText("Yahoo ouvert").length).toBeGreaterThan(0);
     expect(screen.getByText("3 taches en erreur")).toBeInTheDocument();
     expect(screen.getByText("Clients SSE proches de la limite")).toBeInTheDocument();
@@ -158,6 +158,6 @@ describe("RuntimeHealthSection", () => {
     await screen.findByText("Planificateur sain");
     fireEvent.click(screen.getByRole("button", { name: /rafraichir/i }));
 
-    await waitFor(() => expect(api.getRuntimeHealth).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(api.getRuntimeHealth).toHaveBeenCalledTimes(2); });
   });
 });

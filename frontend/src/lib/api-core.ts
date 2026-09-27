@@ -39,9 +39,9 @@ function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   // L'écouteur est retiré dès que la requête partagée se termine : sinon un signal longue durée
   // conserverait un écouteur (et sa closure) par requête effectuée.
   return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(abortError());
+    const onAbort = () => { reject(abortError()); };
     signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+    promise.then(resolve, reject).finally(() => { signal.removeEventListener("abort", onAbort); });
   });
 }
 
@@ -80,7 +80,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetchWithRetry(url, {
       ...init,
-      headers,
+      ...(headers ? { headers } : {}),
       credentials: "include"
     }, init?.signal ?? undefined);
   } catch (error) {
@@ -119,7 +119,7 @@ export async function requestBlob(path: string, init?: RequestInit): Promise<Blo
   try {
     response = await fetchWithRetry(url, {
       ...init,
-      headers,
+      ...(headers ? { headers } : {}),
       credentials: "include"
     }, init?.signal ?? undefined);
   } catch (error) {
@@ -183,7 +183,7 @@ export function describeNetworkError(error: unknown) {
 function createNetworkApiError(error: unknown, url: string) {
   const details = describeNetworkError(error);
   const causeMessage = "causeMessage" in details ? details.causeMessage : "";
-  const text = `${details.message ?? ""} ${causeMessage}`;
+  const text = `${details.message} ${causeMessage}`;
   const isTimeout = details.name === "AbortError" || /timeout|timed out|aborted/i.test(text);
   const isSsl = /ssl|cert|certificate|trust|authority|handshake|ERR_CERT/i.test(text);
   const parsed = getNetworkTargetDetails(url);
@@ -214,7 +214,7 @@ function getNetworkTargetDetails(url: string) {
 
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = defaultRequestTimeoutMs) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(new DOMException("Timeout reseau", "AbortError")), timeoutMs);
+  const timeout = window.setTimeout(() => { controller.abort(new DOMException("Timeout reseau", "AbortError")); }, timeoutMs);
   const signal = init.signal;
 
   if (signal?.aborted) {
@@ -222,7 +222,7 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, time
     throw abortError();
   }
 
-  const abort = () => controller.abort(signal?.reason ?? abortError());
+  const abort = () => { controller.abort(signal?.reason ?? abortError()); };
   signal?.addEventListener("abort", abort, { once: true });
 
   try {
@@ -237,25 +237,26 @@ async function fetchWithRetry(url: string, init: RequestInit = {}, externalSigna
   const canRetry = isRetryableRequest(init);
   let lastError: unknown;
 
-  for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+  // Chaque tentative porte le delai avant la suivante ; la derniere n'en a pas.
+  for (const retryDelayMs of [...retryDelaysMs, undefined]) {
     if (externalSignal?.aborted) throw abortError();
     try {
       const response = await fetchWithTimeout(url, init);
-      if (!canRetry || !retryableStatusCodes.has(response.status) || attempt === retryDelaysMs.length) {
+      if (!canRetry || !retryableStatusCodes.has(response.status) || retryDelayMs === undefined) {
         return response;
       }
     } catch (error) {
       lastError = error;
-      if (!canRetry || externalSignal?.aborted || attempt === retryDelaysMs.length) throw error;
+      if (!canRetry || externalSignal?.aborted || retryDelayMs === undefined) throw error;
     }
-    await delay(retryDelaysMs[attempt], externalSignal);
+    await delay(retryDelayMs, externalSignal);
   }
 
   throw lastError instanceof Error ? lastError : new Error("Requete echouee apres retry.");
 }
 
 function isRetryableRequest(init: RequestInit = {}) {
-  const method = String(init.method ?? "GET").toUpperCase();
+  const method = (init.method ?? "GET").toUpperCase();
   return method === "GET" || method === "HEAD";
 }
 
@@ -274,7 +275,7 @@ function delay(ms: number, signal?: AbortSignal) {
   });
 }
 
-export async function requestHeaders(init?: RequestInit): Promise<HeadersInit | undefined> {
+export async function requestHeaders(init?: RequestInit): Promise<Headers | undefined> {
   const headers = new Headers(init?.headers);
   let hasHeaders = Boolean(init?.headers);
 

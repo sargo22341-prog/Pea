@@ -19,7 +19,7 @@ export function ObjectiveProjectionChart({
 }: {
   mode: ObjectiveSimulationMode;
   projection: ObjectiveProjection;
-  successProbability?: number;
+  successProbability?: number | undefined;
 }) {
   const { t } = useTranslation("objectives");
   const [range, setRange] = useState<ObjectiveChartRange>("all");
@@ -48,7 +48,7 @@ export function ObjectiveProjectionChart({
             <button
               className={`rounded px-3 py-1 font-semibold ${range === item ? "bg-sky text-slate-950" : "text-slate-300"}`}
               key={item}
-              onClick={() => setRange(item)}
+              onClick={() => { setRange(item); }}
               type="button"
             >
               {t(`chart.ranges.${item}`)}

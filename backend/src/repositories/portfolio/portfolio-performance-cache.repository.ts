@@ -49,8 +49,8 @@ export class PortfolioPerformanceCacheRepository {
       payload: JSON.parse(row.payload) as PositionRangePerformance[],
       portfolioVersion: row.portfolio_version,
       marketDataVersion: row.market_data_version,
-      cachedAt: Number(row.cached_at),
-      expiresAt: Number(row.expires_at)
+      cachedAt: row.cached_at,
+      expiresAt: row.expires_at
     };
   }
 
@@ -102,7 +102,7 @@ export class PortfolioPerformanceCacheRepository {
   }
 
   assetRows(symbols: string[]) {
-    return db.prepare(`SELECT id, symbol FROM assets WHERE symbol IN (${placeholders(symbols)})`).all(...symbols) as Array<{ id: number; symbol: string }>;
+    return db.prepare(`SELECT id, symbol FROM assets WHERE symbol IN (${placeholders(symbols)})`).all(...symbols) as { id: number; symbol: string }[];
   }
 
   snapshotStats(assetIds: number[]) {

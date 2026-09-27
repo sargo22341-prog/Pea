@@ -1,8 +1,9 @@
 import type { RuntimeHealthDto } from "@pea/shared";
+import type { TFunction } from "i18next";
 
 
 export type BadgeTone = "ok" | "warning" | "error" | "neutral";
-export type RuntimeT = (key: string, options?: Record<string, unknown>) => string;
+export type RuntimeT = TFunction;
 
 export function formatNumber(value?: number) {
   return new Intl.NumberFormat("fr-FR").format(value ?? 0);
@@ -22,7 +23,7 @@ export function formatDateTime(value?: string | null) {
 }
 
 export function formatDuration(value?: number) {
-  if (value === undefined || value === null) return "-";
+  if (value === undefined) return "-";
   if (value < 1_000) return `${Math.round(value)} ms`;
   if (value < 60_000) return `${Math.round(value / 100) / 10} s`;
   return `${Math.round(value / 60_000)} min`;
@@ -75,7 +76,7 @@ export function queueTypeLabel(t: RuntimeT, type: string) {
 
 export function warningBadges(data: RuntimeHealthDto | null, t: RuntimeT) {
   if (!data) return [];
-  const badges: Array<{ label: string; tone: BadgeTone }> = [];
+  const badges: { label: string; tone: BadgeTone }[] = [];
   if (data.scheduler.status !== "healthy") badges.push({ label: t("admin.runtime.schedulerWarning", { ns: "common", status: schedulerStatusLabel(t, data.scheduler.status) }), tone: schedulerTone(data.scheduler.status) });
   if (data.yahoo.circuitBreaker.state !== "closed") badges.push({ label: t("admin.runtime.yahooWarning", { ns: "common", status: yahooCircuitLabel(t, data.yahoo.circuitBreaker.state) }), tone: yahooTone(data.yahoo.circuitBreaker.state) });
   if (data.queue.failed > 0) badges.push({ label: t("admin.runtime.tasksFailed", { count: data.queue.failed, ns: "common" }), tone: failedQueueTone(data.queue.failed) });

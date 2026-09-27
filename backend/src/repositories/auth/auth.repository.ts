@@ -37,7 +37,7 @@ export class AuthRepository {
 
   userCount() {
     const row = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
-    return Number(row.count);
+    return row.count;
   }
 
   listUsers(): AuthUserRow[] {
@@ -181,7 +181,7 @@ export class AuthRepository {
            UNION
            SELECT symbol FROM watchlist WHERE user_id = ?`
         )
-        .all(userId, userId) as Array<{ symbol: string }>;
+        .all(userId, userId) as { symbol: string }[];
 
       const deleted = {
         userSessions: db.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(userId),
@@ -195,7 +195,7 @@ export class AuthRepository {
       };
 
       const orphanAssets = marketDataConstructionRepository.unlinkedAssets()
-        .filter((row) => symbolsBeforeDelete.some((symbolRow) => String(symbolRow.symbol).toUpperCase() === String(row.symbol).toUpperCase()));
+        .filter((row) => symbolsBeforeDelete.some((symbolRow) => symbolRow.symbol.toUpperCase() === row.symbol.toUpperCase()));
       const orphanAssetCleanup = marketDataConstructionRepository.cleanupUnlinkedAssets(orphanAssets);
 
       return { user, deleted, orphanAssetCleanup };

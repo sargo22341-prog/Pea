@@ -1,12 +1,12 @@
 import type { AppLanguage, DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
 import { i18n } from "../../../i18n";
 
-export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Promise<void> }) {
+export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => Promise<void>) | undefined }) {
   const { t } = useTranslation(["settings"]);
   const me = useAsync(() => api.me());
   const [sortValue, setSortValue] = useState("name:asc");
@@ -20,19 +20,22 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: () => Pr
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
-  useEffect(() => {
-    const user = me.data?.user;
-    if (!user) return;
+  // Profil charge ou recharge : les champs du formulaire sont recopies pendant le rendu.
+  const loadedUser = me.data?.user;
+  const [syncedUser, setSyncedUser] = useState<typeof loadedUser>(undefined);
+  if (loadedUser && loadedUser !== syncedUser) {
+    const user = loadedUser;
+    setSyncedUser(user);
     setSortValue(`${user.dashboardDefaultSortKey}:${user.dashboardDefaultSortDirection}`);
     setWatchlistSortValue(`${user.watchlistDefaultSortKey}:${user.watchlistDefaultSortDirection}`);
     setRange(user.defaultChartRange);
-    setProjectionEndAge(user.projectionEndAge ?? 90);
+    setProjectionEndAge(user.projectionEndAge);
     setLocalPeaSearchEnabled(user.localPeaSearchEnabled);
     setAssetNewsEnabled(user.assetNewsEnabled);
-    setNewsLanguages(user.newsLanguages?.length ? user.newsLanguages : ["fr"]);
-    setLanguage(user.language ?? "fr");
+    setNewsLanguages(user.newsLanguages.length ? user.newsLanguages : ["fr"]);
+    setLanguage(user.language);
     setPrivacyModeEnabled(user.privacyModeEnabled);
-  }, [me.data?.user]);
+  }
 
   function toggleNewsLanguage(language: NewsLanguage) {
     setNewsLanguages((current) => {

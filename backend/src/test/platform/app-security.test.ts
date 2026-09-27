@@ -56,7 +56,7 @@ test("technical second user cannot read another user's portfolio transactions", 
         server.close();
       }
     });
-  `);
+  `) as { bobTransactionsStatus: number; bobTransactionsBody: unknown[]; bobWatchlistBody: unknown[] };
 
   assert.equal(result.bobTransactionsStatus, 200);
   assert.deepEqual(result.bobTransactionsBody, []);
@@ -80,7 +80,7 @@ test("mutating API requests reject foreign origins", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number };
 
   assert.equal(result.status, 403);
 });
@@ -102,7 +102,7 @@ test("production mutating requests accept configured public URL", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.nas.meme", TRUST_PROXY: "true" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.nas.meme", TRUST_PROXY: "true" } }) as { status: number; body: { username: string } };
 
   assert.equal(result.status, 201);
   assert.equal(result.body.username, "alice");
@@ -123,7 +123,7 @@ test("production CSP does not upgrade assets when public URL is HTTP", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "http://192.168.0.44:4000", TRUST_PROXY: "false" } }) as { csp: string };
 
   assert.ok(!result.csp.includes("upgrade-insecure-requests"));
 });
@@ -143,7 +143,7 @@ test("production CSP upgrades assets when public URL is HTTPS", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "https://pea.example.com", TRUST_PROXY: "true" } }) as { csp: string };
 
   assert.ok(result.csp.includes("upgrade-insecure-requests"));
 });
@@ -166,7 +166,7 @@ test("production mutating requests accept local host origin when public URL is e
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { PUBLIC_URL: "", TRUST_PROXY: "false" } });
+  `, { nodeEnv: "production", env: { PUBLIC_URL: "", TRUST_PROXY: "false" } }) as { status: number; body: { username: string } };
 
   assert.equal(result.status, 201);
   assert.equal(result.body.username, "alice");

@@ -33,7 +33,7 @@ test("portfolio 1d position performance uses local market snapshot before chart 
     });
     const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
     console.log("__RESULT__" + JSON.stringify(output[0]));
-  `);
+  `) as { currentPrice: number; intervalPerformanceValue: number; intervalPerformancePercent: number };
 
   assert.equal(result.currentPrice, 103);
   assert.equal(result.intervalPerformanceValue, 3);
@@ -85,12 +85,12 @@ test("portfolio positions performance cache is isolated by user and emits SSE af
     await new Promise((resolve) => setTimeout(resolve, 40));
     const refreshed = await runWithUser(1, async () => portfolioService.positionsPerformance("1d"));
     console.log("__RESULT__" + JSON.stringify({ firstUser, secondUser, staleServed, refreshed, events, chartCalls }));
-  `);
+  `) as { firstUser: { quantity: number; currentPrice: number }[]; secondUser: { quantity: number }[]; staleServed: { currentPrice: number }[]; refreshed: { currentPrice: number }[]; events: { userId: string; event: string; payload: { range: string; startedAt?: string | undefined; updatedAt?: string | undefined } }[]; chartCalls: number };
 
-  assert.equal(result.firstUser[0].quantity, 1);
-  assert.equal(result.secondUser[0].quantity, 3);
-  assert.equal(result.staleServed[0].currentPrice, result.firstUser[0].currentPrice);
-  assert.notEqual(result.refreshed[0].currentPrice, result.firstUser[0].currentPrice);
+  assert.equal(result.firstUser[0]?.quantity, 1);
+  assert.equal(result.secondUser[0]?.quantity, 3);
+  assert.equal(result.staleServed[0]?.currentPrice, result.firstUser[0].currentPrice);
+  assert.notEqual(result.refreshed[0]?.currentPrice, result.firstUser[0].currentPrice);
   assert.ok(result.events.some((entry: { event: string; userId: string }) => entry.userId === "1" && entry.event === "portfolio-performance-refresh-started"));
   assert.ok(result.events.some((entry: { event: string; userId: string }) => entry.userId === "1" && entry.event === "portfolio-performance-updated"));
   assert.equal(result.chartCalls, 3);
@@ -126,7 +126,7 @@ test("portfolio full reuses chart data once per symbol during a closed-market ca
     marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 110, previousClose: 100, change: 10, changePercent: 10, currency: "EUR", marketState: "POSTPOST" });
     const output = await runWithUser(1, async () => portfolioService.full("1d", 1));
     console.log("__RESULT__" + JSON.stringify({ chartCalls, points: output.chart.timestamps.length, baselinePrice: output.chart.baselinePrice }));
-  `);
+  `) as { chartCalls: number; points: number; baselinePrice: number };
 
   assert.equal(result.chartCalls, 1);
   assert.equal(result.points, 2);
@@ -174,7 +174,7 @@ test("portfolio 1d summary and chart caches stay warm after every portfolio asse
       chartCachedAt: chart.cached_at,
       positionsPerformanceCachedAt: positionsPerformance.cached_at
     }));
-  `);
+  `) as { summaryTtl: number; chartTtl: number; positionsPerformanceTtl: number };
 
   assert.ok(result.summaryTtl > 48 * 60 * 60 * 1000);
   assert.ok(result.chartTtl > 48 * 60 * 60 * 1000);

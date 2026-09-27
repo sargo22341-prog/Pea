@@ -78,7 +78,7 @@ function sumPerShare(events: DividendOverviewEvent[]) {
 }
 
 function latestKnownQuantity(events: DividendOverviewEvent[]) {
-  const latest = events.reduce((current, event) => (event.date.localeCompare(current.date) > 0 ? event : current), events[0]);
+  const latest = events.reduce<DividendOverviewEvent | undefined>((current, event) => (!current || event.date.localeCompare(current.date) > 0 ? event : current), undefined);
   return safeNumber(latest?.quantity);
 }
 

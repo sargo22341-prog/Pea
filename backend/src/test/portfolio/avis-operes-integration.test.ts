@@ -10,6 +10,7 @@ function readFixture(name: string) {
 
 test("PDF 1 – DANONE old format with TTF fees: isin, qty, price, fees, date, no warnings", () => {
   const [op] = parseAvisOperesText(readFixture("avis-operes.sample.txt"), "avis-operes.sample.txt");
+  assert.ok(op);
 
   assert.equal(op.sensOperation, "achat");
   assert.equal(op.isin, "FR0000120644");
@@ -32,6 +33,7 @@ test("PDF 2 – STMICROELECTRONICS old format with empty frais column: isin, qty
     readFixture("avis-operes.sample-2.txt"),
     "avis-operes.sample-2.txt"
   );
+  assert.ok(op);
 
   assert.equal(op.sensOperation, "achat");
   assert.equal(op.isin, "NL0000226223");
@@ -54,6 +56,7 @@ test("PDF 3 – ISHS ETF modern format with all-zero fees: isin, qty, price, fee
     readFixture("avis-operes.sample-3.txt"),
     "avis-operes.sample-3.txt"
   );
+  assert.ok(op);
 
   assert.equal(op.sensOperation, "achat");
   assert.equal(op.isin, "IE0002XZSHO1");

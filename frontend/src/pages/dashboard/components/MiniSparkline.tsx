@@ -8,7 +8,10 @@ export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { 
   const points = miniChart?.points ?? [];
   const colorClass = tone === "positive" ? "text-mint" : tone === "negative" ? "text-coral" : "text-slate-400";
 
-  if (points.length < 2) {
+  const firstPoint = points[0];
+  const lastPoint = points.at(-1);
+
+  if (points.length < 2 || !firstPoint || !lastPoint) {
     return (
       <div className="h-9 w-[84px] sm:w-28" aria-label={t("positionRows.miniGraphUnavailable", { ns: "dashboard" })}>
         <div className="mt-[17px] h-px w-full rounded bg-line/80" />
@@ -19,9 +22,9 @@ export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { 
   const width = 112;
   const height = 36;
   const padding = 3;
-  const sessionDomain = miniChart?.range === "1d" ? miniChartSessionDomain(points[0].t, miniChart.marketSession) : undefined;
-  const minT = sessionDomain?.open ?? points[0].t;
-  const maxT = sessionDomain?.close ?? points[points.length - 1].t;
+  const sessionDomain = miniChart?.range === "1d" ? miniChartSessionDomain(firstPoint.t, miniChart.marketSession) : undefined;
+  const minT = sessionDomain?.open ?? firstPoint.t;
+  const maxT = sessionDomain?.close ?? lastPoint.t;
   const values = points.map((point) => point.v);
   const minV = Math.min(...values);
   const maxV = Math.max(...values);

@@ -6,20 +6,20 @@ export interface PortfolioMarketDataOptions {
   chartDataCache?: Map<string, Promise<AssetChartDto>>;
 }
 
-export type TransactionMutationInput = {
+export interface TransactionMutationInput {
   tradedAt: string;
   type: "buy" | "sell";
   quantity: number;
   price: number;
-  totalFees?: number;
+  totalFees?: number | undefined;
   currency: string;
-};
+}
 
-export type TransactionSequenceRow = {
-  id?: number;
+export interface TransactionSequenceRow {
+  id?: number | undefined;
   type: string;
   quantity: number;
   price: number;
-  total_fees?: number;
+  total_fees?: number | undefined;
   traded_at: string;
-};
+}

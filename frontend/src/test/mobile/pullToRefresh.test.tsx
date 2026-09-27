@@ -4,7 +4,7 @@ import { Capacitor } from "@capacitor/core";
 import { resetPullToRefreshSuspensions, suspendPullToRefresh } from "../../lib/pull-to-refresh";
 import { usePullToRefreshSuspended } from "../../hooks/usePullToRefreshSuspended";
 
-const setEnabled = vi.fn().mockResolvedValue(undefined);
+const setEnabled = vi.fn<(options: { enabled: boolean }) => Promise<void>>().mockResolvedValue(undefined);
 
 vi.mock("@capacitor/core", async () => {
   const actual = await vi.importActual<typeof import("@capacitor/core")>("@capacitor/core");

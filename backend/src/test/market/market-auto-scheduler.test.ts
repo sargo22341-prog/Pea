@@ -22,7 +22,7 @@ test("scheduler groups assets by market and does at most one Yahoo batch call pe
     for (const group of groups.values()) await marketOpenTask.run(group, new Date("2026-05-06T07:05:00.000Z"));
     const runs = db.prepare("SELECT market_key, open_status, open_attempts FROM market_daily_runs ORDER BY market_key").all();
     console.log("__RESULT__" + JSON.stringify({ callCount: calls.length, callSizes: calls.map((c) => c.length).sort((a,b) => a-b), runs }));
-  `);
+  `) as { callCount: number; callSizes: number[]; runs: { market_key: string; open_status: string; open_attempts: number }[] };
 
   assert.equal(result.callCount, 2);
   assert.deepEqual(result.callSizes, [5, 14]);
@@ -46,7 +46,7 @@ test("partial Yahoo response refreshes valid snapshots and marks partial open", 
     const snapshots = db.prepare("SELECT COUNT(*) AS count FROM asset_market_snapshots").get();
     const log = db.prepare("SELECT partial_success, valid_symbols_count, failed_symbols_count FROM market_check_logs").get();
     console.log("__RESULT__" + JSON.stringify({ run, snapshots, log }));
-  `);
+  `) as { run: { open_status: string }; snapshots: { count: number }; log: { partial_success: number; valid_symbols_count: number; failed_symbols_count: number } };
 
   assert.equal(result.run.open_status, "confirmed_open_partial");
   assert.equal(result.snapshots.count, 1);
@@ -72,7 +72,7 @@ test("closed-at-open retry is persisted then becomes holiday_suspected after one
     await marketOpenTask.run(group, new Date("2026-05-06T08:01:00.000Z"));
     const second = db.prepare("SELECT open_status, open_attempts, next_open_check_at FROM market_daily_runs").get();
     console.log("__RESULT__" + JSON.stringify({ calls, first, second }));
-  `);
+  `) as { calls: number; first: { open_status: string; next_open_check_at: string }; second: { open_status: string; next_open_check_at: null } };
 
   assert.equal(result.calls, 1);
   assert.equal(result.first.open_status, "pending");
@@ -97,7 +97,7 @@ test("late server start after close marks missed_open_window instead of holiday_
     const run = db.prepare("SELECT open_status, open_attempts, open_last_checked_at, close_status FROM market_daily_runs").get();
     const logs = db.prepare("SELECT phase, message FROM market_check_logs ORDER BY id").all();
     console.log("__RESULT__" + JSON.stringify({ calls, run, logs }));
-  `);
+  `) as { calls: number; run: { open_status: string; open_attempts: number; open_last_checked_at: null; close_status: string }; logs: { phase: string; message: string }[] };
 
   assert.equal(result.calls, 1, "seule la cloture doit appeler Yahoo au demarrage tardif apres close");
   assert.equal(result.run.open_status, "missed_open_window");
@@ -122,7 +122,7 @@ test("weekend is skipped without Yahoo calls", () => {
     await marketOpenTask.run(group, new Date("2026-05-09T08:00:00.000Z"));
     const run = db.prepare("SELECT open_status, close_status FROM market_daily_runs").get();
     console.log("__RESULT__" + JSON.stringify({ calls, run }));
-  `);
+  `) as { calls: number; run: { open_status: string; close_status: string } };
 
   assert.equal(result.calls, 0);
   assert.equal(result.run.open_status, "skipped_weekend");
@@ -151,7 +151,7 @@ test("close confirmation refreshes snapshots before one unique post-close finali
     const snapshots = db.prepare("SELECT COUNT(*) AS count FROM asset_market_snapshots").get();
     const logs = db.prepare("SELECT COUNT(*) AS count FROM market_check_logs WHERE phase = 'close'").get();
     console.log("__RESULT__" + JSON.stringify({ calls, run, snapshots, logs, tasks }));
-  `);
+  `) as { calls: number; run: { close_status: string; close_job_id: string }; tasks: { task_key: string; market_key: string; trading_date: string; phase: string }[]; snapshots: { count: number }; logs: { count: number } };
 
   assert.equal(result.calls, 1);
   assert.equal(result.run.close_status, "confirmed_closed");

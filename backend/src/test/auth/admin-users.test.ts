@@ -25,13 +25,15 @@ test("bootstrap admin can list users", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { id: number; username: string; role: string; createdAt: string; isProtectedAdmin: boolean }[]; bootstrapAdmin: number };
 
   assert.equal(result.status, 200);
   assert.equal(result.body.length, 1);
-  assert.equal(result.body[0].username, "alice");
+  assert.equal(result.body[0]?.username, "alice");
   assert.equal(result.body[0].role, "admin");
-  assert.equal(result.body[0].password_hash, undefined);
+  const [listedUser] = result.body;
+  assert.ok(listedUser);
+  assert.equal(Object.hasOwn(listedUser, "password_hash"), false);
   assert.equal(result.body[0].isProtectedAdmin, true);
   assert.equal(result.bootstrapAdmin, 1);
 });
@@ -62,7 +64,7 @@ test("admin can create a standard user", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { username: string; role: string }; users: { id: number; username: string; role: string; createdAt: string; isProtectedAdmin: boolean }[] };
 
   assert.equal(result.status, 201);
   assert.equal(result.body.username, "bob");
@@ -97,7 +99,7 @@ test("admin user creation ignores requested admin role", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { role: string }; storedRole: string };
 
   assert.equal(result.status, 201);
   assert.equal(result.body.role, "user");
@@ -132,7 +134,7 @@ test("admin can delete a standard user", () => {
         server.close();
       }
     });
-  `);
+  `) as { deleteStatus: number; users: { id: number; username: string; role: string; createdAt: string; isProtectedAdmin: boolean }[] };
 
   assert.equal(result.deleteStatus, 204);
   assert.deepEqual(result.users.map((user: { username: string }) => user.username), ["alice"]);
@@ -244,7 +246,7 @@ test("deleting a standard user removes private data and only orphan global asset
         if (fs.existsSync(profileIconPath)) fs.unlinkSync(profileIconPath);
       }
     });
-  `);
+  `) as { deleteStatus: number; bobMeStatus: number; profileIconExists: boolean; bobUsers: number; bobSessions: number; bobPositions: number; bobTransactions: number; bobWatchlist: number; bobUserAssets: number; bobChartCache: number; bobPerfCache: number; bobFrontendCache: number; charlieUsers: number; charliePositions: number; charlieWatchlist: number; charlieUserAssets: number; charlieChartCache: number; bobOnlyAsset: number; bobWatchAsset: number; sharedAsset: number; charlieAsset: number };
 
   assert.equal(result.deleteStatus, 204);
   assert.equal(result.bobMeStatus, 200);

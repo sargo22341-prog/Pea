@@ -30,7 +30,7 @@ export function AssetIconsSettingsSection({ open, onToggle }: { open?: boolean; 
                   <input
                     accept="image/png,image/jpeg"
                     className="hidden"
-                    onChange={(event) => settings.selectFile(item.symbol, event.target.files?.[0])}
+                    onChange={(event) => { settings.selectFile(item.symbol, event.target.files?.[0]); }}
                     ref={(node) => {
                       settings.fileInputs.current[item.symbol] = node;
                     }}

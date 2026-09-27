@@ -35,7 +35,7 @@ export class WatchlistRepository {
     return Boolean(db.prepare("SELECT id FROM watchlist WHERE user_id = ? AND symbol = ?").get(ensureUserId(userId), symbol.toUpperCase()));
   }
 
-  upsert(input: { symbol: string; name: string; exchange?: string | null; currency?: string | null }, userId: number | string) {
+  upsert(input: { symbol: string; name: string; exchange?: string|null | undefined; currency?: string|null | undefined }, userId: number | string) {
     db.prepare(
       `INSERT INTO watchlist (user_id, symbol, name, exchange, currency)
        VALUES (?, ?, ?, ?, ?)
@@ -48,10 +48,10 @@ export class WatchlistRepository {
   }
 
   /** Cross-user : utilisé par le scheduler pour identifier quels utilisateurs notifier. */
-  distinctUserIdsForSymbols(symbols: string[]): Array<string | number> {
+  distinctUserIdsForSymbols(symbols: string[]): (string | number)[] {
     if (!symbols.length) return [];
     const placeholders = symbols.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`).all(...symbols) as Array<{ user_id: string | number }>;
+    const rows = db.prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`).all(...symbols) as { user_id: string | number }[];
     return rows.map((row) => row.user_id);
   }
 

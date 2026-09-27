@@ -20,7 +20,7 @@ import objectivesEn from "./locales/en/objectives.json";
 
 export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives"] as const;
 
-export const languageOptions: Array<{ code: AppLanguage; labelKey: string; flag: string }> = [
+export const languageOptions: { code: AppLanguage; labelKey: string; flag: string }[] = [
   { code: "fr", labelKey: "languages.fr", flag: "🇫🇷" },
   { code: "en", labelKey: "languages.en", flag: "🇬🇧" }
 ];
@@ -69,9 +69,18 @@ const legacyErrorKeys: Record<string, string> = {
   "Requete invalide.": "invalidRequest"
 };
 
+/** Stockage local de la langue ; absent hors navigateur ou si l'acces est refuse (stockage desactive). */
+function languageStorage(): Storage | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 function initialLanguage(): AppLanguage {
-  const storage = typeof window !== "undefined" ? window.localStorage : undefined;
-  const stored = typeof storage?.getItem === "function" ? storage.getItem("pea.language") : undefined;
+  const stored = languageStorage()?.getItem("pea.language");
   if (stored === "fr" || stored === "en") return stored;
   return "fr";
 }
@@ -88,7 +97,7 @@ void i18n.use(initReactI18next).init({
 i18n.on("languageChanged", (language) => {
   if (language === "fr" || language === "en") {
     if (typeof document !== "undefined") document.documentElement.lang = language;
-    if (typeof window.localStorage?.setItem === "function") window.localStorage.setItem("pea.language", language);
+    languageStorage()?.setItem("pea.language", language);
   }
 });
 

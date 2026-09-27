@@ -34,13 +34,13 @@ export function readHistoryCache(
   const row = yahooCacheRepository.readHistory(cacheKey);
 
   if (!row) return null;
-  const ageSeconds = nowSeconds() - Number(row.fetched_at);
+  const ageSeconds = nowSeconds() - row.fetched_at;
   if (staleRejectSeconds !== undefined && ageSeconds > staleRejectSeconds) {
     logger.warn("cache", "stale history cache rejected", { symbol, range, interval, ageSeconds, staleRejectSeconds });
     return null;
   }
-  const stale = range === "1w" ? historyCacheIsStale(symbol, range, Number(row.fetched_at)) : cacheIsStale(symbol, undefined, Number(row.fetched_at), ttlSeconds);
-  return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(String(row.payload)) as HistoryPoint[]), stale };
+  const stale = range === "1w" ? historyCacheIsStale(symbol, range, row.fetched_at) : cacheIsStale(row.fetched_at, ttlSeconds);
+  return { data: sanitizeHistoryPoints(symbol.toUpperCase(), range, JSON.parse(row.payload) as HistoryPoint[]), stale };
 }
 
 /** Lit le cache intraday du jour, avec fallback sur le plus recent si le jour manque. */
@@ -51,30 +51,30 @@ export function readIntradayCache(symbol: string, tradingDay = getCurrentTrading
   if (!row) {
     const fallback = yahooCacheRepository.readIntradayFallback(symbol);
     if (!fallback) return null;
-    const ageSeconds = nowSeconds() - Number(fallback.last_updated_at);
+    const ageSeconds = nowSeconds() - fallback.last_updated_at;
     if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
       logger.warn("cache", "stale intraday fallback rejected", { symbol, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
       return null;
     }
     return {
-      data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(fallback.payload)) as HistoryPoint[]),
+      data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(fallback.payload) as HistoryPoint[]),
       stale: true,
-      tradingDay: String(fallback.trading_day),
-      lastUpdatedAt: Number(fallback.last_updated_at)
+      tradingDay: fallback.trading_day,
+      lastUpdatedAt: fallback.last_updated_at
     };
   }
 
-  const ageSeconds = nowSeconds() - Number(row.last_updated_at);
+  const ageSeconds = nowSeconds() - row.last_updated_at;
   if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
     logger.warn("cache", "stale intraday cache rejected", { symbol, tradingDay, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
     return null;
   }
-  const stale = historyCacheIsStale(symbol, "1d", Number(row.last_updated_at));
+  const stale = historyCacheIsStale(symbol, "1d", row.last_updated_at);
   return {
-    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
+    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(row.payload) as HistoryPoint[]),
     stale,
-    tradingDay: String(row.trading_day),
-    lastUpdatedAt: Number(row.last_updated_at)
+    tradingDay: row.trading_day,
+    lastUpdatedAt: row.last_updated_at
   };
 }
 
@@ -82,16 +82,16 @@ export function readIntradayCache(symbol: string, tradingDay = getCurrentTrading
 export function readLatestIntradayCache(symbol: string): IntradayCacheResult | null {
   const row = yahooCacheRepository.readLatestIntraday(symbol);
   if (!row) return null;
-  const ageSeconds = nowSeconds() - Number(row.last_updated_at);
+  const ageSeconds = nowSeconds() - row.last_updated_at;
   if (ageSeconds > HISTORY_INTRADAY_STALE_REJECT_S) {
     logger.warn("cache", "stale latest intraday rejected", { symbol, ageSeconds, staleRejectSeconds: HISTORY_INTRADAY_STALE_REJECT_S });
     return null;
   }
   return {
-    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(String(row.payload)) as HistoryPoint[]),
+    data: sanitizeHistoryPoints(symbol.toUpperCase(), "1d", JSON.parse(row.payload) as HistoryPoint[]),
     stale: true,
-    tradingDay: String(row.trading_day),
-    lastUpdatedAt: Number(row.last_updated_at)
+    tradingDay: row.trading_day,
+    lastUpdatedAt: row.last_updated_at
   };
 }
 

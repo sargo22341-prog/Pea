@@ -4,7 +4,7 @@ import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../lib/timez
 
 export function withIntradaySessionPlaceholders(points: PriceHistoryChartPoint[], marketSession?: MarketSessionDto) {
   if (!marketSession || points.length === 0) return points;
-  const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
+  const firstTimestamp = points.map((point) => point.date).find(Number.isFinite);
   if (!firstTimestamp) return points;
   const session = marketSessionDomain(new Date(firstTimestamp), marketSession);
   const byDate = new Map(points.map((point) => [point.date, point]));
@@ -13,7 +13,7 @@ export function withIntradaySessionPlaceholders(points: PriceHistoryChartPoint[]
   return [...byDate.values()].sort((a, b) => a.date - b.date);
 }
 
-export function getIntradayDomain(points: PriceHistoryInputPoint[] | Array<{ date: number; value: number | null }>, marketSession?: MarketSessionDto) {
+export function getIntradayDomain(points: PriceHistoryInputPoint[] | { date: number; value: number | null }[], marketSession?: MarketSessionDto) {
   if (!marketSession) return undefined;
   const firstTimestamp = points.map((point) => Number(point.date)).find(Number.isFinite);
   if (!firstTimestamp) return undefined;

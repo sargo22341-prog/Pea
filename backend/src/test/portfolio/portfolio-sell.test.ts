@@ -26,7 +26,7 @@ test("wrong password at login returns 401", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number };
 
   assert.equal(result.status, 401);
 });
@@ -55,7 +55,7 @@ test("accessing protected route without session returns 401", () => {
         server.close();
       }
     });
-  `);
+  `) as { portfolioStatus: number; watchlistStatus: number };
 
   assert.equal(result.portfolioStatus, 401);
   assert.equal(result.watchlistStatus, 401);
@@ -101,7 +101,7 @@ test("sell transaction is accepted when quantity is available", () => {
         server.close();
       }
     });
-  `);
+  `) as { buyStatus: number; sellStatus: number; transactionCount: number };
 
   assert.equal(result.buyStatus, 201);
   assert.equal(result.sellStatus, 201);
@@ -144,7 +144,7 @@ test("sell transaction is rejected when quantity would go negative", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; message: string };
 
   assert.equal(result.status, 400);
   assert.match(result.message, /negative|negatif|quantite/i);
@@ -190,7 +190,7 @@ test("transaction tradedAt invalide est refuse et une date valide est normalisee
         server.close();
       }
     });
-  `);
+  `) as { invalidStatus: number; validStatus: number; tradedAt: string };
 
   assert.equal(result.invalidStatus, 400);
   assert.equal(result.validStatus, 201);
@@ -228,7 +228,7 @@ test("creating a position via POST /portfolio/positions returns 201 with positio
         server.close();
       }
     });
-  `);
+  `) as { status: number; symbol: string; currency: string };
 
   assert.equal(result.status, 201);
   assert.equal(result.symbol, "MC.PA");

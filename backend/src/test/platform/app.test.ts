@@ -28,7 +28,7 @@ test("default chart range keeps all as a valid user preference", () => {
         server.close();
       }
     });
-  `);
+  `) as { updateStatus: number; meBody: { user: { defaultChartRange: string } } };
 
   assert.equal(result.updateStatus, 200);
   assert.equal(result.meBody.user.defaultChartRange, "all");
@@ -59,7 +59,7 @@ test("missing profile icon returns an empty 404 for image tags", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; contentType: null; body: string };
 
   assert.equal(result.status, 404);
   assert.equal(result.contentType, null);
@@ -110,7 +110,7 @@ test("JSON API responses are compressed while the market SSE stream stays uncomp
         server.close();
       }
     });
-  `);
+  `) as { searchStatus: number; resultCount: number; searchEncoding: string; eventsStatus: number; eventsType: string; eventsEncoding: null; eventsBuffering: string };
 
   assert.equal(result.searchStatus, 200);
   assert.ok(result.resultCount >= 5, "local PEA search should return a payload above the compression threshold");
@@ -132,7 +132,7 @@ test("static JSON cache rejects non-whitelisted SQL targets", () => {
       message = error instanceof Error ? error.message : String(error);
     }
     console.log("__RESULT__" + JSON.stringify({ message }));
-  `);
+  `) as { message: string };
 
   assert.match(result.message, /non autorise/);
 });
@@ -148,7 +148,7 @@ test("fresh SQLite schema contains transaction metadata and useful indexes", () 
     const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((row) => row.name);
 
     console.log("__RESULT__" + JSON.stringify({ transactionColumns, positionColumns, watchlistColumns, snapshotColumns, indexes }));
-  `);
+  `) as { transactionColumns: string[]; positionColumns: string[]; watchlistColumns: string[]; indexes: string[]; snapshotColumns: string[] };
 
   for (const column of ["total_fees", "source", "source_file_name", "asset_name", "isin", "ticker", "raw_text_snippet"]) {
     assert.ok(result.transactionColumns.includes(column), `missing transactions.${column}`);
@@ -207,7 +207,7 @@ test("portfolio transactions with fees work on a fresh database", () => {
         server.close();
       }
     });
-  `);
+  `) as { createStatus: number; emptySummaryStatus: number; emptySummaryBody: { assetsCount: number }; transactionCount: number; firstFee: number; listedStatus: number; listedBody: { totalFees: number }[] };
 
   assert.equal(result.createStatus, 201);
   assert.equal(result.emptySummaryStatus, 200);
@@ -215,6 +215,6 @@ test("portfolio transactions with fees work on a fresh database", () => {
   assert.equal(result.transactionCount, 1);
   assert.equal(result.firstFee, 1.5);
   assert.equal(result.listedStatus, 200);
-  assert.equal(result.listedBody[0].totalFees, 1.5);
+  assert.equal(result.listedBody[0]?.totalFees, 1.5);
 });
 

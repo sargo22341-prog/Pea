@@ -5,13 +5,13 @@ import { assetIconRepository, type AssetIconRow } from "../../repositories/asset
 
 export interface AssetIcon {
   symbol: string;
-  filePath?: string;
-  mimeType?: string;
-  size?: number;
+  filePath?: string | undefined;
+  mimeType?: string | undefined;
+  size?: number | undefined;
   source: "auto" | "manual";
   fetchStatus: "success" | "failed" | "pending";
-  lastAttemptAt?: string;
-  updatedAt?: string;
+  lastAttemptAt?: string | undefined;
+  updatedAt?: string | undefined;
   hasIcon?: boolean;
 }
 
@@ -19,28 +19,28 @@ export const iconsDir = path.resolve(path.dirname(config.sqlitePath), "icons");
 export const maxAutoFetchMs = 3000;
 export const failureCooldownMs = 24 * 60 * 60 * 1000;
 const etfNamePattern = /\b(ETF|UCITS|MSCI|S&P|STOXX|ISHARES|AMUNDI|LYXOR|VANGUARD|XTRACKERS)\b/i;
-export type LogoCandidate = {
+export interface LogoCandidate {
   url: string;
   source: "logo.dev ticker" | "logo.dev name" | "logo.dev website" | "favicon";
   label: string;
-};
+}
 
 fs.mkdirSync(iconsDir, { recursive: true });
 
 export function normalizeSymbol(symbol: string) {
-  return String(symbol ?? "").trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
+  return (symbol).trim().toUpperCase().replace(/[^A-Z0-9._-]/g, "");
 }
 
 export function mapIcon(row: AssetIconRow): AssetIcon {
   return {
-    symbol: String(row.symbol),
-    filePath: row.file_path ? String(row.file_path) : undefined,
-    mimeType: row.mime_type ? String(row.mime_type) : undefined,
+    symbol: row.symbol,
+    filePath: row.file_path ? row.file_path : undefined,
+    mimeType: row.mime_type ? row.mime_type : undefined,
     size: row.size === null || row.size === undefined ? undefined : Number(row.size),
     source: row.source === "manual" ? "manual" : "auto",
     fetchStatus: row.fetch_status === "success" || row.fetch_status === "failed" ? row.fetch_status : "pending",
-    lastAttemptAt: row.last_attempt_at ? String(row.last_attempt_at) : undefined,
-    updatedAt: row.updated_at ? String(row.updated_at) : undefined,
+    lastAttemptAt: row.last_attempt_at ? row.last_attempt_at : undefined,
+    updatedAt: row.updated_at ? row.updated_at : undefined,
     hasIcon: Boolean(row.file_path)
   };
 }
@@ -65,15 +65,15 @@ export function readCachedQuote(symbol: string): { name?: string; quoteType?: st
   const row = assetIconRepository.readCachedQuote(normalizeSymbol(symbol));
   if (!row?.payload) return undefined;
   try {
-    const payload = JSON.parse(String(row.payload)) as { name?: string; quoteType?: string; website?: string };
+    const payload = JSON.parse(row.payload) as { name?: string; quoteType?: string; website?: string };
     return payload;
   } catch {
     return undefined;
   }
 }
 
-export function isEtfCandidate(input: { name?: string; quoteType?: string }) {
-  return String(input.quoteType ?? "").toUpperCase() === "ETF" || etfNamePattern.test(String(input.name ?? ""));
+export function isEtfCandidate(input: { name?: string | undefined; quoteType?: string | undefined }) {
+  return (input.quoteType ?? "").toUpperCase() === "ETF" || etfNamePattern.test(input.name ?? "");
 }
 
 export function placeholderSvg(symbol: string) {
@@ -85,7 +85,7 @@ export function placeholderSvg(symbol: string) {
 
 export async function fetchWithTimeout(url: string) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), maxAutoFetchMs);
+  const timeout = setTimeout(() => { controller.abort(); }, maxAutoFetchMs);
   try {
     return await fetch(url, { signal: controller.signal, headers: { "user-agent": "PEA Portfolio" } });
   } finally {

@@ -3,6 +3,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { requireUserId } from "../auth/user-context.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
+import { chartHistoryPoints } from "../market/charts/chart-history.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -148,15 +149,15 @@ export class PositionPerformanceService {
     position: Position;
     range: RangeKey;
     history: HistoryPoint[];
-    txEntry?: PositionTransactionCache;
-    useCurrentHoldingForClosedIntraday?: boolean;
+    txEntry?: PositionTransactionCache | undefined;
+    useCurrentHoldingForClosedIntraday?: boolean | undefined;
     stale: boolean;
   }): PositionMiniChart {
     const sampledHistory = downsamplePoints(input.history, miniChartMaxPoints);
     const rawPoints = sampledHistory
       .map((point) => {
         const timestamp = new Date(point.date).getTime();
-        const close = Number(point.close);
+        const close = point.close;
         if (!Number.isFinite(timestamp) || !Number.isFinite(close)) return undefined;
         const quantity = input.useCurrentHoldingForClosedIntraday
           ? input.position.quantity
@@ -179,10 +180,7 @@ export class PositionPerformanceService {
   async safeHistory(symbol: string, range: RangeKey, options: PortfolioMarketDataOptions = {}): Promise<HistoryPoint[]> {
     try {
       const chart = await this.getChartData(symbol, range, options);
-      return chart.timestamps.map((timestamp, index) => ({
-        date: new Date(timestamp).toISOString(),
-        close: chart.prices[index]
-      }));
+      return chartHistoryPoints(chart);
     } catch (error) {
       if (isMarketDataUnavailable(error)) return [];
       throw error;
@@ -199,7 +197,7 @@ export class PositionPerformanceService {
     }
   }
 
-  private async safeQuote(position: Position): Promise<{ quote?: Quote; stale: boolean }> {
+  private async safeQuote(position: Position): Promise<{ quote?: Quote | undefined; stale: boolean }> {
     try {
       const quote = await marketSnapshotService.getQuote(position.symbol);
       return { quote, stale: Boolean(quote.stale || quote.unavailable) };

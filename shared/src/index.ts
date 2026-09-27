@@ -5,6 +5,7 @@ export type * from "./user.js";
 export type * from "./objectives.js";
 export type * from "./objective-simulation.js";
 export { MARKET_EVENT_TYPES } from "./market.js";
+export { parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {
   OBJECTIVE_SIMULATION_DEFAULTS,
   OBJECTIVE_SIMULATION_LIMITS,

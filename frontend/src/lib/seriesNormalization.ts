@@ -1,9 +1,8 @@
-export type NormalizableSeriesPoint = {
+export interface NormalizableSeriesPoint {
   value?: number | null;
   date?: string | number;
   timestamp?: number;
-  [key: string]: unknown;
-};
+}
 
 export type NormalizedSeriesPoint<T extends NormalizableSeriesPoint> = Omit<T, "value"> & {
   value: number;
@@ -13,7 +12,7 @@ export type NormalizedSeriesPoint<T extends NormalizableSeriesPoint> = Omit<T, "
 export function normalizeSeriesByPoints<T extends NormalizableSeriesPoint>(
   seriesList: T[][],
   targetLength?: number
-): Array<Array<NormalizedSeriesPoint<T>>> {
+): NormalizedSeriesPoint<T>[][] {
   const performances = seriesList.map(toPerformance);
   const validPerformances = performances.filter((series) => series.length > 1);
   if (validPerformances.length === 0) return performances.map(() => []);
@@ -24,7 +23,7 @@ export function normalizeSeriesByPoints<T extends NormalizableSeriesPoint>(
   return performances.map((series) => (series.length > 1 ? resampleSeries(series, length) : []));
 }
 
-function toPerformance<T extends NormalizableSeriesPoint>(series: T[]): Array<NormalizedSeriesPoint<T>> {
+function toPerformance<T extends NormalizableSeriesPoint>(series: T[]): NormalizedSeriesPoint<T>[] {
   const validPoints = series.filter((point): point is T & { value: number } => {
     const value = point.value;
     return value != null && Number.isFinite(value);
@@ -40,16 +39,17 @@ function toPerformance<T extends NormalizableSeriesPoint>(series: T[]): Array<No
 }
 
 function resampleSeries<T extends NormalizableSeriesPoint>(
-  series: Array<NormalizedSeriesPoint<T>>,
+  series: NormalizedSeriesPoint<T>[],
   targetLength: number
-): Array<NormalizedSeriesPoint<T>> {
+): NormalizedSeriesPoint<T>[] {
   if (series.length === targetLength) return series;
   if (series.length < 2 || targetLength < 2) return series;
 
   const lastIndex = series.length - 1;
   const lastTargetIndex = targetLength - 1;
 
-  return Array.from({ length: targetLength }, (_, index) => {
+  const resampled: NormalizedSeriesPoint<T>[] = [];
+  for (let index = 0; index < targetLength; index += 1) {
     const position = (index * lastIndex) / lastTargetIndex;
     const leftIndex = Math.floor(position);
     const rightIndex = Math.ceil(position);
@@ -57,11 +57,11 @@ function resampleSeries<T extends NormalizableSeriesPoint>(
 
     const left = series[leftIndex];
     const right = series[rightIndex];
+    if (!left || !right) continue;
 
-    if (leftIndex === rightIndex) return left;
-
-    return interpolatePoint(left, right, ratio);
-  });
+    resampled.push(leftIndex === rightIndex ? left : interpolatePoint(left, right, ratio));
+  }
+  return resampled;
 }
 
 function interpolatePoint<T extends NormalizableSeriesPoint>(

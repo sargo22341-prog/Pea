@@ -32,7 +32,7 @@ export function currentUserId(): number {
  * Lève si aucun des deux n'est disponible.
  */
 export function requireUserId(userId?: number | string): number {
-  if (userId !== undefined && userId !== null && userId !== "") {
+  if (userId !== undefined && userId !== "") {
     const numeric = Number(userId);
     if (Number.isFinite(numeric) && numeric > 0) return Math.floor(numeric);
     throw new Error(`requireUserId(): identifiant utilisateur invalide (${userId})`);

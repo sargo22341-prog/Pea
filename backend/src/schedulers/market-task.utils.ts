@@ -1,4 +1,4 @@
-import { getMarketCalendar, getSessionsForDate, type MarketCalendar, type MarketSession } from "../services/market/calendars/getMarketCalendar.js";
+import { getFirstSession, getLastSession, getMarketCalendar, getSessionsForDate, type MarketCalendar, type MarketSession } from "../services/market/calendars/getMarketCalendar.js";
 import type { AssetRow } from "../repositories/market/asset.repository.js";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../services/timezone/date-time.service.js";
 
@@ -19,7 +19,7 @@ export function nowIso(date = new Date()) {
 }
 
 export function marketDisplayName(calendar: MarketCalendar) {
-  return calendar.city === calendar.market ? calendar.city : `${calendar.city}`;
+  return calendar.city === calendar.market ? calendar.city : calendar.city;
 }
 
 export function groupAssetsByMarket(assets: AssetRow[]): Map<string, MarketAssetGroup> {
@@ -27,8 +27,9 @@ export function groupAssetsByMarket(assets: AssetRow[]): Map<string, MarketAsset
   for (const asset of assets) {
     const calendar = getMarketCalendar(asset.symbol, asset.exchange ?? undefined);
     const marketKey = calendar.market;
-    if (!groups.has(marketKey)) groups.set(marketKey, { marketKey, calendar, assets: [] });
-    groups.get(marketKey)!.assets.push(asset);
+    const group = groups.get(marketKey) ?? { marketKey, calendar, assets: [] };
+    group.assets.push(asset);
+    groups.set(marketKey, group);
   }
   return groups;
 }
@@ -48,8 +49,8 @@ export function isWeekend(weekday: string) {
 
 export function expectedTimes(calendar: MarketSchedule, tradingDate: string) {
   const sessions = getSessionsForDate(calendar, tradingDate);
-  const first = sessions[0];
-  const last = sessions[sessions.length - 1];
+  const first = getFirstSession(sessions);
+  const last = getLastSession(sessions);
   const openExpectedAt = zonedTimeToUtc(tradingDate, first.openTime, calendar.timezone);
   const closeExpectedAt = zonedTimeToUtc(tradingDate, last.closeTime, calendar.timezone);
   const firstOpenMinutes = timeToMinutes(first.openTime);

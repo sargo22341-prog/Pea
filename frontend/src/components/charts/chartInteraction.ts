@@ -12,10 +12,10 @@ export function useResponsivePieTooltip(): {
   const [tooltipResetKey, setTooltipResetKey] = useState(0);
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => { setIsMobile(window.innerWidth < 768); };
     onResize();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); };
   }, []);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function useResponsivePieTooltip(): {
     };
 
     document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    return () => { document.removeEventListener("pointerdown", onPointerDown); };
   }, [isMobile]);
 
   const onPointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {

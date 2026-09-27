@@ -13,6 +13,7 @@ import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { replayTransactions, transactionTimeMs } from "./portfolio-calculations.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { TransactionMutationInput, TransactionSequenceRow } from "./portfolio.types.js";
+import { requirePresent } from "../../utils/invariant.js";
 
 const createPositionSchema = z.object({
   symbol: z.string().trim().min(1).max(24),
@@ -57,12 +58,12 @@ export class PortfolioWriteService {
     const existing = portfolioRepository.findPositionBySymbol(parsed.symbol, userId);
     const position = db.transaction(() => {
       if (existing) {
-        const oldQuantity = Number(existing.quantity);
+        const oldQuantity = existing.quantity;
         const newQuantity = oldQuantity + parsed.quantity;
         const weightedAverage =
           newQuantity === 0
             ? parsed.averageBuyPrice
-            : (oldQuantity * Number(existing.average_buy_price) + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
+            : (oldQuantity * existing.average_buy_price + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
         portfolioRepository.mergePositionSnapshot(existing.id, {
           quantity: newQuantity,
           averageBuyPrice: weightedAverage,
@@ -75,7 +76,7 @@ export class PortfolioWriteService {
           userId
         );
       }
-      const savedPosition = portfolioRepository.findPositionBySymbol(parsed.symbol, userId)!;
+      const savedPosition = requirePresent(portfolioRepository.findPositionBySymbol(parsed.symbol, userId), "Position");
       portfolioRepository.insertBuyTransactionNow(savedPosition.id, {
         quantity: parsed.quantity,
         price: parsed.averageBuyPrice,
@@ -94,7 +95,7 @@ export class PortfolioWriteService {
     const existing = portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId);
     if (existing) return mapPosition(existing);
     portfolioRepository.insertEmptyPosition({ symbol: normalizedSymbol, name, currency }, resolvedUserId);
-    const created = portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId)!;
+    const created = requirePresent(portfolioRepository.findPositionBySymbol(normalizedSymbol, resolvedUserId), "Position");
     this.invalidatePositionCaches(created.id, resolvedUserId, normalizedSymbol);
     return mapPosition(created);
   }
@@ -251,7 +252,7 @@ export class PortfolioWriteService {
       });
       this.invalidatePositionCaches(id, resolvedUserId);
     });
-    const row = portfolioRepository.findPositionById(id, resolvedUserId)!;
+    const row = requirePresent(portfolioRepository.findPositionById(id, resolvedUserId), "Position");
     return portfolioReadService.enrichPosition(mapPosition(row));
   }
   invalidatePositionCaches(positionId: number, userId: number | string, fallbackSymbol?: string) {
@@ -264,10 +265,10 @@ export class PortfolioWriteService {
     const sortedRows = [...rows].sort((a, b) => {
       const dateOrder = transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at);
       if (dateOrder !== 0) return dateOrder;
-      return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
+      return (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER);
     });
     for (const row of sortedRows) {
-      const rowQuantity = Number(row.quantity);
+      const rowQuantity = row.quantity;
       if (row.type === "buy") quantity += rowQuantity;
       if (row.type === "sell") quantity -= rowQuantity;
       if (quantity < -quantityTolerance) throw new HttpError(400, message);

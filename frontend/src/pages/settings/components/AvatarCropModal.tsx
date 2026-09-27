@@ -56,17 +56,19 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
 
   // Touch drag
   function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
-    if (e.touches.length !== 1) return;
-    let lastX = e.touches[0].clientX;
-    let lastY = e.touches[0].clientY;
+    const startTouch = e.touches[0];
+    if (e.touches.length !== 1 || !startTouch) return;
+    let lastX = startTouch.clientX;
+    let lastY = startTouch.clientY;
 
     function onMove(ev: TouchEvent) {
-      if (ev.touches.length !== 1) return;
+      const touch = ev.touches[0];
+      if (ev.touches.length !== 1 || !touch) return;
       ev.preventDefault();
-      const dx = ev.touches[0].clientX - lastX;
-      const dy = ev.touches[0].clientY - lastY;
-      lastX = ev.touches[0].clientX;
-      lastY = ev.touches[0].clientY;
+      const dx = touch.clientX - lastX;
+      const dy = touch.clientY - lastY;
+      lastX = touch.clientX;
+      lastY = touch.clientY;
       setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
     }
 
@@ -127,7 +129,7 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
     >
       <div
         className={`relative w-full max-w-sm rounded-xl bg-panel shadow-2xl ${MOTION.dialog}`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); }}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <span className="font-semibold">{t("avatar.adjust", { ns: "common" })}</span>
@@ -170,8 +172,8 @@ export function AvatarCropModal({ src, onConfirm, onCancel }: AvatarCropModalPro
             <input
               className="flex-1"
               max="5"
-              min={String(minScale.toFixed(3))}
-              onChange={(e) => setScale(Number(e.target.value))}
+              min={minScale.toFixed(3)}
+              onChange={(e) => { setScale(Number(e.target.value)); }}
               step="0.01"
               type="range"
               value={scale}

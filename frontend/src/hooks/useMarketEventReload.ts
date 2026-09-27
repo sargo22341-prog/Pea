@@ -5,18 +5,18 @@ import { useLatestRef } from "./useLatestRef";
 // Type partagé via @pea/shared pour synchroniser avec le backend SSE.
 export type { MarketEventPayload, MarketEventType } from "@pea/shared";
 
-export type UseMarketEventReloadOptions = {
+export interface UseMarketEventReloadOptions {
   debounceMs?: number;
   enabled?: boolean;
-  eventTypes?: ReadonlyArray<MarketEventType>;
+  eventTypes?: readonly MarketEventType[];
   filterEvent?: (payload: MarketEventPayload) => boolean;
   intervalMs?: number;
   minReloadIntervalMs?: number;
   onEvent?: (payload: MarketEventPayload) => void;
-  reload: () => Promise<unknown> | unknown;
+  reload: () => unknown;
   reloadOnFocus?: boolean;
   reloadOnVisibility?: boolean;
-};
+}
 
 /**
  * `market-snapshot-updated` est aussi diffusé à tous les clients lorsqu'un snapshot d'actif est
@@ -92,10 +92,11 @@ export function useMarketEventReload({
     }
 
     function onMarketEvent(event: Event) {
-      const payload = ((event as CustomEvent<MarketEventPayload>).detail ?? {}) as MarketEventPayload;
+      // `detail` vaut null si l'evenement est emis sans charge utile.
+      const payload = (event as CustomEvent<MarketEventPayload | null>).detail;
+      if (!payload) return;
       onEventRef.current?.(payload);
-      const type = payload.type;
-      if (!type || !eventTypesRef.current.includes(type as MarketEventType)) return;
+      if (!eventTypesRef.current.includes(payload.type)) return;
       if (filterEventRef.current && !filterEventRef.current(payload)) return;
       scheduleReload();
     }

@@ -28,15 +28,15 @@ export class PortfolioAnalysisService {
         name: name ?? symbol.toUpperCase(),
         price: 0,
         currency: "EUR",
-        quoteType: safeText(result.data?.quoteType?.quoteType)
+        quoteType: safeText(result.data.quoteType?.quoteType)
       }
     };
     const etf = isEtf(quote, result.data);
     return {
       symbol: symbol.toUpperCase(),
       name: name ?? symbol.toUpperCase(),
-      logoUrl: safeText(result.data?.price?.logoUrl),
-      quoteType: safeText(result.data?.quoteType?.quoteType),
+      logoUrl: safeText(result.data.price?.logoUrl),
+      quoteType: safeText(result.data.quoteType?.quoteType),
       isEtf: etf,
       financials: etf ? [] : annualFinancialRows(result.data)
     };
@@ -46,7 +46,7 @@ export class PortfolioAnalysisService {
     const resolvedUserId = requireUserId(userId);
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<PortfolioAnalysis>(cacheUserId, "analysis");
+      const cached = frontendBlockCache.read(cacheUserId, "analysis") as PortfolioAnalysis | undefined;
       if (cached?.sectorExposureVersion === SECTOR_EXPOSURE_VERSION) return cached;
     }
     const portfolio = await portfolioService.summary("1d", resolvedUserId);
@@ -81,7 +81,7 @@ export class PortfolioAnalysisService {
     const treemap: PortfolioTreemapItem[] = [];
     const netMargins: NetMarginItem[] = [];
     const financialsByAsset: AssetFinancials[] = [];
-    const financialInputs: Array<{ weight: number; fundamentals?: Fundamentals; etf: boolean }> = [];
+    const financialInputs: { weight: number; fundamentals?: Fundamentals | undefined; etf: boolean }[] = [];
     let stale = portfolio.positions.some((position) => position.marketDataUnavailable || position.quote?.stale);
 
     for (const { position, result } of fundamentalResults) {

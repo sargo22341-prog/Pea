@@ -1,35 +1,9 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
-
-function lancerScriptBackend(script: string, nodeEnv = "development") {
-  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), "pea-test-"));
-  const cheminSqlite = path.join(dossierTemp, "test.sqlite");
-  const resultat = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
-    cwd: path.resolve(import.meta.dirname, "..", ".."),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      NODE_ENV: nodeEnv,
-      PEA_TEST_SQLITE_PATH: cheminSqlite
-    }
-  });
-
-  fs.rmSync(dossierTemp, { recursive: true, force: true });
-  assert.equal(resultat.status, 0, resultat.stderr);
-  const lignResultat = resultat.stdout
-    .split(/\r?\n/)
-    .find((ligne) => ligne.trim().startsWith("__RESULT__"));
-
-  assert.ok(lignResultat, resultat.stdout);
-  return JSON.parse(lignResultat.slice("__RESULT__".length));
-}
+import { runBackendScript } from "../helpers/backend-script.js";
 
 test("la migration repare les colonnes de preferences utilisateur manquantes", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import Database from "better-sqlite3";
     import bcrypt from "bcryptjs";
 
@@ -93,7 +67,7 @@ test("la migration repare les colonnes de preferences utilisateur manquantes", (
         server.close();
       }
     });
-  `);
+  `) as { statutMiseAJour: number; intervalle: string; privacy: boolean; colonnesUsers: string[] };
 
   assert.equal(resultat.statutMiseAJour, 200);
   assert.equal(resultat.intervalle, "1w");
@@ -103,7 +77,7 @@ test("la migration repare les colonnes de preferences utilisateur manquantes", (
 });
 
 test("le changement de mot de passe invalide toutes les sessions existantes", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { app } from "./app.ts";
 
     const motDePasse = "correct horse battery staple";
@@ -145,7 +119,7 @@ test("le changement de mot de passe invalide toutes les sessions existantes", ()
         server.close();
       }
     });
-  `);
+  `) as { statutSetup: number; utilisateurAvant: string; statutMiseAJour: number; utilisateurApres: null };
 
   assert.equal(resultat.statutSetup, 201);
   assert.equal(resultat.utilisateurAvant, "alice");
@@ -155,7 +129,7 @@ test("le changement de mot de passe invalide toutes les sessions existantes", ()
 });
 
 test("le changement de préférences sans nouveau mot de passe conserve la session active", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { app } from "./app.ts";
 
     const motDePasse = "correct horse battery staple";
@@ -190,7 +164,7 @@ test("le changement de préférences sans nouveau mot de passe conserve la sessi
         server.close();
       }
     });
-  `);
+  `) as { statutMiseAJour: number; utilisateur: string; intervalle: string };
 
   assert.equal(resultat.statutMiseAJour, 200);
   assert.equal(resultat.utilisateur, "alice");

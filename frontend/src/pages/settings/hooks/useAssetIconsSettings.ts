@@ -4,6 +4,13 @@ import type { SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
 
+/** Diffuse la nouvelle version d'une icone aux composants affiches et renvoie ce numero de version. */
+function announceIconUpdate(symbol: string): number {
+  const version = Date.now();
+  window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
+  return version;
+}
+
 export function useAssetIconsSettings() {
   const { t } = useTranslation(["settings"]);
   const icons = useAsync(() => api.assetIcons());
@@ -29,9 +36,8 @@ export function useAssetIconsSettings() {
     try {
       await api.uploadAssetIcon(symbol, file);
       clearSymbolFile(symbol);
-      const version = Date.now();
+      const version = announceIconUpdate(symbol);
       setCacheBusts((current) => ({ ...current, [symbol]: version }));
-      window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
       setToast({ tone: "success", text: t("icons.updated", { ns: "settings", symbol }) });
       await icons.reload();
     } catch (error) {
@@ -44,9 +50,8 @@ export function useAssetIconsSettings() {
     try {
       await api.resetAssetIcon(symbol);
       clearSymbolFile(symbol);
-      const version = Date.now();
+      const version = announceIconUpdate(symbol);
       setCacheBusts((current) => ({ ...current, [symbol]: version }));
-      window.dispatchEvent(new CustomEvent("asset-icon-updated", { detail: { symbol, version } }));
       setToast({ tone: "success", text: t("icons.deleted", { ns: "settings", symbol }) });
       await icons.reload();
     } catch (error) {
@@ -65,7 +70,7 @@ export function useAssetIconsSettings() {
   }
 
   function clearSymbolFile(symbol: string) {
-    if (fileInputs.current[symbol]) fileInputs.current[symbol]!.value = "";
+    if (fileInputs.current[symbol]) fileInputs.current[symbol].value = "";
     setFiles((current) => ({ ...current, [symbol]: undefined }));
     setPreviews((current) => {
       if (current[symbol]) URL.revokeObjectURL(current[symbol]);

@@ -23,7 +23,7 @@ test("rebuild 1d invalide les caches frontend et portfolio 1d sans utiliser les 
       frontend: db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache").get().count
     };
     console.log("__RESULT__" + JSON.stringify({ job, counts }));
-  `);
+  `) as { counts: { chart1d: number; chart1w: number; displayIntraday: number; perf1d: number; perf1w: number; frontend: number } };
 
   assert.equal(result.counts.chart1d, 0);
   assert.equal(result.counts.chart1w, 1);
@@ -48,7 +48,7 @@ test("rebuild all invalide les ranges API longues", () => {
     const remainingCharts = db.prepare("SELECT range FROM portfolio_chart_cache ORDER BY range").all().map((row) => row.range);
     const remainingPerf = db.prepare("SELECT range FROM portfolio_positions_performance_cache ORDER BY range").all().map((row) => row.range);
     console.log("__RESULT__" + JSON.stringify({ remainingCharts, remainingPerf }));
-  `);
+  `) as { remainingCharts: string[]; remainingPerf: string[] };
 
   assert.deepEqual(result.remainingCharts, ["1m"]);
   assert.deepEqual(result.remainingPerf, ["1m"]);
@@ -95,7 +95,7 @@ test("refresh-annex admin retourne un job agrege qui couvre toutes les taches la
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { totalTasks: number; id: string; status: string }; snapshot: { average_volume_3m: number; fifty_two_week_low: number; fifty_two_week_high: number; ex_dividend_date: string }; frontendCacheCount: number };
 
   assert.equal(result.status, 200);
   assert.equal(result.body.totalTasks, 4);
@@ -149,7 +149,7 @@ test("queue construction persiste, dedupe les taches actives et reprend une tach
     const statuses = db.prepare("SELECT task_key, status, attempts FROM data_construction_tasks ORDER BY id").all();
     const latest = dataConstructionQueue.latest();
     console.log("__RESULT__" + JSON.stringify({ first, second, activeTaskCount, snapshotCalls, resumed, statuses, latest }));
-  `);
+  `) as { first: { totalTasks: number }; second: { totalTasks: number }; activeTaskCount: number; snapshotCalls: number; resumed: number; statuses: { task_key: string; status: string; attempts: number }[]; latest: { status: string } };
 
   assert.equal(result.first.totalTasks, 1);
   assert.equal(result.second.totalTasks, 1);
@@ -178,16 +178,16 @@ test("queue emits asset annex update events after annex tasks", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     console.log("__RESULT__" + JSON.stringify({ events }));
-  `);
+  `) as { events: { event: string; payload: { symbol: string; updatedAt: string } }[] };
 
   assert.deepEqual(result.events, [
     {
       event: "asset-annex-updated",
       payload: {
         symbol: "AAA.PA",
-        updatedAt: result.events[0].payload.updatedAt
+        updatedAt: result.events[0]?.payload.updatedAt
       }
     }
   ]);
-  assert.equal(typeof result.events[0].payload.updatedAt, "string");
+  assert.equal(typeof result.events[0]?.payload.updatedAt, "string");
 });

@@ -26,11 +26,11 @@ export const maxAssetNewsLimit = 8;
 /**
  * Indique si un actif doit etre ignore pour les news specifiques.
  */
-export function shouldSkipAssetSpecificNews(asset: { symbol: string; name?: string; quoteType?: string; assetType?: string }) {
+export function shouldSkipAssetSpecificNews(asset: { symbol: string; name?: string; quoteType?: string | undefined; assetType?: string | undefined }) {
   const symbol = asset.symbol.toUpperCase();
-  const name = String(asset.name ?? "").toUpperCase();
-  const quoteType = String(asset.quoteType ?? "").toUpperCase();
-  const assetType = String(asset.assetType ?? "").toUpperCase();
+  const name = (asset.name ?? "").toUpperCase();
+  const quoteType = (asset.quoteType ?? "").toUpperCase();
+  const assetType = (asset.assetType ?? "").toUpperCase();
   return (
     assetType === "ETF" ||
     assetType === "FUND" ||
@@ -46,7 +46,7 @@ export function shouldSkipAssetSpecificNews(asset: { symbol: string; name?: stri
  * Nettoie un nom Yahoo pour en faire une requete news d'entreprise.
  */
 export function companyNewsQuery(name: string | undefined, symbol: string) {
-  return String(name || symbol)
+  return (name || symbol)
     .replace(/^L['’]\s*/i, "")
     .replace(/^COMPAGNIE DE\s+/i, "")
     .replace(/\b(SA|SE|S\.A\.|N\.V\.|NV|PLC|ORDINARY SHARES?)\b/gi, "")
@@ -61,13 +61,13 @@ export function companyNewsQuery(name: string | undefined, symbol: string) {
  */
 export function listAssetNewsPositionRows(userId?: number | string): AssetNewsPositionRow[] {
   return portfolioRepository.listPositions(requireUserId(userId)).map((row) => ({
-    id: Number(row.id),
-    symbol: String(row.symbol),
-    name: String(row.name),
-    quantity: Number(row.quantity),
-    average_buy_price: Number(row.average_buy_price),
-    currency: String(row.currency),
-    updated_at: String(row.updated_at)
+    id: row.id,
+    symbol: row.symbol,
+    name: row.name,
+    quantity: row.quantity,
+    average_buy_price: row.average_buy_price,
+    currency: row.currency,
+    updated_at: row.updated_at
   }));
 }
 

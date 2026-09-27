@@ -1,10 +1,10 @@
 import type { DashboardSortKey, PositionRangePerformance, PositionWithMarket, SortDirection, WatchlistItem, WatchlistSortKey } from "@pea/shared";
 
-export type WatchlistMetrics = {
+export interface WatchlistMetrics {
   performancePercent: number | undefined;
   performanceValue: number | undefined;
   price: number | undefined;
-};
+}
 
 export function sortPositions(
   positions: PositionWithMarket[],
@@ -57,7 +57,7 @@ function watchlistMetrics(item: WatchlistItem): WatchlistMetrics {
 
   const performancePercent =
     Number.isFinite(first) && first
-      ? ((Number(last) - Number(first)) / Number(first)) * 100
+      ? ((Number(last) - first) / first) * 100
       : item.quote?.changePercent;
 
   return {

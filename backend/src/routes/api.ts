@@ -1,5 +1,5 @@
 import express from "express";
-import { attachUser, requireAdmin, requireAuth } from "../middleware/auth.js";
+import { attachUser, requireAdmin, requireAuth, requireAuthUser } from "../middleware/auth.js";
 import { verifyMutatingRequestOrigin } from "../middleware/origin-protection.js";
 import { runWithUser } from "../services/auth/user-context.js";
 import { runWithYahooUsageSource } from "../services/yahoo/yahoo-usage-context.js";
@@ -26,8 +26,8 @@ apiRouter.use(verifyMutatingRequestOrigin());
 apiRouter.use("/auth", authRouter);
 
 apiRouter.use(requireAuth);
-apiRouter.use((req, _res, next) => runWithUser(req.user!.id, next));
-apiRouter.use((req, _res, next) => runWithYahooUsageSource(`navigation utilisateur: ${req.method} ${req.path}`, next));
+apiRouter.use((req, _res, next) => { runWithUser(requireAuthUser(req).id, next); });
+apiRouter.use((req, _res, next) => { runWithYahooUsageSource(`navigation utilisateur: ${req.method} ${req.path}`, next); });
 
 apiRouter.use(searchRouter);
 apiRouter.use(marketRouter);

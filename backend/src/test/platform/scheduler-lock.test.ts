@@ -31,7 +31,7 @@ test("scheduler cleanup, health update and anti-overlap guard", () => {
     const health = db.prepare("SELECT * FROM scheduler_health WHERE scheduler_name = 'market-scheduler'").get();
     const oldLogs = db.prepare("SELECT COUNT(*) AS count FROM market_check_logs WHERE market_key = 'x'").get();
     console.log("__RESULT__" + JSON.stringify({ calls, health, oldLogs }));
-  `);
+  `) as { calls: number; health: { last_tick_at: string; last_successful_tick_at: string }; oldLogs: { count: number } };
 
   assert.equal(result.calls, 1);
   assert.ok(result.health.last_tick_at);
@@ -68,7 +68,7 @@ test("scheduler lock renew and owner-only release semantics", () => {
       blockedBeforeExpiry: Boolean(blockedBeforeExpiry),
       acquiredAfterExpiry
     }));
-  `);
+  `) as { first: boolean; blocked: boolean; renewed: boolean; afterRenew: { owner: string; expires_at: number }; afterWrongRelease: number; afterRelease: number; expired: boolean; blockedBeforeExpiry: boolean; acquiredAfterExpiry: { owner: string } };
 
   assert.equal(result.first, true);
   assert.equal(result.blocked, false);

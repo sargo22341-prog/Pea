@@ -45,7 +45,7 @@ export function TopMetrics({
 /**
  * Affiche la valorisation du PEA comme information principale du Dashboard.
  */
-function PortfolioTotal({ value, loading, prive }: { value?: number; loading: boolean; prive: boolean }) {
+function PortfolioTotal({ value, loading, prive }: { value?: number | undefined; loading: boolean; prive: boolean }) {
   return (
     <div className="flex min-h-[118px] items-start justify-center pt-2 text-center">
       {loading ? (

@@ -7,7 +7,7 @@ function roundedAge(age?: number) {
 
 function maxProjectionAge(projection: ObjectiveProjection) {
   return projection.series.reduce<number | undefined>((maxAge, point) => {
-    if (point.projected === undefined || point.age === undefined) return maxAge;
+    if (point.projected === undefined) return maxAge;
     return maxAge === undefined ? point.age : Math.max(maxAge, point.age);
   }, undefined);
 }

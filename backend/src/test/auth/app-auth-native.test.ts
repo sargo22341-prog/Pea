@@ -33,7 +33,7 @@ test("production mutating requests accept native bearer mode without Origin", ()
         server.close();
       }
     });
-  `, { nodeEnv: "production" });
+  `, { nodeEnv: "production" }) as { setupStatus: number; loginStatus: number; setupHasToken: boolean; loginHasToken: boolean; username: string };
 
   assert.equal(result.setupStatus, 201);
   assert.equal(result.loginStatus, 200);
@@ -67,7 +67,7 @@ test("production authenticated bearer mutations accept missing Origin", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production" });
+  `, { nodeEnv: "production" }) as { status: number; body: { dashboardDefaultSortKey: string } };
 
   assert.equal(result.status, 200);
   assert.equal(result.body.dashboardDefaultSortKey, "name");
@@ -89,7 +89,7 @@ test("production non-auth native marker without Origin is still rejected", () =>
         server.close();
       }
     });
-  `, { nodeEnv: "production" });
+  `, { nodeEnv: "production" }) as { status: number };
 
   assert.equal(result.status, 403);
 });
@@ -116,7 +116,7 @@ test("development mutating requests accept Vite localhost origin", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "development" });
+  `, { nodeEnv: "development" }) as { status: number; allowOrigin: string; body: { username: string } };
 
   assert.equal(result.status, 201);
   assert.equal(result.allowOrigin, "http://localhost:5173");
@@ -159,7 +159,7 @@ test("auth setup, login and logout use secure local session flow", () => {
         server.close();
       }
     });
-  `);
+  `) as { setupStatus: number; setupCookieHasHttpOnly: boolean; meStatus: number; meBody: { user: { username: string } }; loginStatus: number; logoutStatus: number; meAfterLogoutBody: { user: null } };
 
   assert.equal(result.setupStatus, 201);
   assert.equal(result.setupCookieHasHttpOnly, true);

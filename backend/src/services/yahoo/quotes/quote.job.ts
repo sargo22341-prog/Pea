@@ -14,7 +14,7 @@ import {
 import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { retryTemporary, safeYahooCall } from "../yahoo.client.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "../yahoo.errors.js";
-import { yahooQuote, yahooQuoteBatch, yahooQuoteCombine, yahooSearch, type YahooQuoteRaw, type YahooSearchQuoteRaw, type YahooSearchRaw } from "../yahoo.raw.js";
+import { yahooQuote, yahooQuoteBatch, yahooQuoteCombine, yahooSearch, type YahooSearchQuoteRaw, type YahooSearchRaw } from "../yahoo.raw.js";
 import { logMarketData, roundMs } from "../utils/logging.js";
 import { markStale, nowSeconds } from "../utils/stale.js";
 import { normalizeQuote } from "./quote.mapper.js";
@@ -54,11 +54,11 @@ export async function searchYahoo(query: string): Promise<MarketDataResult<Searc
 
     const payload: SearchResult[] = (result.quotes ?? [])
       .map((item: YahooSearchQuoteRaw) => ({
-        symbol: safeString(item?.symbol),
-        name: safeString(item?.shortname) || safeString(item?.longname) || safeString(item?.name) || safeString(item?.symbol),
-        exchange: safeString(item?.exchange) || safeString(item?.exchDisp),
-        quoteType: safeString(item?.quoteType),
-        currency: safeString(item?.currency)
+        symbol: safeString(item.symbol),
+        name: safeString(item.shortname) || safeString(item.longname) || safeString(item.name) || safeString(item.symbol),
+        exchange: safeString(item.exchange) || safeString(item.exchDisp),
+        quoteType: safeString(item.quoteType),
+        currency: safeString(item.currency)
       }))
       .filter((item) => Boolean(item.symbol));
 
@@ -87,7 +87,7 @@ export async function fetchQuote(symbol: string): Promise<MarketDataResult<Quote
       return normalizeQuote(item, key);
     },
     () => readCache<Quote>("cached_quotes", key, QUOTE_FRESH_TTL_S, QUOTE_STALE_REJECT_S),
-    (data) => writeCache("cached_quotes", key, data)
+    (data) => { writeCache("cached_quotes", key, data); }
   );
 
   return { data: markStale(result.data, result.stale), stale: result.stale };
@@ -95,7 +95,7 @@ export async function fetchQuote(symbol: string): Promise<MarketDataResult<Quote
 
 /** Recupere plusieurs quotes via le batch natif Yahoo et preserve l'ordre demande. */
 export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResult<Quote[]>> {
-  const keys = [...new Set(symbols.map((symbol) => String(symbol ?? "").trim().toUpperCase()).filter(Boolean))];
+  const keys = [...new Set(symbols.map((symbol) => (symbol).trim().toUpperCase()).filter(Boolean))];
   if (!keys.length) return { data: [], stale: false };
 
   const cachedQuotes = new Map<string, Quote>();
@@ -114,7 +114,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
 
   if (!symbolsToFetch.length) {
     logger.debug("market-data", "quote batch fully cached", { symbols: keys.join(","), totalSymbols: keys.length, cacheHits: cachedQuotes.size });
-    return { data: keys.map((key) => cachedQuotes.get(key)!).filter(Boolean), stale: false };
+    return { data: keys.flatMap((key) => cachedQuotes.get(key) ?? []), stale: false };
   }
 
   const yahooStartedAt = performance.now();
@@ -135,12 +135,12 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
         durationMs: roundMs(yahooStartedAt)
       });
       return payload;
-    })) as YahooQuoteRaw[];
+    }));
 
     const fetchedQuotes = new Map<string, Quote>();
     for (const row of fetchedRows) {
-      if (!row?.symbol) continue;
-      const quote = normalizeQuote(row, String(row.symbol));
+      if (!row.symbol) continue;
+      const quote = normalizeQuote(row, row.symbol);
       fetchedQuotes.set(quote.symbol, quote);
       writeCache("cached_quotes", quote.symbol, quote);
     }
@@ -178,7 +178,7 @@ export async function fetchQuoteBatch(symbols: string[]): Promise<MarketDataResu
 
 /** Recupere des quoteCombine un par un, avec cache memoire court d'une minute. */
 export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataResult<Quote[]>> {
-  const keys = [...new Set(symbols.map((symbol) => String(symbol ?? "").trim().toUpperCase()).filter(Boolean))];
+  const keys = [...new Set(symbols.map((symbol) => (symbol).trim().toUpperCase()).filter(Boolean))];
   if (!keys.length) return { data: [], stale: false };
 
   const cacheKey = keys.sort().join(",");
@@ -200,9 +200,9 @@ export async function fetchQuoteCombine(symbols: string[]): Promise<MarketDataRe
       const payload = await Promise.all(keys.map((key) => retryTemporary(`quoteCombine:${key}`, () => yahooQuoteCombine(key))));
       logMarketData("external-fetch-ok", { provider: "Yahoo Finance", method: "quoteCombine", symbol: cacheKey, durationMs: roundMs(yahooStartedAt) });
       return payload;
-    })) as YahooQuoteRaw[];
+    }));
     const payload: Quote[] = rows
-      .filter((item) => item?.symbol)
+      .filter((item) => item.symbol)
       .map((item) => normalizeQuote(item, String(item.symbol)));
     writeTimedMemoryCache(quoteCombineCache, cacheKey, { payload, fetchedAt: nowSeconds() }, maxQuoteCombineCacheEntries, QUOTE_COMBINE_STALE_REJECT_S);
     return { data: payload, stale: false };

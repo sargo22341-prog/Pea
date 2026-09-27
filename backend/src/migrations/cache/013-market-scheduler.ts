@@ -84,7 +84,7 @@ export const marketSchedulerMigration: Migration = {
          WHERE a.symbol IN (SELECT symbol FROM positions)
             OR a.symbol IN (SELECT symbol FROM watchlist)`
       )
-      .all() as Array<{ symbol: string; exchange?: string | null }>;
+      .all() as { symbol: string; exchange?: string | null }[];
     const counts = new Map<string, { calendar: ReturnType<typeof getMarketCalendar>; count: number }>();
     for (const asset of assets) {
       const calendar = getMarketCalendar(asset.symbol, asset.exchange ?? undefined);

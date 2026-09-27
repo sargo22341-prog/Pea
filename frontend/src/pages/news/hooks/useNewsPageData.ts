@@ -41,7 +41,7 @@ export function useNewsPageData(user: User) {
     } else {
       void loadGlobalMode(user, globalPage, controller.signal, setGlobalNews, "initial-or-switch");
     }
-    return () => controller.abort();
+    return () => { controller.abort(); };
   }, [activeMode, globalPage, user, userCachePart]);
 
   useEffect(() => {

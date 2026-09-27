@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
 import { isDataConstructionActive, notifyDataConstructionChanged } from "../../../lib/dataConstruction";
+import { useLastRenderableChart } from "./useLastRenderableChart";
 
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
@@ -21,7 +22,7 @@ export function useAssetChartLifecycle({
   symbol: string;
 }) {
   const [chartRefreshing, setChartRefreshing] = useState(false);
-  const [lastRenderableChart, setLastRenderableChart] = useState<AssetChartDto | undefined>(undefined);
+  const lastRenderableChart = useLastRenderableChart(asset, symbol, range);
   const lazyChartGuard = useRef({
     key: "",
     requestedForCacheVersion: "",
@@ -37,16 +38,6 @@ export function useAssetChartLifecycle({
   // graphique et forcerait Recharts à tout redessiner (toast, modale, favori...).
   const displayChart = (asset?.chart?.timestamps.length ?? 0) > 1 ? asset?.chart : lastRenderableChart;
   const chartPoints = useMemo(() => chartDtoToPoints(displayChart), [displayChart]);
-
-  useEffect(() => {
-    setLastRenderableChart(undefined);
-  }, [symbol, range]);
-
-  useEffect(() => {
-    if (asset?.quote.symbol.toUpperCase() === symbol.toUpperCase() && asset.chart && asset.chart.timestamps.length > 1) {
-      setLastRenderableChart(asset.chart);
-    }
-  }, [asset?.chart, asset?.quote.symbol, symbol]);
 
   useEffect(() => {
     if (!assetChartPreparing) return undefined;

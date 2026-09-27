@@ -1,3 +1,5 @@
+import { parseIsoDateParts, parseTimeParts } from "@pea/shared";
+
 export interface ZonedDateParts {
   isoDate: string;
   year: number;
@@ -56,8 +58,8 @@ export function getZonedDateParts(date: Date, timeZone: string): ZonedDateParts 
  * Convertit une date civile + heure locale de marche en instant UTC.
  */
 export function zonedTimeToUtc(date: string, time: string, timeZone: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
+  const [year, month, day] = parseIsoDateParts(date);
+  const [hour, minute] = parseTimeParts(time);
   const utc = new Date(Date.UTC(year, month - 1, day, hour, minute));
   const parts = getZonedDateParts(utc, timeZone);
   const observedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
@@ -75,6 +77,6 @@ export function localDayKey(date: Date, timeZone: string) {
  * Transforme `HH:mm` en minutes depuis minuit pour comparer des horaires locaux.
  */
 export function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] = parseTimeParts(time);
   return hours * 60 + minutes;
 }

@@ -2,7 +2,7 @@ import { ReferenceDot } from "recharts";
 import { projectionSeries } from "./projectionChartConfig";
 import type { ProjectionChartPoint } from "./projectionChartTypes";
 
-export function ObjectiveReachMarker({ label, point }: { label?: string; point?: ProjectionChartPoint }) {
+export function ObjectiveReachMarker({ label, point }: { label?: string | undefined; point?: ProjectionChartPoint | undefined }) {
   if (!point?.projected) return null;
 
   return (

@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { api } from "../../lib/api";
 import { ApiError, isApiError, request } from "../../lib/api-core";
 import { isInsecureServerUrl, normalizeServerUrl, resolveServerPath } from "../../lib/native-auth";
+import { first } from "../utils/first";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -63,14 +64,11 @@ describe("api client", () => {
   it("reports relative web API network failures without treating the server URL as invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("Timeout reseau", "AbortError")));
 
-    await expect(api.positionsPerformance("1d")).rejects.toMatchObject({
-      name: "ApiError",
-      status: 0,
-      message: expect.stringContaining("Timeout reseau")
-    });
-    await expect(api.positionsPerformance("1d")).rejects.not.toMatchObject({
-      message: expect.stringContaining("URL serveur invalide")
-    });
+    const error: unknown = await api.positionsPerformance("1d").catch((caught: unknown) => caught);
+    assert(error instanceof ApiError);
+    expect(error).toMatchObject({ name: "ApiError", status: 0 });
+    expect(error.message).toContain("Timeout reseau");
+    expect(error.message).not.toContain("URL serveur invalide");
   });
 
   it("retries transient network failures for GET requests", async () => {
@@ -95,14 +93,14 @@ describe("api client", () => {
 
   it("reconnects web SSE after an EventSource error", async () => {
     vi.useFakeTimers();
-    const instances: Array<{
+    const instances: {
       url: string;
-      init?: EventSourceInit;
+      init?: EventSourceInit | undefined;
       onerror?: () => void;
       onopen?: () => void;
       addEventListener: ReturnType<typeof vi.fn>;
       close: ReturnType<typeof vi.fn>;
-    }> = [];
+    }[] = [];
     class TestEventSource {
       onerror?: () => void;
       onopen?: () => void;
@@ -117,16 +115,18 @@ describe("api client", () => {
     const subscription = api.subscribeMarketEvents(() => undefined);
     subscription.addEventListener("portfolio-chart-updated");
     expect(instances).toHaveLength(1);
-    expect(instances[0].addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
+    const initialSource = first(instances);
+    expect(initialSource.addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
 
-    instances[0].onerror?.();
-    expect(instances[0].close).toHaveBeenCalled();
+    initialSource.onerror?.();
+    expect(initialSource.close).toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(instances).toHaveLength(2);
-    expect(instances[1].url).toBe("/api/market/events");
-    expect(instances[1].init).toEqual({ withCredentials: true });
-    expect(instances[1].addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
+    const reconnectedSource = first(instances.slice(1));
+    expect(reconnectedSource.url).toBe("/api/market/events");
+    expect(reconnectedSource.init).toEqual({ withCredentials: true });
+    expect(reconnectedSource.addEventListener).toHaveBeenCalledWith("portfolio-chart-updated", expect.any(Function));
     subscription.close();
   });
 
@@ -137,16 +137,16 @@ describe("api client", () => {
   });
 
   it("does not force JSON content type for FormData uploads", async () => {
-    const fetchSpy = vi.fn().mockResolvedValue(jsonResponse({ id: 1, username: "alice" }));
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: 1, username: "alice" }));
     vi.stubGlobal("fetch", fetchSpy);
 
     await api.uploadProfileIcon(new File(["avatar"], "avatar.jpg", { type: "image/jpeg" }));
 
-    const [, init] = fetchSpy.mock.calls[0];
-    expect(init.credentials).toBe("include");
-    expect(init.method).toBe("POST");
-    expect(init.body).toBeInstanceOf(FormData);
-    expect(init.headers).toBeUndefined();
+    const [, init] = first(fetchSpy.mock.calls);
+    expect(init?.credentials).toBe("include");
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(init?.headers).toBeUndefined();
   });
 
   it("normalizes configurable native server URLs", () => {

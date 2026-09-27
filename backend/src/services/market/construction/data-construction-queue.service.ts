@@ -6,7 +6,8 @@ import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
 import { marketEventsService } from "../events/market-events.service.js";
 
-import { MAX_CONCURRENT_TASKS, PRIORITY_BY_TYPE, currentMessage, jobStatus, nowIso, parseErrors, rowToTask, taskKey, type ConstructionTask, type TaskType } from "./data-construction-task.js";
+import { parseJsonStringArray } from "../../../utils/json.js";
+import { MAX_CONCURRENT_TASKS, PRIORITY_BY_TYPE, currentMessage, jobStatus, nowIso, rowToTask, taskKey, type ConstructionTask, type TaskType } from "./data-construction-task.js";
 export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
@@ -22,7 +23,7 @@ export class DataConstructionQueueService {
     this.pump();
   }
 
-  enqueue(tasks: Array<Omit<ConstructionTask, "key">>, message = "Construction des donnees en attente", options: { force?: boolean } = {}): DataConstructionJobDto {
+  enqueue(tasks: Omit<ConstructionTask, "key">[], message = "Construction des donnees en attente", options: { force?: boolean } = {}): DataConstructionJobDto {
     const preparedTasks = tasks.map((task) => ({ ...task, key: taskKey(task) }));
     const activeTaskKeys = options.force ? new Set<string>() : dataConstructionRepository.activeTaskKeys(preparedTasks.map((task) => task.key));
     const uniqueTasks = preparedTasks.filter((task) => {
@@ -56,7 +57,7 @@ export class DataConstructionQueueService {
         tradingDate: task.tradingDate,
         phase: task.phase,
         message: task.message,
-        priority: PRIORITY_BY_TYPE[task.type] ?? 100
+        priority: PRIORITY_BY_TYPE[task.type]
       })),
       options
     );
@@ -179,7 +180,7 @@ export class DataConstructionQueueService {
       const next = dataConstructionRepository.claimNextQueuedTask([...this.busySymbols]);
       if (!next) break;
       this.running += 1;
-      const symbol = next.symbol ? String(next.symbol).toUpperCase() : undefined;
+      const symbol = next.symbol ? next.symbol.toUpperCase() : undefined;
       if (symbol) this.busySymbols.add(symbol);
       void this.run(next).finally(() => {
         this.running -= 1;
@@ -223,13 +224,13 @@ export class DataConstructionQueueService {
       });
     } finally {
       const job = dataConstructionRepository.getJob(taskRow.job_id);
-      if (job && Number(job.completed_tasks ?? 0) + Number(job.failed_tasks ?? 0) >= Number(job.total_tasks ?? 0)) {
-        const failedTasks = Number(job.failed_tasks ?? 0);
+      if (job && job.completed_tasks + job.failed_tasks >= job.total_tasks) {
+        const failedTasks = job.failed_tasks;
         logger.info("market-data", "construction job finished", {
           jobId: job.id,
           status: failedTasks > 0 ? "error" : "success",
-          totalTasks: Number(job.total_tasks ?? 0),
-          completedTasks: Number(job.completed_tasks ?? 0),
+          totalTasks: job.total_tasks,
+          completedTasks: job.completed_tasks,
           failedTasks,
           durationMs: Date.now() - new Date(job.created_at).getTime()
         });
@@ -257,7 +258,7 @@ export class DataConstructionQueueService {
     ]);
     if (!task.symbol) return;
     let asset = assetRepository.findBySymbol(task.symbol);
-    if (!asset) asset = await marketDataService.ensureAssetInitialized(task.symbol);
+    asset ??= await marketDataService.ensureAssetInitialized(task.symbol);
     if (task.type === "candles") await marketDataService.refreshCandlesForAsset(asset, task.range ? [task.range as StoredChartRange] : undefined);
     if (task.type === "finalize") await marketDataService.finalizePostCloseForAsset(asset);
     if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset, task.range ? [task.range as StoredChartRange] : undefined);
@@ -273,10 +274,10 @@ export class DataConstructionQueueService {
     }
   }
   private toDto(job: DataConstructionJobSummary): DataConstructionJobDto {
-    const totalTasks = Number(job.total_tasks ?? 0);
-    const completedTasks = Number(job.completed_tasks ?? 0);
-    const failedTasks = Number(job.failed_tasks ?? 0);
-    const runningTasks = Number(job.running_tasks ?? 0);
+    const totalTasks = job.total_tasks;
+    const completedTasks = job.completed_tasks;
+    const failedTasks = job.failed_tasks;
+    const runningTasks = job.running_tasks;
     const done = completedTasks + failedTasks;
     const status = jobStatus(totalTasks, completedTasks, failedTasks, runningTasks);
     return {
@@ -289,7 +290,7 @@ export class DataConstructionQueueService {
       progressPercent: totalTasks ? Math.round((done / totalTasks) * 100) : 100,
       currentMessage: currentMessage(status, job.message, job.current_task_label ?? undefined),
       currentTaskLabel: job.current_task_label ?? undefined,
-      errors: parseErrors(job.errors_json),
+      errors: parseJsonStringArray(job.errors_json),
       createdAt: job.created_at,
       updatedAt: job.updated_at
     };

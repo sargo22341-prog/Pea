@@ -7,13 +7,14 @@ import { assetRepository } from "../../../repositories/market/asset.repository.j
 import { marketDataGateway } from "../../market/data/market-data-gateway.service.js";
 import { financialsService } from "../../market/financials/financials.service.js";
 import { readCachedFundamentalsSummary } from "../../yahoo/fundamentals/fundamentals.job.js";
+import { primitiveText } from "../../../utils/text.js";
 
 export type Fundamentals = Awaited<ReturnType<typeof marketDataGateway.readFundamentalsWithCache>>["data"];
-type FinancialStatementRow = {
+interface FinancialStatementRow {
   totalRevenue?: unknown;
   netIncome?: unknown;
   endDate?: unknown;
-};
+}
 
 const UNKNOWN = "Unknown";
 const ETF_DIVERSIFIED = "ETF / Diversified";
@@ -53,8 +54,8 @@ export function safeYear(value: unknown) {
 }
 
 export function isEtf(position: Pick<PositionWithMarket, "quote">, fundamentals?: Fundamentals) {
-  const quoteType = String(position.quote?.quoteType ?? fundamentals?.quoteType?.quoteType ?? "").toUpperCase();
-  const typeDisp = String(fundamentals?.quoteType?.typeDisp ?? "").toUpperCase();
+  const quoteType = primitiveText(position.quote?.quoteType ?? fundamentals?.quoteType?.quoteType).toUpperCase();
+  const typeDisp = primitiveText(fundamentals?.quoteType?.typeDisp).toUpperCase();
   const fundFamily = safeText(fundamentals?.fundProfile?.family);
   return quoteType.includes("ETF") || typeDisp.includes("ETF") || Boolean(fundFamily);
 }
@@ -74,7 +75,7 @@ export function getSector(position: PositionWithMarket, fundamentals?: Fundament
   return UNKNOWN;
 }
 
-export function rawSectorWeightings(fundamentals?: Fundamentals): Array<{ sector: string; weight: number }> {
+export function rawSectorWeightings(fundamentals?: Fundamentals): { sector: string; weight: number }[] {
   const rawSectors = fundamentals?.topHoldings?.sectorWeightings;
   if (!Array.isArray(rawSectors)) return [];
 
@@ -107,7 +108,7 @@ export function formatSectorKey(value: string) {
     .join(" ");
 }
 
-export function getPositionSectorExposure(position: PositionWithMarket, fundamentals: Fundamentals | undefined, weight: number): Array<{ sector: string; weight: number }> {
+export function getPositionSectorExposure(position: PositionWithMarket, fundamentals: Fundamentals | undefined, weight: number): { sector: string; weight: number }[] {
   if (!Number.isFinite(weight) || weight <= 0) return [];
   if (isEtf(position, fundamentals)) {
     const sectors = rawSectorWeightings(fundamentals);
@@ -179,7 +180,7 @@ export function latestNetMargin(fundamentals?: Fundamentals) {
   return profitMargins === undefined ? undefined : profitMargins * 100;
 }
 
-export function aggregateFinancials(items: Array<{ weight: number; fundamentals?: Fundamentals; etf: boolean }>) {
+export function aggregateFinancials(items: { weight: number; fundamentals?: Fundamentals | undefined; etf: boolean }[]) {
   const byYear = new Map<number, { revenue: number; netIncome: number }>();
 
   for (const item of items) {
@@ -211,16 +212,16 @@ export function persistedFundamentals(symbol: string): Fundamentals | undefined 
   return {
     ...cachedSummary?.data,
     quoteType: {
-      ...(cachedSummary?.data?.quoteType && typeof cachedSummary.data.quoteType === "object" ? cachedSummary.data.quoteType : {}),
-      quoteType: asset.quote_type ?? (cachedSummary?.data?.quoteType as { quoteType?: string } | undefined)?.quoteType ?? undefined
+      ...(cachedSummary?.data.quoteType && typeof cachedSummary.data.quoteType === "object" ? cachedSummary.data.quoteType : {}),
+      quoteType: asset.quote_type ?? (cachedSummary?.data.quoteType as { quoteType?: string } | undefined)?.quoteType ?? undefined
     },
     assetProfile: {
-      ...(cachedSummary?.data?.assetProfile ?? {}),
-      country: profile?.country ?? cachedSummary?.data?.assetProfile?.country ?? undefined,
-      sector: profile?.sector ?? cachedSummary?.data?.assetProfile?.sector ?? undefined,
-      sectorDisp: profile?.sector ?? cachedSummary?.data?.assetProfile?.sectorDisp ?? undefined
+      ...(cachedSummary?.data.assetProfile ?? {}),
+      country: profile?.country ?? cachedSummary?.data.assetProfile?.country ?? undefined,
+      sector: profile?.sector ?? cachedSummary?.data.assetProfile?.sector ?? undefined,
+      sectorDisp: profile?.sector ?? cachedSummary?.data.assetProfile?.sectorDisp ?? undefined
     },
     annualFinancials: financialsService.readFinancialRows(symbol)
-  } as Fundamentals;
+  };
 }
 

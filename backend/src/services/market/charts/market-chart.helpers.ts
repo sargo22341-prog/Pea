@@ -1,4 +1,4 @@
-import type { AssetChartDto, HistoryPoint, Quote, RangeKey } from "@pea/shared";
+import type { AssetChartDto, DisplayRangeKey, HistoryPoint, Quote, RangeKey } from "@pea/shared";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import type { AssetRow } from "../../../repositories/market/asset.repository.js";
 import { marketSnapshotRepository } from "../../../repositories/market/market-snapshot.repository.js";
@@ -9,6 +9,7 @@ import { chartConfigService, type ChartInterval, type StoredChartRange } from ".
 import { getLastTradingDay, getMarketDateKey, getMarketSessionInfo, getOpenMarketDaysBetween, getPreviousOpenMarketDays, type YahooTradingDay } from "../calendars/marketCalendar.service.js";
 import { getMarketCalendar } from "../calendars/getMarketCalendar.js";
 export const storedConstructionRanges: StoredChartRange[] = ["1d", "1w", "1m", "all"];
+const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = { "1d": "intraday", "1w": "1W", "1m": "1M", "1y": "1Y", "5y": "5Y", "10y": "10Y", ytd: "YTD", all: "ALL" };
 export const openMarketDayCountByRange: Partial<Record<RangeKey | StoredChartRange, number>> = {
   "1d": 1
 };
@@ -49,16 +50,17 @@ export function compactHistory(
     if (baseline?.price) performance.push(((point.close - baseline.price) / baseline.price) * 100);
   }
   const first = baseline?.price ?? prices[0];
-  const last = prices[prices.length - 1];
-  const performanceEuro = Number.isFinite(first) && Number.isFinite(last) ? last - first : undefined;
+  const last = prices.at(-1);
+  const hasPerformance = first !== undefined && last !== undefined && Number.isFinite(first) && Number.isFinite(last);
+  const performanceEuro = hasPerformance ? last - first : undefined;
   return {
     symbol,
-    range: range === "1d" ? "intraday" : range === "1w" ? "1W" : range === "1m" ? "1M" : range === "1y" ? "1Y" : range === "5y" ? "5Y" : range === "10y" ? "10Y" : range === "ytd" ? "YTD" : range === "all" ? "ALL" : "MAX",
+    range: displayRangeByRange[range],
     interval,
     timestamps,
     prices,
     performanceEuro,
-    performancePercent: first ? ((last - first) / first) * 100 : undefined,
+    performancePercent: hasPerformance && first ? ((last - first) / first) * 100 : undefined,
     baselinePrice: baseline?.price,
     baselineDatetime: baseline?.datetime,
     performance,
@@ -76,12 +78,14 @@ export function openMarketWindow(asset: Pick<AssetRow, "symbol" | "exchange">, r
     : count
       ? getPreviousOpenMarketDays({ symbol: asset.symbol, exchange: asset.exchange }, endDate, count)
       : undefined;
-  if (!days?.length) return undefined;
+  const oldestDay = days?.at(-1);
+  if (!days || !oldestDay) return undefined;
+  const period1 = cutoffDate ?? oldestDay.period1;
   return {
     days,
     dateSet: new Set(days.map((day) => day.date)),
-    cutoffIso: (cutoffDate ?? days[days.length - 1].period1).toISOString(),
-    period1: cutoffDate ?? days[days.length - 1].period1,
+    cutoffIso: period1.toISOString(),
+    period1,
     period2: endDate
   };
 }
@@ -238,7 +242,7 @@ export function validateChartPoints(input: {
   symbol: string;
   range: RangeKey | StoredChartRange;
   points: HistoryPoint[];
-  marketCloseTime?: Date;
+  marketCloseTime?: Date | undefined;
 }) {
   const lastRaw = input.points[input.points.length - 1];
   const byDate = new Map<string, HistoryPoint>();
@@ -246,7 +250,7 @@ export function validateChartPoints(input: {
 
   for (const point of input.points) {
     const date = new Date(point.date);
-    const close = Number(point.close);
+    const close = point.close;
     let reason: string | undefined;
     if (!Number.isFinite(date.getTime())) reason = "invalid-datetime";
     else if (!Number.isFinite(close)) reason = "invalid-price";

@@ -1,15 +1,16 @@
 import { db } from "../../db.js";
 import type { YahooAssetProfilePayload } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
+import { requirePresent } from "../../utils/invariant.js";
 
 export interface AssetRow {
   id: number;
   symbol: string;
   name: string;
-  exchange?: string;
-  currency?: string;
-  quote_type?: string;
-  type_disp?: string;
+  exchange?: string | undefined;
+  currency?: string | undefined;
+  quote_type?: string | undefined;
+  type_disp?: string | undefined;
 }
 
 export interface AssetProfileRow {
@@ -17,7 +18,7 @@ export interface AssetProfileRow {
   sector?: string | null;
 }
 
-type AssetDbRow = {
+interface AssetDbRow {
   id: number | string;
   symbol: string;
   name: string;
@@ -25,13 +26,13 @@ type AssetDbRow = {
   currency?: string | null;
   quote_type?: string | null;
   type_disp?: string | null;
-};
+}
 
 function mapAsset(row: AssetDbRow): AssetRow {
   return {
     id: Number(row.id),
-    symbol: String(row.symbol),
-    name: String(row.name),
+    symbol: row.symbol,
+    name: row.name,
     exchange: row.exchange ?? undefined,
     currency: row.currency ?? undefined,
     quote_type: row.quote_type ?? undefined,
@@ -75,8 +76,8 @@ export class AssetRepository {
          SELECT symbol FROM watchlist
          ORDER BY symbol ASC`
       )
-      .all() as Array<{ symbol: string }>;
-    return rows.map((row) => String(row.symbol).toUpperCase());
+      .all() as { symbol: string }[];
+    return rows.map((row) => row.symbol.toUpperCase());
   }
 
   upsertFromQuote(snapshot: YahooSnapshotPayload): AssetRow {
@@ -92,7 +93,7 @@ export class AssetRepository {
          type_disp = COALESCE(excluded.type_disp, assets.type_disp),
          updated_at = CURRENT_TIMESTAMP`
     ).run(snapshot.symbol, name, snapshot.exchange ?? snapshot.fullExchangeName, snapshot.currency, snapshot.quoteType, snapshot.typeDisp);
-    return this.findBySymbol(snapshot.symbol)!;
+    return requirePresent(this.findBySymbol(snapshot.symbol), `Actif ${snapshot.symbol}`);
   }
 
   upsertProfile(assetId: number, profile: YahooAssetProfilePayload) {

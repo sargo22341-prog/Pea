@@ -4,8 +4,8 @@ import { logger } from "../services/shared/logger.service.js";
 const tickIntervalMs = 5 * 60 * 1000;
 
 export class ObjectiveSchedulerService {
-  private timer?: NodeJS.Timeout;
-  private lastRunDate?: string;
+  private timer?: NodeJS.Timeout | undefined;
+  private lastRunDate?: string | undefined;
 
   start() {
     if (this.timer) return;

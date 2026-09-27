@@ -6,7 +6,7 @@ import { formatRangeLabel } from "../../../lib/format";
 import { Collapsible, Toast } from "../../../components/common/feedback";
 import { languageOptions } from "../../../i18n";
 
-const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: SortDirection }> = [
+const sortOptions: { label: string; key: DashboardSortKey; direction: SortDirection }[] = [
   { label: "settings:sort.nameAsc", key: "name", direction: "asc" },
   { label: "settings:sort.nameDesc", key: "name", direction: "desc" },
   { label: "settings:sort.marketValueAsc", key: "currentMarketValue", direction: "asc" },
@@ -15,7 +15,7 @@ const sortOptions: Array<{ label: string; key: DashboardSortKey; direction: Sort
   { label: "settings:sort.variationDesc", key: "intervalPerformancePercent", direction: "desc" }
 ];
 
-const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direction: SortDirection }> = [
+const watchlistSortOptions: { label: string; key: WatchlistSortKey; direction: SortDirection }[] = [
   { label: "settings:sort.nameAsc", key: "name", direction: "asc" },
   { label: "settings:sort.nameDesc", key: "name", direction: "desc" },
   { label: "settings:sort.priceAsc", key: "price", direction: "asc" },
@@ -26,7 +26,7 @@ const watchlistSortOptions: Array<{ label: string; key: WatchlistSortKey; direct
 
 const chartRanges: RangeKey[] = ["1d", "1w", "1m", "ytd", "1y", "5y", "10y", "all"];
 
-export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUserUpdated?: () => Promise<void>; open?: boolean; onToggle?: () => void }) {
+export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUserUpdated?: (() => Promise<void>) | undefined; open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common", "settings"]);
   const preferences = useUserPreferences({ onUserUpdated });
 
@@ -35,7 +35,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
       <div className="grid gap-3 md:grid-cols-2">
         <label>
           <span className="muted mb-1 block">{t("settings:preferences.dashboardSort")}</span>
-          <select className="input" onChange={(event) => preferences.setSortValue(event.target.value)} value={preferences.sortValue}>
+          <select className="input" onChange={(event) => { preferences.setSortValue(event.target.value); }} value={preferences.sortValue}>
             {sortOptions.map((option) => (
               <option key={`${option.key}:${option.direction}`} value={`${option.key}:${option.direction}`}>
                 {t(option.label)}
@@ -45,7 +45,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         </label>
         <label>
           <span className="muted mb-1 block">{t("settings:preferences.watchlistSort")}</span>
-          <select className="input" onChange={(event) => preferences.setWatchlistSortValue(event.target.value)} value={preferences.watchlistSortValue}>
+          <select className="input" onChange={(event) => { preferences.setWatchlistSortValue(event.target.value); }} value={preferences.watchlistSortValue}>
             {watchlistSortOptions.map((option) => (
               <option key={`${option.key}:${option.direction}`} value={`${option.key}:${option.direction}`}>
                 {t(option.label)}
@@ -55,7 +55,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         </label>
         <label>
           <span className="muted mb-1 block">{t("settings:preferences.chartRange")}</span>
-          <select className="input" onChange={(event) => preferences.setRange(event.target.value as RangeKey)} value={preferences.range}>
+          <select className="input" onChange={(event) => { preferences.setRange(event.target.value as RangeKey); }} value={preferences.range}>
             {chartRanges.map((option) => (
               <option key={option} value={option}>{formatRangeLabel(option)}</option>
             ))}
@@ -68,7 +68,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
             inputMode="numeric"
             max={120}
             min={70}
-            onChange={(event) => preferences.setProjectionEndAge(Number(event.target.value))}
+            onChange={(event) => { preferences.setProjectionEndAge(Number(event.target.value)); }}
             type="number"
             value={preferences.projectionEndAge}
           />
@@ -76,7 +76,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         </label>
         <label>
           <span className="muted mb-1 block">{t("settings:preferences.interfaceLanguage")}</span>
-          <select className="input" onChange={(event) => preferences.setLanguage(event.target.value as AppLanguage)} value={preferences.language}>
+          <select className="input" onChange={(event) => { preferences.setLanguage(event.target.value as AppLanguage); }} value={preferences.language}>
             {languageOptions.map((option) => (
               <option key={option.code} value={option.code}>
                 {option.flag} {t(option.labelKey)}
@@ -90,7 +90,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         <button
           aria-checked={preferences.privacyModeEnabled}
           className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.privacyModeEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => preferences.setPrivacyModeEnabled((current) => !current)}
+          onClick={() => { preferences.setPrivacyModeEnabled((current) => !current); }}
           role="switch"
           type="button"
         >
@@ -108,7 +108,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         <button
           aria-checked={preferences.localPeaSearchEnabled}
           className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.localPeaSearchEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => preferences.setLocalPeaSearchEnabled((current) => !current)}
+          onClick={() => { preferences.setLocalPeaSearchEnabled((current) => !current); }}
           role="switch"
           type="button"
         >
@@ -126,7 +126,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
         <button
           aria-checked={preferences.assetNewsEnabled}
           className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.assetNewsEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => preferences.setAssetNewsEnabled((current) => !current)}
+          onClick={() => { preferences.setAssetNewsEnabled((current) => !current); }}
           role="switch"
           type="button"
         >
@@ -155,7 +155,7 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
                 <button
                   aria-checked={enabled}
                   className={`flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${enabled ? "bg-mint" : "bg-panel2"} ${locked ? "opacity-70" : ""}`}
-                  onClick={() => preferences.toggleNewsLanguage(option.language)}
+                  onClick={() => { preferences.toggleNewsLanguage(option.language); }}
                   role="switch"
                   title={locked ? t("settings:preferences.newsLanguageLocked") : t(option.label)}
                   type="button"

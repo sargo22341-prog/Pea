@@ -6,8 +6,9 @@ import { logger } from "../shared/logger.service.js";
 import { objectiveCalculatorService } from "./objective-calculator.service.js";
 import { objectivePortfolioService } from "./objective-portfolio.service.js";
 import { mapObjective } from "./objectives.mapper.js";
+import { requirePresent } from "../../utils/invariant.js";
 
-function nextUpdateAtFromProjection(projection: { nextUpdateAt?: string }, now: Date) {
+function nextUpdateAtFromProjection(projection: { nextUpdateAt?: string | undefined }, now: Date) {
   if (projection.nextUpdateAt) return projection.nextUpdateAt;
   const next = new Date(now);
   next.setHours(23, 0, 0, 0);
@@ -52,7 +53,7 @@ export class ObjectivesService {
     const row = objectivesRepository.find(userId, objectiveId);
     if (!row) throw new HttpError(404, "Objectif introuvable");
     await this.recalculateRow(row);
-    return mapObjective(objectivesRepository.find(userId, objectiveId)!);
+    return mapObjective(requirePresent(objectivesRepository.find(userId, objectiveId), "Objectif"));
   }
 
   recalculateActive(now = new Date()): Promise<{ recalculated: number; failed: number }> {
@@ -85,7 +86,7 @@ export class ObjectivesService {
   private async recalculateRow(row: ObjectiveRow, now = new Date()) {
     const input = mapObjective(row);
     const user = authRepository.findUserById(row.user_id);
-    input.assumptions.projectionEndAge = Math.min(120, Math.max(70, Number(user?.projection_end_age ?? input.assumptions.projectionEndAge ?? 90)));
+    input.assumptions.projectionEndAge = Math.min(120, Math.max(70, (user?.projection_end_age ?? input.assumptions.projectionEndAge ?? 90)));
     const portfolio = await objectivePortfolioService.snapshot(row.user_id, input.assumptions.currentAge);
     const projection = objectiveCalculatorService.calculate(input, portfolio, now);
     objectivesRepository.upsertProjection(row.user_id, row.id, projection, now.toISOString(), nextUpdateAtFromProjection(projection, now));

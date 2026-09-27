@@ -48,7 +48,7 @@ test("portfolio summary totals transaction fees of the current user only", () =>
         server.close();
       }
     });
-  `, { env: { ENABLE_MARKET_LIVE_REFRESH: "false" } });
+  `, { env: { ENABLE_MARKET_LIVE_REFRESH: "false" } }) as { status: number; assetsCount: number; totalFees: number };
 
   assert.equal(result.status, 200);
   assert.equal(result.assetsCount, 2);

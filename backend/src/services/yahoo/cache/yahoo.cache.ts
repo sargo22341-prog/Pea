@@ -5,13 +5,6 @@ import { cacheIsStale, nowSeconds } from "../utils/stale.js";
 
 export type CacheTable = YahooCacheTable;
 
-function exchangeFromCachedPayload(payload: unknown) {
-  if (payload && typeof payload === "object" && "exchange" in payload) {
-    const exchange = (payload as { exchange?: unknown }).exchange;
-    return typeof exchange === "string" ? exchange : undefined;
-  }
-  return undefined;
-}
 
 /**
  * Lit un payload JSON et calcule son etat stale selon le TTL fourni.
@@ -29,7 +22,7 @@ export function readCache<T>(
   const row = yahooCacheRepository.readSymbol(table, symbol);
 
   if (!row) return null;
-  const ageSeconds = nowSeconds() - Number(row.fetched_at);
+  const ageSeconds = nowSeconds() - row.fetched_at;
   if (staleRejectSeconds !== undefined && ageSeconds > staleRejectSeconds) {
     logger.warn("cache", "stale cache entry rejected", {
       table,
@@ -39,8 +32,8 @@ export function readCache<T>(
     });
     return null;
   }
-  const data = JSON.parse(String(row.payload)) as T;
-  const stale = cacheIsStale(symbol, exchangeFromCachedPayload(data), Number(row.fetched_at), ttlSeconds);
+  const data = JSON.parse(row.payload) as T;
+  const stale = cacheIsStale(row.fetched_at, ttlSeconds);
   return { data, stale };
 }
 

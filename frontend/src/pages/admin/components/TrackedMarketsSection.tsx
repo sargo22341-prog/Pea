@@ -32,17 +32,20 @@ export function TrackedMarketsSection({ open, onToggle }: { open?: boolean; onTo
   const [pendingDeleteMarket, setPendingDeleteMarket] = useState<TrackedMarketDto | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
+  // Ne modifie l'etat qu'apres la reponse : utilisable depuis l'effet de montage (etat initial `loading`).
+  const fetchMarkets = useCallback(() =>
+    api.trackedMarketsSettings()
+      .then((markets) => { setData(markets); })
+      .catch((error: unknown) => {
+        setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.markets.stateUnavailable", { ns: "common" }) });
+      })
+      .finally(() => { setLoading(false); }), [t]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setToast(null);
-    try {
-      setData(await api.trackedMarketsSettings());
-    } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.markets.stateUnavailable", { ns: "common" }) });
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+    await fetchMarkets();
+  }, [fetchMarkets]);
 
   async function deleteMarket(market: TrackedMarketDto) {
     setPendingDeleteMarket(null);
@@ -58,8 +61,8 @@ export function TrackedMarketsSection({ open, onToggle }: { open?: boolean; onTo
   }
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void fetchMarkets();
+  }, [fetchMarkets]);
 
   return (
     <Collapsible onToggle={onToggle} open={open} title={t("admin.markets.title", { ns: "common" })}>
@@ -78,7 +81,7 @@ export function TrackedMarketsSection({ open, onToggle }: { open?: boolean; onTo
           danger
           confirmLabel={t("actions.delete", { ns: "common" })}
           description={t("admin.markets.deleteDescription", { market: pendingDeleteMarket.displayName, ns: "common" })}
-          onCancel={() => setPendingDeleteMarket(null)}
+          onCancel={() => { setPendingDeleteMarket(null); }}
           onConfirm={() => void deleteMarket(pendingDeleteMarket)}
           title={t("admin.markets.deleteTitle", { market: pendingDeleteMarket.displayName, ns: "common" })}
         />
@@ -205,7 +208,7 @@ function MarketRow({ market, onDelete }: { market: TrackedMarketDto; onDelete: (
           <button
             aria-label={t("admin.markets.deleteMarket", { market: market.displayName, ns: "common" })}
             className="btn-ghost px-2 text-coral"
-            onClick={() => onDelete(market)}
+            onClick={() => { onDelete(market); }}
             title={t("admin.markets.deleteMarketTitle", { ns: "common" })}
             type="button"
           >

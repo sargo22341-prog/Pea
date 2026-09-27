@@ -14,7 +14,7 @@ export function TransactionMarkerOverlay({
 }: {
   currency: string;
   points: MarkerOverlayPoint[];
-  userTimezone?: string;
+  userTimezone?: string | undefined;
   maskValues: boolean;
 }) {
   const { t } = useTranslation(["common"]);
@@ -27,10 +27,10 @@ export function TransactionMarkerOverlay({
           aria-label={t("states.transactions", { count: point.markers.length, ns: "common" })}
           className="pointer-events-auto absolute top-1/2 flex h-8 min-w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center border-0 bg-transparent p-0"
           key={point.date}
-          onBlur={() => setActivePoint(null)}
-          onFocus={() => setActivePoint(point)}
-          onMouseEnter={() => setActivePoint(point)}
-          onMouseLeave={() => setActivePoint(null)}
+          onBlur={() => { setActivePoint(null); }}
+          onFocus={() => { setActivePoint(point); }}
+          onMouseEnter={() => { setActivePoint(point); }}
+          onMouseLeave={() => { setActivePoint(null); }}
           style={{ left: point.left }}
           type="button"
         >
@@ -88,7 +88,7 @@ function TransactionMarkerTooltip({
 }: {
   currency: string;
   markers: PortfolioTransactionMarker[];
-  userTimezone?: string;
+  userTimezone?: string | undefined;
   maskValues: boolean;
 }) {
   const { t } = useTranslation(["common", "dashboard"]);

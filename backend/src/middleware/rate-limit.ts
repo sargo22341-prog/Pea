@@ -29,7 +29,7 @@ export function createRateLimit({
       if (bucket.resetAt <= now) buckets.delete(key);
     }
     while (buckets.size > maxBuckets) {
-      const oldestKey = buckets.keys().next().value as string | undefined;
+      const oldestKey = buckets.keys().next().value;
       if (!oldestKey) return;
       buckets.delete(oldestKey);
     }

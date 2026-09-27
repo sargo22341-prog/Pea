@@ -39,8 +39,8 @@ export const PortfolioChart = memo(function PortfolioChart({
   range: RangeKey;
   userTimezone?: string;
   comparisonSeries?: AssetComparisonSerie[];
-  comparisonLoading?: boolean;
-  isRefreshing?: boolean;
+  comparisonLoading?: boolean | undefined;
+  isRefreshing?: boolean | undefined;
 }) {
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();

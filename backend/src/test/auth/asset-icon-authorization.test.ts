@@ -50,7 +50,7 @@ test("only administrators can mutate global asset icons", () => {
         server.close();
       }
     });
-  `);
+  `) as { userDelete: number; userPost: number; adminDelete: number };
 
   assert.equal(result.userDelete, 403);
   assert.equal(result.userPost, 403);

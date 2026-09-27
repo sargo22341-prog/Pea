@@ -6,13 +6,12 @@ import { useAvisOperesPdfImport } from "../hooks/useAvisOperesPdfImport";
 
 function hasFieldError(row: ParsedAvisOperation, field: "date" | "symbol" | "type" | "quantity" | "price" | "fees") {
   const text = [...(row.errors ?? []), ...row.warnings].join(" ").toLowerCase();
-  if (field === "date") return /date/.test(text);
+  if (field === "date") return text.includes('date');
   if (field === "symbol") return /actif|ticker|yahoo|symbole/.test(text);
   if (field === "type") return /sens|achat|vente/.test(text);
-  if (field === "quantity") return /quantit/.test(text);
+  if (field === "quantity") return text.includes('quantit');
   if (field === "price") return /cours|prix/.test(text);
-  if (field === "fees") return /frais/.test(text);
-  return false;
+  return text.includes('frais');
 }
 
 function inputTone(hasError: boolean) {
@@ -75,12 +74,12 @@ function AvisOperesPreview({
             <div className="grid gap-3 lg:grid-cols-[minmax(210px,1.1fr)_minmax(180px,0.8fr)_minmax(150px,0.7fr)]">
               <label>
                 <span className="muted mb-1 block">{t("imports.executionDate", { ns: "settings" })}</span>
-                <input className={inputTone(hasFieldError(row, "date"))} onChange={(event) => onUpdateRow(index, { dateExecution: event.target.value, errors: [] })} type="datetime-local" value={toDateTimeLocalValue(row.dateExecution)} />
+                <input className={inputTone(hasFieldError(row, "date"))} onChange={(event) => { onUpdateRow(index, { dateExecution: event.target.value, errors: [] }); }} type="datetime-local" value={toDateTimeLocalValue(row.dateExecution)} />
               </label>
-              <TextField error={hasFieldError(row, "symbol")} label={t("fields.symbol", { ns: "common" })} onChange={(value) => onUpdateRow(index, { selectedSymbol: value.toUpperCase(), errors: [] })} placeholder={row.isin ?? row.nomValeur ?? ""} value={row.selectedSymbol ?? row.ticker ?? ""} />
+              <TextField error={hasFieldError(row, "symbol")} label={t("fields.symbol", { ns: "common" })} onChange={(value) => { onUpdateRow(index, { selectedSymbol: value.toUpperCase(), errors: [] }); }} placeholder={row.isin ?? row.nomValeur ?? ""} value={row.selectedSymbol ?? row.ticker ?? ""} />
               <label>
                 <span className="muted mb-1 block">{t("fields.side", { ns: "common" })}</span>
-                <select className={inputTone(hasFieldError(row, "type"))} onChange={(event) => onUpdateRow(index, { sensOperation: event.target.value as ParsedAvisOperation["sensOperation"], errors: [] })} value={row.sensOperation}>
+                <select className={inputTone(hasFieldError(row, "type"))} onChange={(event) => { onUpdateRow(index, { sensOperation: event.target.value as ParsedAvisOperation["sensOperation"], errors: [] }); }} value={row.sensOperation}>
                   <option value="achat">{t("states.buy", { ns: "common" })}</option>
                   <option value="vente">{t("states.sell", { ns: "common" })}</option>
                   <option value="inconnu">{t("imports.unknown", { ns: "settings" })}</option>
@@ -96,9 +95,9 @@ function AvisOperesPreview({
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className={`text-sm ${(row.errors?.length ?? 0) > 0 ? "text-coral" : row.warnings.length ? "text-amber" : "text-mint"}`}>
-                {(row.errors?.length ?? 0) > 0 ? row.errors!.join(" ") : row.warnings.length ? row.warnings.join(" ") : "OK"}
+                {row.errors?.length ? row.errors.join(" ") : row.warnings.length ? row.warnings.join(" ") : "OK"}
               </p>
-              <button className="btn-ghost text-coral" onClick={() => onRemoveRow(index)} type="button">
+              <button className="btn-ghost text-coral" onClick={() => { onRemoveRow(index); }} type="button">
                 <Trash2 size={16} />
                 {t("actions.delete", { ns: "common" })}
               </button>
@@ -120,7 +119,7 @@ function TextField({ error = false, label, onChange, placeholder, value }: { err
   return (
     <label>
       <span className="muted mb-1 block">{label}</span>
-      <input className={inputTone(error)} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
+      <input className={inputTone(error)} onChange={(event) => { onChange(event.target.value); }} placeholder={placeholder} value={value} />
     </label>
   );
 }
@@ -147,13 +146,13 @@ function NumberField({
     const numericValue = Number(normalized);
     const nextValue = rawValue === "" ? undefined : Number.isFinite(numericValue) ? numericValue : rawValue;
     const errors = rawValue !== "" && !Number.isFinite(numericValue) ? [t("imports.numberRequired", { field: label, ns: "settings" })] : [];
-    onUpdateRow(index, { [field]: nextValue, errors } as Partial<ParsedAvisOperation>);
+    onUpdateRow(index, { [field]: nextValue, errors });
   }
 
   return (
     <label>
       <span className="muted mb-1 block">{label}</span>
-      <input className={inputTone(error)} inputMode="decimal" onChange={(event) => update(event.target.value)} type="text" value={row[field] ?? ""} />
+      <input className={inputTone(error)} inputMode="decimal" onChange={(event) => { update(event.target.value); }} type="text" value={row[field] ?? ""} />
     </label>
   );
 }

@@ -10,7 +10,7 @@ export interface CacheCleanupResult {
 export interface CacheCleanupStats {
   lastRunAt?: string;
   durationMs?: number;
-  deletedRows?: Record<string, number>;
+  deletedRows?: Record<string, number> | undefined;
   totalDeletedRows?: number;
   lastError?: string;
   lastErrorAt?: string;
@@ -26,7 +26,7 @@ const expirableTables = [
 ] as const;
 
 export class CacheCleanupService {
-  private timer?: NodeJS.Timeout;
+  private timer?: NodeJS.Timeout | undefined;
   private lastStats: CacheCleanupStats = {};
 
   start(intervalMs = defaultIntervalMs) {
@@ -35,7 +35,7 @@ export class CacheCleanupService {
     this.timer = setInterval(() => {
       this.safePurgeExpired();
     }, intervalMs);
-    this.timer.unref?.();
+    this.timer.unref();
   }
 
   stop() {
@@ -49,7 +49,7 @@ export class CacheCleanupService {
 
     for (const table of expirableTables) {
       let tableDeleted = 0;
-      while (true) {
+      for (;;) {
         const changes = db.prepare(
           `DELETE FROM ${table}
            WHERE rowid IN (

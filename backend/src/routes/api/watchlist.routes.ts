@@ -9,7 +9,7 @@ import { routeParam } from "../shared/params.js";
 export const watchlistRouter = express.Router();
 
 watchlistRouter.get("/watchlist", asyncRoute(async (req, res) => {
-  res.json(await watchlistService.list(parseRange(req.query.range)));
+  res.json(await watchlistService.list(parseRange(req.query["range"])));
 }));
 
 watchlistRouter.post("/watchlist/:symbol", asyncRoute(async (req, res) => {
@@ -22,11 +22,11 @@ watchlistRouter.post("/watchlist/:symbol", asyncRoute(async (req, res) => {
     .partial()
     .parse(req.body ?? {});
 
-  res.status(201).json(await watchlistService.add(routeParam(req.params.symbol, "symbol"), body));
+  res.status(201).json(await watchlistService.add(routeParam(req.params["symbol"], "symbol"), body));
 }));
 
-watchlistRouter.delete("/watchlist/:symbol", asyncRoute(async (req, res) => {
-  const deleted = watchlistService.remove(routeParam(req.params.symbol, "symbol"));
+watchlistRouter.delete("/watchlist/:symbol", asyncRoute((req, res) => {
+  const deleted = watchlistService.remove(routeParam(req.params["symbol"], "symbol"));
   if (!deleted) throw new HttpError(404, "Actif absent de la liste de suivi");
   res.status(204).send();
 }));

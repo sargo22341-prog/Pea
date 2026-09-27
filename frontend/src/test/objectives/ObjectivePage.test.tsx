@@ -1,7 +1,7 @@
-import type { ObjectiveDto } from "@pea/shared";
+import type { ObjectiveDto, ObjectiveInput } from "@pea/shared";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildObjective, renderObjectivePage, type ObjectiveFetchMock } from "./objectiveFixture";
+import { buildObjective, jsonResponse, objectiveFetchMock, renderObjectivePage, requestJsonBody, type ObjectiveFetchMock } from "./objectiveFixture";
 
 function objective(overrides: Partial<ObjectiveDto> = {}) {
   return buildObjective(overrides);
@@ -63,11 +63,10 @@ describe("ObjectivePage", () => {
 
   it("opens the edit modal and saves objective data", async () => {
     const dto = objective();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ...dto, title: "Nouvel objectif" }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [{ ...dto, title: "Nouvel objectif" }] }) });
+    const fetchMock = objectiveFetchMock()
+      .mockResolvedValueOnce(jsonResponse({ objectives: [dto] }))
+      .mockResolvedValueOnce(jsonResponse({ ...dto, title: "Nouvel objectif" }))
+      .mockResolvedValueOnce(jsonResponse({ objectives: [{ ...dto, title: "Nouvel objectif" }] }));
     renderPage(dto, fetchMock);
 
     await waitFor(() => expect(screen.getByText("Independance financiere")).toBeInTheDocument());
@@ -76,10 +75,10 @@ describe("ObjectivePage", () => {
     fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "Nouvel objectif" } });
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/users/1/objectives/1");
-    expect(fetchMock.mock.calls[1][1]?.method).toBe("PUT");
-    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body)).title).toBe("Nouvel objectif");
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(3); });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/users/1/objectives/1");
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("PUT");
+    expect((requestJsonBody(fetchMock, 1) as ObjectiveInput).title).toBe("Nouvel objectif");
   });
 
   it("shows only objective fields required by the selected type", async () => {
@@ -117,11 +116,10 @@ describe("ObjectivePage", () => {
 
   it("omits hidden objective fields when saving after a type change", async () => {
     const dto = objective({ config: { ...objective().config, targetAmount: 123456 } });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => dto })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) });
+    const fetchMock = objectiveFetchMock()
+      .mockResolvedValueOnce(jsonResponse({ objectives: [dto] }))
+      .mockResolvedValueOnce(jsonResponse(dto))
+      .mockResolvedValueOnce(jsonResponse({ objectives: [dto] }));
     renderPage(dto, fetchMock);
 
     await waitFor(() => expect(screen.getByText("Independance financiere")).toBeInTheDocument());
@@ -129,8 +127,8 @@ describe("ObjectivePage", () => {
     fireEvent.change(screen.getByLabelText("Type d'objectif"), { target: { value: "annuity_preserve_capital" } });
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    const body = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(3); });
+    const body = requestJsonBody(fetchMock, 1) as ObjectiveInput;
     expect(body.type).toBe("annuity_preserve_capital");
     expect(body.config).not.toHaveProperty("targetAmount");
     expect(body.config).toEqual({ monthlyIncome: 3000, indexIncomeToInflation: true, continueSavingsAfterAnnuityStart: false });

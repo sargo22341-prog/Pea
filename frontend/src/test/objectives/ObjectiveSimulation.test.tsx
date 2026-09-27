@@ -1,8 +1,9 @@
+import type { ObjectiveInput } from "@pea/shared";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ResponsiveContainer } from "recharts";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildObjective, renderObjectivePage, type ObjectiveFetchMock } from "./objectiveFixture";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import { buildObjective, jsonResponse, objectiveFetchMock, renderObjectivePage, requestJsonBody, type ObjectiveFetchMock } from "./objectiveFixture";
 
 // jsdom ne mesure aucun element: on donne une taille fixe au conteneur pour que Recharts dessine reellement.
 vi.mock("../../components/charts/SafeResponsiveContainer", () => ({
@@ -82,11 +83,10 @@ describe("options de simulation de la courbe", () => {
 
   it("enregistre le mode et ses parametres", async () => {
     const dto = buildObjective();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => dto })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) });
+    const fetchMock = objectiveFetchMock()
+      .mockResolvedValueOnce(jsonResponse({ objectives: [dto] }))
+      .mockResolvedValueOnce(jsonResponse(dto))
+      .mockResolvedValueOnce(jsonResponse({ objectives: [dto] }));
     await openEditModal(dto, fetchMock);
 
     selectMode("shocks");
@@ -94,8 +94,8 @@ describe("options de simulation de la courbe", () => {
     fireEvent.change(screen.getByLabelText("Graine du tirage"), { target: { value: "7" } });
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    const body = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(3); });
+    const body = requestJsonBody(fetchMock, 1) as ObjectiveInput;
     expect(body.assumptions.simulationMode).toBe("shocks");
     expect(body.assumptions.simulationShockSeverity).toBe(45);
     expect(body.assumptions.simulationSeed).toBe(7);
@@ -121,11 +121,13 @@ describe("graphique de projection simule", () => {
 
   it("affiche l'intervalle et la probabilite de reussite en Monte-Carlo", async () => {
     const base = buildObjective();
+    const baseSummary = base.projection.summary;
+    assert(baseSummary);
     renderObjectivePage(buildObjective({
       assumptions: { ...base.assumptions, simulationMode: "monte_carlo", simulationSeed: 3 },
       projection: {
         ...base.projection,
-        summary: { ...base.projection.summary!, successProbability: 72.5 },
+        summary: { ...baseSummary, successProbability: 72.5 },
         series: [
           { date: "2026-05-20T00:00:00.000Z", age: 35, real: 10000, objective: 10000 },
           { date: "2027-05-20T00:00:00.000Z", age: 36, projected: 24000, projectedLow: 18000, projectedHigh: 31000, objective: 45000 },
@@ -139,6 +141,6 @@ describe("graphique de projection simule", () => {
     expect(screen.getByText("Intervalle 10 %-90 %")).toBeInTheDocument();
     expect(screen.getByText("Probabilite d'atteindre l'objectif: 72.5 % des trajectoires simulees")).toBeInTheDocument();
     expect(screen.getByText("Graine du tirage")).toBeInTheDocument();
-    await waitFor(() => expect(chartAreas().length).toBe(1));
+    await waitFor(() => { expect(chartAreas().length).toBe(1); });
   });
 });

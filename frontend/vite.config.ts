@@ -7,7 +7,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, projectRoot, "");
-  const debugEnabled = (process.env.DEBUG ?? env.DEBUG) === "true";
+  const debugEnabled = (process.env["DEBUG"] ?? env["DEBUG"]) === "true";
 
   return {
     define: {

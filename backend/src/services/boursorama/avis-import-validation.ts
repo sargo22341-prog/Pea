@@ -7,7 +7,8 @@ function normalizeNumericInput(value: unknown) {
 }
 
 function numberSchema(label: string) {
-  return z.number({ error: `${label} doit etre un nombre.` }).finite(`${label} doit etre un nombre.`);
+  // z.number() refuse deja NaN et les infinis (Zod 4) : le message couvre ces cas.
+  return z.number({ error: `${label} doit etre un nombre.` });
 }
 
 function requiredNumber(schema: z.ZodNumber) {
@@ -56,7 +57,7 @@ export function formatValidationError(error: z.ZodError) {
 export async function assertYahooSymbolExists(symbol: string) {
   const key = symbol.trim().toUpperCase();
   const result = await marketDataGateway.readQuoteWithCache(key);
-  const foundSymbol = result.data.symbol?.toUpperCase();
+  const foundSymbol = result.data.symbol.toUpperCase();
   if (!foundSymbol || foundSymbol !== key) {
     throw new Error(`Ticker Yahoo introuvable: ${key}.`);
   }

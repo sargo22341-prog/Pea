@@ -17,7 +17,8 @@ export interface PositionRow {
 export interface TransactionRow {
   id: number;
   position_id: number;
-  type: "buy" | "sell" | string;
+  // Valeurs usuelles : "buy" | "sell" (colonne TEXT libre en base).
+  type: string;
   quantity: number;
   price: number;
   total_fees?: number | null;
@@ -38,12 +39,12 @@ export interface PortfolioTransactionInsert {
   price: number;
   currency: string;
   tradedAt: string;
-  sourceFileName?: string | null;
-  assetName?: string | null;
-  isin?: string | null;
-  ticker?: string | null;
-  totalFees?: number | null;
-  rawTextSnippet?: string | null;
+  sourceFileName?: string|null | undefined;
+  assetName?: string|null | undefined;
+  isin?: string|null | undefined;
+  ticker?: string|null | undefined;
+  totalFees?: number|null | undefined;
+  rawTextSnippet?: string|null | undefined;
 }
 
 export interface UserAssetPositionRow {
@@ -58,14 +59,14 @@ export interface UserAssetPositionRow {
 
 export function mapPosition(row: PositionRow): Position {
   return {
-    id: Number(row.id),
-    symbol: String(row.symbol),
-    name: String(row.name),
-    quantity: Number(row.quantity),
-    averageBuyPrice: Number(row.average_buy_price),
-    currency: String(row.currency),
+    id: row.id,
+    symbol: row.symbol,
+    name: row.name,
+    quantity: row.quantity,
+    averageBuyPrice: row.average_buy_price,
+    currency: row.currency,
     notes: row.notes ?? undefined,
-    createdAt: String(row.created_at)
+    createdAt: row.created_at
   };
 }
 
@@ -77,7 +78,7 @@ function transactionTime(row: TransactionRow) {
 function compareTransactionAsc(a: TransactionRow, b: TransactionRow) {
   const dateOrder = transactionTime(a) - transactionTime(b);
   if (dateOrder !== 0) return dateOrder;
-  return Number(a.id) - Number(b.id);
+  return a.id - b.id;
 }
 
 function ensureUserId(userId: number | string): number {
@@ -171,10 +172,10 @@ export class PortfolioRepository {
        JOIN positions p ON p.id = t.position_id
        WHERE p.user_id = ?`
     ).get(ensureUserId(userId)) as { total: number | null } | undefined;
-    return Number(row?.total ?? 0);
+    return (row?.total ?? 0);
   }
 
-  insertManualTransaction(positionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
+  insertManualTransaction(positionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number | undefined; currency: string; tradedAt: string }) {
     db.prepare(
       `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'manual')`
@@ -211,7 +212,7 @@ export class PortfolioRepository {
     ).run(positionId, input.quantity, input.price, input.currency, new Date().toISOString());
   }
 
-  updateManualTransaction(positionId: number, transactionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number; currency: string; tradedAt: string }) {
+  updateManualTransaction(positionId: number, transactionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number | undefined; currency: string; tradedAt: string }) {
     db.prepare(
       `UPDATE transactions
        SET traded_at = ?, type = ?, quantity = ?, price = ?, total_fees = ?, currency = ?

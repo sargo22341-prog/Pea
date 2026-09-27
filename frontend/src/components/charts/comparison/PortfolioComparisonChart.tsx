@@ -2,6 +2,7 @@ import type { PortfolioChartDto, RangeKey } from "@pea/shared";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposedChart, Legend, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { paletteColor } from "../chartFormat";
 import { COMPARE_COLORS } from "./compareColors";
 import { asChartTooltipPayload, tooltipLabel, tooltipNumberValue, type ChartTooltipPayload } from "../rechartsTypes";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
@@ -35,7 +36,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   chart: PortfolioChartDto;
   comparisons: PortfolioComparisonSerie[];
   range: RangeKey;
-  userTimezone?: string;
+  userTimezone?: string | undefined;
   maskValues?: boolean;
 }) {
   const { t } = useTranslation(["dashboard"]);
@@ -46,7 +47,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
       comparisons.map((comparison, index) => ({
         key: comparisonDataKey(index),
         label: comparison.label,
-        color: COMPARE_COLORS[index % COMPARE_COLORS.length]
+        color: paletteColor(COMPARE_COLORS, index)
       })),
     [comparisons]
   );
@@ -61,10 +62,12 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
 
   const renderData = compressTimeAxis ? comparisonData.map((point, index) => ({ ...point, x: index })) : comparisonData;
   const xDataKey = compressTimeAxis ? "x" : "date";
+  const firstPoint = comparisonData[0];
+  const lastPoint = comparisonData.at(-1);
   const xDomain: [number, number] | [string, string] = compressTimeAxis
     ? [0, Math.max(comparisonData.length - 1, 0)]
-    : comparisonData.length > 0
-      ? [comparisonData[0].date, comparisonData[comparisonData.length - 1].date]
+    : firstPoint && lastPoint
+      ? [firstPoint.date, lastPoint.date]
       : ["dataMin", "dataMax"];
   const xTicks = compressTimeAxis ? compressedTicks(comparisonData.length, range) : undefined;
 
@@ -85,9 +88,9 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
             minTickGap={28}
             scale={compressTimeAxis ? "linear" : "time"}
             tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => formatComparisonTick(resolveXDate(value), range, userTimezone)}
+            tickFormatter={(value: string | number) => formatComparisonTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
-            ticks={xTicks}
+            {...(xTicks ? { ticks: xTicks } : {})}
             type="number"
           />
 

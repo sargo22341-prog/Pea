@@ -120,7 +120,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
     renderPage();
 
     await screen.findByText("ASML");
-    await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(api.requestChartRefresh).toHaveBeenCalledTimes(1); });
     await waitForPendingUpdates();
 
     expect(api.asset).toHaveBeenCalledTimes(1);
@@ -136,15 +136,15 @@ describe("AssetDetailPage lazy chart refresh", () => {
     renderPage();
 
     await screen.findByText("ASML");
-    await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(api.requestChartRefresh).toHaveBeenCalledTimes(1); });
 
-    await act(async () => {
+    act(() => {
       window.dispatchEvent(new CustomEvent("pea:market-event", {
         detail: { type: "asset-chart-updated", symbol: "ASML.AS", range: "1d", updatedAt: new Date().toISOString() }
       }));
     });
 
-    await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(api.asset).toHaveBeenCalledTimes(2); });
     await waitForPendingUpdates();
 
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
@@ -173,7 +173,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
     });
     vi.useRealTimers();
 
-    await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(api.asset).toHaveBeenCalledTimes(2); });
     expect(api.requestChartRefresh).toHaveBeenCalledTimes(1);
   });
 
@@ -197,7 +197,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     });
 
-    await waitFor(() => expect(api.asset).toHaveBeenCalledTimes(2));
+    await waitFor(() => { expect(api.asset).toHaveBeenCalledTimes(2); });
     expect(screen.getByText("dividend-chart")).toBeInTheDocument();
   });
 
@@ -208,9 +208,9 @@ describe("AssetDetailPage lazy chart refresh", () => {
     renderPage();
 
     await screen.findByText("ASML");
-    await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(api.requestChartRefresh).toHaveBeenCalledTimes(1); });
 
-    await act(async () => {
+    act(() => {
       window.dispatchEvent(new CustomEvent("pea:market-event", {
         detail: { type: "asset-chart-refresh-started", symbol: "ASML.AS", range: "1d", startedAt: new Date().toISOString() }
       }));
@@ -235,7 +235,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
     renderPage();
 
     await screen.findByText("Donnees intraday pas encore disponibles, marche pas encore confirme ouvert");
-    await waitFor(() => expect(api.requestChartRefresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(api.requestChartRefresh).toHaveBeenCalledTimes(1); });
     expect(api.requestChartRefresh).toHaveBeenCalledWith({ scope: "asset", symbol: "ASML.AS", range: "1d" });
   });
 

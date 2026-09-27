@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { useState, type SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 export function AuthPage({
@@ -15,12 +15,12 @@ export function AuthPage({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (!username.trim()) return setError(t("errors:usernameRequired"));
-    if (!password) return setError(t("errors:passwordRequired"));
-    if (mode === "setup" && password !== confirmPassword) return setError(t("errors:passwordMismatch"));
+    if (!username.trim()) { setError(t("errors:usernameRequired")); return; }
+    if (!password) { setError(t("errors:passwordRequired")); return; }
+    if (mode === "setup" && password !== confirmPassword) { setError(t("errors:passwordMismatch")); return; }
     setSaving(true);
     try {
       await onLogin({ username, password, confirmPassword });
@@ -33,7 +33,7 @@ export function AuthPage({
 
   return (
     <main className="safe-bottom flex min-h-screen items-center justify-center px-4 py-10" data-system-bars-bottom="#071014" data-system-bars-top="#071014">
-      <form className="card w-full max-w-md space-y-4 p-5" onSubmit={submit}>
+      <form className="card w-full max-w-md space-y-4 p-5" onSubmit={(event) => { void submit(event); }}>
         <div className="flex items-center gap-3">
           <img alt="" className="h-12 w-12 rounded-md object-cover shadow-glow" src="/pea-icon.png" />
           <div>
@@ -43,16 +43,16 @@ export function AuthPage({
         </div>
         <label className="block">
           <span className="muted mb-1 block">{t("common:fields.username")}</span>
-          <input className="input" autoComplete="username" onChange={(event) => setUsername(event.target.value)} required value={username} />
+          <input className="input" autoComplete="username" onChange={(event) => { setUsername(event.target.value); }} required value={username} />
         </label>
         <label className="block">
           <span className="muted mb-1 block">{t("common:fields.password")}</span>
-          <input className="input" autoComplete={mode === "setup" ? "new-password" : "current-password"} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+          <input className="input" autoComplete={mode === "setup" ? "new-password" : "current-password"} onChange={(event) => { setPassword(event.target.value); }} required type="password" value={password} />
         </label>
         {mode === "setup" && (
           <label className="block">
             <span className="muted mb-1 block">{t("common:common.confirmation")}</span>
-            <input className="input" autoComplete="new-password" onChange={(event) => setConfirmPassword(event.target.value)} required type="password" value={confirmPassword} />
+            <input className="input" autoComplete="new-password" onChange={(event) => { setConfirmPassword(event.target.value); }} required type="password" value={confirmPassword} />
           </label>
         )}
         {error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p>}

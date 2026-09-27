@@ -4,11 +4,11 @@ export interface ProjectionChartPoint {
   label: string;
   real?: number;
   projected?: number;
-  projectedLow?: number;
-  projectedHigh?: number;
+  projectedLow?: number | undefined;
+  projectedHigh?: number | undefined;
   /** Intervalle Monte-Carlo [borne basse, borne haute] dessine autour de la mediane. */
-  projectedRange?: [number, number];
+  projectedRange?: [number, number] | undefined;
   objective?: number;
-  possibleMonthlyIncome?: number;
-  paidMonthlyIncome?: number;
+  possibleMonthlyIncome?: number | undefined;
+  paidMonthlyIncome?: number | undefined;
 }

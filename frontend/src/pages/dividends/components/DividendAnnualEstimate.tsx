@@ -32,7 +32,7 @@ interface DividendAnnualEstimateProps {
   currency: CurrencyCode;
   monthlyDividends: MonthlyDividend[];
   onYearChange: (year: string) => void;
-  projectedYear?: string;
+  projectedYear?: string | undefined;
   total: number;
   year: string;
   years: string[];
@@ -64,7 +64,7 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
           <h2 className="font-semibold sm:pb-2">{t("dividendsPage.monthlyForecast", { ns: "dashboard" })}</h2>
           <label className="w-full sm:w-44">
             <span className="muted mb-2 block">{t("dividendsPage.year", { ns: "dashboard" })}</span>
-            <select className="input" onChange={(event) => onYearChange(event.target.value)} value={year}>
+            <select className="input" onChange={(event) => { onYearChange(event.target.value); }} value={year}>
               {years.map((item) => (
                 <option key={item} value={item}>
                   {item === projectedYear ? t("dividendsPage.projectedOption", { ns: "dashboard", year: item }) : item}
@@ -99,7 +99,7 @@ function MonthlyDividendTooltip({
   prive
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: MonthlyDividend }>;
+  payload?: { payload?: MonthlyDividend }[];
   prive: boolean;
 }) {
   const month = payload?.[0]?.payload;

@@ -2,18 +2,21 @@ import { act, render, screen } from "@testing-library/react";
 import { Component, Suspense, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_RETRY_DELAYS_MS, lazyWithReload } from "../../lib/app-loading/lazy-with-reload";
+import { reloadPage } from "../../lib/app-loading/page-reload";
+
+vi.mock("../../lib/app-loading/page-reload", () => ({ reloadPage: vi.fn() }));
 
 const RELOAD_KEY = "pea:chunk-reload-at";
 const TOTAL_RETRY_DELAY_MS = CHUNK_RETRY_DELAYS_MS.reduce((total, delay) => total + delay, 0);
 
 class TestBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null as Error | null };
+  override state = { error: null as Error | null };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
-  render() {
+  override render() {
     return this.state.error ? <p>boundary: {this.state.error.message}</p> : this.props.children;
   }
 }
@@ -39,8 +42,7 @@ describe("lazyWithReload", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    // jsdom ne sait pas naviguer : window.location.reload() journalise une erreur, masquee ici.
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(reloadPage).mockClear();
     sessionStorage.clear();
   });
 
@@ -62,6 +64,7 @@ describe("lazyWithReload", () => {
     expect(screen.getByText("dashboard")).toBeInTheDocument();
     expect(factory).toHaveBeenCalledTimes(2);
     expect(sessionStorage.getItem(RELOAD_KEY)).toBeNull();
+    expect(reloadPage).not.toHaveBeenCalled();
   });
 
   it("reloads the page once after every retry failed", async () => {
@@ -72,6 +75,7 @@ describe("lazyWithReload", () => {
 
     expect(factory).toHaveBeenCalledTimes(CHUNK_RETRY_DELAYS_MS.length + 1);
     expect(Number(sessionStorage.getItem(RELOAD_KEY))).toBe(Date.now());
+    expect(reloadPage).toHaveBeenCalledOnce();
     expect(screen.getByText("loading")).toBeInTheDocument();
     expect(screen.queryByText(/boundary/)).not.toBeInTheDocument();
   });
@@ -85,6 +89,7 @@ describe("lazyWithReload", () => {
     await advance(TOTAL_RETRY_DELAY_MS);
 
     expect(sessionStorage.getItem(RELOAD_KEY)).toBe(previousReloadAt);
+    expect(reloadPage).not.toHaveBeenCalled();
     expect(screen.getByText("boundary: chunk missing")).toBeInTheDocument();
   });
 });

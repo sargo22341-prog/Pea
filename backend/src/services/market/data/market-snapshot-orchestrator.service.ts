@@ -64,7 +64,7 @@ export class MarketSnapshotOrchestrator {
     ranges: StoredChartRange[] = ["1w", "1m", "all"],
     options: { tradingDate?: string; closeIso?: string; closePrice?: number } = {}
   ) {
-    return symbolLockService.withLock(`candles:${asset.symbol.toUpperCase()}`, async () =>
+    return symbolLockService.withLock(`candles:${asset.symbol.toUpperCase()}`, () =>
       storedRangeRebuilderService.rebuildFromFinalData(asset, ranges, options)
     );
   }

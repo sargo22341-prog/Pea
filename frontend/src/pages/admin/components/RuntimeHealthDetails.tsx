@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, ServerCog } from "lucide-react";
 import type { ReactNode } from "react";
 import { badgeToneClass, failedQueueTone, formatDateTime, formatDuration, formatNumber, queueTypeLabel, schedulerStatusLabel, schedulerTone, yahooCircuitLabel, yahooTone, type BadgeTone, type RuntimeT } from "./runtime-health-format";
 
-export function RuntimeHealthDetails({ data, warnings, t }: { data: RuntimeHealthDto; warnings: Array<{ label: string; tone: BadgeTone }>; t: RuntimeT }) {
+export function RuntimeHealthDetails({ data, warnings, t }: { data: RuntimeHealthDto; warnings: { label: string; tone: BadgeTone }[]; t: RuntimeT }) {
   return (
     <>
       <StatusBadges data={data} t={t} warnings={warnings} />
@@ -17,7 +17,7 @@ export function RuntimeHealthDetails({ data, warnings, t }: { data: RuntimeHealt
   );
 }
 
-function StatusBadges({ data, warnings, t }: { data: RuntimeHealthDto; warnings: Array<{ label: string; tone: BadgeTone }>; t: RuntimeT }) {
+function StatusBadges({ data, warnings, t }: { data: RuntimeHealthDto; warnings: { label: string; tone: BadgeTone }[]; t: RuntimeT }) {
   const items = warnings.length ? warnings : [{ label: t("admin.runtime.noActiveAlert", { ns: "common" }), tone: "ok" as BadgeTone }];
   return (
     <div className="flex flex-wrap gap-2">

@@ -14,8 +14,8 @@ describe("normalizeSeriesByPoints", () => {
       ]
     ]);
 
-    expect(first.map((point) => point.value)).toEqual([0, 10]);
-    expect(second.map((point) => point.value)).toEqual([0, -10]);
+    expect(first?.map((point) => point.value)).toEqual([0, 10]);
+    expect(second?.map((point) => point.value)).toEqual([0, -10]);
   });
 
   it("uses the shortest valid series length by default", () => {
@@ -33,7 +33,7 @@ describe("normalizeSeriesByPoints", () => {
 
     expect(long).toHaveLength(2);
     expect(short).toHaveLength(2);
-    expect(long.map((point) => point.value)).toEqual([0, 20]);
+    expect(long?.map((point) => point.value)).toEqual([0, 20]);
   });
 
   it("linearly interpolates value and date when resampling to a larger target", () => {
@@ -47,9 +47,9 @@ describe("normalizeSeriesByPoints", () => {
       3
     );
 
-    expect(series.map((point) => point.value)).toEqual([0, 10, 20]);
-    expect(series.map((point) => point.date)).toEqual([0, 10, 20]);
-    expect(series[1].interpolated).toBe(true);
+    expect(series?.map((point) => point.value)).toEqual([0, 10, 20]);
+    expect(series?.map((point) => point.date)).toEqual([0, 10, 20]);
+    expect(series?.[1]?.interpolated).toBe(true);
   });
 
   it("ignores null and undefined values", () => {
@@ -62,8 +62,8 @@ describe("normalizeSeriesByPoints", () => {
       ]
     ]);
 
-    expect(series.map((point) => point.date)).toEqual([1, 3]);
-    expect(series.map((point) => point.value)).toEqual([0, 5]);
+    expect(series?.map((point) => point.date)).toEqual([1, 3]);
+    expect(series?.map((point) => point.value)).toEqual([0, 5]);
   });
 
   it("returns an empty series when fewer than two valid points are available", () => {

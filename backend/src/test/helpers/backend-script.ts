@@ -4,13 +4,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-type BackendScriptOptions = {
+interface BackendScriptOptions {
   nodeEnv?: string;
   tempPrefix?: string;
   env?: Record<string, string | undefined>;
-};
+}
 
-export function runBackendScript(script: string, options: BackendScriptOptions = {}) {
+/** Execute un script backend isole et renvoie le JSON imprime apres `__RESULT__` (a typer par l'appelant). */
+export function runBackendScript(script: string, options: BackendScriptOptions = {}): unknown {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), options.tempPrefix ?? "pea-test-"));
   const sqlitePath = path.join(tempDir, "test.sqlite");
   const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
@@ -31,7 +32,7 @@ export function runBackendScript(script: string, options: BackendScriptOptions =
     .find((line) => line.trim().startsWith("__RESULT__"));
 
   assert.ok(jsonLine, result.stdout);
-  return JSON.parse(jsonLine.slice("__RESULT__".length));
+  return JSON.parse(jsonLine.slice("__RESULT__".length)) as unknown;
 }
 
 export const seedUser = `

@@ -8,6 +8,6 @@ export const assetApi = {
     formData.append("icon", file);
     return request<AssetIcon>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "POST", body: formData });
   },
-  resetAssetIcon: (symbol: string) => request<void>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
-  assetIcons: () => request<Array<{ symbol: string; name: string; icon?: AssetIcon }>>("/api/asset-icons")
+  resetAssetIcon: (symbol: string) => request<undefined>(`/api/assets/${encodeURIComponent(symbol)}/icon`, { method: "DELETE" }),
+  assetIcons: () => request<{ symbol: string; name: string; icon?: AssetIcon }[]>("/api/asset-icons")
 };

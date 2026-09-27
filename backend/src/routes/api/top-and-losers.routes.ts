@@ -25,7 +25,7 @@ topAndLosersRouter.get("/top-and-losers", asyncRoute(async (_req, res) => {
 
 /** GET /api/market-lists/:id charge une seule liste Yahoo Finance a la demande. */
 topAndLosersRouter.get("/market-lists/:id", asyncRoute(async (req, res) => {
-  const id = String(req.params.id ?? "");
+  const id = String(req.params["id"] ?? "");
   if (!isMarketListId(id)) {
     res.status(400).json({ message: "Liste Yahoo Finance inconnue." });
     return;

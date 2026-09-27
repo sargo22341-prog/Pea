@@ -24,7 +24,7 @@ test("bootstrap admin cannot delete the current admin account", () => {
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { message: string } };
 
   assert.equal(result.status, 409);
   assert.match(result.body.message, /propre compte/);
@@ -72,7 +72,7 @@ test("runtime user update cannot promote a standard user to admin", () => {
         server.close();
       }
     });
-  `);
+  `) as { updateStatus: number; meBody: { user: { role: string } }; adminRouteStatus: number };
 
   assert.equal(result.updateStatus, 200);
   assert.equal(result.meBody.user.role, "user");
@@ -114,7 +114,7 @@ test("database guard rejects non-bootstrap admin creation and bootstrap marker c
         server.close();
       }
     });
-  `);
+  `) as { messages: string[] };
 
   assert.equal(result.messages.length, 4);
   assert.ok(result.messages.every((message: string) => message !== "accepted"));
@@ -158,7 +158,7 @@ test("non-admin cannot access admin user routes", () => {
         server.close();
       }
     });
-  `);
+  `) as { listStatus: number; createStatus: number; deleteStatus: number };
 
   assert.equal(result.listStatus, 403);
   assert.equal(result.createStatus, 403);

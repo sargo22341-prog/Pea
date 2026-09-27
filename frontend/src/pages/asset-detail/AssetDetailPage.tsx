@@ -9,6 +9,7 @@ import { NewsArticleList } from "../../components/common/NewsArticleList";
 import { useAsync } from "../../hooks/useAsync";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";
+import { cancelFrame, requestFrame } from "../../lib/animation-frame";
 import { api } from "../../lib/api";
 import { normalizeTimeZone } from "../../lib/timezone";
 import { AssetAnalystConsensus } from "./components/AssetAnalystConsensus";
@@ -30,8 +31,6 @@ function keepPageAtTopForInitialPaint(frameCount: number) {
   let frameHandle: number | undefined;
   let cancelled = false;
 
-  const requestFrame = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
-  const cancelFrame = window.cancelAnimationFrame ?? ((handle: number) => window.clearTimeout(handle));
   const cancel = () => {
     cancelled = true;
     if (frameHandle !== undefined) cancelFrame(frameHandle);
@@ -62,7 +61,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const { t } = useTranslation("asset");
   const { symbol = "" } = useParams();
   const lastInitialScrollSymbolRef = useRef<string | null>(null);
-  const [range, setRangeState] = useState<RangeKey>(() => user.defaultChartRange ?? "1d");
+  const [range, setRangeState] = useState<RangeKey>(() => user.defaultChartRange);
   const [editing, setEditing] = useState(false);
   const [draftPosition, setDraftPosition] = useState<PositionWithMarket | null>(null);
   const [openingPositionEditor, setOpeningPositionEditor] = useState(false);
@@ -125,7 +124,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   }
 
   useEffect(() => {
-    const name = asset.data?.quote?.name;
+    const name = asset.data?.quote.name;
     const title = name
       ? `${name.toUpperCase()} | PEA Portfolio`
       : symbol
@@ -137,7 +136,7 @@ export function AssetDetailPage({ user }: { user: User }) {
     return () => {
       document.title = "PEA Portfolio";
     };
-  }, [asset.data?.quote?.name, symbol]);
+  }, [asset.data?.quote.name, symbol]);
 
   if (asset.loading && !asset.data) return <div className="card p-6">{t("loadingAsset", { symbol })}</div>;
   if (asset.error) return <div className="card border-coral p-6 text-coral">{asset.error}</div>;
@@ -160,7 +159,7 @@ export function AssetDetailPage({ user }: { user: User }) {
     await asset.reload();
     setDraftPosition(null);
     setToast(t("positionUpdated"));
-    window.setTimeout(() => setToast(null), 3000);
+    window.setTimeout(() => { setToast(null); }, 3000);
   }
 
   async function openPositionEditor() {
@@ -197,6 +196,7 @@ export function AssetDetailPage({ user }: { user: User }) {
   const rangeChange = dayChange ?? chart?.performanceEuro ?? 0;
   const rangeChangePercent = dayChangePercent ?? chart?.performancePercent ?? 0;
   const displayPrice = marketInfo?.regularMarketPrice ?? quote.price;
+  const editedPosition = position ?? draftPosition;
 
   return (
     <>
@@ -205,7 +205,7 @@ export function AssetDetailPage({ user }: { user: User }) {
           displayPrice={displayPrice}
           marketUnavailable={marketUnavailable}
           onAdd={() => void openPositionEditor()}
-          onEdit={() => setEditing(true)}
+          onEdit={() => { setEditing(true); }}
           onToggleWatchlist={() => void toggleWatchlist()}
           peaEligibilityStatus={asset.data.peaEligibility.status}
           positionExists={Boolean(position)}
@@ -230,8 +230,8 @@ export function AssetDetailPage({ user }: { user: User }) {
           displayChart={displayChart}
           loading={asset.loading}
           marketSession={marketSession}
-          onCompare={() => setComparing(true)}
-          onRangeChange={(nextRange) => setRange("user-click", nextRange)}
+          onCompare={() => { setComparing(true); }}
+          onRangeChange={(nextRange) => { setRange("user-click", nextRange); }}
           preparingSymbols={preparingSymbols}
           quoteCurrency={quote.currency}
           range={range}
@@ -245,7 +245,7 @@ export function AssetDetailPage({ user }: { user: User }) {
         <AssetCalendarEvents symbol={symbol} />
 
         {asset.data.analystConsensus ? (
-          <AssetAnalystConsensus currency={quote.currency ?? "EUR"} data={asset.data.analystConsensus} />
+          <AssetAnalystConsensus currency={quote.currency} data={asset.data.analystConsensus} />
         ) : null}
 
         {asset.data.isEtf && asset.data.fundDetails ? <AssetEtfFundDetails data={asset.data.fundDetails} /> : null}
@@ -254,12 +254,12 @@ export function AssetDetailPage({ user }: { user: User }) {
       </div>
 
       {/* Fenetres modales hors cascade : un voile `position: fixed` ne doit pas heriter d'un `transform` anime. */}
-      {editing && (position ?? draftPosition) && (
+      {editing && editedPosition && (
         <EditPositionModal
           onClose={() => void closePositionEditor()}
           onDeleted={() => void deletePosition()}
           onSaved={refreshAfterEdit}
-          position={(position ?? draftPosition)!}
+          position={editedPosition}
           startWithDraft={!position}
         />
       )}
@@ -267,8 +267,8 @@ export function AssetDetailPage({ user }: { user: User }) {
         <CompareModal
           currentSymbol={symbol}
           localPeaSearchEnabled={user.localPeaSearchEnabled}
-          onAdd={(target) => void addCompareTarget(target)}
-          onClose={() => setComparing(false)}
+          onAdd={(target) => { addCompareTarget(target); }}
+          onClose={() => { setComparing(false); }}
           onRemove={removeCompareTarget}
           selected={compareTargets}
         />

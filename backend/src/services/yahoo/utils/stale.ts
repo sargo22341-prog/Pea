@@ -9,14 +9,12 @@ export function markStale<T extends object>(data: T, stale: boolean): T & { stal
 }
 
 /** Ajoute le flag stale a toute une liste. */
-export function markStaleList<T extends object>(data: T[], stale: boolean): Array<T & { stale?: boolean }> {
+export function markStaleList<T extends object>(data: T[], stale: boolean): (T & { stale?: boolean })[] {
   return data.map((item) => markStale(item, stale));
 }
 
-/** Un cache n'expire que lorsque le marche concerne est ouvert. */
-export function cacheIsStale(symbol: string, exchange: string | undefined, fetchedAtSeconds: number, ttlSeconds: number) {
-  void symbol;
-  void exchange;
+/** Un cache devient perime une fois sa duree de vie depassee. */
+export function cacheIsStale(fetchedAtSeconds: number, ttlSeconds: number) {
   return nowSeconds() - fetchedAtSeconds > ttlSeconds;
 }
 

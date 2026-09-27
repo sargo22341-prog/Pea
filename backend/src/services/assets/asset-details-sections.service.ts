@@ -78,7 +78,7 @@ export function shouldQueueAnnexRefresh(input: {
     input.quote.dividendYield
   ) !== undefined;
   const hasFinancials = Boolean(input.financials?.length);
-  const hasExtraData = Boolean(input.extraData.calendarEventsData || input.extraData.analystConsensus || input.extraData.fundDetails);
+  const hasExtraData = Boolean(input.extraData.calendarEventsData ?? input.extraData.analystConsensus ?? input.extraData.fundDetails);
 
   if (input.isEtf && !input.extraData.fundDetails) return true;
   if (!input.isEtf && !hasFinancials) return true;
@@ -90,7 +90,7 @@ export class PortfolioSection {
   async load(symbol: string, range: RangeKey, user: AuthUser, dividends: DividendEvent[], fallbackQuote?: Quote) {
     const position = await portfolioService.getPosition(symbol);
     const positionRangePerformance = position
-      ? await portfolioService.singlePositionPerformance(position.id, range).catch((error) => {
+      ? await portfolioService.singlePositionPerformance(position.id, range).catch((error: unknown) => {
           logger.warn("portfolio", "asset position range performance unavailable", {
             symbol,
             range,
@@ -123,7 +123,7 @@ export class MarketSection {
     marketSession: AssetDetails["marketSession"];
   }>> {
     let marketUnavailable = false;
-    const quote = await marketSnapshotService.getQuote(symbol, { allowStaleWhileRefresh: true }).catch((error) => {
+    const quote = await marketSnapshotService.getQuote(symbol, { allowStaleWhileRefresh: true }).catch((error: unknown) => {
       if (!isMarketDataUnavailable(error)) throw error;
       marketUnavailable = true;
       return positionFallbackQuote;
@@ -134,11 +134,11 @@ export class MarketSection {
       assetDataService.chart(symbol, range, config.enableMarketLiveRefresh ? {} : intradayDebugClock(range)),
       assetDataService.market(symbol),
       config.enableMarketLiveRefresh
-        ? Promise.resolve({ data: {} as AssetMarketInfo })
-        : marketDataGateway.readMarketInfoWithCache(symbol).catch((error) => {
+        ? Promise.resolve<{ data: AssetMarketInfo }>({ data: {} })
+        : marketDataGateway.readMarketInfoWithCache(symbol).catch((error: unknown): { data: AssetMarketInfo } => {
             if (!isMarketDataUnavailable(error)) throw error;
             marketUnavailable = true;
-            return { data: {} as AssetMarketInfo };
+            return { data: {} };
           })
     ]);
 
@@ -199,7 +199,7 @@ export class NewsSection {
 
     const [articlesDto, newsResult] = await Promise.all([
       assetDataService.articles(symbol, languages),
-      marketDataGateway.readNewsWithCache(symbol, languages).catch((error) => {
+      marketDataGateway.readNewsWithCache(symbol, languages).catch((error: unknown) => {
         logger.warn("news", "asset news fallback", {
           symbol,
           error: error instanceof Error ? error.message : String(error)
@@ -223,23 +223,23 @@ export class FundamentalsSection {
     let marketUnavailable = false;
     const [assetDividends, dividendsResult, assetFinancialsResult, extraDataResult] = await Promise.all([
       assetDataService.dividends(symbol),
-      Promise.resolve({ data: dividendsService.readDividends(symbol) }).catch((error) => {
+      Promise.resolve({ data: dividendsService.readDividends(symbol) }).catch((error: unknown) => {
         if (!isMarketDataUnavailable(error)) throw error;
         marketUnavailable = true;
         return { data: [] as DividendEvent[] };
       }),
       Promise.resolve({
-        financials: financialsService.readFinancialRows(symbol) as AssetDetails["financials"],
-        isEtf: String(quote.quoteType ?? "").toUpperCase().includes("ETF")
+        financials: financialsService.readFinancialRows(symbol),
+        isEtf: (quote.quoteType ?? "").toUpperCase().includes("ETF")
       }),
       config.enableMarketLiveRefresh
         ? Promise.resolve(readCachedExtraData(symbol) ?? { data: {} as ExtraAssetData })
-        : marketDataGateway.readExtraDataWithCache(symbol).catch((error) => {
+        : marketDataGateway.readExtraDataWithCache(symbol).catch((error: unknown) => {
             logger.warn("market-data", "extraData fallback", {
               symbol,
               error: error instanceof Error ? error.message : String(error)
             });
-            return { data: {} as ExtraAssetData };
+            return { data: {} };
           })
     ]);
 

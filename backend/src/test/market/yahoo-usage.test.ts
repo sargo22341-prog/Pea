@@ -18,7 +18,7 @@ test.after(() => {
 });
 
 test("Yahoo usage tracking records a successful real call", async () => {
-  const result = await scheduleYahooCall("quote:AIR.PA", async () => ({ ok: true }));
+  const result = await scheduleYahooCall("quote:AIR.PA", () => Promise.resolve({ ok: true }));
 
   const row = db.prepare("SELECT method, ticker, success, ticker_count FROM yahoo_usage_logs").get() as {
     method: string;
@@ -35,9 +35,7 @@ test("Yahoo usage tracking records a successful real call", async () => {
 
 test("Yahoo usage tracking records a failed real call", async () => {
   await assert.rejects(
-    scheduleYahooCall("fundamentals:AIR.PA", async () => {
-      throw new Error("Yahoo exploded with a very explicit message");
-    }),
+    scheduleYahooCall("fundamentals:AIR.PA", () => Promise.reject(new Error("Yahoo exploded with a very explicit message"))),
     /Yahoo exploded/
   );
 
@@ -52,19 +50,14 @@ test("Yahoo usage tracking records a failed real call", async () => {
   assert.equal(row.ticker, "AIR.PA");
   assert.equal(row.success, 0);
   assert.match(row.error_message, /Yahoo exploded/);
-  assert.ok(JSON.parse(row.modules_json).includes("calendarEvents"));
+  assert.ok((JSON.parse(row.modules_json) as string[]).includes("calendarEvents"));
 });
 
-test("Yahoo usage tracking failure does not fail the business result", () => {
-  const original = yahooUsageRepository.record;
-  yahooUsageRepository.record = () => {
+test("Yahoo usage tracking failure does not fail the business result", (t) => {
+  t.mock.method(yahooUsageRepository, "record", () => {
     throw new Error("database unavailable");
-  };
-  try {
-    assert.doesNotThrow(() => recordYahooUsage("quote:BNP.PA", { durationMs: 12, success: true }));
-  } finally {
-    yahooUsageRepository.record = original;
-  }
+  });
+  assert.doesNotThrow(() => { recordYahooUsage("quote:BNP.PA", { durationMs: 12, success: true }); });
 });
 
 test("Yahoo usage stats aggregate and filter by day, hour, method, module and ticker", () => {
@@ -119,7 +112,7 @@ test("Yahoo usage stats aggregate and filter by day, hour, method, module and ti
   assert.deepEqual(yahooUsageRepository.list({ method: "chart" }).map((call) => call.method), ["chart"]);
   assert.deepEqual(yahooUsageRepository.list({ module: "calendarEvents" }).map((call) => call.method), ["quoteSummary"]);
   assert.equal(yahooUsageRepository.list({ ticker: "AIR.PA" }).length, 2);
-  assert.equal(yahooUsageRepository.list({ id: latestCalls[0]!.id }).length, 1);
+  assert.equal(yahooUsageRepository.list({ id: latestCalls[0].id }).length, 1);
 });
 
 test("Yahoo usage metadata inference recognizes batch tickers and chart options", () => {

@@ -12,7 +12,7 @@ export function AssetInfoTile({
 }: {
   label: string;
   value: ReactNode;
-  tone?: InfoTone;
+  tone?: InfoTone | undefined;
   icon?: ReactNode;
   iconTone?: IconTone;
   variant?: "tile" | "market";

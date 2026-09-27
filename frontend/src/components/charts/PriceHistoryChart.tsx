@@ -28,11 +28,11 @@ interface PriceHistoryChartProps {
   };
   minTickGap?: number;
   oneDayTooltipFormat?: "dateTime" | "time";
-  baselinePrice?: number;
-  baselineDatetime?: string;
-  marketSession?: MarketSessionDto;
+  baselinePrice?: number | undefined;
+  baselineDatetime?: string | undefined;
+  marketSession?: MarketSessionDto | undefined;
   transactionMarkers?: PortfolioTransactionMarker[];
-  userTimezone?: string;
+  userTimezone?: string | undefined;
   hideXAxisTicks?: boolean;
   maskValues?: boolean;
 }
@@ -61,7 +61,7 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
   const id = useId().replace(/:/g, "");
   const chartColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
   const gradientId = `${id}-${trend}-gradient`;
-  const showBaseline = range === "1d" && Number.isFinite(baselinePrice);
+  const showBaseline = range === "1d" && baselinePrice !== undefined && Number.isFinite(baselinePrice);
   const containerRef = useRef<HTMLDivElement>(null);
   const containerSize = useElementSize(containerRef);
   const { markerGroups, markerOverlayPoints } = useChartMarkerModel({
@@ -89,20 +89,20 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
             axisLine={false}
             dataKey={xDataKey}
             domain={xDomain}
-            minTickGap={minTickGap}
+            {...(minTickGap === undefined ? {} : { minTickGap })}
             scale={compressTimeAxis ? "linear" : "time"}
             tick={hideXAxisTicks ? false : { fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
+            tickFormatter={(value: string | number) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
-            ticks={xTicks}
+            {...(xTicks ? { ticks: xTicks } : {})}
             type="number"
           />
           <YAxis
             yAxisId="value"
             hide
             domain={[
-              (dataMin: number) => (showBaseline ? Math.min(dataMin, Number(baselinePrice)) : dataMin),
-              (dataMax: number) => (showBaseline ? Math.max(dataMax, Number(baselinePrice)) : dataMax)
+              (dataMin: number) => (showBaseline ? Math.min(dataMin, baselinePrice) : dataMin),
+              (dataMax: number) => (showBaseline ? Math.max(dataMax, baselinePrice) : dataMax)
             ]}
           />
           <Tooltip

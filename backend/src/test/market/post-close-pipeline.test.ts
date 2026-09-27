@@ -9,26 +9,8 @@
  */
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
-
-function lancerScriptBackend(script: string) {
-  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), "pea-test-"));
-  const cheminSqlite = path.join(dossierTemp, "test.sqlite");
-  const resultat = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
-    cwd: path.resolve(import.meta.dirname, "..", ".."),
-    encoding: "utf8",
-    env: { ...process.env, NODE_ENV: "development", PEA_TEST_SQLITE_PATH: cheminSqlite }
-  });
-  fs.rmSync(dossierTemp, { recursive: true, force: true });
-  assert.equal(resultat.status, 0, resultat.stderr);
-  const lignResultat = resultat.stdout.split(/\r?\n/).find((l) => l.trim().startsWith("__RESULT__"));
-  assert.ok(lignResultat, resultat.stdout);
-  return JSON.parse(lignResultat.slice("__RESULT__".length));
-}
+import { runBackendScript } from "../helpers/backend-script.js";
 
 // ——————————————————————————————————————————————————————————————
 // Helpers communs pour les scripts de test
@@ -56,7 +38,7 @@ function insertClose(db, candleRepository, assetId, isoCloseUtc, closePrice) {
 // Test 1 : range ALL stocke uniquement le prix de cloture
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - ALL stocke exactement un point avec le prix de cloture", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -80,7 +62,7 @@ test("rebuildStoredRangesFromFinalData - ALL stocke exactement un point avec le 
       high: dernier?.high,
       low: dernier?.low
     }));
-  `);
+  `) as { count: number; close: number; open: number; high: number; low: number };
 
   assert.equal(result.count, 1, "ALL doit contenir exactement 1 candle");
   assert.equal(result.close, 56.80, "le close doit correspondre au prix insere");
@@ -93,7 +75,7 @@ test("rebuildStoredRangesFromFinalData - ALL stocke exactement un point avec le 
 // Test 2 : range ALL - second appel n'ajoute pas de doublon
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apres double appel)", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -110,7 +92,7 @@ test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apre
 
     const count = candleRepository.countCandles(asset.id, "all", "1d");
     console.log("__RESULT__" + JSON.stringify({ count }));
-  `);
+  `) as { count: number };
 
   assert.equal(result.count, 1, "un double rebuild ALL ne doit pas creer de doublon");
 });
@@ -119,7 +101,7 @@ test("rebuildStoredRangesFromFinalData - ALL est idempotent (pas de doublon apre
 // Test 3 : range 1W construit depuis une semaine calendaire de 1D finalises
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - 1W produit les candles de la semaine calendaire, close correct", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -147,7 +129,7 @@ test("rebuildStoredRangesFromFinalData - 1W produit les candles de la semaine ca
     const dernierClose = candles1w.at(-1)?.close;
 
     console.log("__RESULT__" + JSON.stringify({ count: candles1w.length, dernierClose }));
-  `);
+  `) as { count: number; dernierClose: number };
 
   assert.equal(result.count, 5, "1W doit couvrir une semaine calendaire, pas 7 jours ouverts");
   assert.equal(result.dernierClose, 56.80, "le dernier close 1W doit etre le prix du dernier jour");
@@ -158,7 +140,7 @@ test("rebuildStoredRangesFromFinalData - 1W produit les candles de la semaine ca
 // (c'est le test le plus important : garantit que le pipeline ne vide pas 1W)
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - 1W incremental preserve une semaine calendaire quand on ajoute le 7e jour ouvert", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -189,7 +171,7 @@ test("rebuildStoredRangesFromFinalData - 1W incremental preserve une semaine cal
     const apres7 = candleRepository.countCandles(asset.id, "1w", "2h");
 
     console.log("__RESULT__" + JSON.stringify({ apres6, apres7 }));
-  `);
+  `) as { apres6: number; apres7: number };
 
   assert.equal(result.apres6, 5, "apres 6 jours de 1D : 1W doit garder les candles de la semaine calendaire");
   assert.equal(result.apres7, 5, "apres le 7e jour ouvert : 1W garde une semaine calendaire");
@@ -199,7 +181,7 @@ test("rebuildStoredRangesFromFinalData - 1W incremental preserve une semaine cal
 // Test 5 : range 1M borne a un mois calendaire meme avec 35 jours de 1D
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - 1M est borne a un mois calendaire meme avec 35 jours de sources 1D", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -227,16 +209,16 @@ test("rebuildStoredRangesFromFinalData - 1M est borne a un mois calendaire meme 
     const count1m = candleRepository.countCandles(asset.id, "1m", "4h");
     const count1d = candleRepository.countCandles(asset.id, "1d", "5m");
     console.log("__RESULT__" + JSON.stringify({ count1m, count1d }));
-  `);
+  `) as { count1d: number; count1m: number };
   assert.equal(result.count1d, 36, "la source 1D doit conserver tous les 36 jours inseres");
-  assert.ok(result.count1m <= 23, `1M doit etre borne a un mois calendaire (etait ${result.count1m as number})`);
-  assert.ok(result.count1m >= 20, `1M doit garder les jours ouverts du mois calendaire (etait ${result.count1m as number})`);
+  assert.ok(result.count1m <= 23, `1M doit etre borne a un mois calendaire (etait ${result.count1m})`);
+  assert.ok(result.count1m >= 20, `1M doit garder les jours ouverts du mois calendaire (etait ${result.count1m})`);
 });
 // ——————————————————————————————————————————————————————————————
 // Test 6 : 1W et 1M simultanes depuis la meme source 1D
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis les memes 1D", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -268,9 +250,9 @@ test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis l
     const close1w = candleRepository.readCandles(asset.id, "1w", "2h").at(-1)?.close;
     const close1m = candleRepository.readCandles(asset.id, "1m", "4h").at(-1)?.close;
     console.log("__RESULT__" + JSON.stringify({ count1w, count1m, close1w, close1m }));
-  `);
+  `) as { count1w: number; count1m: number; close1w: number; close1m: number };
   // 10 jours disponibles mais 1W limite a une semaine calendaire.
-  assert.ok(result.count1w <= 10, `1W ne doit pas depasser 10 candles (etait ${result.count1w as number})`);
+  assert.ok(result.count1w <= 10, `1W ne doit pas depasser 10 candles (etait ${result.count1w})`);
   assert.ok(result.count1m <= 10, `1M doit avoir les 10 jours (tous dans le mois calendaire)`);
   assert.equal(result.close1w, result.close1m, "le dernier close doit etre identique entre 1W et 1M");
 });
@@ -278,7 +260,7 @@ test("rebuildStoredRangesFromFinalData - rebuild 1W et 1M en meme temps depuis l
 // Test 7 : marker de finalisation écrit après rebuild
 // ——————————————————————————————————————————————————————————————
 test("rebuildStoredRangesFromFinalData - marque le trading_date comme finalise apres rebuild", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { marketDataService } from "./services/market/data/market-data.service.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
@@ -291,7 +273,7 @@ test("rebuildStoredRangesFromFinalData - marque le trading_date comme finalise a
     const apresRebuild1w = candleRepository.isFinalized(asset.id, "2026-04-28", "1w");
     const apresRebuildAll = candleRepository.isFinalized(asset.id, "2026-04-28", "all");
     console.log("__RESULT__" + JSON.stringify({ avantRebuild1w, apresRebuild1w, apresRebuildAll }));
-  `);
+  `) as { avantRebuild1w: boolean; apresRebuild1w: boolean; apresRebuildAll: boolean };
   assert.equal(result.avantRebuild1w, false, "1W ne doit pas etre marque finalise avant le rebuild");
   assert.equal(result.apresRebuild1w, true, "1W doit etre marque finalise apres le rebuild");
   assert.equal(result.apresRebuildAll, true, "ALL doit etre marque finalise apres le rebuild");

@@ -37,15 +37,17 @@ export function buildComparisonData(chart: PortfolioChartDto, comparisons: Portf
       }))
     );
     const [portfolio, ...comparisonPerformances] = normalizeSeriesByPoints([portfolioBase100, ...comparisonPrices]);
+    if (!portfolio) return [];
 
     return portfolio.map((point, index) => {
       const row: ComparisonPoint = {
-        date: Number(point.date),
+        date: point.date,
         portfolio: 100 + point.value
       };
 
       comparisonPerformances.forEach((series, seriesIndex) => {
-        row[comparisonDataKey(seriesIndex)] = series[index] ? 100 + series[index].value : null;
+        const comparisonPoint = series[index];
+        row[comparisonDataKey(seriesIndex)] = comparisonPoint ? 100 + comparisonPoint.value : null;
       });
 
       return row;
@@ -53,10 +55,11 @@ export function buildComparisonData(chart: PortfolioChartDto, comparisons: Portf
   }
 
   const maxGapMs = 7 * 24 * 60 * 60 * 1000;
-  const firstValidIndex = chart.value.findIndex((value) => value != null && Number.isFinite(value) && value !== 0);
+  const firstValidIndex = chart.value.findIndex((value) => Number.isFinite(value) && value !== 0);
   if (firstValidIndex === -1) return [];
 
   const firstTimestamp = chart.timestamps[firstValidIndex];
+  if (firstTimestamp === undefined) return [];
   const portfolioNorms = buildPortfolioTwrValues(chart, firstValidIndex);
   const preparedComparisons = comparisons.map((comparison) => {
     const sortedPoints = comparisonPricePoints(comparison);
@@ -67,7 +70,7 @@ export function buildComparisonData(chart: PortfolioChartDto, comparisons: Portf
   return chart.timestamps.map((timestamp, index) => {
     const row: ComparisonPoint = {
       date: timestamp,
-      portfolio: portfolioNorms[index]
+      portfolio: portfolioNorms[index] ?? null
     };
 
     preparedComparisons.forEach(({ refPrice, sortedPoints }, comparisonIndex) => {
@@ -98,14 +101,19 @@ export function findClosestPrice(sortedPoints: ComparisonPricePoint[], target: n
 
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (sortedPoints[mid].timestamp < target) lo = mid + 1;
+    const midPoint = sortedPoints[mid];
+    if (midPoint && midPoint.timestamp < target) lo = mid + 1;
     else hi = mid;
   }
 
-  const candidates = lo > 0 ? [lo - 1, lo] : [lo];
-  const best = candidates.reduce((a, b) => (Math.abs(sortedPoints[a].timestamp - target) <= Math.abs(sortedPoints[b].timestamp - target) ? a : b));
-  if (Math.abs(sortedPoints[best].timestamp - target) > maxGapMs) return null;
-  return sortedPoints[best].price;
+  // A distance egale, le point le plus ancien l'emporte.
+  const candidates = [sortedPoints[lo - 1], sortedPoints[lo]].filter((point): point is ComparisonPricePoint => point !== undefined);
+  const best = candidates.reduce<ComparisonPricePoint | undefined>(
+    (a, b) => (a && Math.abs(a.timestamp - target) <= Math.abs(b.timestamp - target) ? a : b),
+    undefined
+  );
+  if (!best || Math.abs(best.timestamp - target) > maxGapMs) return null;
+  return best.price;
 }
 
 export function shouldNormalizeComparisonByPoints(range: RangeKey) {
@@ -113,7 +121,7 @@ export function shouldNormalizeComparisonByPoints(range: RangeKey) {
 }
 
 function buildPortfolioTwrSeries(chart: PortfolioChartDto) {
-  const firstValidIndex = chart.value.findIndex((value) => value != null && Number.isFinite(value) && value !== 0);
+  const firstValidIndex = chart.value.findIndex((value) => Number.isFinite(value) && value !== 0);
   if (firstValidIndex === -1) return [];
 
   const values = buildPortfolioTwrValues(chart, firstValidIndex);
@@ -123,11 +131,13 @@ function buildPortfolioTwrSeries(chart: PortfolioChartDto) {
 }
 
 function buildPortfolioTwrValues(chart: PortfolioChartDto, firstValidIndex: number) {
-  const portfolioNorms: (number | null)[] = new Array(chart.timestamps.length).fill(null);
+  const portfolioNorms = new Array<number | null>(chart.timestamps.length).fill(null);
+  const firstValue = chart.value[firstValidIndex];
+  if (firstValue === undefined) return portfolioNorms;
   portfolioNorms[firstValidIndex] = 100;
 
   let twr = 1.0;
-  let prevValue = chart.value[firstValidIndex] as number;
+  let prevValue = firstValue;
   let prevInvested = chart.invested[firstValidIndex] ?? 0;
 
   for (let index = firstValidIndex + 1; index < chart.timestamps.length; index += 1) {

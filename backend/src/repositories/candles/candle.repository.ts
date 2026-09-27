@@ -42,7 +42,7 @@ export class CandleRepository {
     return candles.length;
   }
 
-  readCandles(assetId: number, range: RangeKey | string, interval: ChartInterval): HistoryPoint[] {
+  readCandles(assetId: number, range: RangeKey, interval: ChartInterval): HistoryPoint[] {
     const storedRange = normalizeStoredRange(range);
     const rows = db
       .prepare(
@@ -51,21 +51,21 @@ export class CandleRepository {
          WHERE asset_id = ? AND range_key = ? AND interval = ?
          ORDER BY datetime_start ASC`
       )
-      .all(assetId, storedRange, interval) as Array<{
+      .all(assetId, storedRange, interval) as {
       datetime_start: string;
       open: number | null;
       high: number | null;
       low: number | null;
       close: number;
       volume: number | null;
-    }>;
+    }[];
 
     return rows.map((row) => ({
       date: row.datetime_start,
       open: row.open ?? undefined,
       high: row.high ?? undefined,
       low: row.low ?? undefined,
-      close: Number(row.close),
+      close: row.close,
       volume: row.volume ?? undefined
     }));
   }
@@ -87,12 +87,12 @@ export class CandleRepository {
     };
   }
 
-  countCandles(assetId: number, range: RangeKey | string, interval: ChartInterval) {
+  countCandles(assetId: number, range: RangeKey, interval: ChartInterval) {
     const storedRange = normalizeStoredRange(range);
     const row = db
       .prepare(`SELECT COUNT(*) AS count FROM chart_candles WHERE asset_id = ? AND range_key = ? AND interval = ?`)
       .get(assetId, storedRange, interval) as { count?: number } | undefined;
-    return Number(row?.count ?? 0);
+    return (row?.count ?? 0);
   }
 
   hasAnyChartData(assetId: number) {
@@ -123,7 +123,7 @@ export class CandleRepository {
     const row = db
       .prepare("SELECT trading_date FROM market_data_finalizations WHERE asset_id = ? AND range = ? AND finalized = 1 ORDER BY trading_date DESC LIMIT 1")
       .get(assetId, range) as { trading_date?: string } | undefined;
-    return row?.trading_date ? String(row.trading_date) : undefined;
+    return row?.trading_date ? row.trading_date : undefined;
   }
 
   pruneBefore(assetId: number, range: StoredChartRange, interval: ChartInterval, cutoffIso: string) {
@@ -146,7 +146,7 @@ export class CandleRepository {
     const row = db
       .prepare("SELECT finalized FROM market_data_finalizations WHERE asset_id = ? AND trading_date = ? AND range = ?")
       .get(assetId, tradingDate, range) as { finalized?: number } | undefined;
-    return Number(row?.finalized ?? 0) === 1;
+    return (row?.finalized ?? 0) === 1;
   }
 
   markFinalized(assetId: number, tradingDate: string, range: StoredChartRange) {

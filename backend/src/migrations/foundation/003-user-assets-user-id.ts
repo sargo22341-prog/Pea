@@ -6,7 +6,7 @@ export const userAssetsUserIdMigration: Migration = {
   appliquer: (db) => {
     const colonnes = db.prepare("PRAGMA table_info(user_assets)").all() as ColonneDb[];
     const colonneUserId = colonnes.find((c) => c.name === "user_id");
-    if (colonneUserId?.type?.toUpperCase() === "INTEGER") return;
+    if (colonneUserId?.type.toUpperCase() === "INTEGER") return;
 
     db.exec("DROP TABLE IF EXISTS user_assets_nouveau");
     db.exec(`

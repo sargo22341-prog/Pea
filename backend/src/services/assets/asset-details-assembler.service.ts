@@ -79,8 +79,8 @@ export class AssetDetailsAssembler {
         fundamentals.dividends.some((event) => event.stale) ||
         portfolio.position?.quote?.stale
       ),
-      peaEligibility: evaluatePeaEligibility({ ...market.data.quote, quoteType: String(market.data.quote.quoteType ?? "") }),
-      peaRank: rankAssetForPea({ ...market.data.quote, quoteType: String(market.data.quote.quoteType ?? "") }),
+      peaEligibility: evaluatePeaEligibility({ ...market.data.quote, quoteType: market.data.quote.quoteType ?? "" }),
+      peaRank: rankAssetForPea({ ...market.data.quote, quoteType: market.data.quote.quoteType ?? "" }),
       summary: {
         exchange: market.data.assetStatic.exchange || market.data.quote.exchange,
         marketState: market.data.assetMarket.marketState,

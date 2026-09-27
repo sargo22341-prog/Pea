@@ -38,7 +38,7 @@ export function EditPositionModal({
         const nextRows = transactions.map(toFormRow);
         setRows(nextRows.length || !startWithDraft ? nextRows : [draftTransaction(position)]);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (alive) setError(err instanceof Error ? err.message : t("errors:loadFailed"));
       })
       .finally(() => {
@@ -176,36 +176,36 @@ export function EditPositionModal({
                     <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_120px_1fr_1fr_1fr_110px_auto_auto] md:items-end">
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.date")}</span>
-                        <input className="input" onChange={(event) => patchRow(index, { tradedAt: event.target.value, dateExecution: event.target.value })} type="datetime-local" value={toDateTimeLocalValue(row.tradedAt)} />
+                        <input className="input" onChange={(event) => { patchRow(index, { tradedAt: event.target.value, dateExecution: event.target.value }); }} type="datetime-local" value={toDateTimeLocalValue(row.tradedAt)} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.side")}</span>
-                        <select className="input" onChange={(event) => patchTransactionType(index, event.target.value as EditablePortfolioTransaction["type"])} value={row.type}>
+                        <select className="input" onChange={(event) => { patchTransactionType(index, event.target.value as EditablePortfolioTransaction["type"]); }} value={row.type}>
                           <option value="buy">{t("common:states.buy")}</option>
                           <option value="sell">{t("common:states.sell")}</option>
                         </select>
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.quantity")}</span>
-                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => patchTransactionQuantity(index, event.target.value, row)} step="any" type="number" value={row.quantity} />
+                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => { patchTransactionQuantity(index, event.target.value, row); }} step="any" type="number" value={row.quantity} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.price")}</span>
-                        <input className="input" min="0" onChange={(event) => patchRow(index, { price: event.target.value, executedPrice: event.target.value })} step="any" type="number" value={row.price} />
+                        <input className="input" min="0" onChange={(event) => { patchRow(index, { price: event.target.value, executedPrice: event.target.value }); }} step="any" type="number" value={row.price} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.fees")}</span>
-                        <input className="input" min="0" onChange={(event) => patchRow(index, { totalFees: event.target.value })} step="any" type="number" value={row.totalFees} />
+                        <input className="input" min="0" onChange={(event) => { patchRow(index, { totalFees: event.target.value }); }} step="any" type="number" value={row.totalFees} />
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.currency")}</span>
-                        <input className="input" onChange={(event) => patchRow(index, { currency: event.target.value.toUpperCase() })} value={row.currency} />
+                        <input className="input" onChange={(event) => { patchRow(index, { currency: event.target.value.toUpperCase() }); }} value={row.currency} />
                       </label>
                       <button className="btn-primary" disabled={row.id.startsWith("legacy-")} onClick={() => void save(row)} type="button">
                         <Save size={16} />
                         {t("portfolio:position.save")}
                       </button>
-                      <button aria-label={t("common:actions.delete")} className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => setPendingDelete(row)} type="button">
+                      <button aria-label={t("common:actions.delete")} className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => { setPendingDelete(row); }} type="button">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -222,7 +222,7 @@ export function EditPositionModal({
         </div>
 
         <div className="flex justify-between gap-3 border-t border-line p-4">
-          <button className="btn-ghost text-coral" onClick={() => setConfirmPositionDelete(true)} type="button">
+          <button className="btn-ghost text-coral" onClick={() => { setConfirmPositionDelete(true); }} type="button">
             <Trash2 size={17} />
             {t("portfolio:position.deleteAction")}
           </button>
@@ -234,7 +234,7 @@ export function EditPositionModal({
           danger
           confirmLabel={t("common:actions.delete")}
           description={t("portfolio:position.deleteTransactionDescription", { type: pendingDelete.type === "sell" ? t("common:states.sell").toLowerCase() : t("common:states.buy").toLowerCase(), date: toDateTimeLocalValue(pendingDelete.tradedAt).replace("T", " ") })}
-          onCancel={() => setPendingDelete(null)}
+          onCancel={() => { setPendingDelete(null); }}
           onConfirm={() => void remove(pendingDelete)}
           title={t("portfolio:position.deleteTransactionTitle")}
         />
@@ -244,7 +244,7 @@ export function EditPositionModal({
           danger
           confirmLabel={t("portfolio:position.deletePositionAction")}
           description={t("portfolio:position.deletePositionDescription", { symbol: position.symbol })}
-          onCancel={() => setConfirmPositionDelete(false)}
+          onCancel={() => { setConfirmPositionDelete(false); }}
           onConfirm={onDeleted}
           title={t("portfolio:position.deletePositionTitle", { symbol: position.symbol })}
         />

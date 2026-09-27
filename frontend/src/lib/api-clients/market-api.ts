@@ -47,7 +47,7 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
 
     function attachEvent(eventName: string) {
       eventSource?.addEventListener(eventName, (event) => {
-        dispatch(eventName, String((event as MessageEvent).data));
+        dispatch(eventName, String((event).data));
       });
     }
 
@@ -94,16 +94,18 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
   }
 
   let closed = false;
+  // Lu via une fonction : `closed` passe a true depuis close(), pendant les await de la boucle.
+  const isClosed = () => closed;
   let controller: AbortController | undefined;
   const registeredEvents = new Set<string>();
 
   async function connectLoop() {
-    while (!closed) {
+    while (!isClosed()) {
       controller = new AbortController();
       try {
         const url = await resolveApiUrl("/api/market/events");
         const response = await fetch(url, {
-          headers: await requestHeaders({ headers: { Accept: "text/event-stream" } }),
+          headers: (await requestHeaders({ headers: { Accept: "text/event-stream" } })) ?? {},
           credentials: "include",
           signal: controller.signal
         });
@@ -112,12 +114,12 @@ export function subscribeMarketEvents(onEvent: (eventName: string, payload: unkn
           if (registeredEvents.has(eventName)) dispatch(eventName, data);
         });
       } catch (error) {
-        if (closed || controller.signal.aborted) return;
+        if (isClosed() || controller.signal.aborted) return;
         console.warn("Reconnexion au flux marche apres erreur.", error);
       }
       // Attendre aussi après une fin de flux normale : sinon un serveur qui ferme la connexion
       // immédiatement provoquerait une boucle de reconnexion sans pause.
-      if (!closed) await new Promise((resolve) => setTimeout(resolve, nativeSseReconnectDelayMs));
+      if (!isClosed()) await new Promise((resolve) => setTimeout(resolve, nativeSseReconnectDelayMs));
     }
   }
 
@@ -148,7 +150,7 @@ async function readEventStream(stream: ReadableStream<Uint8Array>, onEvent: (eve
     dataLines.length = 0;
   }
 
-  while (true) {
+  for (;;) {
     const { value, done } = await reader.read();
     buffer += value ? decoder.decode(value, { stream: !done }) : decoder.decode();
     const lines = buffer.split(/\r?\n/);
@@ -174,7 +176,7 @@ async function readEventStream(stream: ReadableStream<Uint8Array>, onEvent: (eve
 export const marketApi = {
   search: (q: string) => request<SearchResult[]>(`/api/search?q=${encodeURIComponent(q)}`),
   enrichedSearch: (q: string, signal?: AbortSignal) =>
-    request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal }),
+    request<EnrichedSearchResult[]>(`/api/search/enriched?q=${encodeURIComponent(q.trim())}`, { signal: signal ?? null }),
   quote: (symbol: string) => request<Quote>(`/api/quote/${encodeURIComponent(symbol)}`),
   marketFeatures: () => request<{ liveRefreshEnabled: boolean }>("/api/market/features"),
   marketEventsUrl: () => apiUrl("/api/market/events"),
@@ -185,9 +187,9 @@ export const marketApi = {
     request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
   news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
-  globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal }),
+  globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal: signal ?? null }),
   assetNews: (limit = 8, offset = 0, signal?: AbortSignal) =>
-    request<NewsAssetsPage>(`/api/news-assets?limit=${limit}&offset=${offset}`, { signal }),
+    request<NewsAssetsPage>(`/api/news-assets?limit=${limit}&offset=${offset}`, { signal: signal ?? null }),
   calendarEvents: (signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>("/api/calendar-events", signal),
   calendarEventsForSymbol: (symbol: string, signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>(`/api/calendar-events/${encodeURIComponent(symbol)}`, signal),
   topAndLosers: (signal?: AbortSignal) => dedupedRequest<TopAndLosersResponse>("/api/top-and-losers", signal),
@@ -195,5 +197,5 @@ export const marketApi = {
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => dedupedRequest<WatchlistItem[]>(`/api/watchlist?range=${range}`, signal),
   addWatchlist: (item: Pick<SearchResult, "symbol" | "name" | "exchange" | "currency">) =>
     request<WatchlistItem>(`/api/watchlist/${encodeURIComponent(item.symbol)}`, { method: "POST", body: JSON.stringify(item) }),
-  removeWatchlist: (symbol: string) => request<void>(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" })
+  removeWatchlist: (symbol: string) => request<undefined>(`/api/watchlist/${encodeURIComponent(symbol)}`, { method: "DELETE" })
 };

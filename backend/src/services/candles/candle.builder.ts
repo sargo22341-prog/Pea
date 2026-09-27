@@ -56,8 +56,8 @@ export class CandleBuilder {
   buildCandles(input: {
     assetId: number;
     symbol: string;
-    exchange?: string;
-    range: RangeKey | string;
+    exchange?: string | undefined;
+    range: RangeKey;
     interval: ChartInterval;
     points: HistoryPoint[];
   }): BuiltCandle[] {
@@ -81,24 +81,27 @@ export class CandleBuilder {
 
     return [...buckets.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([datetimeStart, points]) => {
+      .flatMap(([datetimeStart, points]) => {
         const sorted = points.sort((a, b) => a.date.localeCompare(b.date));
+        const firstPoint = sorted[0];
+        const lastPoint = sorted.at(-1);
+        if (!firstPoint || !lastPoint) return [];
         const highs = sorted.map((point) => point.high ?? point.close).filter(Number.isFinite);
         const lows = sorted.map((point) => point.low ?? point.close).filter(Number.isFinite);
         const volumes = sorted.map((point) => point.volume).filter((volume): volume is number => Number.isFinite(volume));
-        return {
+        return [{
           assetId: input.assetId,
           range,
           interval: input.interval,
           datetimeStart,
           datetimeEnd: new Date(new Date(datetimeStart).getTime() + intervalMs(input.interval)).toISOString(),
-          open: sorted.find((point) => Number.isFinite(point.open))?.open ?? sorted[0].close,
+          open: sorted.find((point) => Number.isFinite(point.open))?.open ?? firstPoint.close,
           high: highs.length ? Math.max(...highs) : null,
           low: lows.length ? Math.min(...lows) : null,
-          close: sorted[sorted.length - 1].close,
+          close: lastPoint.close,
           volume: volumes.length ? volumes.reduce((sum, volume) => sum + volume, 0) : null,
           source: "yahoo-finance2" as const
-        };
+        }];
       });
   }
 }

@@ -23,7 +23,7 @@ test("live analysis uses cached ETF sector weightings instead of ETF diversified
 
     const analysis = await portfolioAnalysisService.analysis(1);
     console.log("__RESULT__" + JSON.stringify(analysis.sectorAllocation));
-  `);
+  `) as { name: string; value: number; percentage: number; symbols: { symbol: string; name: string; weight: number }[] }[];
 
   assert.deepEqual(result.map((item: { name: string; value: unknown }) => ({ name: item.name, value: item.value })), [
     { name: "Technologie", value: 40 },
@@ -76,7 +76,7 @@ test("live asset details exposes cached ETF fund details without Yahoo extraData
       newsLanguages: []
     }));
     console.log("__RESULT__" + JSON.stringify({ extraDataCalls, isEtf: details.isEtf, fundDetails: details.fundDetails }));
-  `);
+  `) as { extraDataCalls: number; isEtf: boolean; fundDetails: { family: string; annualReportExpenseRatio: number; totalNetAssets: number; sectorWeightings: { key: string; value: number }[] } };
 
   assert.equal(result.extraDataCalls, 0);
   assert.equal(result.isEtf, true);
@@ -126,7 +126,7 @@ test("asset details schedules annex refresh when a known asset has only base sna
       newsLanguages: []
     }));
     console.log("__RESULT__" + JSON.stringify({ queuedSymbols, isEtf: details.isEtf, fundDetails: details.fundDetails ?? null }));
-  `);
+  `) as { queuedSymbols: string[]; isEtf: boolean; fundDetails: null };
 
   assert.deepEqual(result.queuedSymbols, ["URTH"]);
   assert.equal(result.isEtf, true);
@@ -174,7 +174,7 @@ test("live asset details serves cached news and does not call Yahoo synchronousl
     }));
     await new Promise((resolve) => setTimeout(resolve, 5));
     console.log("__RESULT__" + JSON.stringify({ newsCalls, news: details.news }));
-  `);
+  `) as { newsCalls: number; news: { title: string; description: string; url: string; publishedAt: string; relatedTickers: string[] }[] };
 
   assert.equal(result.newsCalls, 0);
   assert.deepEqual(result.news.map((article: { title: string }) => article.title), ["Apple cached"]);
@@ -225,12 +225,12 @@ test("live asset details refreshes missing news in background and emits SSE upda
     await new Promise((resolve) => setTimeout(resolve, 10));
     const second = await runWithUser(1, () => assetDetailsAssembler.assemble({ symbol: "AAPL", range: "1d", user, newsLanguages: ["fr"] }));
     console.log("__RESULT__" + JSON.stringify({ firstNews: first.news, secondNews: second.news, newsCalls, events }));
-  `);
+  `) as { firstNews: unknown[]; newsCalls: number; secondNews: { title: string; description: string; url: string; publishedAt: string; relatedTickers: string[] }[]; events: { event: string; payload: { symbol: string; updatedAt: string } }[] };
 
   assert.deepEqual(result.firstNews, []);
   assert.equal(result.newsCalls, 1);
   assert.deepEqual(result.secondNews.map((article: { title: string }) => article.title), ["Apple fresh"]);
   assert.equal(result.events.length, 1);
-  assert.equal(result.events[0].event, "asset-annex-updated");
+  assert.equal(result.events[0]?.event, "asset-annex-updated");
   assert.equal(result.events[0].payload.symbol, "AAPL");
 });

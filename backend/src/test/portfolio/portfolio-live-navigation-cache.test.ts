@@ -16,7 +16,7 @@ test("open market window is resolved once per market date and range", () => {
       getPreviousOpenMarketDays({ symbol, exchange: "Paris" }, endDate, 1);
     }
     console.log("__RESULT__" + JSON.stringify({ count: messages.length, markets: messages.map((item) => item.meta.market) }));
-  `);
+  `) as { count: number; markets: string[] };
 
   assert.equal(result.count, 1);
   assert.deepEqual(result.markets, ["euronextParis"]);
@@ -121,7 +121,7 @@ test("live refresh mode serves dashboard assets analysis and dividends from cach
         server.close();
       }
     });
-  `);
+  `) as { responses: { path: string; status: number }[]; calls: { quote: number; quoteBatchRaw: number; chart: number; quoteSummary: number; fundamentals: number; marketInfo: number; extraData: number; news: number } };
 
   assert.ok(result.responses.every((response: { status: number }) => response.status === 200), JSON.stringify(result.responses));
   assert.deepEqual(result.calls, { quote: 0, quoteBatchRaw: 0, chart: 0, quoteSummary: 0, fundamentals: 0, marketInfo: 0, extraData: 0, news: 1 });

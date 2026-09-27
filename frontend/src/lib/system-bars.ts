@@ -1,7 +1,7 @@
 import { Capacitor, SystemBarType, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { Style, StatusBar } from "@capacitor/status-bar";
 
-type Rgb = { r: number; g: number; b: number; a: number };
+interface Rgb { r: number; g: number; b: number; a: number }
 
 const DEFAULT_TOP = "#071014";
 const DEFAULT_BOTTOM = "#071014";
@@ -120,7 +120,8 @@ function colorFromGradient(backgroundImage: string, edge: "top" | "bottom") {
   if (!backgroundImage || backgroundImage === "none") return null;
   const matches = backgroundImage.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/g);
   if (!matches?.length) return null;
-  return parseCssColor(edge === "top" ? matches[0] : matches[matches.length - 1]);
+  const edgeColor = edge === "top" ? matches[0] : matches.at(-1);
+  return edgeColor ? parseCssColor(edgeColor) : null;
 }
 
 function bodyBackground() {
@@ -139,9 +140,10 @@ function parseCssColor(value: string) {
 }
 
 function parseRgb(value: string) {
-  const match = value.match(/rgba?\(([^)]+)\)/);
+  const match = /rgba?\(([^)]+)\)/.exec(value);
   if (!match) return null;
-  const [r, g, b, a = "1"] = match[1].split(",").map((part) => part.trim());
+  const [, channels = ""] = match;
+  const [r, g, b, a = "1"] = channels.split(",").map((part) => part.trim());
   return {
     r: Number(r),
     g: Number(g),

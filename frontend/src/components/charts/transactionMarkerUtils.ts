@@ -1,21 +1,21 @@
 import type { PortfolioTransactionMarker } from "@pea/shared";
 
-export type MarkerGroupPoint = {
+export interface MarkerGroupPoint {
   date: number;
-  x?: number;
+  x?: number | undefined;
   markers: PortfolioTransactionMarker[];
-};
+}
 
 export type MarkerOverlayPoint = MarkerGroupPoint & {
   left: number;
 };
 
-export function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartData: Array<{ date: number; value: number | null }>, compressTimeAxis: boolean): MarkerGroupPoint[] {
+export function groupTransactionMarkers(markers: PortfolioTransactionMarker[], chartData: { date: number; value: number | null }[], compressTimeAxis: boolean): MarkerGroupPoint[] {
   const indexByTimestamp = new Map(chartData.map((point, index) => [point.date, index]));
   const groups = new Map<number, PortfolioTransactionMarker[]>();
 
   for (const marker of markers) {
-    const timestamp = Number(marker.nearestChartPointDatetime);
+    const timestamp = marker.nearestChartPointDatetime;
     if (!Number.isFinite(timestamp)) continue;
     groups.set(timestamp, [...(groups.get(timestamp) ?? []), marker]);
   }

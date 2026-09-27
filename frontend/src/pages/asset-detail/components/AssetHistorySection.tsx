@@ -5,7 +5,7 @@ import { ComparisonChart, PriceHistoryChart } from "../../../components/charts/P
 import { RangeSelector } from "../../../components/common/RangeSelector";
 import { formatMarketSessionHours } from "../../../lib/timezone";
 
-type ChartPoint = { date: string; value: number | null };
+interface ChartPoint { date: string; value: number | null }
 
 export function AssetHistorySection({
   chart,
@@ -27,22 +27,22 @@ export function AssetHistorySection({
   symbol,
   userTimezone
 }: {
-  chart?: AssetChartDto;
+  chart?: AssetChartDto | undefined;
   chartPendingOpenConfirmation: boolean;
   chartPoints: ChartPoint[];
   chartRefreshing: boolean;
   compareTargetsCount: number;
   comparisonError?: string | null;
   comparisonSeries: Parameters<typeof ComparisonChart>[0]["comparisonSeries"];
-  displayChart?: AssetChartDto;
+  displayChart?: AssetChartDto | undefined;
   loading: boolean;
-  marketSession?: MarketSessionDto | null;
+  marketSession?: MarketSessionDto | null | undefined;
   onCompare: () => void;
   onRangeChange: (range: RangeKey) => void;
   preparingSymbols: string[];
   quoteCurrency: string;
   range: RangeKey;
-  stale?: boolean;
+  stale?: boolean | undefined;
   symbol: string;
   userTimezone: string;
 }) {

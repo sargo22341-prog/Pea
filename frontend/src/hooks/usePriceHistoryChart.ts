@@ -1,15 +1,15 @@
 import type { RangeKey } from "@pea/shared";
 import { useMemo } from "react";
 
-export type PriceHistoryInputPoint = {
+export interface PriceHistoryInputPoint {
   date: string;
   value?: number | null;
-};
+}
 
-export type PriceHistoryChartPoint = {
+export interface PriceHistoryChartPoint {
   date: number;
   value: number | null;
-};
+}
 
 export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: RangeKey, baselinePrice?: number) {
   const chartData = useMemo(() => normalizePriceHistoryPoints(points), [points]);

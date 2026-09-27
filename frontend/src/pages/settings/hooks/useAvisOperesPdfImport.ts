@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
 
-type ImportError = { line: number; message: string };
+interface ImportError { line: number; message: string }
 
 function rowsWithImportErrors(rows: ParsedAvisOperation[], errors: ImportError[]) {
   if (!errors.length) return rows.map((row) => ({ ...row, errors: [] }));

@@ -18,7 +18,7 @@ function appClock(date: Date) {
 }
 
 export class WeeklyRefreshTask {
-  async run(now = new Date()) {
+  run(now = new Date()) {
     const appTime = appClock(now);
     if (appTime.weekday !== "Mon" || appTime.minutes < calendarEventsTargetMinutes) return;
     if (schedulerRunRepository.wasRun(calendarEventsTaskKey, appTime.date)) {

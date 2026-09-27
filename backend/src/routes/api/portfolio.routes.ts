@@ -9,6 +9,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { deprecated } from "../shared/deprecation.js";
+import { requireAuthUser } from "../../middleware/auth.js";
 
 export const portfolioRouter = express.Router();
 
@@ -22,19 +23,19 @@ const tradedAtSchema = z.string().trim().min(1).transform((value, context) => {
 });
 
 portfolioRouter.get("/portfolio", asyncRoute(async (req, res) => {
-  const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
-  logger.debug("portfolio", "summary requested", { range, userId: req.user!.id });
+  const range = req.query["range"] === undefined ? requireAuthUser(req).defaultChartRange : parseRange(req.query["range"]);
+  logger.debug("portfolio", "summary requested", { range, userId: requireAuthUser(req).id });
   res.json(await portfolioService.summary(range));
 }));
 
 portfolioRouter.get("/portfolio/full", asyncRoute(async (req, res) => {
-  const range = req.query.range === undefined ? req.user!.defaultChartRange : parseRange(req.query.range);
-  logger.debug("portfolio", "full requested", { range, userId: req.user!.id });
-  res.json(await portfolioService.full(range, req.user!.id, intradayDebugClock(range)));
+  const range = req.query["range"] === undefined ? requireAuthUser(req).defaultChartRange : parseRange(req.query["range"]);
+  logger.debug("portfolio", "full requested", { range, userId: requireAuthUser(req).id });
+  res.json(await portfolioService.full(range, requireAuthUser(req).id, intradayDebugClock(range)));
 }));
 
 portfolioRouter.get("/portfolio/analysis", asyncRoute(async (req, res) => {
-  logger.debug("portfolio", "analysis requested", { userId: req.user!.id });
+  logger.debug("portfolio", "analysis requested", { userId: requireAuthUser(req).id });
   res.json(await portfolioAnalysisService.analysis());
 }));
 
@@ -52,7 +53,7 @@ portfolioRouter.post("/portfolio/positions", asyncRoute(async (req, res) => {
   res.status(201).json(await portfolioService.createPosition(body));
 }));
 
-portfolioRouter.post("/portfolio/positions/ensure", asyncRoute(async (req, res) => {
+portfolioRouter.post("/portfolio/positions/ensure", asyncRoute((req, res) => {
   const body = z
     .object({
       symbol: z.string().trim().min(1),
@@ -73,7 +74,7 @@ portfolioRouter.post("/portfolio/positions/ensure", asyncRoute(async (req, res) 
 }));
 
 portfolioRouter.put("/portfolio/positions/:id", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const body = z
     .object({
       quantity: z.coerce.number().positive(),
@@ -86,13 +87,13 @@ portfolioRouter.put("/portfolio/positions/:id", asyncRoute(async (req, res) => {
   res.json(await portfolioService.updatePosition(id, body));
 }));
 
-portfolioRouter.get("/portfolio/positions/:id/transactions", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
+portfolioRouter.get("/portfolio/positions/:id/transactions", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
   res.json(portfolioService.listTransactions(id));
 }));
 
-portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
+portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const body = z.object({
     tradedAt: tradedAtSchema,
     type: z.enum(["buy", "sell"]),
@@ -104,9 +105,9 @@ portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute(async (
   res.status(201).json(portfolioService.createTransaction(id, body));
 }));
 
-portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
-  const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
+portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
+  const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
   const body = z.object({
     tradedAt: tradedAtSchema,
     type: z.enum(["buy", "sell"]),
@@ -118,15 +119,15 @@ portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyn
   res.json(portfolioService.updateTransaction(id, transactionId, body));
 }));
 
-portfolioRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
-  const transactionId = z.coerce.number().int().positive().parse(req.params.transactionId);
+portfolioRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
+  const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
   portfolioService.deleteTransaction(id, transactionId);
   res.status(204).send();
 }));
 
-portfolioRouter.delete("/portfolio/positions/:id", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
+portfolioRouter.delete("/portfolio/positions/:id", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const deleted = portfolioService.deletePosition(id);
   if (!deleted) throw new HttpError(404, "Position introuvable");
   res.status(204).send();
@@ -148,27 +149,27 @@ const portfolioChartCompatDeprecation = deprecated({
 });
 
 portfolioRouter.get("/portfolio/performance", portfolioPerformanceCompatDeprecation, asyncRoute(async (req, res) => {
-  const range = parseRange(req.query.range);
-  logger.debug("portfolio", "performance requested", { range, userId: req.user!.id });
+  const range = parseRange(req.query["range"]);
+  logger.debug("portfolio", "performance requested", { range, userId: requireAuthUser(req).id });
   res.json(await portfolioService.performance(range));
 }));
 
 portfolioRouter.get("/portfolio/chart", portfolioChartCompatDeprecation, asyncRoute(async (req, res) => {
-  const range = parseRange(req.query.range);
-  logger.debug("portfolio", "chart requested", { range, userId: req.user!.id });
-  res.json(await portfolioService.chart(range, req.user!.id, intradayDebugClock(range)));
+  const range = parseRange(req.query["range"]);
+  logger.debug("portfolio", "chart requested", { range, userId: requireAuthUser(req).id });
+  res.json(await portfolioService.chart(range, requireAuthUser(req).id, intradayDebugClock(range)));
 }));
 
 portfolioRouter.get("/portfolio/positions/performance", asyncRoute(async (req, res) => {
-  const range = parseRange(req.query.range);
-  logger.debug("portfolio", "positions performance requested", { range, userId: req.user!.id });
+  const range = parseRange(req.query["range"]);
+  logger.debug("portfolio", "positions performance requested", { range, userId: requireAuthUser(req).id });
   res.json(await portfolioService.positionsPerformance(range, intradayDebugClock(range)));
 }));
 
 portfolioRouter.get("/portfolio/positions/:id/performance", asyncRoute(async (req, res) => {
-  const id = z.coerce.number().int().positive().parse(req.params.id);
-  const range = parseRange(req.query.range);
-  logger.debug("portfolio", "single position performance requested", { range, userId: req.user!.id, positionId: id });
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
+  const range = parseRange(req.query["range"]);
+  logger.debug("portfolio", "single position performance requested", { range, userId: requireAuthUser(req).id, positionId: id });
   res.json(await portfolioService.singlePositionPerformance(id, range));
 }));
 

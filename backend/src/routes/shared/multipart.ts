@@ -9,7 +9,7 @@ export interface UploadedFile {
 }
 
 function ensureMultipart(req: express.Request) {
-  if (!String(req.headers["content-type"] ?? "").toLowerCase().includes("multipart/form-data")) {
+  if (!(req.headers["content-type"] ?? "").toLowerCase().includes("multipart/form-data")) {
     throw new HttpError(400, "Requete multipart requise.");
   }
 }
@@ -23,7 +23,7 @@ export function parseMultipartFiles(req: express.Request, fieldName: string, opt
     const files: UploadedFile[] = [];
     let settled = false;
 
-    const fail = (error: unknown) => {
+    const fail = (error: Error) => {
       if (settled) return;
       settled = true;
       reject(error);
@@ -63,7 +63,7 @@ export function parseMultipartFiles(req: express.Request, fieldName: string, opt
       });
     });
 
-    busboy.on("filesLimit", () => fail(new HttpError(400, "Trop de fichiers fournis.")));
+    busboy.on("filesLimit", () => { fail(new HttpError(400, "Trop de fichiers fournis.")); });
     busboy.on("error", fail);
     busboy.on("finish", () => {
       if (settled) return;

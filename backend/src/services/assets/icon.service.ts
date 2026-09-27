@@ -8,6 +8,7 @@ import { marketDataGateway } from "../market/data/market-data-gateway.service.js
 import { logger } from "../shared/logger.service.js";
 
 import { domainFromWebsite, failureCooldownMs, fetchWithTimeout, iconsDir, isEtfCandidate, mapIcon, maxAutoFetchMs, normalizeSymbol, normalizeWebsite, placeholderSvg, readCachedQuote, type AssetIcon, type LogoCandidate } from "./icon.helpers.js";
+import { requirePresent } from "../../utils/invariant.js";
 export type { AssetIcon } from "./icon.helpers.js";
 
 let logoDevConfigLogged = false;
@@ -42,7 +43,7 @@ export class IconService {
   }
 
   /** Le type d'image est déduit de la signature binaire, jamais du type MIME déclaré. */
-  async saveIconFromBuffer(symbol: string, buffer: Buffer, source: "auto" | "manual" = "manual"): Promise<AssetIcon> {
+  saveIconFromBuffer(symbol: string, buffer: Buffer, source: "auto" | "manual" = "manual"): AssetIcon {
     const key = normalizeSymbol(symbol);
     if (!key) throw new Error("Symbole invalide.");
     const cleanMime = detectSupportedImageMime(buffer);
@@ -58,7 +59,7 @@ export class IconService {
     fs.writeFileSync(filePath, buffer);
     assetIconRepository.saveSuccess({ symbol: key, filePath, mimeType: cleanMime, size: buffer.length, source });
     logger.debug("icons", "icon saved", { symbol: key, source, mimeType: cleanMime, size: buffer.length });
-    return this.getCached(key)!;
+    return requirePresent(this.getCached(key), `Icone ${key}`);
   }
 
   async fetchAndStoreIcon(symbol: string): Promise<AssetIcon | undefined> {
@@ -138,8 +139,8 @@ export class IconService {
   listKnownAssets() {
     return assetIconRepository.listKnownAssets(currentUserId())
       .map((row: KnownAssetRow) => {
-        const symbol = String(row.symbol);
-        return { symbol, name: String(row.name), icon: this.getCached(symbol) };
+        const symbol = row.symbol;
+        return { symbol, name: row.name, icon: this.getCached(symbol) };
       });
   }
 
@@ -211,7 +212,7 @@ export class IconService {
   private async fetchFirstAllowedImage(symbol: string, candidates: LogoCandidate[]) {
     for (const candidate of candidates) {
       logger.debug("icons", "icon fetch attempt", { symbol, source: candidate.source, label: candidate.label });
-      const response = await fetchWithTimeout(candidate.url).catch((error) => {
+      const response = await fetchWithTimeout(candidate.url).catch((error: unknown) => {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, error: error instanceof Error ? error.message : "requete impossible" });
         return undefined;
       });

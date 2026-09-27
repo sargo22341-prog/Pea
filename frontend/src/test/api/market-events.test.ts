@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../lib/api";
+import { first } from "../utils/first";
 
 type Listener = (event: { data: string }) => void;
 
@@ -31,11 +32,11 @@ describe("market events subscription", () => {
     subscription.addEventListener("portfolio-chart-updated");
     subscription.addEventListener("portfolio-chart-updated");
 
-    const [source] = TestEventSource.instances;
+    const source = first(TestEventSource.instances);
     expect(source.addEventListener).toHaveBeenCalledTimes(1);
-    const listener = source.addEventListener.mock.calls[0][1];
+    const [, listener] = first(source.addEventListener.mock.calls);
 
-    expect(() => listener({ data: "{not-json" })).not.toThrow();
+    expect(() => { listener({ data: "{not-json" }); }).not.toThrow();
     listener({ data: JSON.stringify({ type: "portfolio-chart-updated" }) });
 
     expect(received).toEqual([{ type: "portfolio-chart-updated" }]);

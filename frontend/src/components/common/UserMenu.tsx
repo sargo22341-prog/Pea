@@ -58,7 +58,7 @@ export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, 
         aria-haspopup="menu"
         aria-label={t("userMenu")}
         className={compact ? "btn-ghost px-2" : "btn-ghost"}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => { setOpen((current) => !current); }}
         type="button"
       >
         {avatar}
@@ -68,16 +68,16 @@ export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, 
 
       {open ? (
         <div className={`absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-md border border-line bg-panel shadow-glow ${MOTION.menu}`} role="menu">
-          <NavLink className={itemClass} onClick={() => setOpen(false)} role="menuitem" to="/objectives">
+          <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/objectives">
             <Target size={16} />
             {t("objectives")}
           </NavLink>
-          <NavLink className={itemClass} onClick={() => setOpen(false)} role="menuitem" to="/settings">
+          <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/settings">
             <Settings size={16} />
             {t("settings")}
           </NavLink>
           {user.role === "admin" ? (
-            <NavLink className={itemClass} onClick={() => setOpen(false)} role="menuitem" to="/admin">
+            <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/admin">
               <Shield size={16} />
               {t("admin")}
             </NavLink>

@@ -22,7 +22,7 @@ export interface PeaEligibilityResult {
   name?: string;
   currency?: string;
   exchange?: string;
-  country?: string;
+  country?: string | undefined;
   quoteType?: string;
   kind: InstrumentKind;
   status: PeaEligibilityStatus;
@@ -41,9 +41,9 @@ export interface PeaRankingResult {
 export interface SearchResult {
   symbol: string;
   name: string;
-  exchange?: string;
+  exchange?: string | undefined;
   quoteType?: string;
-  currency?: CurrencyCode;
+  currency?: CurrencyCode | undefined;
   peaEligibility?: PeaEligibilityResult;
   peaRank?: PeaRankingResult;
   stale?: boolean;
@@ -52,11 +52,11 @@ export interface SearchResult {
 export interface EnrichedSearchResult {
   symbol: string;
   name: string;
-  exchange?: string;
-  quoteType?: string;
-  currency?: CurrencyCode;
-  price?: number;
-  regularMarketChangePercent?: number;
+  exchange?: string | undefined;
+  quoteType?: string | undefined;
+  currency?: CurrencyCode | undefined;
+  price?: number | undefined;
+  regularMarketChangePercent?: number | undefined;
   isInWatchlist: boolean;
   isInPortfolio: boolean;
 }
@@ -67,16 +67,16 @@ export interface AssetStaticDto {
   type: "stock" | "etf";
   currency: string;
   exchange: string;
-  country?: string;
-  sector?: string;
+  country?: string | undefined;
+  sector?: string | undefined;
 }
 
 export interface WatchlistItem {
   id: number;
   symbol: string;
   name: string;
-  exchange?: string;
-  currency?: CurrencyCode;
+  exchange?: string | undefined;
+  currency?: CurrencyCode | undefined;
   createdAt: string;
   quote?: Quote;
   history: HistoryPoint[];
@@ -95,30 +95,30 @@ export interface CalendarEvent {
 }
 
 export interface AssetCalendarEventsData {
-  earningsDate?: string;
-  earningsCallDate?: string;
+  earningsDate?: string | undefined;
+  earningsCallDate?: string | undefined;
   isEarningsDateEstimate?: boolean;
-  exDividendDate?: string;
-  dividendDate?: string;
+  exDividendDate?: string | undefined;
+  dividendDate?: string | undefined;
 }
 
 export interface AssetAnalystConsensus {
-  currentPrice?: number;
-  targetHighPrice?: number;
-  targetLowPrice?: number;
-  targetMeanPrice?: number;
-  targetMedianPrice?: number;
-  recommendationMean?: number;
-  recommendationKey?: string;
+  currentPrice?: number | undefined;
+  targetHighPrice?: number | undefined;
+  targetLowPrice?: number | undefined;
+  targetMeanPrice?: number | undefined;
+  targetMedianPrice?: number | undefined;
+  recommendationMean?: number | undefined;
+  recommendationKey?: string | undefined;
   numberOfAnalystOpinions?: number;
 }
 
 export interface AssetFundDetails {
-  family?: string;
-  annualReportExpenseRatio?: number;
-  annualHoldingsTurnover?: number;
-  totalNetAssets?: number;
-  sectorWeightings?: Array<{ key: string; value: number }>;
+  family?: string | undefined;
+  annualReportExpenseRatio?: number | undefined;
+  annualHoldingsTurnover?: number | undefined;
+  totalNetAssets?: number | undefined;
+  sectorWeightings?: { key: string; value: number }[] | undefined;
 }
 
 export interface AssetDetails {
@@ -126,27 +126,27 @@ export interface AssetDetails {
   history: HistoryPoint[];
   chart?: AssetChartDto;
   dividends: DividendEvent[];
-  dividendsDto?: AssetDividendsDto;
+  dividendsDto?: AssetDividendsDto | undefined;
   news: NewsArticle[];
-  articlesDto?: AssetArticlesDto;
-  position?: PositionWithMarket;
-  positionRangePerformance?: PositionRangePerformance;
-  userAssetPosition?: UserAssetPositionDto;
-  positionStats?: PositionTransactionStats;
+  articlesDto?: AssetArticlesDto | undefined;
+  position?: PositionWithMarket | undefined;
+  positionRangePerformance?: PositionRangePerformance | undefined;
+  userAssetPosition?: UserAssetPositionDto | undefined;
+  positionStats?: PositionTransactionStats | undefined;
   isInWatchlist?: boolean;
   summary: Record<string, string | number | undefined>;
   marketInfo?: AssetMarketInfo;
   market?: AssetMarketDto;
   appTimezone?: string;
-  marketSession?: MarketSessionDto;
-  financials?: FinancialYearItem[];
+  marketSession?: MarketSessionDto | undefined;
+  financials?: FinancialYearItem[] | undefined;
   isEtf?: boolean;
   peaEligibility: PeaEligibilityResult;
   peaRank: PeaRankingResult;
   stale?: boolean;
-  calendarEventsData?: AssetCalendarEventsData;
-  analystConsensus?: AssetAnalystConsensus;
-  fundDetails?: AssetFundDetails;
+  calendarEventsData?: AssetCalendarEventsData | undefined;
+  analystConsensus?: AssetAnalystConsensus | undefined;
+  fundDetails?: AssetFundDetails | undefined;
 }
 
 export interface AssetIcon {

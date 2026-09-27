@@ -1,8 +1,8 @@
 import type { RangeKey } from "@pea/shared";
 
 export function nearestTimestamp(target: number, sortedTimestamps: number[]) {
-  let nearest = sortedTimestamps[0];
-  let nearestDistance = Math.abs(nearest - target);
+  let nearest: number | undefined;
+  let nearestDistance = Number.POSITIVE_INFINITY;
   for (const timestamp of sortedTimestamps) {
     const distance = Math.abs(timestamp - target);
     if (distance >= nearestDistance) continue;

@@ -1,4 +1,5 @@
 import type { BoursoramaImportRow, BoursoramaUpdateRow } from "@pea/shared";
+import type { TFunction } from "i18next";
 import { Database, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCsvImport } from "../hooks/useCsvImport";
@@ -15,7 +16,7 @@ function inputTone(hasError: boolean) {
   return `input ${hasError ? "border-coral bg-coral/10 focus:border-coral" : ""}`;
 }
 
-function detectedAssetLabel(row: BoursoramaImportRow | BoursoramaUpdateRow, t: (key: string, options?: Record<string, unknown>) => string) {
+function detectedAssetLabel(row: BoursoramaImportRow | BoursoramaUpdateRow, t: TFunction) {
   if (row.detectedAsset) {
     const asset = `${row.detectedAsset.symbol} - ${row.detectedAsset.name} ${Math.round(row.detectedAsset.confidenceScore * 100)}%`;
     return t("imports.detectedAsset", { asset, ns: "settings" });
@@ -99,11 +100,11 @@ function ImportPreviewTable({
               <td className={`p-3 ${hasFieldError(row.errors, "quantity") ? "text-coral" : ""}`}>{row.quantity}</td>
               <td className={`p-3 ${hasFieldError(row.errors, "price") ? "text-coral" : ""}`}>{row.buyingPrice}</td>
               <td className="p-3">
-                <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false, errors: [] })} value={row.symbol ?? ""} />
+                <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => { onUpdateRow(index, { symbol: event.target.value.toUpperCase(), needsReview: false, errors: [] }); }} value={row.symbol ?? ""} />
                 <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row, t)}</p>
               </td>
               <td className="p-3">
-                <select className="input" onChange={(event) => onUpdateRow(index, { action: event.target.value as BoursoramaImportRow["action"] })} value={row.action ?? "merge"}>
+                <select className="input" onChange={(event) => { onUpdateRow(index, { action: event.target.value as BoursoramaImportRow["action"] }); }} value={row.action ?? "merge"}>
                   <option value="merge">{t("imports.merge", { ns: "settings" })}</option>
                   <option value="replace">{t("imports.replace", { ns: "settings" })}</option>
                   <option value="ignore">{t("imports.ignore", { ns: "settings" })}</option>
@@ -143,7 +144,7 @@ function UpdatePreviewTable({
   return (
     <div className="overflow-x-auto">
       <label className="flex items-center gap-2 p-4 text-sm text-slate-400">
-        <input checked={showUnchanged} onChange={(event) => onShowUnchangedChange(event.target.checked)} type="checkbox" />
+        <input checked={showUnchanged} onChange={(event) => { onShowUnchangedChange(event.target.checked); }} type="checkbox" />
         {t("imports.showUnchanged", { ns: "settings" })}
       </label>
       <table className="w-full min-w-[1120px] text-sm">
@@ -171,7 +172,7 @@ function UpdatePreviewTable({
                 <td className="p-3">{row.name}</td>
                 <td className="p-3">{row.isin || "n/a"}</td>
                 <td className="p-3">
-                  <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => onUpdateRow(row, { symbol: event.target.value.toUpperCase(), errors: [] })} value={row.symbol ?? ""} />
+                  <input className={inputTone(hasFieldError(row.errors, "symbol"))} onChange={(event) => { onUpdateRow(row, { symbol: event.target.value.toUpperCase(), errors: [] }); }} value={row.symbol ?? ""} />
                   <p className="mt-1 text-xs text-slate-400">{detectedAssetLabel(row, t)}</p>
                 </td>
                 <td className="p-3">{row.currentQuantity ?? 0}</td>

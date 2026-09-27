@@ -20,7 +20,7 @@ export function buildComparisonData(
   main: PriceHistoryInputPoint[],
   comparisons: ComparisonSerie[],
   range: RangeKey
-): Array<Record<string, number | null>> {
+): Record<string, number | null>[] {
   if (shouldNormalizeComparisonByPoints(range)) {
     const normalized = normalizeSeriesByPoints([main, ...comparisons.map((c) => c.points)]);
     const normalizedMain = normalized[0] ?? [];
@@ -31,7 +31,7 @@ export function buildComparisonData(
 
     return normalizedMain.map((point, index) => {
       const merged: Record<string, number | null> = {
-        date: new Date(point.date ?? index).getTime(),
+        date: new Date(point.date).getTime(),
         x: index,
         main: point.value
       };
@@ -49,7 +49,7 @@ export function buildComparisonData(
 
   const allTimestamps = new Set<number>();
   normMain.forEach((p) => allTimestamps.add(p.date));
-  normComps.forEach((c) => c.data.forEach((p) => allTimestamps.add(p.date)));
+  normComps.forEach((c) => { c.data.forEach((p) => allTimestamps.add(p.date)); });
 
   const sorted = [...allTimestamps].sort((a, b) => a - b);
   const mainMap = new Map(normMain.map((p) => [p.date, p.value]));

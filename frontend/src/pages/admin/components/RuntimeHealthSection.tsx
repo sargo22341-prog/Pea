@@ -16,25 +16,33 @@ export function RuntimeHealthSection({ open, onToggle }: { open?: boolean; onTog
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Ne modifie l'etat qu'apres la reponse : utilisable depuis l'effet de montage (etat initial `loading`).
+  const fetchHealth = useCallback(() =>
+    api.getRuntimeHealth()
+      .then((health) => {
+        setData(health);
+        setError(null);
+      })
+      .catch((loadError: unknown) => {
+        setError(loadError instanceof Error ? loadError.message : t("admin.runtime.unavailable", { ns: "common" }));
+      })
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      }), [t]);
+
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
     else setLoading(true);
     setError(null);
-    try {
-      setData(await api.getRuntimeHealth());
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : t("admin.runtime.unavailable", { ns: "common" }));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [t]);
+    await fetchHealth();
+  }, [fetchHealth]);
 
   useEffect(() => {
-    void load();
+    void fetchHealth();
     const timer = window.setInterval(() => void load(true), autoRefreshMs);
-    return () => window.clearInterval(timer);
-  }, [load]);
+    return () => { window.clearInterval(timer); };
+  }, [fetchHealth, load]);
 
   const badges = useMemo(() => warningBadges(data, t), [data, t]);
 

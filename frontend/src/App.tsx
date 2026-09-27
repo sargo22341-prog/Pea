@@ -51,7 +51,7 @@ export function App() {
 
   if (nativeServerState.loading) return <div className="p-6 text-slate-400">{t("common:common.loading")}</div>;
   if (!nativeServerState.configured) {
-    return <ServerSetupPage onConfigured={() => setNativeServerState({ loading: false, configured: true })} />;
+    return <ServerSetupPage onConfigured={() => { setNativeServerState({ loading: false, configured: true }); }} />;
   }
 
   return <AuthenticatedApp />;
@@ -67,7 +67,7 @@ function useSystemBars() {
   useEffect(() => {
     queueSystemBarsRefresh();
     const timeout = window.setTimeout(queueSystemBarsRefresh, 120);
-    return () => window.clearTimeout(timeout);
+    return () => { window.clearTimeout(timeout); };
   }, [location.pathname]);
 }
 
@@ -119,7 +119,7 @@ function AuthenticatedApp() {
     return (
       <ServerSetupPage
         message={t("errors:serverUnreachableWithDetail", { detail: me.error })}
-        onConfigured={() => window.location.assign("/")}
+        onConfigured={() => { window.location.assign("/"); }}
       />
     );
   }

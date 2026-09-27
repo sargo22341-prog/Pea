@@ -1,6 +1,6 @@
 import type { ObjectiveType } from "@pea/shared";
 
-export const objectiveTypes: Array<{ value: ObjectiveType; labelKey: string }> = [
+export const objectiveTypes: { value: ObjectiveType; labelKey: string }[] = [
   { value: "fixed_capital", labelKey: "form.types.fixed_capital" },
   { value: "annuity_consuming_capital", labelKey: "form.types.annuity_consuming_capital" },
   { value: "annuity_preserve_capital", labelKey: "form.types.annuity_preserve_capital" },

@@ -65,7 +65,7 @@ describe("UserManagementSection", () => {
     await user.type(screen.getByLabelText(/mot de passe/i), "correct horse battery staple");
     await user.click(screen.getByRole("button", { name: /ajouter/i }));
 
-    await waitFor(() => expect(api.createAdminUser).toHaveBeenCalledWith({ username: "bob", password: "correct horse battery staple" }));
+    await waitFor(() => { expect(api.createAdminUser).toHaveBeenCalledWith({ username: "bob", password: "correct horse battery staple" }); });
     expect(await screen.findByText("bob")).toBeInTheDocument();
     expect(screen.getByText("bob ajoute comme utilisateur standard.")).toBeInTheDocument();
   });
@@ -82,7 +82,7 @@ describe("UserManagementSection", () => {
     fireEvent.click(screen.getByRole("button", { name: /supprimer bob/i }));
     await user.click(screen.getByRole("button", { name: /^supprimer$/i }));
 
-    await waitFor(() => expect(api.deleteAdminUser).toHaveBeenCalledWith(2));
+    await waitFor(() => { expect(api.deleteAdminUser).toHaveBeenCalledWith(2); });
     expect(screen.queryByText("bob")).not.toBeInTheDocument();
   });
 

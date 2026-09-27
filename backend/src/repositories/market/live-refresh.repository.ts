@@ -1,18 +1,18 @@
 import { db } from "../../db.js";
 
 export class LiveRefreshRepository {
-  portfolioUserIdsForSymbols(symbols: string[]): Array<string | number> {
+  portfolioUserIdsForSymbols(symbols: string[]): (string | number)[] {
     if (!symbols.length) return [];
     const placeholders = symbols.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT DISTINCT user_id FROM positions WHERE symbol IN (${placeholders})`).all(...symbols) as Array<{ user_id: string | number }>;
+    const rows = db.prepare(`SELECT DISTINCT user_id FROM positions WHERE symbol IN (${placeholders})`).all(...symbols) as { user_id: string | number }[];
     return rows.map((row) => row.user_id);
   }
 
   portfolioSymbolsForSymbols(symbols: string[]): string[] {
     if (!symbols.length) return [];
     const placeholders = symbols.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT DISTINCT symbol FROM positions WHERE symbol IN (${placeholders})`).all(...symbols) as Array<{ symbol: string }>;
-    return rows.map((row) => String(row.symbol).toUpperCase());
+    const rows = db.prepare(`SELECT DISTINCT symbol FROM positions WHERE symbol IN (${placeholders})`).all(...symbols) as { symbol: string }[];
+    return rows.map((row) => row.symbol.toUpperCase());
   }
 }
 

@@ -1,38 +1,39 @@
 import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
 import { db } from "../../db.js";
 import { logger } from "../../services/shared/logger.service.js";
-import { buildWhere, countRows, mapCallRow, moduleCounts, normalizeSymbol, parseJsonArray, shortError, tickerCounts, timeBucket } from "./yahoo-usage-query.helpers.js";
+import { parseJsonStringArray } from "../../utils/json.js";
+import { buildWhere, countRows, mapCallRow, moduleCounts, normalizeSymbol, shortError, tickerCounts, timeBucket } from "./yahoo-usage-query.helpers.js";
 
 export interface YahooUsageLogInput {
   method: string;
-  modules?: string[];
-  ticker?: string;
-  tickers?: string[];
-  tickerCount?: number;
+  modules?: string[] | undefined;
+  ticker?: string | undefined;
+  tickers?: string[] | undefined;
+  tickerCount?: number | undefined;
   durationMs: number;
   success: boolean;
-  errorMessage?: string;
-  internalSource?: string;
-  range?: string;
-  interval?: string;
-  cacheHit?: boolean;
-  requestKey?: string;
+  errorMessage?: string | undefined;
+  internalSource?: string | undefined;
+  range?: string | undefined;
+  interval?: string | undefined;
+  cacheHit?: boolean | undefined;
+  requestKey?: string | undefined;
 }
 
 export interface YahooUsageStatsQuery {
-  id?: number;
-  dateFrom?: string;
-  dateTo?: string;
-  method?: string;
-  module?: string;
-  ticker?: string;
-  source?: string;
-  success?: boolean;
-  groupBy?: "hour" | "day" | "method" | "module" | "ticker";
-  limit?: number;
+  id?: number | undefined;
+  dateFrom?: string | undefined;
+  dateTo?: string | undefined;
+  method?: string | undefined;
+  module?: string | undefined;
+  ticker?: string | undefined;
+  source?: string | undefined;
+  success?: boolean | undefined;
+  groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
+  limit?: number | undefined;
 }
 
-export type CountRow = { key: string | null; calls: number; errors?: number; avgDurationMs?: number | null };
+export interface CountRow { key: string | null; calls: number; errors?: number; avgDurationMs?: number | null }
 
 const retentionDays = 90;
 let writesSinceCleanup = 0;
@@ -84,7 +85,7 @@ export const yahooUsageRepository = {
 
   list(query: YahooUsageStatsQuery): YahooUsageCallDto[] {
     const { sql: whereSql, params } = buildWhere(query);
-    const limit = Math.min(Math.max(Math.round(Number(query.limit ?? 10)), 1), 100);
+    const limit = Math.min(Math.max(Math.round(query.limit ?? 10), 1), 100);
     const rows = db
       .prepare(
         `SELECT id, created_at, method, ticker, tickers_json, ticker_count, modules_json, success, error_message,
@@ -149,7 +150,7 @@ export const yahooUsageRepository = {
          FROM yahoo_usage_logs ${whereSql ? `${whereSql} AND` : "WHERE"} success = 0
          ORDER BY created_at DESC LIMIT 20`
       )
-      .all(...params) as Array<{
+      .all(...params) as {
         id: number;
         created_at: string;
         method: string;
@@ -159,24 +160,24 @@ export const yahooUsageRepository = {
         error_message?: string | null;
         internal_source?: string | null;
         duration_ms: number;
-      }>;
+      }[];
 
-    const errorCalls = Number(totals.errorCalls ?? 0);
-    const totalCalls = Number(totals.totalCalls ?? 0);
+    const errorCalls = totals.errorCalls ?? 0;
+    const totalCalls = totals.totalCalls;
     return {
       summary: {
         totalCalls,
-        callsToday: Number(today.calls ?? 0),
-        calls24h: Number(last24h.calls ?? 0),
-        calls7d: Number(last7d.calls ?? 0),
+        callsToday: today.calls,
+        calls24h: last24h.calls,
+        calls7d: last7d.calls,
         errorCalls,
         errorRate: totalCalls ? errorCalls / totalCalls : 0,
-        avgDurationMs: Math.round(Number(totals.avgDurationMs ?? 0))
+        avgDurationMs: Math.round(totals.avgDurationMs ?? 0)
       },
-      callsByHour: callsByHour.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
-      callsByDay: callsByDay.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
-      byMethod: byMethod.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
-      bySource: bySource.map((row) => ({ key: String(row.key), calls: Number(row.calls), errors: Number(row.errors ?? 0), avgDurationMs: Math.round(Number(row.avgDurationMs ?? 0)) })),
+      callsByHour: callsByHour.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
+      callsByDay: callsByDay.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
+      byMethod: byMethod.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
+      bySource: bySource.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
       topTickers: tickerCounts(whereSql, params),
       topModules: moduleCounts(whereSql, params),
       recentErrors: recentErrors.map((row) => ({
@@ -184,11 +185,11 @@ export const yahooUsageRepository = {
         createdAt: row.created_at,
         method: row.method,
         ticker: row.ticker ?? undefined,
-        tickers: parseJsonArray(row.tickers_json),
-        modules: parseJsonArray(row.modules_json),
+        tickers: parseJsonStringArray(row.tickers_json),
+        modules: parseJsonStringArray(row.modules_json),
         errorMessage: row.error_message ?? undefined,
         internalSource: row.internal_source ?? undefined,
-        durationMs: Number(row.duration_ms)
+        durationMs: row.duration_ms
       }))
     };
   }

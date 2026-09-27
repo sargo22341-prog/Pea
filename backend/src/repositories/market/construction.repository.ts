@@ -44,8 +44,8 @@ export class MarketDataConstructionRepository {
   cleanupUnlinkedAssets(rows: UnlinkedAssetRow[]): DeleteResult[] {
     const deleted: DeleteResult[] = [];
     if (!rows.length) return deleted;
-    const ids = rows.map((row) => Number(row.id));
-    const symbols = rows.map((row) => String(row.symbol).toUpperCase());
+    const ids = rows.map((row) => row.id);
+    const symbols = rows.map((row) => row.symbol.toUpperCase());
     const idPlaceholders = placeholders(ids);
     const symbolPlaceholders = placeholders(symbols);
 

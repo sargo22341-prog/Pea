@@ -15,7 +15,7 @@ test("weighted average cost replay keeps fees and reduces cost proportionally on
       full: replayTransactions(rows),
       beforeSecondBuy: replayTransactions(rows, Date.parse("2026-01-15T00:00:00.000Z"))
     }));
-  `);
+  `) as { full: { quantity: number; costBasis: number }; beforeSecondBuy: { quantity: number; costBasis: number } };
 
   assert.deepEqual(result.full, { quantity: 10, costBasis: 1105 });
   assert.deepEqual(result.beforeSecondBuy, { quantity: 5, costBasis: 505 });
@@ -39,7 +39,7 @@ test("transaction cache orders rows by real instant even when stored date string
       order: entry.transactions.map((row) => row.type),
       quantityBetweenBuyAndSell: getQuantityAtTime(entry.transactions, Date.parse("2026-01-10T08:45:00.000Z"))
     }));
-  `);
+  `) as { order: string[]; quantityBetweenBuyAndSell: number };
 
   assert.deepEqual(result.order, ["buy", "sell"]);
   assert.equal(result.quantityBetweenBuyAndSell, 5);
@@ -63,9 +63,10 @@ test("new buy transactions use ISO UTC dates and legacy CURRENT_TIMESTAMP dates 
     console.log("__RESULT__" + JSON.stringify({
       tradedAt: db.prepare("SELECT traded_at FROM transactions WHERE position_id = ? ORDER BY id").all(positionId).map((row) => row.traded_at)
     }));
-  `);
+  `) as { tradedAt: string[] };
 
   const [createdNow, legacy, iso] = result.tradedAt;
+  assert.ok(createdNow);
   assert.match(createdNow, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   assert.equal(legacy, "2026-01-10T08:30:00.000Z");
   assert.equal(iso, "2026-01-11T09:00:00.000Z");

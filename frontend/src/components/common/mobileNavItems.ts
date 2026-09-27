@@ -2,11 +2,11 @@ import type { User } from "@pea/shared";
 import { BarChart3, CalendarDays, Home, Newspaper, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type MobileNavItem = {
+export interface MobileNavItem {
   icon: LucideIcon;
   labelKey: string;
   path: string;
-};
+}
 
 export function getMobileNavItems(user: Pick<User, "assetNewsEnabled">): MobileNavItem[] {
   return [

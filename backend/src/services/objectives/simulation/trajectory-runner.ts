@@ -15,10 +15,10 @@ export interface SimulationOutcome {
   capitals: number[];
   savings: number[];
   /** Bornes de l'intervalle de confiance, uniquement en mode Monte-Carlo. */
-  lowCapitals?: number[];
-  highCapitals?: number[];
-  reachedMonth?: number;
-  reachedTarget?: number;
+  lowCapitals?: number[] | undefined;
+  highCapitals?: number[] | undefined;
+  reachedMonth?: number | undefined;
+  reachedTarget?: number | undefined;
   /** Part des trajectoires atteignant l'objectif, en % (mode Monte-Carlo). */
   successProbability?: number;
 }
@@ -26,10 +26,8 @@ export interface SimulationOutcome {
 export type SimulationRunParams = Omit<TrajectoryParams, "nextMonthlyReturn">;
 
 function firstReachedMonth(capitals: number[], thresholdByMonth: number[]) {
-  for (let month = 0; month < capitals.length; month += 1) {
-    if (capitals[month]! >= (thresholdByMonth[month] ?? 0)) return month;
-  }
-  return undefined;
+  const month = capitals.findIndex((capital, index) => capital >= (thresholdByMonth[index] ?? 0));
+  return month === -1 ? undefined : month;
 }
 
 function runOnce(params: SimulationRunParams, settings: SimulationSettings, baseMonthlyReturn: number, seed: number): TrajectoryResult {
@@ -60,17 +58,16 @@ export function runSimulation(params: SimulationRunParams, settings: SimulationS
   for (let index = 0; index < settings.trajectoryCount; index += 1) {
     trajectories.push(runOnce(params, settings, baseMonthlyReturn, settings.seed + index));
   }
-  const [lowCapitals, capitals, highCapitals] = percentilesByMonth(
+  const [lowCapitals = [], medianCapitals = [], highCapitals = []] = percentilesByMonth(
     trajectories.map((trajectory) => trajectory.capitals),
     [monteCarloLowPercentile, monteCarloMedianPercentile, monteCarloHighPercentile]
   );
-  const [savings] = percentilesByMonth(trajectories.map((trajectory) => trajectory.savings), [monteCarloMedianPercentile]);
+  const [savings = []] = percentilesByMonth(trajectories.map((trajectory) => trajectory.savings), [monteCarloMedianPercentile]);
   const reachedCount = trajectories.filter((trajectory) => trajectory.reachedMonth !== undefined).length;
-  const medianCapitals = capitals!;
   const reachedMonth = firstReachedMonth(medianCapitals, params.thresholdByMonth);
   return {
     capitals: medianCapitals,
-    savings: savings!,
+    savings,
     lowCapitals,
     highCapitals,
     reachedMonth,

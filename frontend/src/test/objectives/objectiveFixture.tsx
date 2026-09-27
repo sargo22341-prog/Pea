@@ -1,7 +1,7 @@
 import type { ObjectiveDto, User } from "@pea/shared";
 import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 import { ObjectivePage } from "../../pages/objectives/ObjectivePage";
 
 export const objectiveUser: User = {
@@ -67,11 +67,35 @@ export function buildObjective(overrides: Partial<ObjectiveDto> = {}): Objective
   };
 }
 
+/** Reponse minimale lue par le client API dans ces tests. */
+export interface FakeFetchResponse {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+}
+
+type FetchLike = (input: string, init?: RequestInit) => Promise<FakeFetchResponse>;
+
 /** Type du mock de `fetch` partage par les tests de la page objectif. */
-export type ObjectiveFetchMock = ReturnType<typeof vi.fn>;
+export type ObjectiveFetchMock = Mock<FetchLike>;
+
+export function objectiveFetchMock(): ObjectiveFetchMock {
+  return vi.fn<FetchLike>();
+}
+
+export function jsonResponse(body: unknown): FakeFetchResponse {
+  return { ok: true, status: 200, json: () => Promise.resolve(body) };
+}
+
+/** Corps JSON envoye lors de l'appel `callIndex` du mock (echoue si ce n'est pas une chaine). */
+export function requestJsonBody(fetchMock: ObjectiveFetchMock, callIndex: number): unknown {
+  const body = fetchMock.mock.calls[callIndex]?.[1]?.body;
+  if (typeof body !== "string") throw new Error(`Expected a JSON body for fetch call ${callIndex}`);
+  return JSON.parse(body) as unknown;
+}
 
 export function objectiveListFetchMock(dto: ObjectiveDto): ObjectiveFetchMock {
-  return vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ objectives: [dto] }) });
+  return objectiveFetchMock().mockResolvedValue(jsonResponse({ objectives: [dto] }));
 }
 
 export function renderObjectivePage(dto: ObjectiveDto, fetchMock: ObjectiveFetchMock = objectiveListFetchMock(dto)) {

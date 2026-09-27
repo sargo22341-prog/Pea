@@ -17,7 +17,7 @@ export class ObjectiveProjectionInvalidationService {
       this.pending.delete(resolvedUserId);
       void this.recalculateNow(resolvedUserId, reason);
     }, debounceMs);
-    timeout.unref?.();
+    timeout.unref();
     this.pending.set(resolvedUserId, timeout);
     logger.debug("portfolio", "objective projection recalculation scheduled", { reason, userId: resolvedUserId });
   }

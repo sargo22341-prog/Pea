@@ -38,7 +38,7 @@ describe("PortfolioComparisonChart data", () => {
       "1y"
     );
 
-    expect(rows.map((row) => row.comparison_0)).toEqual([100, expect.closeTo(110)]);
+    expect(rows.map((row) => row["comparison_0"])).toEqual([100, expect.closeTo(110)]);
   });
 
   it("ignores missing prices without shifting later timestamp/price pairs", () => {
@@ -57,7 +57,7 @@ describe("PortfolioComparisonChart data", () => {
       "1y"
     );
 
-    expect(rows.map((row) => row.comparison_0)).toEqual([100, 120]);
+    expect(rows.map((row) => row["comparison_0"])).toEqual([100, 120]);
   });
 
   it("finds the closest price from sorted timestamp/price pairs", () => {

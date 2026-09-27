@@ -22,11 +22,11 @@ export const PRIORITY_BY_TYPE: Record<TaskType, number> = {
 export interface ConstructionTask {
   key: string;
   type: TaskType;
-  symbol?: string;
-  range?: string;
-  marketKey?: string;
-  tradingDate?: string;
-  phase?: string;
+  symbol?: string | undefined;
+  range?: string | undefined;
+  marketKey?: string | undefined;
+  tradingDate?: string | undefined;
+  phase?: string | undefined;
   message: string;
 }
 
@@ -74,14 +74,4 @@ export function currentMessage(status: DataConstructionJobDto["status"], message
   if (status === "success") return "Construction terminee";
   if (status === "error") return "Construction terminee avec erreurs";
   return currentTaskLabel ?? message;
-}
-
-export function parseErrors(value?: string | null) {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
 }

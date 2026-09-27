@@ -63,65 +63,65 @@ export interface YahooSnapshotPayload {
 }
 
 export function mapQuote(row: YahooQuoteRaw, fallbackSymbol: string): Quote {
-  const symbol = String(row?.symbol ?? fallbackSymbol).toUpperCase();
-  const price = nullableNumber(row?.regularMarketPrice ?? row?.postMarketPrice ?? row?.preMarketPrice) ?? 0;
+  const symbol = (row.symbol ?? fallbackSymbol).toUpperCase();
+  const price = nullableNumber(row.regularMarketPrice ?? row.postMarketPrice ?? row.preMarketPrice) ?? 0;
   return {
     symbol,
-    name: row?.longName ?? row?.shortName ?? symbol,
+    name: row.longName ?? row.shortName ?? symbol,
     price,
-    previousClose: nullableNumber(row?.regularMarketPreviousClose) ?? undefined,
-    change: nullableNumber(row?.regularMarketChange) ?? undefined,
-    changePercent: nullableNumber(row?.regularMarketChangePercent) ?? undefined,
-    currency: row?.currency ?? "EUR",
-    exchange: row?.fullExchangeName ?? row?.exchange,
-    quoteType: row?.quoteType,
-    marketState: row?.marketState,
-    dividendRate: nullableNumber(row?.dividendRate ?? row?.trailingAnnualDividendRate) ?? undefined,
-    dividendYield: normalizeDividendYield(row?.dividendYield ?? row?.trailingAnnualDividendYield) ?? undefined
+    previousClose: nullableNumber(row.regularMarketPreviousClose) ?? undefined,
+    change: nullableNumber(row.regularMarketChange) ?? undefined,
+    changePercent: nullableNumber(row.regularMarketChangePercent) ?? undefined,
+    currency: row.currency ?? "EUR",
+    exchange: row.fullExchangeName ?? row.exchange,
+    quoteType: row.quoteType,
+    marketState: row.marketState,
+    dividendRate: nullableNumber(row.dividendRate ?? row.trailingAnnualDividendRate) ?? undefined,
+    dividendYield: normalizeDividendYield(row.dividendYield ?? row.trailingAnnualDividendYield) ?? undefined
   };
 }
 
 export function mapSnapshotQuote(row: YahooQuoteRaw, fallbackSymbol: string): YahooSnapshotPayload {
   return {
-    symbol: String(row?.symbol ?? fallbackSymbol).toUpperCase(),
-    shortName: nullableString(row?.shortName),
-    longName: nullableString(row?.longName),
-    quoteType: nullableString(row?.quoteType),
-    typeDisp: nullableString(row?.typeDisp),
-    currency: nullableString(row?.currency),
-    exchange: nullableString(row?.exchange),
-    fullExchangeName: nullableString(row?.fullExchangeName),
-    market: nullableString(row?.market),
-    marketState: nullableString(row?.marketState),
-    regularMarketPrice: nullableNumber(row?.regularMarketPrice),
-    regularMarketChange: nullableNumber(row?.regularMarketChange),
-    regularMarketChangePercent: nullableNumber(row?.regularMarketChangePercent),
-    regularMarketPreviousClose: nullableNumber(row?.regularMarketPreviousClose),
-    regularMarketOpen: nullableNumber(row?.regularMarketOpen),
-    regularMarketDayHigh: nullableNumber(row?.regularMarketDayHigh),
-    regularMarketDayLow: nullableNumber(row?.regularMarketDayLow),
-    regularMarketVolume: nullableNumber(row?.regularMarketVolume),
-    bid: nullableNumber(row?.bid),
-    ask: nullableNumber(row?.ask),
-    bidSize: nullableNumber(row?.bidSize),
-    askSize: nullableNumber(row?.askSize),
-    averageDailyVolume3Month: nullableNumber(row?.averageDailyVolume3Month),
-    averageDailyVolume10Day: nullableNumber(row?.averageDailyVolume10Day),
-    fiftyTwoWeekLow: nullableNumber(row?.fiftyTwoWeekLow ?? row?.fiftyTwoWeekRange?.low),
-    fiftyTwoWeekHigh: nullableNumber(row?.fiftyTwoWeekHigh ?? row?.fiftyTwoWeekRange?.high),
-    fiftyTwoWeekChangePercent: nullableNumber(row?.fiftyTwoWeekChangePercent),
-    exDividendDate: nullableDateIso(row?.exDividendDate),
-    dividendRate: nullableNumber(row?.dividendRate),
-    dividendYield: normalizeDividendYield(row?.dividendYield),
-    trailingAnnualDividendRate: nullableNumber(row?.trailingAnnualDividendRate),
-    trailingAnnualDividendYield: normalizeDividendYield(row?.trailingAnnualDividendYield),
-    regularMarketTime: nullableDateIso(row?.regularMarketTime)
+    symbol: (row.symbol ?? fallbackSymbol).toUpperCase(),
+    shortName: nullableString(row.shortName),
+    longName: nullableString(row.longName),
+    quoteType: nullableString(row.quoteType),
+    typeDisp: nullableString(row["typeDisp"]),
+    currency: nullableString(row.currency),
+    exchange: nullableString(row.exchange),
+    fullExchangeName: nullableString(row.fullExchangeName),
+    market: nullableString(row["market"]),
+    marketState: nullableString(row.marketState),
+    regularMarketPrice: nullableNumber(row.regularMarketPrice),
+    regularMarketChange: nullableNumber(row.regularMarketChange),
+    regularMarketChangePercent: nullableNumber(row.regularMarketChangePercent),
+    regularMarketPreviousClose: nullableNumber(row.regularMarketPreviousClose),
+    regularMarketOpen: nullableNumber(row["regularMarketOpen"]),
+    regularMarketDayHigh: nullableNumber(row["regularMarketDayHigh"]),
+    regularMarketDayLow: nullableNumber(row["regularMarketDayLow"]),
+    regularMarketVolume: nullableNumber(row["regularMarketVolume"]),
+    bid: nullableNumber(row["bid"]),
+    ask: nullableNumber(row["ask"]),
+    bidSize: nullableNumber(row["bidSize"]),
+    askSize: nullableNumber(row["askSize"]),
+    averageDailyVolume3Month: nullableNumber(row["averageDailyVolume3Month"]),
+    averageDailyVolume10Day: nullableNumber(row["averageDailyVolume10Day"]),
+    fiftyTwoWeekLow: nullableNumber(row["fiftyTwoWeekLow"] ?? row.fiftyTwoWeekRange?.low),
+    fiftyTwoWeekHigh: nullableNumber(row["fiftyTwoWeekHigh"] ?? row.fiftyTwoWeekRange?.high),
+    fiftyTwoWeekChangePercent: nullableNumber(row["fiftyTwoWeekChangePercent"]),
+    exDividendDate: nullableDateIso(row["exDividendDate"]),
+    dividendRate: nullableNumber(row.dividendRate),
+    dividendYield: normalizeDividendYield(row.dividendYield),
+    trailingAnnualDividendRate: nullableNumber(row.trailingAnnualDividendRate),
+    trailingAnnualDividendYield: normalizeDividendYield(row.trailingAnnualDividendYield),
+    regularMarketTime: nullableDateIso(row["regularMarketTime"])
   };
 }
 
 export function mapChartRows(rows: YahooChartPointRaw[]): HistoryPoint[] {
   return rows
-    .filter((row): row is YahooChartPointRaw & { date: string | number | Date } => row?.date != null && Number.isFinite(Number(row.close)))
+    .filter((row): row is YahooChartPointRaw & { date: string | number | Date } => row.date != null && Number.isFinite(Number(row.close)))
     .map((row) => ({
       date: new Date(row.date).toISOString(),
       open: nullableNumber(row.open) ?? undefined,

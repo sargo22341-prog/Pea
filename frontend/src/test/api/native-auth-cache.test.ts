@@ -5,7 +5,7 @@ const secureStorage = vi.hoisted(() => ({
   setItem: vi.fn(),
   removeItem: vi.fn()
 }));
-const setBackendUrl = vi.hoisted(() => vi.fn());
+const setBackendUrl = vi.hoisted(() => vi.fn<(options: { url: string }) => Promise<unknown>>());
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => true },
@@ -21,7 +21,7 @@ async function loadNativeAuth() {
 
 describe("native auth caches", () => {
   beforeEach(() => {
-    secureStorage.getItem.mockImplementation(async (key: string) => (key === "pea.server.url" ? "https://pea.example" : "token-1"));
+    secureStorage.getItem.mockImplementation((key: string) => Promise.resolve((key === "pea.server.url" ? "https://pea.example" : "token-1")));
     secureStorage.setItem.mockResolvedValue(undefined);
     secureStorage.removeItem.mockResolvedValue(undefined);
     setBackendUrl.mockResolvedValue({ ok: true });

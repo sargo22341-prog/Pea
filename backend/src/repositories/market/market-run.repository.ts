@@ -1,5 +1,6 @@
 import { db } from "../../db.js";
 import { nowIso } from "../../schedulers/market-task.utils.js";
+import { requirePresent } from "../../utils/invariant.js";
 
 export type OpenRunStatus =
   | "pending"
@@ -98,7 +99,7 @@ export class MarketRunRepository {
       timestamp,
       timestamp
     );
-    return this.get(input.marketKey, input.tradingDate)!;
+    return requirePresent(this.get(input.marketKey, input.tradingDate), "Execution de marche");
   }
 
   get(marketKey: string, tradingDate: string): MarketDailyRunRow | undefined {

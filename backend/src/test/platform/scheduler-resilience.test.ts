@@ -21,7 +21,7 @@ test("scheduler ticks never reject when their tasks or lock storage fail", () =>
       marketScheduler.tick(new Date(2026, 0, 5, 10, 0))
     ]);
     console.log("__RESULT__" + JSON.stringify({ statuses: outcomes.map((outcome) => outcome.status) }));
-  `);
+  `) as { statuses: string[] };
 
   assert.deepEqual(result.statuses, ["fulfilled", "fulfilled"]);
 });

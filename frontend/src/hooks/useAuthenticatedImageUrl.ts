@@ -27,33 +27,28 @@ async function loadNativeImageUrl(path: string) {
 }
 
 export function useAuthenticatedImageUrl(path: string, version: number | string, enabled = true) {
-  const [url, setUrl] = useState(() => enabled && !isNativeApp() ? apiUrl(path) : "");
+  const native = isNativeApp();
+  const shouldLoadNative = enabled && Boolean(path) && native;
+  // Seule l'application native charge l'image en blob (jeton d'auth) : l'etat ne sert qu'a ce cas.
+  const [nativeUrl, setNativeUrl] = useState("");
 
   useEffect(() => {
-    if (!enabled || !path) {
-      setUrl("");
-      return undefined;
-    }
-
-    if (!isNativeApp()) {
-      setUrl(apiUrl(path));
-      return undefined;
-    }
+    if (!shouldLoadNative) return undefined;
 
     let active = true;
     loadNativeImageUrl(path)
       .then((objectUrl) => {
-        if (!active) return;
-        setUrl(objectUrl);
+        if (active) setNativeUrl(objectUrl);
       })
       .catch(() => {
-        if (active) setUrl("");
+        if (active) setNativeUrl("");
       });
 
     return () => {
       active = false;
     };
-  }, [enabled, path, version]);
+  }, [shouldLoadNative, path, version]);
 
-  return url;
+  if (!enabled || !path) return "";
+  return native ? nativeUrl : apiUrl(path);
 }

@@ -1,4 +1,5 @@
 import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
+import type { TFunction } from "i18next";
 import { currentDateTimeLocalValue } from "../../../lib/dateTimeInput";
 
 export type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "quantity" | "price" | "executedPrice" | "totalFees"> & {
@@ -10,7 +11,7 @@ export type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "qua
   savedQuantityEffect: number;
 };
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TFunction;
 
 export function toFormRow(row: EditablePortfolioTransaction): EditableTransactionFormRow {
   return {

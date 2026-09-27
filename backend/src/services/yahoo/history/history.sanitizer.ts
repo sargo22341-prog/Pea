@@ -12,16 +12,22 @@ function interpolatePoint(point: HistoryPoint, previous: HistoryPoint, next: His
   };
 }
 
+function hasValidClose(point: HistoryPoint | undefined): point is HistoryPoint {
+  return point !== undefined && Number.isFinite(point.close) && point.close > 0;
+}
+
 function findPreviousValid(points: HistoryPoint[], index: number): HistoryPoint | undefined {
   for (let i = index - 1; i >= 0; i -= 1) {
-    if (Number.isFinite(points[i].close) && points[i].close > 0) return points[i];
+    const candidate = points[i];
+    if (hasValidClose(candidate)) return candidate;
   }
   return undefined;
 }
 
 function findNextValid(points: HistoryPoint[], index: number): HistoryPoint | undefined {
   for (let i = index + 1; i < points.length; i += 1) {
-    if (Number.isFinite(points[i].close) && points[i].close > 0) return points[i];
+    const candidate = points[i];
+    if (hasValidClose(candidate)) return candidate;
   }
   return undefined;
 }
@@ -44,12 +50,12 @@ export function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: H
   let removedPoints = 0;
   let interpolatedPoints = 0;
   let removedLastPointReason: string | undefined;
-  const lastInputPoint = points[points.length - 1];
+  const lastInputPoint = points.at(-1);
   const lastInputTime = lastInputPoint ? new Date(lastInputPoint.date).getTime() : NaN;
 
   for (const point of points) {
     const time = new Date(point.date).getTime();
-    const close = Number(point.close);
+    const close = point.close;
     if (!Number.isFinite(time) || !Number.isFinite(close)) {
       removedPoints += 1;
       if (point === lastInputPoint) removedLastPointReason = "invalid-datetime-or-price";
@@ -61,8 +67,7 @@ export function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: H
 
   const sorted = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
   const sanitized: HistoryPoint[] = [];
-  for (let index = 0; index < sorted.length; index += 1) {
-    const point = sorted[index];
+  for (const [index, point] of sorted.entries()) {
     const previous = findPreviousValid(sorted, index);
     const next = findNextValid(sorted, index);
 
@@ -87,11 +92,13 @@ export function sanitizeHistoryPoints(symbol: string, range: RangeKey, points: H
     sanitized.push(point);
   }
 
+  const firstSanitized = sanitized[0];
+  const lastSanitized = sanitized.at(-1);
   logger.debug("chart", "history sanitize summary", {
     symbol,
     range,
-    firstPoint: sanitized[0] ? `${sanitized[0].date}:${sanitized[0].close}` : undefined,
-    lastPoint: sanitized[sanitized.length - 1] ? `${sanitized[sanitized.length - 1].date}:${sanitized[sanitized.length - 1].close}` : undefined,
+    firstPoint: firstSanitized ? `${firstSanitized.date}:${firstSanitized.close}` : undefined,
+    lastPoint: lastSanitized ? `${lastSanitized.date}:${lastSanitized.close}` : undefined,
     pointsBeforeValidation: points.length,
     pointsAfterValidation: sanitized.length,
     removedPoints,

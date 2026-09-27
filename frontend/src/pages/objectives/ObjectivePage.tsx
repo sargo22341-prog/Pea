@@ -45,7 +45,7 @@ export function ObjectivePage({ user }: { user: User }) {
             </div>
           </div>
         </div>
-        <button className="btn-ghost" onClick={() => setEditing(true)} type="button">
+        <button className="btn-ghost" onClick={() => { setEditing(true); }} type="button">
           <Edit3 size={16} />
           {t("objectives:edit")}
         </button>
@@ -77,7 +77,7 @@ export function ObjectivePage({ user }: { user: User }) {
       {editing ? (
         <ObjectiveEditModal
           objective={objective}
-          onClose={() => setEditing(false)}
+          onClose={() => { setEditing(false); }}
           onSaved={() => objectives.reload()}
           userId={user.id}
         />

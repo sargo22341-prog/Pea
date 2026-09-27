@@ -20,7 +20,7 @@ export class DividendsService {
     let updated = 0;
     for (const symbol of assetRepository.listTrackedSymbols()) {
       let asset = assetRepository.findBySymbol(symbol);
-      if (!asset) asset = assetRepository.upsertFromQuote((await marketDataGateway.fetchFreshQuote(symbol)).snapshot);
+      asset ??= assetRepository.upsertFromQuote((await marketDataGateway.fetchFreshQuote(symbol)).snapshot);
       updated += (await this.refreshDividends(asset)).updated;
     }
     return { updated };

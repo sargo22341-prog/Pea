@@ -50,7 +50,7 @@ export class MarketEventsService {
     // nginx (Nginx Proxy Manager) bufferise les réponses proxifiées : sans cet en-tête,
     // les événements SSE restent bloqués côté proxy au lieu d'être transmis immédiatement.
     res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders?.();
+    res.flushHeaders();
     this.write(client, "scheduler-health-updated", {
       type: "scheduler-health-updated",
       markets: [],
@@ -115,7 +115,7 @@ export class MarketEventsService {
 
     const positions = db
       .prepare(`SELECT DISTINCT user_id FROM positions WHERE symbol IN (${placeholders})`)
-      .all(...keys) as Array<{ user_id: string | number }>;
+      .all(...keys) as { user_id: string | number }[];
     for (const row of positions) {
       const userId = String(row.user_id);
       result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), portfolio: true });
@@ -123,7 +123,7 @@ export class MarketEventsService {
 
     const watchlist = db
       .prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`)
-      .all(...keys) as Array<{ user_id: string | number }>;
+      .all(...keys) as { user_id: string | number }[];
     for (const row of watchlist) {
       const userId = String(row.user_id);
       result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), watchlist: true });

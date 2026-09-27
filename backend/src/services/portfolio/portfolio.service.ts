@@ -66,15 +66,15 @@ export class PortfolioService {
   }
 
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
-    return portfolioWriteService.deleteTransaction(positionId, transactionId, userId);
+    portfolioWriteService.deleteTransaction(positionId, transactionId, userId);
   }
 
   recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
-    return portfolioWriteService.recomputePositionFromAnyTransactions(positionId, userId);
+    portfolioWriteService.recomputePositionFromAnyTransactions(positionId, userId);
   }
 
   assertValidTransactionMutation(positionId: number, input: TransactionMutationInput, transactionIdToReplace?: number) {
-    return portfolioWriteService.assertValidTransactionMutation(positionId, input, transactionIdToReplace);
+    portfolioWriteService.assertValidTransactionMutation(positionId, input, transactionIdToReplace);
   }
 
   deletePosition(id: number, userId?: number | string): boolean {
@@ -82,7 +82,7 @@ export class PortfolioService {
   }
 
   replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
-    return portfolioWriteService.replaceImportedPositionSnapshot(id, input, userId);
+    portfolioWriteService.replaceImportedPositionSnapshot(id, input, userId);
   }
 
   updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {

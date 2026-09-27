@@ -1,10 +1,10 @@
 import { memo, type ReactElement, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ResponsiveContainer } from "recharts";
 
-type ContainerSize = {
+interface ContainerSize {
   height: number;
   width: number;
-};
+}
 
 const RESIZE_DEBOUNCE_MS = 80;
 
@@ -36,7 +36,7 @@ function SafeResponsiveContainerInner({ children }: { children: ReactElement }) 
       const rect = node.getBoundingClientRect();
       const next: ContainerSize = { height: Math.round(rect.height), width: Math.round(rect.width) };
       if (next.width <= 0 || next.height <= 0) return;
-      if (lastEmitted && lastEmitted.width === next.width && lastEmitted.height === next.height) return;
+      if (lastEmitted?.width === next.width && lastEmitted.height === next.height) return;
       lastEmitted = next;
       setSize(next);
     };
@@ -63,17 +63,17 @@ function SafeResponsiveContainerInner({ children }: { children: ReactElement }) 
     const node = containerRef.current;
     if (!node || !size) return undefined;
 
-    function dismissTooltip(e: PointerEvent) {
-      if (!node!.contains(e.target as Node)) {
-        const wrapper = node!.querySelector(".recharts-wrapper");
+    const dismissTooltip = (e: PointerEvent) => {
+      if (!node.contains(e.target as Node)) {
+        const wrapper = node.querySelector(".recharts-wrapper");
         if (wrapper) {
           wrapper.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true, cancelable: true }));
         }
       }
-    }
+    };
 
     document.addEventListener("pointerdown", dismissTooltip);
-    return () => document.removeEventListener("pointerdown", dismissTooltip);
+    return () => { document.removeEventListener("pointerdown", dismissTooltip); };
   }, [size]);
 
   // Stabilise l'objet size pour Recharts : grâce au check `lastEmitted` dans le ResizeObserver,

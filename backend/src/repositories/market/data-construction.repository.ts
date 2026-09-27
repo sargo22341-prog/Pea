@@ -5,11 +5,11 @@ export type DataConstructionTaskStatus = "queued" | "running" | "success" | "err
 export interface DataConstructionTaskInput {
   taskKey: string;
   type: string;
-  symbol?: string;
-  range?: string;
-  marketKey?: string;
-  tradingDate?: string;
-  phase?: string;
+  symbol?: string | undefined;
+  range?: string | undefined;
+  marketKey?: string | undefined;
+  tradingDate?: string | undefined;
+  phase?: string | undefined;
   message: string;
   priority: number;
 }
@@ -57,7 +57,7 @@ export interface DataConstructionRuntimeStats {
   completed: number;
   oldest_pending_at?: string | null;
   oldest_running_at?: string | null;
-  by_type_priority: Array<{ type: string; priority: number; pending: number; running: number; failed: number; completed: number }>;
+  by_type_priority: { type: string; priority: number; pending: number; running: number; failed: number; completed: number }[];
 }
 
 function nowIso() {
@@ -112,7 +112,7 @@ export const dataConstructionRepository = {
     const placeholders = keys.map(() => "?").join(",");
     const rows = db
       .prepare(`SELECT task_key FROM data_construction_tasks WHERE status IN ('queued', 'running') AND task_key IN (${placeholders})`)
-      .all(...keys) as Array<{ task_key: string }>;
+      .all(...keys) as { task_key: string }[];
     return new Set(rows.map((row) => row.task_key));
   },
 
@@ -254,19 +254,19 @@ export const dataConstructionRepository = {
       )
       .all() as DataConstructionRuntimeStats["by_type_priority"];
     return {
-      pending: Number(totals.pending ?? 0),
-      running: Number(totals.running ?? 0),
-      failed: Number(totals.failed ?? 0),
-      completed: Number(totals.completed ?? 0),
+      pending: totals.pending ?? 0,
+      running: totals.running ?? 0,
+      failed: totals.failed ?? 0,
+      completed: totals.completed ?? 0,
       oldest_pending_at: totals.oldest_pending_at ?? null,
       oldest_running_at: totals.oldest_running_at ?? null,
       by_type_priority: byTypePriority.map((row) => ({
         type: row.type,
-        priority: Number(row.priority),
-        pending: Number(row.pending ?? 0),
-        running: Number(row.running ?? 0),
-        failed: Number(row.failed ?? 0),
-        completed: Number(row.completed ?? 0)
+        priority: row.priority,
+        pending: row.pending,
+        running: row.running,
+        failed: row.failed,
+        completed: row.completed
       }))
     };
   }

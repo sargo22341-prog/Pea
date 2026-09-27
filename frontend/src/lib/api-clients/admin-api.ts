@@ -4,16 +4,16 @@ import { request } from "../api-core";
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
 
 export interface YahooUsageStatsFilters {
-  dateFrom?: string;
-  dateTo?: string;
-  method?: string;
-  module?: string;
-  ticker?: string;
-  source?: string;
-  success?: boolean;
-  groupBy?: "hour" | "day" | "method" | "module" | "ticker";
-  id?: number;
-  limit?: number;
+  dateFrom?: string | undefined;
+  dateTo?: string | undefined;
+  method?: string | undefined;
+  module?: string | undefined;
+  ticker?: string | undefined;
+  source?: string | undefined;
+  success?: boolean | undefined;
+  groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
+  id?: number | undefined;
+  limit?: number | undefined;
 }
 
 function yahooUsageQuery(filters: YahooUsageStatsFilters) {
@@ -35,7 +35,7 @@ export const adminApi = {
   adminUsers: () => request<AdminManagedUser[]>("/api/admin/users"),
   createAdminUser: (input: { username: string; password: string }) =>
     request<AdminManagedUser>("/api/admin/users", { method: "POST", body: JSON.stringify(input) }),
-  deleteAdminUser: (userId: number) => request<void>(`/api/admin/users/${encodeURIComponent(String(userId))}`, { method: "DELETE" }),
+  deleteAdminUser: (userId: number) => request<undefined>(`/api/admin/users/${encodeURIComponent(String(userId))}`, { method: "DELETE" }),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
   getRuntimeHealth: () => request<RuntimeHealthDto>("/api/admin/runtime-health"),
   yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {

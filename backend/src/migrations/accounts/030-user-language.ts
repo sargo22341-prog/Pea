@@ -1,7 +1,7 @@
 import type { Migration } from "../types.js";
 
 function hasColumn(db: Parameters<Migration["appliquer"]>[0], table: string, column: string) {
-  return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((row) => row.name === column);
+  return (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((row) => row.name === column);
 }
 
 export const userLanguageMigration: Migration = {

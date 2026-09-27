@@ -10,9 +10,9 @@ export function useChartDataModel({
   marketSession,
   range
 }: {
-  baselinePrice?: number;
+  baselinePrice?: number | undefined;
   data: PriceHistoryInputPoint[];
-  marketSession?: MarketSessionDto;
+  marketSession?: MarketSessionDto | undefined;
   range: RangeKey;
 }) {
   const { chartData, trend } = usePriceHistoryChart(data, range, baselinePrice);

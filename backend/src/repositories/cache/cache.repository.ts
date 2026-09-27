@@ -1,7 +1,7 @@
 import { db } from "../../db.js";
 import { unifiedCacheRepository, type CacheScope } from "./unified-cache.repository.js";
 
-export type StaticCacheTarget = { table: string; keyColumn: string };
+export interface StaticCacheTarget { table: string; keyColumn: string }
 
 export class CacheRepository {
   invalidatePortfolioUser(userId: string, symbol?: string) {
@@ -74,7 +74,7 @@ export class CacheRepository {
       .get(cacheKey, nowMs) as { payload: string } | undefined;
   }
 
-  writeFrontendBlock(input: { cacheKey: string; userId: string | number; block: string; range?: string; payload: unknown; cachedAt: number; expiresAt: number }) {
+  writeFrontendBlock(input: { cacheKey: string; userId: string | number; block: string; range?: string | undefined; payload: unknown; cachedAt: number; expiresAt: number }) {
     db.prepare(
       `INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)

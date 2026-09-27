@@ -34,7 +34,8 @@ export class PortfolioPerformanceCacheService {
     const versions = this.versions(userId, input.range);
     const key = cacheKey(userId, input.range);
     const cached = this.read(key);
-    const hasMiniCharts = cached?.payload.every((item) => item.miniChart && Array.isArray(item.miniChart.points)) ?? false;
+    // Les anciennes entrees de cache (JSON) peuvent ne pas contenir de mini-graphique.
+    const hasMiniCharts = cached?.payload.every((item: Partial<PositionRangePerformance>) => Array.isArray(item.miniChart?.points)) ?? false;
     const portfolioMatches = cached?.portfolioVersion === versions.portfolioVersion;
     const marketMatches = cached?.marketDataVersion === versions.marketDataVersion;
 
@@ -105,9 +106,9 @@ export class PortfolioPerformanceCacheService {
     const txStats = portfolioPerformanceCacheRepository.transactionVersionStats(positionIds);
     const portfolioVersion = JSON.stringify({
       positions: positionRows.map((row) => `${row.id}:${row.symbol}:${row.updated_at}`),
-      txCount: Number(txStats.count ?? 0),
-      txMaxId: Number(txStats.max_id ?? 0),
-      txMaxTradedAt: String(txStats.max_traded_at ?? "")
+      txCount: txStats.count,
+      txMaxId: txStats.max_id,
+      txMaxTradedAt: txStats.max_traded_at
     });
 
     const assetRows = portfolioPerformanceCacheRepository.assetRows(symbols);
@@ -122,12 +123,12 @@ export class PortfolioPerformanceCacheService {
     return {
       portfolioVersion,
       marketDataVersion: JSON.stringify({
-        snapshotsUpdatedAt: String(snapshotStats.updated_at ?? ""),
-        snapshotsCheckedAt: String(snapshotStats.last_checked_at ?? ""),
+        snapshotsUpdatedAt: snapshotStats.updated_at,
+        snapshotsCheckedAt: snapshotStats.last_checked_at,
         candleRange: storedRange,
         candleInterval: interval,
-        candleUpdatedAt: String(candleStats.updated_at ?? ""),
-        candleCount: Number(candleStats.count ?? 0),
+        candleUpdatedAt: candleStats.updated_at,
+        candleCount: candleStats.count,
         positionRangeFormula: "snapshot-day-change-v5-mini-chart"
       })
     };

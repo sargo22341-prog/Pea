@@ -99,7 +99,7 @@ describe("DividendsPage", () => {
 
     const rows = screen.getAllByRole("link");
     expect(rows[0]).toHaveClass("motion-rise");
-    expect(rows[0].getAttribute("style")).toBeNull();
+    expect(rows[0]?.getAttribute("style")).toBeNull();
     expect(rows[1]).toHaveStyle({ animationDelay: "35ms" });
   });
 

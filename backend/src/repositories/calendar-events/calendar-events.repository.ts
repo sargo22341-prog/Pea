@@ -9,7 +9,7 @@ interface CalendarEventInsert {
   isEstimate: boolean;
 }
 
-type CalendarEventsSummary = {
+interface CalendarEventsSummary {
   calendarEvents?: {
     earnings?: {
       isEarningsDateEstimate?: unknown;
@@ -19,11 +19,11 @@ type CalendarEventsSummary = {
     exDividendDate?: unknown;
     dividendDate?: unknown;
   };
-};
+}
 
 function toIsoDate(value: unknown): string | undefined {
   if (!value) return undefined;
-  const raw = value && typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
+  const raw = typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
   if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
   if (typeof raw === "number" && Number.isFinite(raw)) return new Date(raw * 1000).toISOString();
   if (typeof raw === "string") {
@@ -34,7 +34,7 @@ function toIsoDate(value: unknown): string | undefined {
 }
 
 function extractFromSummary(symbol: string, summary: CalendarEventsSummary): CalendarEventInsert[] {
-  const cal = summary?.calendarEvents;
+  const cal = summary.calendarEvents;
   if (!cal) return [];
 
   const events: CalendarEventInsert[] = [];

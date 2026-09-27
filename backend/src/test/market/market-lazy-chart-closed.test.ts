@@ -27,7 +27,7 @@ test("lazy chart refresh stays available when live refresh mode is off", () => {
     const response = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 30));
     console.log("__RESULT__" + JSON.stringify({ response, chartCalls }));
-  `);
+  `) as { response: { status: string }; chartCalls: number };
 
   assert.equal(result.response.status, "started");
   assert.equal(result.chartCalls, 1);
@@ -56,7 +56,7 @@ test("lazy chart refresh skips closed markets with existing chart data", () => {
     const response = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 20));
     console.log("__RESULT__" + JSON.stringify({ response, chartCalls }));
-  `);
+  `) as { response: { status: string }; chartCalls: number };
 
   assert.equal(result.response.status, "skipped-market-closed");
   assert.equal(result.chartCalls, 0);
@@ -91,7 +91,7 @@ test("lazy chart refresh allows initial chart data when market is closed", () =>
     const response = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 30));
     console.log("__RESULT__" + JSON.stringify({ response, chartCalls }));
-  `);
+  `) as { response: { status: string }; chartCalls: number };
 
   assert.equal(result.response.status, "started");
   assert.equal(result.chartCalls, 1);
@@ -139,7 +139,7 @@ test("portfolio lazy chart refresh filters by market status and initializes only
     const response = chartRefreshService.requestPortfolioRefresh({ userId: 1, range: "1d" });
     await new Promise((resolve) => setTimeout(resolve, 40));
     console.log("__RESULT__" + JSON.stringify({ response, chartCalls }));
-  `);
+  `) as { response: { status: string; symbols: string[] }; chartCalls: string[] };
 
   assert.equal(result.response.status, "started");
   assert.deepEqual(result.response.symbols.sort(), ["AMS.AS"]);

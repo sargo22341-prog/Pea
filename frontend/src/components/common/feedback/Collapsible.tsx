@@ -13,8 +13,8 @@ export function Collapsible({
   title: string;
   children: ReactNode;
   defaultOpen?: boolean;
-  open?: boolean;
-  onToggle?: () => void;
+  open?: boolean | undefined;
+  onToggle?: (() => void) | undefined;
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;

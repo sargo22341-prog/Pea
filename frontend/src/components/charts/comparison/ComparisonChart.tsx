@@ -2,6 +2,7 @@ import type { MarketSessionDto, RangeKey } from "@pea/shared";
 import { memo, useMemo } from "react";
 import { ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import type { PriceHistoryInputPoint } from "../../../hooks/usePriceHistoryChart";
+import { paletteColor } from "../chartFormat";
 import { COMPARE_COLORS } from "./compareColors";
 import { buildComparisonData, shouldNormalizeComparisonByPoints } from "./comparisonData";
 import { formatHistoryTick, formatHistoryTooltipLabel } from "../chartAxis";
@@ -21,7 +22,7 @@ interface ComparisonChartProps {
   range: RangeKey;
   heightClassName?: string;
   userTimezone?: string;
-  marketSession?: MarketSessionDto;
+  marketSession?: MarketSessionDto | undefined;
 }
 
 interface ComparisonTooltipEntry {
@@ -44,8 +45,8 @@ function ComparisonTooltip({
   label?: unknown;
   series: ComparisonTooltipEntry[];
   range: RangeKey;
-  userTimezone?: string;
-  marketSession?: MarketSessionDto;
+  userTimezone?: string | undefined;
+  marketSession?: MarketSessionDto | undefined;
 }) {
   if (!active || !payload?.length || label == null) return null;
   const dateStr = formatHistoryTooltipLabel(Number(label), range, range === "1d" ? "time" : "dateTime", userTimezone, marketSession);
@@ -80,17 +81,17 @@ export const ComparisonChart = memo(function ComparisonChart({
   marketSession
 }: ComparisonChartProps) {
   const trend = useMemo(() => {
-    const valid = data.filter((p) => p.value != null);
-    if (valid.length < 2) return "neutral" as const;
-    const first = valid[0].value!;
-    const last = valid[valid.length - 1].value!;
+    const values = data.flatMap((p) => (p.value == null ? [] : [p.value]));
+    const first = values[0];
+    const last = values.at(-1);
+    if (values.length < 2 || first === undefined || last === undefined) return "neutral" as const;
     return last > first ? ("up" as const) : last < first ? ("down" as const) : ("neutral" as const);
   }, [data]);
 
   const mainColor = trend === "up" ? "#22c55e" : trend === "down" ? "#ef4444" : "#38bdf8";
   const allSeries: ComparisonTooltipEntry[] = [
     { key: "main", label: mainSymbol ?? "Principal", color: mainColor },
-    ...comparisonSeries.map((s, i) => ({ key: s.symbol, label: s.symbol, color: COMPARE_COLORS[i] }))
+    ...comparisonSeries.map((s, i) => ({ key: s.symbol, label: s.symbol, color: paletteColor(COMPARE_COLORS, i) }))
   ];
 
   const mergedData = useMemo(() => buildComparisonData(data, comparisonSeries, range), [data, comparisonSeries, range]);
@@ -99,7 +100,10 @@ export const ComparisonChart = memo(function ComparisonChart({
 
   const xDomain = useMemo((): [number, number] | undefined => {
     if (usePointAxis) return [0, Math.max(mergedData.length - 1, 0)];
-    const dates = mergedData.map((p) => p.date as number).filter(Number.isFinite);
+    const dates = mergedData.flatMap((p) => {
+      const date = p["date"];
+      return typeof date === "number" && Number.isFinite(date) ? [date] : [];
+    });
     if (!dates.length) return undefined;
     return [Math.min(...dates), Math.max(...dates)];
   }, [mergedData, usePointAxis]);
@@ -107,7 +111,7 @@ export const ComparisonChart = memo(function ComparisonChart({
   const resolveXDate = (value: string | number) => {
     if (!usePointAxis) return value;
     const index = Math.round(Number(value));
-    return (mergedData[index]?.date as number | undefined) ?? value;
+    return (mergedData[index]?.["date"] as number | undefined) ?? value;
   };
 
   return (
@@ -117,10 +121,10 @@ export const ComparisonChart = memo(function ComparisonChart({
           <XAxis
             axisLine={false}
             dataKey={xDataKey}
-            domain={xDomain}
+            {...(xDomain ? { domain: xDomain } : {})}
             scale={usePointAxis ? "linear" : "time"}
             tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
+            tickFormatter={(value: string | number) => formatHistoryTick(resolveXDate(value), range, userTimezone)}
             tickLine={false}
             type="number"
           />

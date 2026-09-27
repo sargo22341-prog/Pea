@@ -1,6 +1,6 @@
 import type { AdminManagedUser } from "@pea/shared";
 import { RefreshCcw, Trash2, UserPlus, Users } from "lucide-react";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
@@ -28,19 +28,22 @@ export function UserManagementSection({ open, onToggle }: { open?: boolean; onTo
   const [pendingDelete, setPendingDelete] = useState<AdminManagedUser | null>(null);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
+  // Ne modifie l'etat qu'apres la reponse : utilisable depuis l'effet de montage (etat initial `loading`).
+  const fetchUsers = useCallback(() =>
+    api.adminUsers()
+      .then((managedUsers) => { setUsers(managedUsers); })
+      .catch((error: unknown) => {
+        setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.users.unavailable", { ns: "common" }) });
+      })
+      .finally(() => { setLoading(false); }), [t]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setToast(null);
-    try {
-      setUsers(await api.adminUsers());
-    } catch (error) {
-      setToast({ tone: "error", text: error instanceof Error ? error.message : t("admin.users.unavailable", { ns: "common" }) });
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+    await fetchUsers();
+  }, [fetchUsers]);
 
-  async function createUser(event: FormEvent<HTMLFormElement>) {
+  async function createUser(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreating(true);
     setToast(null);
@@ -71,8 +74,8 @@ export function UserManagementSection({ open, onToggle }: { open?: boolean; onTo
   }
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <Collapsible onToggle={onToggle} open={open} title={t("admin.users.title", { ns: "common" })}>
@@ -96,11 +99,11 @@ export function UserManagementSection({ open, onToggle }: { open?: boolean; onTo
       <form className="grid gap-3 rounded-md border border-line bg-panel2/50 p-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={(event) => void createUser(event)}>
         <label className="space-y-2 text-sm font-medium">
           <span>{t("fields.username", { ns: "common" })}</span>
-          <input className="input" disabled={creating} onChange={(event) => setUsername(event.target.value)} required type="text" value={username} />
+          <input className="input" disabled={creating} onChange={(event) => { setUsername(event.target.value); }} required type="text" value={username} />
         </label>
         <label className="space-y-2 text-sm font-medium">
           <span>{t("fields.password", { ns: "common" })}</span>
-          <input className="input" disabled={creating} minLength={10} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+          <input className="input" disabled={creating} minLength={10} onChange={(event) => { setPassword(event.target.value); }} required type="password" value={password} />
         </label>
         <div className="flex items-end">
           <button className="btn-primary w-full gap-2 md:w-auto" disabled={creating} type="submit">
@@ -118,7 +121,7 @@ export function UserManagementSection({ open, onToggle }: { open?: boolean; onTo
           danger
           confirmLabel={t("actions.delete", { ns: "common" })}
           description={t("admin.users.deleteDescription", { ns: "common", username: pendingDelete.username })}
-          onCancel={() => setPendingDelete(null)}
+          onCancel={() => { setPendingDelete(null); }}
           onConfirm={() => void deleteUser(pendingDelete)}
           title={t("admin.users.deleteTitle", { ns: "common", username: pendingDelete.username })}
         />
@@ -158,7 +161,7 @@ function UsersTable({ loading, onDelete, users }: { loading: boolean; onDelete: 
                 {user.isProtectedAdmin ? (
                   <span className="muted">{t("admin.users.protected", { ns: "common" })}</span>
                 ) : (
-                  <button aria-label={t("admin.users.deleteUser", { ns: "common", username: user.username })} className="btn-ghost px-2 text-coral" onClick={() => onDelete(user)} type="button">
+                  <button aria-label={t("admin.users.deleteUser", { ns: "common", username: user.username })} className="btn-ghost px-2 text-coral" onClick={() => { onDelete(user); }} type="button">
                     <Trash2 size={16} />
                   </button>
                 )}

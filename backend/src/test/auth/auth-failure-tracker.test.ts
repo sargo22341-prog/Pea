@@ -70,7 +70,7 @@ test("auth failure tracker applies the stricter delay across IP and username key
 
 test("auth failure tracker logs WARN at five failures and ERROR at ten failures", () => {
   const tracker = new AuthFailureTracker({ backoffBaseMs: 1, backoffMaxMs: 1 });
-  const calls: Array<{ level: "warn" | "error"; message: string; failureCount?: unknown }> = [];
+  const calls: { level: "warn" | "error"; message: string; failureCount?: unknown }[] = [];
   const originalWarn = logger.warn;
   const originalError = logger.error;
 

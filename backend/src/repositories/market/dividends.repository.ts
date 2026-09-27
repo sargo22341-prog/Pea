@@ -14,16 +14,16 @@ export class DividendsRepository {
     ).run(assetId, input.date, input.amount, input.currency ?? null);
   }
 
-  read(asset: { id: number; symbol: string; currency?: string }): DividendEvent[] {
+  read(asset: { id: number; symbol: string; currency?: string | undefined }): DividendEvent[] {
     const rows = db
       .prepare("SELECT ex_date, amount, currency FROM asset_dividends WHERE asset_id = ? ORDER BY ex_date ASC, updated_at ASC, id ASC")
-      .all(asset.id) as Array<{ ex_date: string; amount: number; currency?: string }>;
+      .all(asset.id) as { ex_date: string; amount: number; currency?: string }[];
     const latestByDate = new Map<string, { ex_date: string; amount: number; currency?: string }>();
     for (const row of rows) latestByDate.set(row.ex_date, row);
     return [...latestByDate.values()].map((row) => ({
       symbol: asset.symbol,
       date: row.ex_date,
-      amount: Number(row.amount),
+      amount: row.amount,
       currency: row.currency ?? asset.currency ?? "EUR",
       status: "real"
     }));

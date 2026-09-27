@@ -1,4 +1,5 @@
 import type { CalendarEvent } from "@pea/shared";
+import type { TFunction } from "i18next";
 import { Clock3 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,16 +8,16 @@ import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { api } from "../../lib/api";
 
 type VisualTone = "green" | "blue" | "purple";
-type CalendarT = (key: string, options?: Record<string, unknown>) => string;
+type CalendarT = TFunction;
 
 interface VisualEvent {
   id: string;
   date: Date;
   title: string;
   subtitle: string;
-  badge?: string;
-  session?: string;
-  time?: string;
+  badge?: string | undefined;
+  session?: string | undefined;
+  time?: string | undefined;
   tone: VisualTone;
   symbol: string;
 }
@@ -179,8 +180,8 @@ const textToneClasses: Record<VisualTone, string> = {
 };
 
 function getColor(index: number, total: number) {
-  const start = [74, 222, 128];
-  const end = [148, 163, 184];
+  const start: [number, number, number] = [74, 222, 128];
+  const end: [number, number, number] = [148, 163, 184];
   const t = index / Math.max(1, total - 1);
   const r = Math.round(start[0] + (end[0] - start[0]) * t);
   const g = Math.round(start[1] + (end[1] - start[1]) * t);

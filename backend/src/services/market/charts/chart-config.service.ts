@@ -51,8 +51,8 @@ const defaultConfig: ChartConfig = {
   }
 };
 
-export function normalizeStoredRange(range: RangeKey | string): StoredChartRange {
-  return rangeAliases[String(range).toLowerCase()] ?? "1m";
+export function normalizeStoredRange(range: RangeKey): StoredChartRange {
+  return rangeAliases[range.toLowerCase()] ?? "1m";
 }
 
 export class ChartConfigService {
@@ -66,7 +66,7 @@ export class ChartConfigService {
       fs.writeFileSync(config.chartConfigPath, `${JSON.stringify(defaultConfig, null, 2)}\n`);
       return defaultConfig;
     }
-    const raw = JSON.parse(fs.readFileSync(config.chartConfigPath, "utf8"));
+    const raw: unknown = JSON.parse(fs.readFileSync(config.chartConfigPath, "utf8"));
     return this.validateChartConfig(raw);
   }
 
@@ -81,7 +81,7 @@ export class ChartConfigService {
    * Retourne l'interval effectif pour une range. `max` est accepte comme alias
    * historique de `all`.
    */
-  getIntervalForRange(range: RangeKey | string): ChartInterval {
+  getIntervalForRange(range: RangeKey): ChartInterval {
     const storedRange = normalizeStoredRange(range);
     if (storedRange === "all") return "1d";
     return this.loadChartConfig().charts[storedRange].interval;

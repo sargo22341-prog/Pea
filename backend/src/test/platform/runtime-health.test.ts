@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { RuntimeHealthDto } from "@pea/shared";
 import { runBackendScript } from "../helpers/backend-script.js";
 
 test("runtime health endpoint requires an authenticated admin", () => {
@@ -35,7 +36,7 @@ test("runtime health endpoint requires an authenticated admin", () => {
         server.close();
       }
     });
-  `);
+  `) as { anonymousStatus: number; nonAdminStatus: number };
 
   assert.equal(result.anonymousStatus, 401);
   assert.equal(result.nonAdminStatus, 403);
@@ -73,7 +74,7 @@ test("runtime health endpoint returns metrics without triggering cleanup", () =>
         server.close();
       }
     });
-  `);
+  `) as { status: number; beforeExpired: number; afterExpired: number; body: RuntimeHealthDto};
 
   assert.equal(result.status, 200);
   assert.equal(result.beforeExpired, 2);
@@ -89,7 +90,7 @@ test("runtime health endpoint returns metrics without triggering cleanup", () =>
   assert.equal(result.body.cache.derivedCaches.portfolioPositionsPerformanceCacheRows, 1);
   assert.equal(result.body.cache.derivedCaches.frontendBlockCacheRows, 1);
   const quoteScope = result.body.cache.cacheEntries.byScope.find((row: { scope: string }) => row.scope === "quote");
-  assert.equal(quoteScope.rows, 2);
+  assert.equal(quoteScope?.rows, 2);
   assert.equal(quoteScope.expiredRows, 1);
   assert.equal(result.body.cache.cleanup.lastRunAt, undefined);
 });
@@ -105,7 +106,7 @@ test("runtime health clears scheduler error after a successful tick marker", () 
     const afterSuccess = runtimeHealthService.snapshot(new Date("2026-05-14T12:03:00.000Z")).scheduler;
 
     console.log("__RESULT__" + JSON.stringify({ afterError, afterSuccess }));
-  `);
+  `) as { afterError: { status: string; lastError: string }; afterSuccess: { status: string; lastError: null } };
 
   assert.equal(result.afterError.status, "error");
   assert.equal(result.afterError.lastError, "temporary yahoo failure");

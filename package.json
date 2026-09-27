@@ -24,7 +24,7 @@
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm test -w backend && npm test -w frontend && npm run test:scripts",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
-    "lint": "eslint backend frontend shared",
+    "lint": "eslint . --max-warnings 0",
     "quality:architecture": "node scripts/check-architecture.mjs"
   },
   "devDependencies": {
@@ -33,6 +33,7 @@
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.12.0",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.59.1"
   },

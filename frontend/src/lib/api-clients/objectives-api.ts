@@ -7,15 +7,15 @@ function objectiveBase(userId: number | string) {
 
 export const objectivesApi = {
   listObjectives: (userId: number | string, signal?: AbortSignal) =>
-    request<ObjectiveListDto>(objectiveBase(userId), { signal }),
+    request<ObjectiveListDto>(objectiveBase(userId), { signal: signal ?? null }),
   getObjective: (userId: number | string, objectiveId: number | string, signal?: AbortSignal) =>
-    request<ObjectiveDto>(`${objectiveBase(userId)}/${objectiveId}`, { signal }),
+    request<ObjectiveDto>(`${objectiveBase(userId)}/${objectiveId}`, { signal: signal ?? null }),
   createObjective: (userId: number | string, input: ObjectiveInput) =>
     request<ObjectiveDto>(objectiveBase(userId), { method: "POST", body: JSON.stringify(input) }),
   updateObjective: (userId: number | string, objectiveId: number | string, input: ObjectiveInput) =>
     request<ObjectiveDto>(`${objectiveBase(userId)}/${objectiveId}`, { method: "PUT", body: JSON.stringify(input) }),
   deleteObjective: (userId: number | string, objectiveId: number | string) =>
-    request<void>(`${objectiveBase(userId)}/${objectiveId}`, { method: "DELETE" }),
+    request<undefined>(`${objectiveBase(userId)}/${objectiveId}`, { method: "DELETE" }),
   recalculateObjective: (userId: number | string, objectiveId: number | string) =>
     request<ObjectiveDto>(`${objectiveBase(userId)}/${objectiveId}/recalculate`, { method: "POST" })
 };

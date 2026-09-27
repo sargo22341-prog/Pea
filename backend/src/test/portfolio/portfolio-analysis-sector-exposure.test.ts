@@ -3,8 +3,6 @@ import test from "node:test";
 import type { PositionWithMarket } from "@pea/shared";
 import { getPositionSectorExposure } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 
-type SectorFundamentals = Parameters<typeof getPositionSectorExposure>[1];
-
 function position(symbol: string, quoteType = "EQUITY"): PositionWithMarket {
   return {
     id: 1,
@@ -30,7 +28,7 @@ function position(symbol: string, quoteType = "EQUITY"): PositionWithMarket {
 }
 
 test("stock sector exposure keeps 100 percent in its sector", () => {
-  const exposure = getPositionSectorExposure(position("ACME.PA"), { assetProfile: { sectorDisp: "Technology" } } as SectorFundamentals, 25);
+  const exposure = getPositionSectorExposure(position("ACME.PA"), { assetProfile: { sectorDisp: "Technology" } }, 25);
 
   assert.deepEqual(exposure, [{ sector: "Technology", weight: 25 }]);
 });
@@ -42,7 +40,7 @@ test("ETF sector exposure splits portfolio weight by Yahoo top holdings sectors"
       topHoldings: {
         sectorWeightings: [{ technology: 0.4, healthcare: 0.2, financial_services: 0.4 }]
       }
-    } as SectorFundamentals,
+    },
     50
   );
 
@@ -54,10 +52,10 @@ test("ETF sector exposure splits portfolio weight by Yahoo top holdings sectors"
 });
 
 test("mixed stock and ETF exposures keep the analyzed total weight", () => {
-  const stock = getPositionSectorExposure(position("AIR.PA"), { assetProfile: { sector: "Industrials" } } as SectorFundamentals, 60);
+  const stock = getPositionSectorExposure(position("AIR.PA"), { assetProfile: { sector: "Industrials" } }, 60);
   const etf = getPositionSectorExposure(
     position("WORLD.PA", "ETF"),
-    { topHoldings: { sectorWeightings: [{ technology: 40, healthcare: 20, financial_services: 40 }] } } as SectorFundamentals,
+    { topHoldings: { sectorWeightings: [{ technology: 40, healthcare: 20, financial_services: 40 }] } },
     40
   );
   const total = [...stock, ...etf].reduce((sum, item) => sum + item.weight, 0);
@@ -72,7 +70,7 @@ test("mixed stock and ETF exposures keep the analyzed total weight", () => {
 });
 
 test("ETF without sector data falls back to ETF diversified bucket", () => {
-  const exposure = getPositionSectorExposure(position("EMPTY.PA", "ETF"), { topHoldings: {} } as SectorFundamentals, 15);
+  const exposure = getPositionSectorExposure(position("EMPTY.PA", "ETF"), { topHoldings: {} }, 15);
 
   assert.deepEqual(exposure, [{ sector: "ETF / Diversified", weight: 15 }]);
 });
@@ -80,7 +78,7 @@ test("ETF without sector data falls back to ETF diversified bucket", () => {
 test("invalid ETF sector values are ignored without producing NaN", () => {
   const exposure = getPositionSectorExposure(
     position("BROKEN.PA", "ETF"),
-    { topHoldings: { sectorWeightings: [{ technology: "bad", healthcare: undefined, energy: 0 }] } } as SectorFundamentals,
+    { topHoldings: { sectorWeightings: [{ technology: "bad", healthcare: undefined, energy: 0 }] } },
     30
   );
 

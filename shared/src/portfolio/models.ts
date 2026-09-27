@@ -19,19 +19,19 @@ export interface PortfolioChartDto {
   invested: number[];
   gain: number[];
   gainPercent: number[];
-  baselinePrice?: number;
-  baselineDatetime?: string;
+  baselinePrice?: number | undefined;
+  baselineDatetime?: string | undefined;
   performanceEuro: number;
   performancePercent: number;
-  marketState?: MarketState;
-  marketSession?: MarketSessionDto;
+  marketState?: MarketState | undefined;
+  marketSession?: MarketSessionDto | undefined;
   cachedAt: number;
   expiresAt: number;
   transactionMarkers: PortfolioTransactionMarker[];
-  isPreparing?: boolean;
-  missingRanges?: RangeKey[];
-  missingAssets?: string[];
-  jobId?: string;
+  isPreparing?: boolean | undefined;
+  missingRanges?: RangeKey[] | undefined;
+  missingAssets?: string[] | undefined;
+  jobId?: string | undefined;
 }
 
 export interface PortfolioTransactionMarker {
@@ -41,7 +41,7 @@ export interface PortfolioTransactionMarker {
   name: string;
   logoUrl?: string;
   quantity: number;
-  price?: number;
+  price?: number | undefined;
   transactionDate: string;
   type: "buy" | "sell";
   nearestChartPointDatetime: number;
@@ -54,19 +54,19 @@ export interface Position {
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
-  notes?: string;
+  notes?: string | undefined;
   createdAt: string;
 }
 
 export interface PositionWithMarket extends Position {
-  quote?: Quote;
+  quote?: Quote | undefined;
   currentPrice: number;
   marketValue: number;
   costBasis: number;
   performance: number;
   performancePercent: number;
-  estimatedAnnualDividend?: number;
-  marketDataUnavailable?: boolean;
+  estimatedAnnualDividend?: number | undefined;
+  marketDataUnavailable?: boolean | undefined;
 }
 
 export interface PositionTransactionStats {
@@ -78,11 +78,11 @@ export interface PositionTransactionStats {
 
 export interface PositionMiniChart {
   range: RangeKey;
-  points: Array<{
+  points: {
     t: number;
     v: number;
-  }>;
-  marketSession?: MarketSessionDto;
+  }[];
+  marketSession?: MarketSessionDto | undefined;
   stale?: boolean;
   updatedAt?: string;
 }
@@ -144,10 +144,10 @@ export interface PortfolioDividendEvent {
   totalAmount: number;
   currency: CurrencyCode;
   status: "real" | "estimated";
-  annualDividendRate?: number;
-  dividendPercent?: number;
-  yieldOnCostPercent?: number;
-  stale?: boolean;
+  annualDividendRate?: number | undefined;
+  dividendPercent?: number | undefined;
+  yieldOnCostPercent?: number | undefined;
+  stale?: boolean | undefined;
 }
 
 export interface PortfolioDividends {
@@ -163,12 +163,12 @@ export interface AllocationChartItem {
   name: string;
   value: number;
   percentage: number;
-  symbols: Array<{
+  symbols: {
     symbol: string;
     name: string;
     weight: number;
-    logoUrl?: string;
-  }>;
+    logoUrl?: string | undefined;
+  }[];
 }
 
 export interface PortfolioTreemapItem {
@@ -176,7 +176,7 @@ export interface PortfolioTreemapItem {
   name: string;
   value: number;
   percentage: number;
-  logoUrl?: string;
+  logoUrl?: string | undefined;
   country?: string;
   sector?: string;
 }
@@ -185,14 +185,14 @@ export interface NetMarginItem {
   symbol: string;
   name: string;
   netMargin: number;
-  logoUrl?: string;
+  logoUrl?: string | undefined;
 }
 
 export interface AssetFinancials {
   symbol: string;
   name: string;
-  logoUrl?: string;
-  quoteType?: string;
+  logoUrl?: string | undefined;
+  quoteType?: string | undefined;
   isEtf: boolean;
   financials: FinancialYearItem[];
 }

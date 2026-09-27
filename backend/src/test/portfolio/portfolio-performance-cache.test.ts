@@ -1,7 +1,12 @@
-import { runBackendScript } from "../helpers/backend-script.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { marketScriptHelpers as helpers, seedUser } from "../helpers/backend-script.js";
+import type { PositionRangePerformance } from "@pea/shared";
+import { marketScriptHelpers as helpers, runBackendScript, seedUser } from "../helpers/backend-script.js";
+
+interface CallCounts {
+  chartCalls: number;
+  quoteCalls: number;
+}
 
 test("market SSE endpoint is authenticated and always available", () => {
   const result = runBackendScript(`
@@ -29,7 +34,7 @@ test("market SSE endpoint is authenticated and always available", () => {
         server.close();
       }
     });
-  `);
+  `) as { unauthorized: number; enabled: number; features: { liveRefreshEnabled: boolean } };
 
   assert.equal(result.unauthorized, 401);
   assert.equal(result.enabled, 200);
@@ -77,13 +82,13 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
       return { first, second, afterFirst, afterSecond, afterConcurrent, afterInvalidation: { chartCalls, quoteCalls } };
     });
     console.log("__RESULT__" + JSON.stringify(output));
-  `);
+  `) as { first: PositionRangePerformance[]; second: PositionRangePerformance[]; afterFirst: CallCounts; afterSecond: CallCounts; afterConcurrent: CallCounts; afterInvalidation: CallCounts };
 
   assert.equal(result.first.length, 1);
   assert.equal(result.second.length, 1);
-  assert.equal(result.first[0].miniChart.range, "1d");
+  assert.equal(result.first[0]?.miniChart.range, "1d");
   assert.deepEqual(result.first[0].miniChart.points, [{ t: 1000, v: 100 }, { t: 2000, v: 110 }]);
-  assert.deepEqual(result.second[0].miniChart.points, result.first[0].miniChart.points);
+  assert.deepEqual(result.second[0]?.miniChart.points, result.first[0].miniChart.points);
   assert.deepEqual(result.afterFirst, { chartCalls: 1, quoteCalls: 1 });
   assert.deepEqual(result.afterSecond, result.afterFirst);
   assert.deepEqual(result.afterConcurrent, result.afterFirst);
@@ -113,12 +118,12 @@ test("portfolio position range percent uses interval market value as base", () =
     marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 110, currency: "EUR" });
     const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
     console.log("__RESULT__" + JSON.stringify(output[0]));
-  `);
+  `) as { intervalPerformanceValue: number; intervalPerformancePercent: number; miniChart: { points: { t: number; v: number }[] } };
 
   assert.equal(result.intervalPerformanceValue, 10);
   assert.equal(result.intervalPerformancePercent, 10);
   assert.equal(result.miniChart.points.length, 2);
-  assert.equal(result.miniChart.points[1].v, 110);
+  assert.equal(result.miniChart.points[1]?.v, 110);
 });
 
 test("portfolio position miniChart is capped to 40 points and follows selected range", () => {
@@ -147,13 +152,13 @@ test("portfolio position miniChart is capped to 40 points and follows selected r
     marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 199, currency: "EUR" });
     const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1m", { forceIntradayOpen: true }));
     console.log("__RESULT__" + JSON.stringify({ item: output[0], chartCalls }));
-  `);
+  `) as { chartCalls: number; item: { miniChart: { range: string; points: { t: number; v: number }[] } } };
 
   assert.equal(result.chartCalls, 1);
   assert.equal(result.item.miniChart.range, "1m");
   assert.equal(result.item.miniChart.points.length, 40);
-  assert.equal(result.item.miniChart.points[0].v, 100);
-  assert.equal(result.item.miniChart.points.at(-1).v, 199);
+  assert.equal(result.item.miniChart.points[0]?.v, 100);
+  assert.equal(result.item.miniChart.points.at(-1)?.v, 199);
 });
 
 test("portfolio 1d position performance includes previous close gap", () => {
@@ -178,7 +183,7 @@ test("portfolio 1d position performance includes previous close gap", () => {
     marketSnapshotService.getQuote = async (symbol) => ({ symbol, name: symbol, price: 96.49, previousClose: 100, currency: "EUR" });
     const output = await runWithUser(1, async () => portfolioService.positionsPerformance("1d", { forceIntradayOpen: true }));
     console.log("__RESULT__" + JSON.stringify(output[0]));
-  `);
+  `) as { intervalStartPrice: number; intervalPerformanceValue: number; intervalPerformancePercent: number };
 
   assert.equal(result.intervalStartPrice, 100);
   assert.equal(Number(result.intervalPerformanceValue.toFixed(2)), -3.51);

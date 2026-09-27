@@ -1,35 +1,9 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
-
-function lancerScriptBackend(script: string, nodeEnv = "development") {
-  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), "pea-test-"));
-  const cheminSqlite = path.join(dossierTemp, "test.sqlite");
-  const resultat = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
-    cwd: path.resolve(import.meta.dirname, "..", ".."),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      NODE_ENV: nodeEnv,
-      PEA_TEST_SQLITE_PATH: cheminSqlite
-    }
-  });
-
-  fs.rmSync(dossierTemp, { recursive: true, force: true });
-  assert.equal(resultat.status, 0, resultat.stderr);
-  const lignResultat = resultat.stdout
-    .split(/\r?\n/)
-    .find((ligne) => ligne.trim().startsWith("__RESULT__"));
-
-  assert.ok(lignResultat, resultat.stdout);
-  return JSON.parse(lignResultat.slice("__RESULT__".length));
-}
+import { runBackendScript } from "../helpers/backend-script.js";
 
 test("la reconnexion avec le nouveau mot de passe fonctionne après invalidation", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { app } from "./app.ts";
 
     const motDePasseInitial = "correct horse battery staple";
@@ -78,7 +52,7 @@ test("la reconnexion avec le nouveau mot de passe fonctionne après invalidation
         server.close();
       }
     });
-  `);
+  `) as { statutAncienMotDePasse: number; statutNouveauMotDePasse: number; utilisateur: string };
 
   assert.equal(resultat.statutAncienMotDePasse, 401);
   assert.equal(resultat.statutNouveauMotDePasse, 200);
@@ -86,7 +60,7 @@ test("la reconnexion avec le nouveau mot de passe fonctionne après invalidation
 });
 
 test("les migrations créent les index et colonnes attendus sur un schéma vierge", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { db } from "./db.ts";
 
     const indexExistants = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((r) => r.name);
@@ -107,13 +81,13 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
       typeUserIdUserAssets: colonneUserId?.type,
       versionsMigrations
     }));
-  `);
+  `) as { indexExistants: string[]; triggersExistants: string[]; colonnesUsers: string[]; colonnesMarketSnapshots: string[]; tablesExistantes: string[]; typeUserIdUserAssets: string; versionsMigrations: number[] };
 
   assert.ok(resultat.indexExistants.includes("idx_user_sessions_expires_at"), "index sessions absent");
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.ok(resultat.colonnesUsers.includes("bootstrap_admin"), "colonne bootstrap_admin absente");
   assert.ok(resultat.colonnesUsers.includes("language"), "colonne language absente");
-  assert.equal(resultat.typeUserIdUserAssets?.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
+  assert.equal(resultat.typeUserIdUserAssets.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles range/interval absent");
   assert.ok(resultat.indexExistants.includes("idx_chart_candles_asset_range_interval_start"), "index chart_candles range/interval/start absent");
   assert.ok(resultat.indexExistants.includes("idx_asset_calendar_events_symbol"), "index calendar_events symbol absent");
@@ -151,7 +125,7 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
 });
 
 test("cache registry applique les regles d'invalidation metier", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { db } from "./db.ts";
     import { cacheRegistry } from "./services/shared/cache-registry.service.ts";
 
@@ -185,7 +159,7 @@ test("cache registry applique les regles d'invalidation metier", () => {
     };
 
     console.log("__RESULT__" + JSON.stringify({ afterMarket, afterDividends, afterStatic }));
-  `);
+  `) as { afterMarket: { quotes: number; portfolioCharts: number; userAssets: number }; afterDividends: { dividendCache: number; frontendBlocks: number }; afterStatic: { articles: number } };
 
   assert.deepEqual(resultat.afterMarket, { quotes: 0, portfolioCharts: 0, userAssets: 0 });
   assert.deepEqual(resultat.afterDividends, { dividendCache: 0, frontendBlocks: 0 });
@@ -193,7 +167,7 @@ test("cache registry applique les regles d'invalidation metier", () => {
 });
 
 test("les mutations en production sans header Origin sont bloquées", () => {
-  const resultat = lancerScriptBackend(`
+  const resultat = runBackendScript(`
     import { app } from "./app.ts";
 
     const server = app.listen(0, "127.0.0.1", async () => {
@@ -210,7 +184,7 @@ test("les mutations en production sans header Origin sont bloquées", () => {
         server.close();
       }
     });
-  `, "production");
+  `, { nodeEnv: "production" }) as { statut: number };
 
   // En production, sans Origin, la requête doit être rejetée
   assert.equal(resultat.statut, 403);

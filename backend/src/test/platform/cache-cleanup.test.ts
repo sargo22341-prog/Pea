@@ -27,7 +27,7 @@ test("cache cleanup removes expired SQL cache rows and keeps valid rows", () => 
       validBlock: db.prepare("SELECT COUNT(*) AS count FROM frontend_block_cache WHERE cache_key = 'valid-block'").get().count
     };
     console.log("__RESULT__" + JSON.stringify({ cleanup, counts }));
-  `);
+  `) as { cleanup: { totalDeleted: number; deleted: { cache_entries: number; portfolio_chart_cache: number; portfolio_positions_performance_cache: number; frontend_block_cache: number } }; counts: { cacheEntries: number; portfolioChart: number; portfolioPerformance: number; frontendBlock: number; validCacheEntry: number; validChart: number; validPerformance: number; validBlock: number } };
 
   assert.equal(result.cleanup.totalDeleted, 4);
   assert.deepEqual(result.cleanup.deleted, {
@@ -57,7 +57,7 @@ test("cache cleanup is idempotent", () => {
     const second = cacheCleanupService.purgeExpired(now, 10);
     const count = db.prepare("SELECT COUNT(*) AS count FROM cache_entries").get().count;
     console.log("__RESULT__" + JSON.stringify({ first, second, count }));
-  `);
+  `) as { first: { totalDeleted: number }; second: { totalDeleted: number }; count: number };
 
   assert.equal(result.first.totalDeleted, 1);
   assert.equal(result.second.totalDeleted, 0);

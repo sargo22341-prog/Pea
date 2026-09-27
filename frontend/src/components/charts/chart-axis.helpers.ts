@@ -13,8 +13,8 @@ export function compressedTicks(length: number, range: RangeKey) {
   return [...ticks].sort((a, b) => a - b);
 }
 
-export function chartDataDomain(points: Array<{ date: number; value: number | null }>) {
-  const timestamps = points.map((point) => Number(point.date)).filter(Number.isFinite);
+export function chartDataDomain(points: { date: number; value: number | null }[]) {
+  const timestamps = points.map((point) => point.date).filter(Number.isFinite);
   if (timestamps.length === 0) return ["dataMin", "dataMax"] as [string, string];
   return [Math.min(...timestamps), Math.max(...timestamps)] as [number, number];
 }

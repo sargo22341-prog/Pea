@@ -57,9 +57,9 @@ export class MarketDataGateway {
   }
 
   readExtraDataWithCache(symbol: string): Promise<MarketDataResult<{
-    calendarEventsData?: AssetCalendarEventsData;
-    analystConsensus?: AssetAnalystConsensus;
-    fundDetails?: AssetFundDetails;
+    calendarEventsData?: AssetCalendarEventsData | undefined;
+    analystConsensus?: AssetAnalystConsensus | undefined;
+    fundDetails?: AssetFundDetails | undefined;
   }>> {
     return yahooService.extraData(symbol);
   }

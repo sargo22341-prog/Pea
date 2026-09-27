@@ -12,21 +12,21 @@ describe("useNumberPulse", () => {
   it("distingue une hausse d'une baisse", () => {
     const { rerender, result } = renderHook(({ price }) => useNumberPulse(price), { initialProps: { price: 100 } });
 
-    act(() => rerender({ price: 120 }));
+    act(() => { rerender({ price: 120 }); });
     expect(result.current).toEqual({ pulseKey: 1, trend: "up" });
 
-    act(() => rerender({ price: 90 }));
+    act(() => { rerender({ price: 90 }); });
     expect(result.current).toEqual({ pulseKey: 2, trend: "down" });
   });
 
   it("ne pulse pas quand la valeur est identique ou inexploitable", () => {
-    const { rerender, result } = renderHook(({ price }: { price: number | undefined }) => useNumberPulse(price), {
-      initialProps: { price: 100 as number | undefined }
+    const { rerender, result } = renderHook<ReturnType<typeof useNumberPulse>, { price: number | undefined }>(({ price }) => useNumberPulse(price), {
+      initialProps: { price: 100 }
     });
 
-    act(() => rerender({ price: 100 }));
-    act(() => rerender({ price: undefined }));
-    act(() => rerender({ price: Number.NaN }));
+    act(() => { rerender({ price: 100 }); });
+    act(() => { rerender({ price: undefined }); });
+    act(() => { rerender({ price: Number.NaN }); });
 
     expect(result.current.pulseKey).toBe(0);
   });
@@ -38,13 +38,13 @@ describe("useTogglePulse", () => {
 
     expect(result.current).toBe(0);
 
-    act(() => rerender({ active: true }));
+    act(() => { rerender({ active: true }); });
     expect(result.current).toBe(1);
 
-    act(() => rerender({ active: true }));
+    act(() => { rerender({ active: true }); });
     expect(result.current).toBe(1);
 
-    act(() => rerender({ active: false }));
+    act(() => { rerender({ active: false }); });
     expect(result.current).toBe(2);
   });
 });

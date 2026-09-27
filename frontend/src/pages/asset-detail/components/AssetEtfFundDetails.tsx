@@ -25,7 +25,7 @@ function formatNetAssets(totalNetAssets?: number): string {
 }
 
 function formatPercent(value?: number): string {
-  if (value === undefined || value === null) return "—";
+  if (value === undefined) return "—";
   return `${(value * 100).toFixed(2).replace(".", ",")} %`;
 }
 

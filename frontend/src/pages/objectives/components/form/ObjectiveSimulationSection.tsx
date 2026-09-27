@@ -23,7 +23,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
         <Field label={t("form.fields.simulationMode")}>
           <select
             className="input"
-            onChange={(event) => update("simulationMode", event.target.value as ObjectiveSimulationMode)}
+            onChange={(event) => { update("simulationMode", event.target.value as ObjectiveSimulationMode); }}
             value={mode}
           >
             {OBJECTIVE_SIMULATION_MODES.map((value) => (
@@ -41,7 +41,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
               inputMode="decimal"
               max={limits.volatility.max}
               min={limits.volatility.min}
-              onChange={(event) => update("simulationVolatility", event.target.value)}
+              onChange={(event) => { update("simulationVolatility", event.target.value); }}
               type="number"
               value={form.simulationVolatility}
             />
@@ -55,7 +55,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
                 inputMode="numeric"
                 max={limits.shockFrequencyYears.max}
                 min={limits.shockFrequencyYears.min}
-                onChange={(event) => update("simulationShockFrequency", event.target.value)}
+                onChange={(event) => { update("simulationShockFrequency", event.target.value); }}
                 type="number"
                 value={form.simulationShockFrequency}
               />
@@ -66,7 +66,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
                 inputMode="decimal"
                 max={limits.shockSeverity.max}
                 min={limits.shockSeverity.min}
-                onChange={(event) => update("simulationShockSeverity", event.target.value)}
+                onChange={(event) => { update("simulationShockSeverity", event.target.value); }}
                 type="number"
                 value={form.simulationShockSeverity}
               />
@@ -83,7 +83,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
                     inputMode="numeric"
                     max={limits.seed.max}
                     min={limits.seed.min}
-                    onChange={(event) => update("simulationSeed", event.target.value)}
+                    onChange={(event) => { update("simulationSeed", event.target.value); }}
                     type="number"
                     value={form.simulationSeed}
                   />
@@ -91,7 +91,7 @@ export function ObjectiveSimulationSection({ form, update }: { form: ObjectiveFo
               </div>
               <button
                 className="btn-ghost shrink-0"
-                onClick={() => update("simulationSeed", drawSimulationSeed().toString())}
+                onClick={() => { update("simulationSeed", drawSimulationSeed().toString()); }}
                 type="button"
               >
                 <Dices size={16} />

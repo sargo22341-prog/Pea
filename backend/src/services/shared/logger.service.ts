@@ -33,7 +33,7 @@ const categories = new Set<LogCategory>([
 ]);
 
 function isDebugEnabled() {
-  return process.env.DEBUG === "true";
+  return process.env["DEBUG"] === "true";
 }
 
 function logDirectory() {
@@ -101,9 +101,9 @@ function log(level: LogLevel, category: LogCategory, message: string, meta?: unk
 }
 
 export const logger = {
-  debug: (category: LogCategory, message: string, meta?: unknown) => log("debug", category, message, meta),
-  info: (category: LogCategory, message: string, meta?: unknown) => log("info", category, message, meta),
-  warn: (category: LogCategory, message: string, meta?: unknown) => log("warn", category, message, meta),
-  error: (category: LogCategory, message: string, meta?: unknown) => log("error", category, message, meta),
+  debug: (category: LogCategory, message: string, meta?: unknown) => { log("debug", category, message, meta); },
+  info: (category: LogCategory, message: string, meta?: unknown) => { log("info", category, message, meta); },
+  warn: (category: LogCategory, message: string, meta?: unknown) => { log("warn", category, message, meta); },
+  error: (category: LogCategory, message: string, meta?: unknown) => { log("error", category, message, meta); },
   isDebugEnabled
 };

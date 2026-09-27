@@ -5,7 +5,7 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis 
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { ChartEmpty } from "../ChartEmpty";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
-import { compactMoney, formatPercent } from "../chartFormat";
+import { compactMoney, formatPercent, labelText } from "../chartFormat";
 
 function MarginLabel({ x, y, value }: LabelProps) {
   if (x === undefined || y === undefined || value === undefined) return null;
@@ -34,7 +34,7 @@ export const FinancialComboChart = memo(function FinancialComboChart({ data }: {
           <Tooltip
             contentStyle={{ background: "rgba(7, 16, 20, 0.95)", border: "1px solid #263844", borderRadius: 8 }}
             formatter={(value, name) => (name === netMarginLabel ? formatPercent(Number(value)) : compactMoney(Number(value)))}
-            labelFormatter={(value) => String(value)}
+            labelFormatter={labelText}
             labelStyle={{ color: "#f8fafc" }}
           />
           <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />

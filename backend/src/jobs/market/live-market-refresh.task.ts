@@ -101,7 +101,7 @@ export class LiveMarketRefreshTask {
     const portfolioAssets = this.portfolioAssetsForSymbols(updatedSymbols);
     const chartResult = await marketDataService.refreshLiveIntradayForAssets(portfolioAssets, now, {
       minAgeMs: chartConfigService.getIntradayRefreshIntervalMs()
-    }).catch((error) => {
+    }).catch((error: unknown) => {
       logger.warn("market-data", "live intraday chart refresh failed", { error: error instanceof Error ? error.message : String(error) });
       return { updated: 0, yahooCalls: 0 };
     });
@@ -128,10 +128,10 @@ export class LiveMarketRefreshTask {
     for (const [userId, impact] of this.userImpactsForSymbols(symbols)) {
       await runWithUser(Number(userId), async () => {
         if (impact.portfolio) {
-          invalidateUserAssetCaches(String(userId));
+          invalidateUserAssetCaches(userId);
         }
         if (impact.watchlist) invalidateFrontendBlockCache({ userId, block: "watchlist" });
-        const tasks: Array<Promise<unknown>> = [];
+        const tasks: Promise<unknown>[] = [];
         if (impact.portfolio) tasks.push(
           portfolioService.summary("1d").catch(() => undefined),
           portfolioService.chart("1d", userId).catch(() => undefined),

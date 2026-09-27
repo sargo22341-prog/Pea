@@ -20,7 +20,7 @@ const preparationRefetchDelayMs = 5_000;
 
 export function useAssetComparisonSeries(targets: ComparableAsset[], range: RangeKey) {
   const [series, setSeries] = useState<AssetComparisonSerie[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => targets.length > 0);
   const [error, setError] = useState<string | null>(null);
   const [preparingSymbols, setPreparingSymbols] = useState<string[]>([]);
   const loadId = useRef(0);
@@ -28,6 +28,16 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
   const preparationRetries = useRef(new Set<string>());
   const targetsRef = useRef<ComparableAsset[]>(targets);
   const rangeRef = useRef<RangeKey>(range);
+  const [requested, setRequested] = useState({ targets, range });
+
+  // Nouvelle selection : l'etat de chargement est remis a zero pendant le rendu, l'effet ne fait que charger.
+  if (requested.targets !== targets || requested.range !== range) {
+    setRequested({ targets, range });
+    if (targets.length === 0) setSeries([]);
+    setLoading(targets.length > 0);
+    setError(null);
+    setPreparingSymbols([]);
+  }
 
   useEffect(() => {
     targetsRef.current = targets;
@@ -37,18 +47,11 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
   useEffect(() => {
     const currentLoadId = ++loadId.current;
     let cancelled = false;
+    // Fonction plutot que condition inline : `cancelled` change dans le nettoyage de l'effet, apres un await.
+    const isStale = (expectedLoadId: number) => cancelled || loadId.current !== expectedLoadId;
 
-    if (targets.length === 0) {
-      setSeries([]);
-      setLoading(false);
-      setError(null);
-      setPreparingSymbols([]);
-      return;
-    }
+    if (targets.length === 0) return;
 
-    setLoading(true);
-    setError(null);
-    setPreparingSymbols([]);
     let retryTimer: number | undefined;
 
     async function loadSeries() {
@@ -59,7 +62,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
         })
       );
 
-      if (cancelled || loadId.current !== currentLoadId) return;
+      if (isStale(currentLoadId)) return;
 
       const loadedSeries = results
         .filter((result): result is PromiseFulfilledResult<{ target: ComparableAsset; chart: AssetChartDto; serie: AssetComparisonSerie | null }> => result.status === "fulfilled")
@@ -80,7 +83,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
         return !loaded?.serie;
       });
       const launched = await requestInitialRefreshes(missingTargets, range, refreshAttempts.current);
-      if (cancelled || loadId.current !== currentLoadId) return;
+      if (isStale(currentLoadId)) return;
 
       const preparing = [...new Set([...launched, ...preparingTargets.map((target) => target.symbol)])];
       if (displaySeries.length > 0 || preparing.length === 0) setSeries(displaySeries);
@@ -96,7 +99,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
             const retryLoadId = loadId.current;
             setLoading(true);
             void loadTargetDetails(targetsRef.current, rangeRef.current).then((details) => {
-              if (cancelled || loadId.current !== retryLoadId) return;
+              if (isStale(retryLoadId)) return;
               const loadedAfterPreparation = details.map((item) => item.serie).filter((item): item is AssetComparisonSerie => item != null);
               const stillPreparing = details
                 .filter((item) => item.chart.isPreparing && !item.serie)
@@ -121,7 +124,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
   useEffect(() => {
     function onMarketEvent(event: Event) {
       const payload = (event as CustomEvent<{ type?: string; symbol?: string; range?: string }>).detail;
-      if (payload?.type !== "asset-chart-updated" || payload.range !== rangeRef.current || !payload.symbol) return;
+      if (payload.type !== "asset-chart-updated" || payload.range !== rangeRef.current || !payload.symbol) return;
       const key = payload.symbol.toUpperCase();
       if (!targetsRef.current.some((target) => target.symbol.toUpperCase() === key)) return;
       loadId.current += 1;
@@ -136,7 +139,7 @@ export function useAssetComparisonSeries(targets: ComparableAsset[], range: Rang
       });
     }
     window.addEventListener("pea:market-event", onMarketEvent);
-    return () => window.removeEventListener("pea:market-event", onMarketEvent);
+    return () => { window.removeEventListener("pea:market-event", onMarketEvent); };
   }, []);
 
   return { series, loading, error, preparingSymbols };

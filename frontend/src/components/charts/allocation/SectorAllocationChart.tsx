@@ -1,19 +1,19 @@
 import type { AllocationChartItem } from "@pea/shared";
 import { memo } from "react";
-import { Cell, Pie, PieChart, Tooltip } from "recharts";
+import { Pie, PieChart, Tooltip } from "recharts";
 import { AssetIcon } from "../../common/AssetIcon";
 import { ChartEmpty } from "../ChartEmpty";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
-import { chartColors, formatPercent } from "../chartFormat";
+import { chartColors, formatPercent, paletteColor } from "../chartFormat";
 import { useResponsivePieTooltip } from "../chartInteraction";
 
-type SectorTooltipProps = {
+interface SectorTooltipProps {
   active?: boolean;
-  payload?: Array<{ payload?: AllocationChartItem }>;
-};
+  payload?: { payload?: AllocationChartItem }[];
+}
 
 function SectorTooltip({ active, payload }: SectorTooltipProps) {
-  const item = payload?.[0]?.payload as AllocationChartItem | undefined;
+  const item = payload?.[0]?.payload;
   if (!active || !item) return null;
 
   return (
@@ -42,11 +42,14 @@ export const SectorAllocationChart = memo(function SectorAllocationChart({ data 
       <div className="h-80 min-w-0">
         <SafeResponsiveContainer>
           <PieChart>
-            <Pie data={data} dataKey="value" innerRadius="56%" nameKey="name" outerRadius="86%" paddingAngle={2}>
-              {data.map((entry, index) => (
-                <Cell fill={chartColors[index % chartColors.length]} key={entry.name} />
-              ))}
-            </Pie>
+            <Pie
+              data={data.map((entry, index) => ({ ...entry, fill: paletteColor(chartColors, index) }))}
+              dataKey="value"
+              innerRadius="56%"
+              nameKey="name"
+              outerRadius="86%"
+              paddingAngle={2}
+            />
             <Tooltip content={<SectorTooltip />} key={tooltipResetKey} trigger={tooltipTrigger} wrapperStyle={{ outline: "none" }} />
           </PieChart>
         </SafeResponsiveContainer>
@@ -55,7 +58,7 @@ export const SectorAllocationChart = memo(function SectorAllocationChart({ data 
         {data.map((item, index) => (
           <div className="flex min-w-0 items-center justify-between gap-3 text-sm" key={item.name}>
             <span className="flex min-w-0 items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: paletteColor(chartColors, index) }} />
               <span className="truncate text-slate-200">{item.name}</span>
             </span>
             <span className="shrink-0 font-semibold text-white">{formatPercent(item.percentage)}</span>

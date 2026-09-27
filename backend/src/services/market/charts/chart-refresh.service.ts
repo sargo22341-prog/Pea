@@ -37,7 +37,7 @@ export class ChartRefreshService {
     return this.startRefresh({ ...input, asset: eligible });
   }
 
-  private startRefresh(input: { userId: string | number; asset: AssetRow; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean }) {
+  private startRefresh(input: { userId: string | number; asset: AssetRow; range: RangeKey; scope: "asset" | "watchlist" | "portfolio"; force?: boolean | undefined }) {
     const thresholdMs = input.force ? 0 : chartConfigService.getIntradayRefreshIntervalMs();
     if (!input.force && !marketDataService.chartNeedsRefresh(input.asset, thresholdMs)) return { status: "skipped-fresh" as RefreshStatus };
     if (marketDataService.isIntradayRefreshInFlight(input.asset.symbol)) return { status: "in-progress" as RefreshStatus };
@@ -51,7 +51,7 @@ export class ChartRefreshService {
       .then(() => {
         marketEventsService.emitToUser(input.userId, updatedEvent, { symbol: input.asset.symbol, range: input.range, updatedAt: new Date().toISOString() });
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         logger.warn("market-data", "lazy chart refresh failed", { symbol: input.asset.symbol, error: error instanceof Error ? error.message : String(error) });
       });
 

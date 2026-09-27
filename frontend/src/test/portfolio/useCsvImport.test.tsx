@@ -32,7 +32,7 @@ function Probe() {
     <div>
       <button type="button" onClick={() => void csv.importCsv(csvFile("ISIN;Nom\nFR0000120073;Air Liquide"))}>preview</button>
       <button type="button" onClick={() => void csv.confirmImport()}>confirm</button>
-      <button type="button" onClick={() => csv.updateImportRow(0, { action: "replace" })}>replace</button>
+      <button type="button" onClick={() => { csv.updateImportRow(0, { action: "replace" }); }}>replace</button>
       <span data-testid="loading">{String(csv.loading)}</span>
       <span data-testid="message">{csv.message ?? ""}</span>
       <span data-testid="rows">{csv.rows.length}</span>
@@ -64,7 +64,7 @@ describe("useCsvImport", () => {
     render(<Probe />);
     fireEvent.click(screen.getByText("preview"));
 
-    await waitFor(() => expect(screen.getByTestId("rows").textContent).toBe("1"));
+    await waitFor(() => { expect(screen.getByTestId("rows").textContent).toBe("1"); });
     expect(api.previewBoursorama).toHaveBeenCalledWith("ISIN;Nom\nFR0000120073;Air Liquide");
     expect(screen.getByTestId("loading").textContent).toBe("false");
   });
@@ -82,14 +82,14 @@ describe("useCsvImport", () => {
         errors: []
       }
     ] as never);
-    vi.mocked(api.confirmBoursorama).mockResolvedValue({ imported: ["AI.PA"], skipped: [], errors: [] } as never);
+    vi.mocked(api.confirmBoursorama).mockResolvedValue({ imported: ["AI.PA"], skipped: [], errors: [] });
 
     render(<Probe />);
     fireEvent.click(screen.getByText("preview"));
     await screen.findByText("1");
     fireEvent.click(screen.getByText("confirm"));
 
-    await waitFor(() => expect(api.confirmBoursorama).toHaveBeenCalledTimes(1));
+    await waitFor(() => { expect(api.confirmBoursorama).toHaveBeenCalledTimes(1); });
     expect(api.confirmBoursorama).toHaveBeenCalledWith([
       expect.objectContaining({ symbol: "AI.PA", action: "merge" })
     ]);
@@ -113,7 +113,7 @@ describe("useCsvImport", () => {
       imported: [],
       skipped: [],
       errors: [{ line: 7, message: "Yahoo indisponible" }]
-    } as never);
+    });
 
     render(<Probe />);
     fireEvent.click(screen.getByText("preview"));
@@ -121,7 +121,7 @@ describe("useCsvImport", () => {
     fireEvent.click(screen.getByText("replace"));
     fireEvent.click(screen.getByText("confirm"));
 
-    await waitFor(() => expect(screen.getByTestId("row-errors").textContent).toContain("Confirmation: Yahoo indisponible"));
+    await waitFor(() => { expect(screen.getByTestId("row-errors").textContent).toContain("Confirmation: Yahoo indisponible"); });
     expect(screen.getByTestId("row-errors").textContent).toContain("Prix manquant");
     expect(api.confirmBoursorama).toHaveBeenCalledWith([
       expect.objectContaining({ action: "replace" })

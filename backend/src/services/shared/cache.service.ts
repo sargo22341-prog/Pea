@@ -2,6 +2,7 @@ import type { DisplayRangeKey, MarketState, RangeKey } from "@pea/shared";
 import { cacheRepository } from "../../repositories/cache/cache.repository.js";
 import type { FrontendBlock } from "./frontend-block-cache.service.js";
 import { cacheRegistry } from "./cache-registry.service.js";
+import { primitiveText } from "../../utils/text.js";
 
 const displayRangeByRange: Record<RangeKey, DisplayRangeKey> = {
   "1d": "intraday",
@@ -38,7 +39,7 @@ export function expiresIn(ttlMs: number) {
 
 /** Normalise l'etat de marche Yahoo vers les quatre etats supportes par les DTO. */
 export function normalizeMarketState(value: unknown): MarketState {
-  const normalized = String(value ?? "").toUpperCase();
+  const normalized = primitiveText(value).toUpperCase();
   if (normalized === "REGULAR" || normalized === "OPEN") return "OPEN";
   if (normalized === "PRE" || normalized === "PREPRE" || normalized === "PRE_MARKET") return "PRE";
   if (normalized === "POST" || normalized === "POSTPOST" || normalized === "POST_MARKET") return "POST";
@@ -50,11 +51,11 @@ export function readStaticJsonCache<T>(table: string, keyColumn: string, key: st
   const cacheTarget = staticCacheTarget(table, keyColumn);
   const row = cacheRepository.readStatic(cacheTarget, key);
   if (!row) return null;
-  if (nowMs() > Number(row.expires_at)) return null;
+  if (nowMs() > row.expires_at) return null;
   return {
-    payload: JSON.parse(String(row.payload)) as T,
-    cachedAt: Number(row.cached_at),
-    expiresAt: Number(row.expires_at)
+    payload: JSON.parse(row.payload) as T,
+    cachedAt: row.cached_at,
+    expiresAt: row.expires_at
   };
 }
 

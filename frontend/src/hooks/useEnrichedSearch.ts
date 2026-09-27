@@ -3,18 +3,19 @@ import { useEffect, useRef, useState } from "react";
 import { i18n } from "../i18n";
 import { api } from "../lib/api";
 
-export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEnabled?: boolean }) {
+export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEnabled?: boolean | undefined }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<EnrichedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastQueryRef = useRef("");
 
+  const normalizedQuery = query.trim();
+  // En dessous de deux caracteres, aucune recherche n'est active : resultats et chargement sont derives.
+  const searchActive = normalizedQuery.length >= 2;
+
   useEffect(() => {
-    const normalizedQuery = query.trim();
-    if (normalizedQuery.length < 2) {
-      setResults([]);
-      setLoading(false);
+    if (!searchActive) {
       lastQueryRef.current = "";
       return;
     }
@@ -40,7 +41,7 @@ export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEna
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [localPeaSearchEnabled, query]);
+  }, [localPeaSearchEnabled, normalizedQuery, searchActive]);
 
   async function toggleWatchlist(item: EnrichedSearchResult) {
     if (item.isInWatchlist) {
@@ -60,9 +61,9 @@ export function useEnrichedSearch({ localPeaSearchEnabled }: { localPeaSearchEna
   return {
     clearResults,
     error,
-    loading,
+    loading: searchActive && loading,
     query,
-    results,
+    results: searchActive ? results : [],
     setError,
     setQuery,
     toggleWatchlist

@@ -3,9 +3,9 @@ import { db } from "../../db.js";
 import { unifiedCacheRepository } from "../cache/unified-cache.repository.js";
 
 export interface StoredAssetNewsMetadata {
-  name?: string;
-  assetType?: string;
-  quoteType?: string;
+  name?: string | undefined;
+  assetType?: string | undefined;
+  quoteType?: string | undefined;
 }
 
 export class AssetNewsRepository {
@@ -16,7 +16,7 @@ export class AssetNewsRepository {
     let quote: { name?: string; quoteType?: string } | undefined;
     if (cachedQuote?.payload) {
       try {
-        quote = JSON.parse(String(cachedQuote.payload)) as { name?: string; quoteType?: string };
+        quote = JSON.parse(cachedQuote.payload) as { name?: string; quoteType?: string };
       } catch {
         quote = undefined;
       }
@@ -31,8 +31,8 @@ export class AssetNewsRepository {
   readAggregateCache(cacheKey: string, ttlSeconds: number): NewsArticle[] | null {
     const row = unifiedCacheRepository.read("news", cacheKey);
     if (!row) return null;
-    if (Math.floor(Date.now() / 1000) - Number(row.fetched_at) > ttlSeconds) return null;
-    return JSON.parse(String(row.payload)) as NewsArticle[];
+    if (Math.floor(Date.now() / 1000) - row.fetched_at > ttlSeconds) return null;
+    return JSON.parse(row.payload) as NewsArticle[];
   }
 
   writeAggregateCache(cacheKey: string, articles: NewsArticle[]) {

@@ -35,7 +35,7 @@ class AssetNewsRefreshService {
           updatedAt: new Date().toISOString()
         });
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         logger.warn("news", "asset background news refresh failed", {
           symbol: key,
           error: error instanceof Error ? error.message : String(error)

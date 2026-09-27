@@ -1,9 +1,10 @@
 import type { MarketEventType, RangeKey, User } from "@pea/shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../../components/common/EmptyState";
 import { PortfolioEvolutionSection } from "./components/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "./components/DashboardSkeletons";
 import { TopMetrics } from "./components/TopMetrics";
+import type { DashboardRangeSetter } from "./components/types";
 import { useAsync } from "../../hooks/useAsync";
 import { marketSnapshotConcernsSymbols, useMarketEventReload, type MarketEventPayload } from "../../hooks/useMarketEventReload";
 import { api } from "../../lib/api";
@@ -20,7 +21,7 @@ const portfolioReloadEvents: MarketEventType[] = [
 
 export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: string }) {
   const [selectedRange, setSelectedRangeState] = useState<RangeKey>(() => {
-    const initialRange = user.defaultChartRange ?? "1d";
+    const initialRange = user.defaultChartRange;
     return initialRange;
   });
 
@@ -38,23 +39,10 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
     timeout: undefined as number | undefined
   });
 
-  /**
-   * Met a jour la range affichee pour tous les blocs dependants du temps.
-   * useCallback stabilise la reference de la fonction : les composants enfants
-   * qui recoivent setSelectedRange en prop ne re-rendent pas si la range n'a pas change.
-   *
-   * @param source Origine de l'action, conservee pour instrumentation future.
-   * @param nextRange Nouvelle range demandee.
-   */
-  const setSelectedRange = useCallback((source: string, nextRange: RangeKey) => {
-    setSelectedRangeState((previousRange) => {
-      void source;
-      if (previousRange === nextRange) return previousRange;
-      return nextRange;
-    });
-  }, []);
+  // Setter React (reference stable) : une range identique n'entraine aucun nouveau rendu.
+  const setSelectedRange: DashboardRangeSetter = setSelectedRangeState;
 
-  const portfolioIsEmpty = !portfolioFull.loading && summary != null && summary.positions.length === 0;
+  const portfolioIsEmpty = !portfolioFull.loading && summary?.positions.length === 0;
   const portfolioSymbols = useMemo(
     () => new Set(summary?.positions.map((position) => position.symbol.toUpperCase()) ?? []),
     [summary]
@@ -163,7 +151,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   );
 }
 
-function chartCacheVersion(chart: { timestamps: number[]; baselineDatetime?: string }) {
+function chartCacheVersion(chart: { timestamps: number[]; baselineDatetime?: string | undefined }) {
   const lastTimestamp = chart.timestamps[chart.timestamps.length - 1] ?? "none";
   return `${chart.timestamps.length}:${lastTimestamp}:${chart.baselineDatetime ?? ""}`;
 }

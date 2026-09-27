@@ -71,7 +71,7 @@ test("normalizeText normalises carriage returns and collapses excess blank lines
   assert.ok(!result.includes("\r"), "should have no carriage returns");
   assert.ok(result.includes("line1"));
   assert.ok(result.includes("line3"));
-  const blankLines = result.match(/\n{3,}/);
+  const blankLines = /\n{3,}/.exec(result);
   assert.equal(blankLines, null, "should have no runs of 3+ blank lines");
 });
 

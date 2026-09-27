@@ -7,20 +7,20 @@ import { ChartEmpty } from "../ChartEmpty";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
 import { formatPercent } from "../chartFormat";
 
-type NetMarginTooltipProps = {
+interface NetMarginTooltipProps {
   active?: boolean;
-  payload?: Array<{ payload?: NetMarginItem }>;
-};
+  payload?: { payload?: NetMarginItem }[];
+}
 
-type MarginAssetTickProps = {
+interface MarginAssetTickProps {
   y?: number;
   payload?: { value?: string };
   data: NetMarginItem[];
   compact: boolean;
-};
+}
 
 function NetMarginTooltip({ active, payload }: NetMarginTooltipProps) {
-  const item = payload?.[0]?.payload as NetMarginItem | undefined;
+  const item = payload?.[0]?.payload;
   if (!active || !item) return null;
 
   return (
@@ -38,21 +38,21 @@ function useCompactAxis() {
   const [compact, setCompact] = useState(() => (typeof window === "undefined" ? false : window.innerWidth < 640));
 
   useEffect(() => {
-    const onResize = () => setCompact(window.innerWidth < 640);
+    const onResize = () => { setCompact(window.innerWidth < 640); };
     onResize();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); };
   }, []);
 
   return compact;
 }
 
 function MarginAssetTick({ y, payload, data, compact }: MarginAssetTickProps) {
-  const item = data.find((entry: NetMarginItem) => entry.symbol === payload?.value) as NetMarginItem | undefined;
+  const item = data.find((entry: NetMarginItem) => entry.symbol === payload?.value);
   if (!item || y === undefined) return null;
 
   return (
-    <foreignObject height={38} width={compact ? 46 : 180} x={0} y={Number(y) - 19}>
+    <foreignObject height={38} width={compact ? 46 : 180} x={0} y={y - 19}>
       <div className="flex h-full min-w-0 items-center gap-2">
         <AssetIcon className="h-8 w-8" symbol={item.symbol} />
         {!compact ? <span className="truncate text-xs font-semibold text-slate-200">{item.name}</span> : null}

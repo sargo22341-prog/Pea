@@ -1,7 +1,8 @@
-import { runBackendScript } from "../helpers/backend-script.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { marketScriptHelpers as helpers, seedUser } from "../helpers/backend-script.js";
+import type { AssetMarketInfo } from "@pea/shared";
+import type { AssetMarketSnapshotRow } from "../../repositories/market/market-snapshot.repository.js";
+import { marketScriptHelpers as helpers, runBackendScript, seedUser } from "../helpers/backend-script.js";
 
 test("post-close snapshot state is reused and not overwritten by a later quote read", () => {
   const result = runBackendScript(`
@@ -30,7 +31,7 @@ test("post-close snapshot state is reused and not overwritten by a later quote r
     const quote = await marketSnapshotService.getQuote("AAA.PA");
     const afterRead = db.prepare("SELECT s.market_state FROM asset_market_snapshots s JOIN assets a ON a.id = s.asset_id WHERE a.symbol = 'AAA.PA'").get();
     console.log("__RESULT__" + JSON.stringify({ batchCalls, singleQuoteCalls, quote, afterClose, afterRead }));
-  `);
+  `) as { batchCalls: number; singleQuoteCalls: number; afterClose: { market_state: string }; afterRead: { market_state: string }; quote: { marketState: string } };
 
   assert.equal(result.batchCalls, 1);
   assert.equal(result.singleQuoteCalls, 0);
@@ -122,7 +123,7 @@ test("post-close snapshot price wins over stale fundamentals and later quote rea
         server.close();
       }
     });
-  `);
+  `) as { status: number; batchCalls: number; singleQuoteCalls: number; dbSnapshot: AssetMarketSnapshotRow & { fifty_two_week_change_percent: number }; quote: { price: number }; routeQuotePrice: number; routeMarketInfoPrice: number; routeMarketState: string; routeMarketInfo: AssetMarketInfo; analystCurrentPrice: number; afterRoute: { last_price: number } };
 
   assert.equal(result.status, 200);
   assert.equal(result.batchCalls, 1);

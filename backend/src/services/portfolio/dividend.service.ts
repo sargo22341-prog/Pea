@@ -44,7 +44,7 @@ export class DividendService {
     const resolvedUserId = requireUserId(userId);
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<PortfolioDividends>(cacheUserId, "dividends");
+      const cached = frontendBlockCache.read(cacheUserId, "dividends") as PortfolioDividends | undefined;
       if (cached) return cached;
     }
     const positions = await portfolioService.summary("1d", resolvedUserId);

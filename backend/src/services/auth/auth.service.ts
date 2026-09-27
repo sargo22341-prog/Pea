@@ -62,7 +62,7 @@ export class AuthService {
     if (!row) throw new HttpError(404, "Utilisateur introuvable.");
     if (row.bootstrap_admin) throw new HttpError(409, "Le compte administrateur bootstrap ne peut pas etre supprime.");
 
-    const profileIconPath = row.profile_icon_path ? String(row.profile_icon_path) : undefined;
+    const profileIconPath = row.profile_icon_path ? row.profile_icon_path : undefined;
     const pendingProfileIconDeletePath = profileIconPath && fs.existsSync(profileIconPath)
       ? `${profileIconPath}.delete-${process.pid}-${Date.now()}`
       : undefined;
@@ -84,7 +84,7 @@ export class AuthService {
 
   async login(username: string, password: string) {
     const row = authRepository.findUserByUsername(username.trim()) as UserRow | undefined;
-    if (!row || !(await bcrypt.compare(password, String(row.password_hash)))) {
+    if (!row || !(await bcrypt.compare(password, row.password_hash))) {
       throw new HttpError(401, "Identifiants invalides.");
     }
     return { user: rowToAuthUser(row), token: this.createSession(Number(row.id)) };
@@ -106,51 +106,51 @@ export class AuthService {
   async updateUser(
     userId: number,
     input: {
-      username?: string;
-      password?: string;
-      currentPassword?: string;
-      profileIconUrl?: string | null;
-      dashboardDefaultSortKey?: DashboardSortKey;
-      dashboardDefaultSortDirection?: SortDirection;
-      watchlistDefaultSortKey?: WatchlistSortKey;
-      watchlistDefaultSortDirection?: SortDirection;
-      defaultChartRange?: RangeKey;
-      projectionEndAge?: number;
-      localPeaSearchEnabled?: boolean;
-      assetNewsEnabled?: boolean;
-      newsLanguages?: NewsLanguage[];
-      language?: AppLanguage;
-      privacyModeEnabled?: boolean;
+      username?: string | undefined;
+      password?: string | undefined;
+      currentPassword?: string | undefined;
+      profileIconUrl?: string|null | undefined;
+      dashboardDefaultSortKey?: DashboardSortKey | undefined;
+      dashboardDefaultSortDirection?: SortDirection | undefined;
+      watchlistDefaultSortKey?: WatchlistSortKey | undefined;
+      watchlistDefaultSortDirection?: SortDirection | undefined;
+      defaultChartRange?: RangeKey | undefined;
+      projectionEndAge?: number | undefined;
+      localPeaSearchEnabled?: boolean | undefined;
+      assetNewsEnabled?: boolean | undefined;
+      newsLanguages?: NewsLanguage[] | undefined;
+      language?: AppLanguage | undefined;
+      privacyModeEnabled?: boolean | undefined;
     }
   ) {
     const current = authRepository.findUserById(userId) as UserRow | undefined;
     if (!current) throw new HttpError(404, "Utilisateur introuvable.");
 
-    const username = input.username?.trim() || String(current.username);
-    const credentialsChanged = username !== String(current.username) || Boolean(input.password);
-    if (credentialsChanged && (!input.currentPassword || !(await bcrypt.compare(input.currentPassword, String(current.password_hash))))) {
+    const username = input.username?.trim() || current.username;
+    const credentialsChanged = username !== current.username || Boolean(input.password);
+    if (credentialsChanged && (!input.currentPassword || !(await bcrypt.compare(input.currentPassword, current.password_hash)))) {
       throw new HttpError(401, "Mot de passe actuel invalide.");
     }
     const profileIconUrl = input.profileIconUrl === undefined ? current.profile_icon_url : input.profileIconUrl || null;
-    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : String(current.password_hash);
-    const dashboardSortKey = input.dashboardDefaultSortKey ?? current.dashboard_default_sort_key ?? "name";
-    const dashboardSortDirection = input.dashboardDefaultSortDirection ?? current.dashboard_default_sort_direction ?? "asc";
-    const watchlistSortKey = input.watchlistDefaultSortKey ?? current.watchlist_default_sort_key ?? "name";
-    const watchlistSortDirection = input.watchlistDefaultSortDirection ?? current.watchlist_default_sort_direction ?? "asc";
-    const defaultRange = input.defaultChartRange ?? current.default_chart_range ?? "1d";
-    const projectionEndAge = input.projectionEndAge === undefined ? Number(current.projection_end_age ?? 90) : input.projectionEndAge;
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : current.password_hash;
+    const dashboardSortKey = input.dashboardDefaultSortKey ?? current.dashboard_default_sort_key;
+    const dashboardSortDirection = input.dashboardDefaultSortDirection ?? current.dashboard_default_sort_direction;
+    const watchlistSortKey = input.watchlistDefaultSortKey ?? current.watchlist_default_sort_key;
+    const watchlistSortDirection = input.watchlistDefaultSortDirection ?? current.watchlist_default_sort_direction;
+    const defaultRange = input.defaultChartRange ?? current.default_chart_range;
+    const projectionEndAge = input.projectionEndAge ?? current.projection_end_age ?? 90;
     if (!Number.isInteger(projectionEndAge) || projectionEndAge < 70 || projectionEndAge > 120) {
       throw new HttpError(400, "L'age de fin de projection doit etre compris entre 70 et 120 ans.");
     }
     const localPeaSearchEnabled =
-      input.localPeaSearchEnabled === undefined ? Number(current.local_pea_search_enabled ?? 1) : input.localPeaSearchEnabled ? 1 : 0;
-    const assetNewsEnabled = input.assetNewsEnabled === undefined ? Number(current.asset_news_enabled ?? 1) : input.assetNewsEnabled ? 1 : 0;
-    const validLanguages = [...new Set((input.newsLanguages ?? []).filter((l): l is NewsLanguage => l === "fr" || l === "en"))];
-    const newsLanguageFrEnabled = input.newsLanguages === undefined ? Number(current.news_language_fr_enabled ?? 1) : validLanguages.includes("fr") ? 1 : 0;
-    const newsLanguageEnEnabled = input.newsLanguages === undefined ? Number(current.news_language_en_enabled ?? 0) : validLanguages.includes("en") ? 1 : 0;
+      input.localPeaSearchEnabled === undefined ? (current.local_pea_search_enabled ?? 1) : input.localPeaSearchEnabled ? 1 : 0;
+    const assetNewsEnabled = input.assetNewsEnabled === undefined ? (current.asset_news_enabled ?? 1) : input.assetNewsEnabled ? 1 : 0;
+    const validLanguages = [...new Set(input.newsLanguages ?? [])];
+    const newsLanguageFrEnabled = input.newsLanguages === undefined ? (current.news_language_fr_enabled ?? 1) : validLanguages.includes("fr") ? 1 : 0;
+    const newsLanguageEnEnabled = input.newsLanguages === undefined ? (current.news_language_en_enabled ?? 0) : validLanguages.includes("en") ? 1 : 0;
     if (!newsLanguageFrEnabled && !newsLanguageEnEnabled) throw new HttpError(400, "Au moins une langue d'actualites doit etre activee.");
     const language = input.language ?? (isAppLanguage(current.language) ? current.language : "fr");
-    const privacyModeEnabled = input.privacyModeEnabled === undefined ? Number(current.privacy_mode_enabled ?? 0) : input.privacyModeEnabled ? 1 : 0;
+    const privacyModeEnabled = input.privacyModeEnabled === undefined ? (current.privacy_mode_enabled ?? 0) : input.privacyModeEnabled ? 1 : 0;
 
     try {
       authRepository.updateUser(userId, {
@@ -188,8 +188,8 @@ export class AuthService {
 
   getProfileIconFile(userId: number) {
     const row = authRepository.profileIconFile(userId);
-    const filePath = row?.profile_icon_path ? String(row.profile_icon_path) : undefined;
-    const mimeType = row?.profile_icon_mime_type ? String(row.profile_icon_mime_type) : undefined;
+    const filePath = row?.profile_icon_path ? row.profile_icon_path : undefined;
+    const mimeType = row?.profile_icon_mime_type ? row.profile_icon_mime_type : undefined;
     if (!filePath || !mimeType || !fs.existsSync(filePath)) return undefined;
     return { filePath, mimeType };
   }
@@ -214,7 +214,7 @@ export class AuthService {
   deleteProfileIcon(userId: number) {
     const current = authRepository.profileIconPath(userId);
     if (!current) throw new HttpError(404, "Utilisateur introuvable.");
-    const filePath = current.profile_icon_path ? String(current.profile_icon_path) : undefined;
+    const filePath = current.profile_icon_path ? current.profile_icon_path : undefined;
     if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
     authRepository.clearProfileIcon(userId);
   }
@@ -231,7 +231,7 @@ export class AuthService {
   private async createUserRecord(
     username: string,
     password: string,
-    options: { role: "admin" | "user"; bootstrapAdmin: boolean; profileIconUrl?: string }
+    options: { role: "admin" | "user"; bootstrapAdmin: boolean; profileIconUrl?: string | undefined }
   ) {
     const trimmedUsername = username.trim();
     if (!trimmedUsername) throw new HttpError(400, "Username requis.");

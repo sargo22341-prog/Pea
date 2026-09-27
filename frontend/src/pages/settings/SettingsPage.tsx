@@ -31,11 +31,11 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
         <h1 className="text-2xl font-bold">{t("settings:title")}</h1>
         <p className="muted">{t("settings:subtitle")}</p>
       </div>
-      <ServerSettingsSection onToggle={() => toggleSection("server")} open={openSection === "server"} />
-      <AccountSettingsSection onToggle={() => toggleSection("account")} open={openSection === "account"} />
-      <UserPreferencesSection onToggle={() => toggleSection("preferences")} onUserUpdated={onUserUpdated} open={openSection === "preferences"} />
-      {user.role === "admin" && <AssetIconsSettingsSection onToggle={() => toggleSection("icons")} open={openSection === "icons"} />}
-      <Collapsible onToggle={() => toggleSection("imports")} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
+      <ServerSettingsSection onToggle={() => { toggleSection("server"); }} open={openSection === "server"} />
+      <AccountSettingsSection onToggle={() => { toggleSection("account"); }} open={openSection === "account"} />
+      <UserPreferencesSection onToggle={() => { toggleSection("preferences"); }} onUserUpdated={onUserUpdated} open={openSection === "preferences"} />
+      {user.role === "admin" && <AssetIconsSettingsSection onToggle={() => { toggleSection("icons"); }} open={openSection === "icons"} />}
+      <Collapsible onToggle={() => { toggleSection("imports"); }} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
         <CsvImportSection />
         <ImportAvisOperesPdf />
       </Collapsible>

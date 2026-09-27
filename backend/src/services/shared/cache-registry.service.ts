@@ -1,11 +1,11 @@
 import { cacheRepository } from "../../repositories/cache/cache.repository.js";
 
 export type CacheInvalidationEvent =
-  | { type: "portfolio-user-changed"; userId: string; symbol?: string }
-  | { type: "portfolio-all-users-changed"; symbol?: string }
-  | { type: "frontend-block-changed"; userId?: string | number; block?: string }
-  | { type: "PositionChanged"; userId: string | number; symbol?: string }
-  | { type: "TransactionChanged"; userId: string | number; symbol?: string }
+  | { type: "portfolio-user-changed"; userId: string; symbol?: string | undefined }
+  | { type: "portfolio-all-users-changed"; symbol?: string | undefined }
+  | { type: "frontend-block-changed"; userId?: string | number | undefined; block?: string | undefined }
+  | { type: "PositionChanged"; userId: string | number; symbol?: string | undefined }
+  | { type: "TransactionChanged"; userId: string | number; symbol?: string | undefined }
   | { type: "MarketSnapshotUpdated"; symbol: string }
   | { type: "ChartFinalized"; symbol: string; range?: string }
   | { type: "AssetStaticDataUpdated"; symbol: string }
@@ -44,11 +44,10 @@ export class CacheRegistryService {
       this.invalidateFrontendBlock(undefined, "watchlist");
       return;
     }
-    if (event.type === "DividendDataUpdated") {
-      cacheRepository.invalidateAssetDividends(event.symbol);
-      this.invalidateFrontendBlock(undefined, "dividends");
-      this.invalidateFrontendBlock(undefined, "analysis");
-    }
+    // Dernier type d'evenement restant : DividendDataUpdated.
+    cacheRepository.invalidateAssetDividends(event.symbol);
+    this.invalidateFrontendBlock(undefined, "dividends");
+    this.invalidateFrontendBlock(undefined, "analysis");
   }
 
   private invalidateUserAssetCaches(userId: string, symbol?: string) {

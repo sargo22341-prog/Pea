@@ -9,18 +9,18 @@ export type ObjectiveType =
 export type ObjectiveScenario = "prudent" | "normal" | "optimistic";
 
 export interface ObjectiveAssumptions {
-  currentAge?: number;
-  futureMonthlySavings?: number | null;
+  currentAge?: number | undefined;
+  futureMonthlySavings?: number | null | undefined;
   inflationRate: number;
   annualReturnRate: number;
   taxRate: number;
-  withdrawalRate?: number;
-  projectionEndAge?: number;
+  withdrawalRate?: number | undefined;
+  projectionEndAge?: number | undefined;
   statePensionMonthly: number;
   statePensionStartAge: number;
   scenario: ObjectiveScenario;
   /** Forme de la courbe de projection: lisse, volatile, avec chocs ou Monte-Carlo. */
-  simulationMode?: ObjectiveSimulationMode;
+  simulationMode?: ObjectiveSimulationMode | undefined;
   /** Volatilite annuelle en % (modes stochastique et Monte-Carlo). */
   simulationVolatility?: number;
   /** Nombre moyen d'annees entre deux chocs (modes chocs et Monte-Carlo). */
@@ -32,12 +32,12 @@ export interface ObjectiveAssumptions {
 }
 
 export interface ObjectiveConfig {
-  targetAmount?: number;
-  targetAge?: number;
-  monthlyIncome?: number;
-  indexIncomeToInflation?: boolean;
-  continueSavingsAfterAnnuityStart?: boolean;
-  finalCapitalTarget?: number;
+  targetAmount?: number | undefined;
+  targetAge?: number | undefined;
+  monthlyIncome?: number | undefined;
+  indexIncomeToInflation?: boolean | undefined;
+  continueSavingsAfterAnnuityStart?: boolean | undefined;
+  finalCapitalTarget?: number | undefined;
 }
 
 export interface ObjectiveInput {
@@ -51,13 +51,13 @@ export interface ObjectiveInput {
 export interface ObjectiveSummary {
   currentCapital: number;
   targetCapital?: number;
-  reachedAge?: number;
-  reachedDate?: string;
-  leadLagMonths?: number;
+  reachedAge?: number | undefined;
+  reachedDate?: string | undefined;
+  leadLagMonths?: number | undefined;
   progressPercent: number;
   message: string;
   /** Part des trajectoires Monte-Carlo qui atteignent l'objectif, en %. */
-  successProbability?: number;
+  successProbability?: number | undefined;
 }
 
 export interface ObjectiveSeriesPoint {
@@ -66,12 +66,12 @@ export interface ObjectiveSeriesPoint {
   real?: number;
   projected?: number;
   /** Borne basse (10e centile) de l'intervalle Monte-Carlo. */
-  projectedLow?: number;
+  projectedLow?: number | undefined;
   /** Borne haute (90e centile) de l'intervalle Monte-Carlo. */
-  projectedHigh?: number;
+  projectedHigh?: number | undefined;
   objective?: number;
-  possibleMonthlyIncome?: number;
-  paidMonthlyIncome?: number;
+  possibleMonthlyIncome?: number | undefined;
+  paidMonthlyIncome?: number | undefined;
 }
 
 export interface ObjectiveContributionPoint {
@@ -91,8 +91,8 @@ export interface ObjectiveProjection {
   summary?: ObjectiveSummary;
   series: ObjectiveSeriesPoint[];
   contributions: ObjectiveContributionPoint[];
-  lastUpdatedAt?: string;
-  nextUpdateAt?: string;
+  lastUpdatedAt?: string | undefined;
+  nextUpdateAt?: string | undefined;
 }
 
 export interface ObjectiveDto extends ObjectiveInput {

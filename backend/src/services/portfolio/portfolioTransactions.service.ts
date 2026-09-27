@@ -1,7 +1,7 @@
 import type { EditablePortfolioTransaction, PositionTransactionStats, Position } from "@pea/shared";
 
 export function calculateTransactionStats(
-  transactions: Array<Pick<EditablePortfolioTransaction, "totalFees">>,
+  transactions: Pick<EditablePortfolioTransaction, "totalFees">[],
   totalDividendsReceived = 0,
   currency = "EUR"
 ): PositionTransactionStats {

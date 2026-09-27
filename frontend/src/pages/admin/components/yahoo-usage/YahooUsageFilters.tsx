@@ -27,7 +27,7 @@ export function YahooUsageFilters(props: {
     <div className="grid flex-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
       <label className="space-y-1 text-sm">
         <span className="muted">{t("admin.yahooUsage.period", { ns: "common" })}</span>
-        <select className="input" value={props.period} onChange={(event) => props.setPeriod(event.target.value as PeriodKey)}>
+        <select className="input" value={props.period} onChange={(event) => { props.setPeriod(event.target.value as PeriodKey); }}>
           <option value="today">{t("admin.yahooUsage.today", { ns: "common" })}</option>
           <option value="24h">24h</option>
           <option value="7d">{t("admin.yahooUsage.sevenDays", { ns: "common" })}</option>
@@ -37,26 +37,26 @@ export function YahooUsageFilters(props: {
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">{t("admin.yahooUsage.type", { ns: "common" })}</span>
-        <select className="input" value={props.method} onChange={(event) => props.setMethod(event.target.value)}>
+        <select className="input" value={props.method} onChange={(event) => { props.setMethod(event.target.value); }}>
           <option value="">{t("admin.yahooUsage.all", { ns: "common" })}</option>
           {yahooUsageMethods.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">Module</span>
-        <input className="input" onChange={(event) => props.setModuleName(event.target.value)} placeholder="price" value={props.moduleName} />
+        <input className="input" onChange={(event) => { props.setModuleName(event.target.value); }} placeholder="price" value={props.moduleName} />
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">Ticker</span>
-        <input className="input uppercase" onChange={(event) => props.setTicker(event.target.value)} placeholder="AIR.PA" value={props.ticker} />
+        <input className="input uppercase" onChange={(event) => { props.setTicker(event.target.value); }} placeholder="AIR.PA" value={props.ticker} />
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">Source</span>
-        <input className="input" onChange={(event) => props.setSource(event.target.value)} placeholder={t("admin.yahooUsage.sourcePlaceholder", { ns: "common" })} value={props.source} />
+        <input className="input" onChange={(event) => { props.setSource(event.target.value); }} placeholder={t("admin.yahooUsage.sourcePlaceholder", { ns: "common" })} value={props.source} />
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">{t("admin.yahooUsage.status", { ns: "common" })}</span>
-        <select className="input" value={props.success} onChange={(event) => props.setSuccess(event.target.value as SuccessFilter)}>
+        <select className="input" value={props.success} onChange={(event) => { props.setSuccess(event.target.value as SuccessFilter); }}>
           <option value="all">{t("admin.yahooUsage.all", { ns: "common" })}</option>
           <option value="success">{t("admin.yahooUsage.success", { ns: "common" })}</option>
           <option value="error">{t("admin.yahooUsage.error", { ns: "common" })}</option>
@@ -64,7 +64,7 @@ export function YahooUsageFilters(props: {
       </label>
       <label className="space-y-1 text-sm">
         <span className="muted">{t("admin.yahooUsage.groupBy", { ns: "common" })}</span>
-        <select className="input" value={props.groupBy} onChange={(event) => props.setGroupBy(event.target.value as "hour" | "day")}>
+        <select className="input" value={props.groupBy} onChange={(event) => { props.setGroupBy(event.target.value as "hour" | "day"); }}>
           <option value="hour">{t("admin.yahooUsage.hour", { ns: "common" })}</option>
           <option value="day">{t("admin.yahooUsage.day", { ns: "common" })}</option>
         </select>
@@ -73,11 +73,11 @@ export function YahooUsageFilters(props: {
         <>
           <label className="space-y-1 text-sm">
             <span className="muted">{t("admin.yahooUsage.start", { ns: "common" })}</span>
-            <input className="input" onChange={(event) => props.setCustomFrom(event.target.value)} type="datetime-local" value={props.customFrom} />
+            <input className="input" onChange={(event) => { props.setCustomFrom(event.target.value); }} type="datetime-local" value={props.customFrom} />
           </label>
           <label className="space-y-1 text-sm">
             <span className="muted">{t("admin.yahooUsage.end", { ns: "common" })}</span>
-            <input className="input" onChange={(event) => props.setCustomTo(event.target.value)} type="datetime-local" value={props.customTo} />
+            <input className="input" onChange={(event) => { props.setCustomTo(event.target.value); }} type="datetime-local" value={props.customTo} />
           </label>
         </>
       )}

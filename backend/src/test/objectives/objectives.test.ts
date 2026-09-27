@@ -51,7 +51,7 @@ test("objective calculator projects a fixed capital target", () => {
 
   assert.equal(projection.status, "ready");
   assert.equal(projection.summary?.targetCapital, 100_000);
-  assert.ok((projection.summary?.progressPercent ?? 0) > 0);
+  assert.ok(projection.summary.progressPercent > 0);
   assert.ok(projection.series.some((point) => point.projected !== undefined));
 });
 

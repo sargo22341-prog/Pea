@@ -45,78 +45,49 @@ test("state pension consistently reduces required capital for rent objectives", 
   assert.ok((withPension.summary?.targetCapital ?? 0) < (withoutPension.summary?.targetCapital ?? 0));
 });
 
-test("objective portfolio snapshot uses portfolio market value history for real wealth", async () => {
-  const originalSummary = portfolioService.summary;
-  const originalPerformance = portfolioService.performance;
-  const originalListPositions = portfolioRepository.listPositions;
-  try {
-    portfolioService.summary = async () => ({ totalValue: 3800 }) as never;
-    portfolioService.performance = async () => [
-      { date: "2026-01-01T00:00:00.000Z", value: 1000, invested: 1000, gain: 0, gainPercent: 0 },
-      { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 },
-      { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
-    ] as never;
-    portfolioRepository.listPositions = () => [] as never;
+test("objective portfolio snapshot uses portfolio market value history for real wealth", async (t) => {
+  t.mock.method(portfolioService, "summary", () => Promise.resolve({ totalValue: 3800 } as never));
+  t.mock.method(portfolioService, "performance", () => Promise.resolve([
+    { date: "2026-01-01T00:00:00.000Z", value: 1000, invested: 1000, gain: 0, gainPercent: 0 },
+    { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 },
+    { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
+  ] as never));
+  t.mock.method(portfolioRepository, "listPositions", () => [] as never);
 
-    const snapshot = await objectivePortfolioService.snapshot(1, 35);
-    assert.deepEqual(snapshot.realSeries.map((point) => point.real), [1000, 2500, 3800]);
-    assert.equal(snapshot.currentCapital, 3800);
-  } finally {
-    portfolioService.summary = originalSummary;
-    portfolioService.performance = originalPerformance;
-    portfolioRepository.listPositions = originalListPositions;
-  }
+  const snapshot = await objectivePortfolioService.snapshot(1, 35);
+  assert.deepEqual(snapshot.realSeries.map((point) => point.real), [1000, 2500, 3800]);
+  assert.equal(snapshot.currentCapital, 3800);
 });
 
-test("objective portfolio snapshot starts real wealth at first investment date", async () => {
-  const originalSummary = portfolioService.summary;
-  const originalPerformance = portfolioService.performance;
-  const originalListPositions = portfolioRepository.listPositions;
-  const originalListTransactionSequence = portfolioRepository.listTransactionSequence;
-  try {
-    portfolioService.summary = async () => ({ totalValue: 3800 }) as never;
-    portfolioService.performance = async () => [
-      { date: "2025-01-01T00:00:00.000Z", value: 0, invested: 0, gain: 0, gainPercent: 0 },
-      { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 },
-      { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
-    ] as never;
-    portfolioRepository.listPositions = () => [{ id: 1 }] as never;
-    portfolioRepository.listTransactionSequence = () => [
-      { traded_at: "2026-02-01T14:30:00.000Z", quantity: 10, price: 200, total_fees: 0, type: "buy" }
-    ] as never;
+test("objective portfolio snapshot starts real wealth at first investment date", async (t) => {
+  t.mock.method(portfolioService, "summary", () => Promise.resolve({ totalValue: 3800 } as never));
+  t.mock.method(portfolioService, "performance", () => Promise.resolve([
+    { date: "2025-01-01T00:00:00.000Z", value: 0, invested: 0, gain: 0, gainPercent: 0 },
+    { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 },
+    { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
+  ] as never));
+  t.mock.method(portfolioRepository, "listPositions", () => [{ id: 1 }] as never);
+  t.mock.method(portfolioRepository, "listTransactionSequence", () => [
+    { traded_at: "2026-02-01T14:30:00.000Z", quantity: 10, price: 200, total_fees: 0, type: "buy" }
+  ] as never);
 
-    const snapshot = await objectivePortfolioService.snapshot(1, 35);
-    assert.deepEqual(snapshot.realSeries.map((point) => point.date), [
-      "2026-02-01T00:00:00.000Z",
-      "2026-03-01T00:00:00.000Z"
-    ]);
-  } finally {
-    portfolioService.summary = originalSummary;
-    portfolioService.performance = originalPerformance;
-    portfolioRepository.listPositions = originalListPositions;
-    portfolioRepository.listTransactionSequence = originalListTransactionSequence;
-  }
+  const snapshot = await objectivePortfolioService.snapshot(1, 35);
+  assert.deepEqual(snapshot.realSeries.map((point) => point.date), [
+    "2026-02-01T00:00:00.000Z",
+    "2026-03-01T00:00:00.000Z"
+  ]);
 });
 
-test("objective portfolio snapshot keeps real wealth history when no investment date is available", async () => {
-  const originalSummary = portfolioService.summary;
-  const originalPerformance = portfolioService.performance;
-  const originalListPositions = portfolioRepository.listPositions;
-  try {
-    portfolioService.summary = async () => ({ totalValue: 3800 }) as never;
-    portfolioService.performance = async () => [
-      { date: "2026-01-01T00:00:00.000Z", value: 1000, invested: 1000, gain: 0, gainPercent: 0 },
-      { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 }
-    ] as never;
-    portfolioRepository.listPositions = () => [] as never;
+test("objective portfolio snapshot keeps real wealth history when no investment date is available", async (t) => {
+  t.mock.method(portfolioService, "summary", () => Promise.resolve({ totalValue: 3800 } as never));
+  t.mock.method(portfolioService, "performance", () => Promise.resolve([
+    { date: "2026-01-01T00:00:00.000Z", value: 1000, invested: 1000, gain: 0, gainPercent: 0 },
+    { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 }
+  ] as never));
+  t.mock.method(portfolioRepository, "listPositions", () => [] as never);
 
-    const snapshot = await objectivePortfolioService.snapshot(1, 35);
-    assert.equal(snapshot.realSeries.length, 2);
-  } finally {
-    portfolioService.summary = originalSummary;
-    portfolioService.performance = originalPerformance;
-    portfolioRepository.listPositions = originalListPositions;
-  }
+  const snapshot = await objectivePortfolioService.snapshot(1, 35);
+  assert.equal(snapshot.realSeries.length, 2);
 });
 
 test("objective endpoints store cache and recalculate", () => {
@@ -163,7 +134,7 @@ test("objective endpoints store cache and recalculate", () => {
         server.close();
       }
     });
-  `);
+  `) as { createStatus: number; recalculateStatus: number; cacheCount: number; projectionStatus: string };
 
   assert.equal(result.createStatus, 201);
   assert.equal(result.recalculateStatus, 200);
@@ -241,7 +212,7 @@ test("portfolio mutations recalculate only active objectives for the affected us
         server.close();
       }
     });
-  `);
+  `) as { afterAdd: string; afterUpdate: string; afterDelete: string; bobStamp: string };
 
   assert.notEqual(result.afterAdd, "2000-01-01T00:00:00.000Z");
   assert.notEqual(result.afterUpdate, "2000-01-01T00:00:00.000Z");

@@ -8,11 +8,11 @@ import { formatSignedMoney, money, percent } from "../../../lib/format";
 
 type ButtonTone = "mint" | "coral" | "violet" | "amber" | "sky" | "teal" | "fuchsia";
 
-const marketLists: Array<{
+const marketLists: {
   id: MarketListId;
   tone: ButtonTone;
   icon: typeof ArrowUpRight;
-}> = [
+}[] = [
   { id: "day_gainers", tone: "mint", icon: ArrowUpRight },
   { id: "day_losers", tone: "coral", icon: ArrowDownRight },
   { id: "trending_fr", tone: "violet", icon: TrendingUp },
@@ -68,24 +68,29 @@ export function TopMoversSection() {
   const [loading, setLoading] = useState(false);
   const selected = marketLists.find((list) => list.id === selectedId) ?? null;
 
+  function selectList(id: MarketListId) {
+    if (id === selectedId) return;
+    setSelectedId(id);
+    setLoading(true);
+    setError(null);
+  }
+
   useEffect(() => {
     if (!selectedId) return;
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
 
     api.marketList(selectedId, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setData(result);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (!controller.signal.aborted) setError(err instanceof Error ? err.message : t("unknown", { ns: "errors" }));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => controller.abort();
+    return () => { controller.abort(); };
   }, [selectedId, t]);
 
   return (
@@ -102,7 +107,7 @@ export function TopMoversSection() {
             key={list.id}
             list={list}
             loading={loading && selectedId === list.id}
-            onClick={() => setSelectedId(list.id)}
+            onClick={() => { selectList(list.id); }}
           />
         ))}
       </div>

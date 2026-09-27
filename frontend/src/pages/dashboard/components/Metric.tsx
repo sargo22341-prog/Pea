@@ -9,8 +9,8 @@ export function Metric({
 }: {
   icon: LucideIcon;
   label: string;
-  value?: string;
-  tone?: "positive" | "negative";
+  value?: string | undefined;
+  tone?: "positive" | "negative" | undefined;
   loading?: boolean;
 }) {
   return (

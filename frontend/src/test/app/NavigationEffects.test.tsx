@@ -4,13 +4,16 @@ import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NavigationEffects } from "../../components/common/NavigationEffects";
 
+type BackButtonHandler = (event: { canGoBack: boolean }) => void;
+
 const nativeMocks = vi.hoisted(() => ({
-  addListener: vi.fn(),
+  addListener: vi.fn<(eventName: string, handler: BackButtonHandler) => Promise<{ remove: () => void }>>(),
   backHandler: undefined as undefined | ((event: { canGoBack: boolean }) => void),
   exitApp: vi.fn(),
   isNativeApp: vi.fn(),
   remove: vi.fn()
 }));
+const scrollToMock = vi.fn<(options?: ScrollToOptions) => void>();
 
 vi.mock("@capacitor/app", () => ({
   App: {
@@ -61,13 +64,14 @@ describe("NavigationEffects", () => {
     nativeMocks.exitApp.mockReset();
     nativeMocks.isNativeApp.mockReset();
     nativeMocks.remove.mockReset();
-    nativeMocks.addListener.mockImplementation(async (_eventName, handler) => {
+    nativeMocks.addListener.mockImplementation((_eventName, handler) => {
       nativeMocks.backHandler = handler;
-      return { remove: nativeMocks.remove };
+      return Promise.resolve({ remove: nativeMocks.remove });
     });
+    scrollToMock.mockReset();
     Object.defineProperty(window, "scrollTo", {
       configurable: true,
-      value: vi.fn()
+      value: scrollToMock
     });
   });
 
@@ -81,11 +85,11 @@ describe("NavigationEffects", () => {
       </MemoryRouter>
     );
 
-    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(scrollToMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("link", { name: /open asset/i }));
 
     expect(await screen.findByText("Asset")).toBeInTheDocument();
-    expect(window.scrollTo).toHaveBeenCalledWith({ left: 0, top: 0, behavior: "auto" });
+    expect(scrollToMock).toHaveBeenCalledWith({ left: 0, top: 0, behavior: "auto" });
   });
 
   it("navigates back inside the app when Android back has history", async () => {
@@ -98,8 +102,8 @@ describe("NavigationEffects", () => {
     );
 
     expect(await screen.findByText("Asset")).toBeInTheDocument();
-    await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    await act(async () => {
+    await waitFor(() => { expect(nativeMocks.backHandler).toBeDefined(); });
+    act(() => {
       nativeMocks.backHandler?.({ canGoBack: true });
     });
 
@@ -117,8 +121,8 @@ describe("NavigationEffects", () => {
     );
 
     expect(await screen.findByText("Asset")).toBeInTheDocument();
-    await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    await act(async () => {
+    await waitFor(() => { expect(nativeMocks.backHandler).toBeDefined(); });
+    act(() => {
       nativeMocks.backHandler?.({ canGoBack: false });
     });
 
@@ -136,8 +140,8 @@ describe("NavigationEffects", () => {
     );
 
     expect(await screen.findByText("Home")).toBeInTheDocument();
-    await waitFor(() => expect(nativeMocks.backHandler).toBeDefined());
-    await act(async () => {
+    await waitFor(() => { expect(nativeMocks.backHandler).toBeDefined(); });
+    act(() => {
       nativeMocks.backHandler?.({ canGoBack: true });
     });
 

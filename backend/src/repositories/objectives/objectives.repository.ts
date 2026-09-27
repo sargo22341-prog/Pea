@@ -1,5 +1,6 @@
 import type { ObjectiveAssumptions, ObjectiveConfig, ObjectiveProjection, ObjectiveType } from "@pea/shared";
 import { db } from "../../db.js";
+import { requirePresent } from "../../utils/invariant.js";
 
 export interface ObjectiveRow {
   id: number;
@@ -78,7 +79,7 @@ export class ObjectivesRepository {
       JSON.stringify(input.assumptions)
     );
     const row = db.prepare("SELECT last_insert_rowid() AS id").get() as { id: number };
-    return this.find(input.userId, row.id)!;
+    return requirePresent(this.find(input.userId, row.id), "Objectif");
   }
 
   update(userId: number, objectiveId: number, input: Omit<ObjectiveInsert, "userId">): ObjectiveRow | undefined {

@@ -3,7 +3,7 @@ import type { RequestHandler } from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { createRateLimit } from "../../middleware/rate-limit.js";
-import { requireAuth, clearAuthCookie, readSessionToken, setAuthCookie } from "../../middleware/auth.js";
+import { requireAuth, requireAuthUser, clearAuthCookie, readSessionToken, setAuthCookie } from "../../middleware/auth.js";
 import { authService } from "../../services/auth/auth.service.js";
 import { authFailureTracker, clientIpFrom, sleep } from "../../services/auth/auth-failure-tracker.js";
 import { logger } from "../../services/shared/logger.service.js";
@@ -40,7 +40,7 @@ function sendSessionResult(res: express.Response, req: express.Request, result: 
   res.status(status).json(result.user);
 }
 
-authRouter.get("/me", asyncRoute(async (req, res) => {
+authRouter.get("/me", asyncRoute((req, res) => {
   res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers(), appTimezone: config.appTimezone });
 }));
 
@@ -49,7 +49,7 @@ authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) =>
     username: z.string().trim().min(1),
     password: passwordSchema,
     confirmPassword: passwordSchema,
-    profileIconUrl: z.string().url().optional().or(z.literal(""))
+    profileIconUrl: z.url().optional().or(z.literal(""))
   }).parse(req.body);
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
@@ -79,7 +79,7 @@ authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) =>
   sendSessionResult(res, req, result);
 }));
 
-authRouter.post("/logout", asyncRoute(async (req, res) => {
+authRouter.post("/logout", asyncRoute((req, res) => {
   authService.logout(readSessionToken(req));
   logger.debug("auth", "logout", { userId: req.user?.id, username: req.user?.username });
   clearAuthCookie(res);
@@ -92,7 +92,7 @@ authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async
     password: passwordSchema.optional(),
     confirmPassword: z.string().optional(),
     currentPassword: z.string().min(1).optional(),
-    profileIconUrl: z.string().url().optional().or(z.literal("")).nullable(),
+    profileIconUrl: z.url().optional().or(z.literal("")).nullable(),
     dashboardDefaultSortKey: z.enum(["name", "currentMarketValue", "intervalPerformancePercent"]).optional(),
     dashboardDefaultSortDirection: z.enum(["asc", "desc"]).optional(),
     watchlistDefaultSortKey: z.enum(["name", "price", "performancePercent"]).optional(),
@@ -106,7 +106,7 @@ authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async
     privacyModeEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
-  const updated = await authService.updateUser(req.user!.id, body);
+  const updated = await authService.updateUser(requireAuthUser(req).id, body);
   logger.debug("auth", "user updated", {
     userId: updated.id,
     username: updated.username,
@@ -121,8 +121,8 @@ authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async
   res.json(updated);
 }));
 
-authRouter.get("/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
-  const icon = authService.getProfileIconFile(req.user!.id);
+authRouter.get("/me/profile-icon", requireAuth, asyncRoute((req, res) => {
+  const icon = authService.getProfileIconFile(requireAuthUser(req).id);
   if (!icon) {
     res.status(404).end();
     return;
@@ -138,13 +138,13 @@ authRouter.post(
     if (!authService.isAllowedProfileIconMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (!detectSupportedImageMime(upload.buffer)) throw new HttpError(400, "Image invalide.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
-    logger.debug("auth", "profile icon upload", { userId: req.user!.id, mimeType: upload.mimeType, size: upload.buffer.length });
-    res.json(authService.saveProfileIcon(req.user!.id, upload.buffer, upload.mimeType));
+    logger.debug("auth", "profile icon upload", { userId: requireAuthUser(req).id, mimeType: upload.mimeType, size: upload.buffer.length });
+    res.json(authService.saveProfileIcon(requireAuthUser(req).id, upload.buffer, upload.mimeType));
   })
 );
 
-authRouter.delete("/me/profile-icon", requireAuth, asyncRoute(async (req, res) => {
-  authService.deleteProfileIcon(req.user!.id);
-  logger.debug("auth", "profile icon delete", { userId: req.user!.id });
+authRouter.delete("/me/profile-icon", requireAuth, asyncRoute((req, res) => {
+  authService.deleteProfileIcon(requireAuthUser(req).id);
+  logger.debug("auth", "profile icon delete", { userId: requireAuthUser(req).id });
   res.status(204).send();
 }));

@@ -5,6 +5,7 @@ import { marketDataGateway } from "../../services/market/data/market-data-gatewa
 import { logger } from "../../services/shared/logger.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { sortArticlesByDateDesc, userNewsLanguages } from "../shared/news.helpers.js";
+import { requireAuthUser } from "../../middleware/auth.js";
 import { routeParam } from "../shared/params.js";
 import {
   type AssetNewsCandidate,
@@ -22,23 +23,23 @@ import {
 export const newsRouter = express.Router();
 
 newsRouter.get("/news-global", asyncRoute(async (req, res) => {
-  if (!req.user!.assetNewsEnabled) {
+  if (!requireAuthUser(req).assetNewsEnabled) {
     res.json({ articles: [], page: 1, pageSize: 20, total: 0, totalPages: 0 });
     return;
   }
-  const page = Math.max(1, z.coerce.number().int().optional().default(1).parse(req.query.page));
+  const page = Math.max(1, z.coerce.number().int().optional().default(1).parse(req.query["page"]));
   res.json(await marketDataGateway.readGlobalNewsWithCache(page, userNewsLanguages(req)));
 }));
 
 newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
   const startedAt = performance.now();
-  const limit = Math.min(maxAssetNewsLimit, Math.max(1, z.coerce.number().int().optional().default(defaultAssetNewsLimit).parse(req.query.limit)));
-  const offset = Math.max(0, z.coerce.number().int().optional().default(0).parse(req.query.offset));
-  if (!req.user!.assetNewsEnabled) {
+  const limit = Math.min(maxAssetNewsLimit, Math.max(1, z.coerce.number().int().optional().default(defaultAssetNewsLimit).parse(req.query["limit"])));
+  const offset = Math.max(0, z.coerce.number().int().optional().default(0).parse(req.query["offset"]));
+  if (!requireAuthUser(req).assetNewsEnabled) {
     res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;
   }
-  const positions = listAssetNewsPositionRows(req.user!.id);
+  const positions = listAssetNewsPositionRows(requireAuthUser(req).id);
   if (!positions.length) {
     res.json({ articles: [], limit, offset, totalAssets: 0, queriedAssets: 0, hasMore: false });
     return;
@@ -64,13 +65,13 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
     candidates.push({
       position,
       query: companyNewsQuery(metadata.name ?? position.name, position.symbol),
-      positionValue: Number(position.quantity) * Number(position.average_buy_price)
+      positionValue: position.quantity * position.average_buy_price
     });
   }
   const sortedCandidates = candidates.sort((a, b) => b.positionValue - a.positionValue);
   const stockPositions = sortedCandidates.slice(offset, offset + limit);
   const hasMore = offset + limit < sortedCandidates.length;
-  const aggregateCacheKey = assetNewsAggregateCacheKey(positions, languages, req.user!.id, limit, offset);
+  const aggregateCacheKey = assetNewsAggregateCacheKey(positions, languages, requireAuthUser(req).id, limit, offset);
   const cachedArticles = readAssetNewsAggregateCache(aggregateCacheKey);
   if (cachedArticles) {
     logger.debug("news", "asset news aggregate cache-hit", {
@@ -101,17 +102,17 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
   });
 
   const results = await Promise.all(
-    stockPositions.map((candidate) => {
-      return marketDataGateway.readCompanyNewsWithCache(candidate.position.symbol, candidate.query, languages).catch((error) => {
+    stockPositions.map(async (candidate) => {
+      const feed = await marketDataGateway.readCompanyNewsWithCache(candidate.position.symbol, candidate.query, languages).catch((error: unknown) => {
         logger.warn("news", "asset company feed fallback", { symbol: candidate.position.symbol, query: candidate.query, error: error instanceof Error ? error.message : String(error) });
         return { data: [] as NewsArticle[] };
       });
+      return { position: candidate.position, articles: feed.data };
     })
   );
   const articlesByUrl = new Map<string, NewsArticle>();
-  for (let index = 0; index < stockPositions.length; index += 1) {
-    const position = stockPositions[index].position;
-    for (const article of results[index].data) {
+  for (const { position, articles: feedArticles } of results) {
+    for (const article of feedArticles) {
       const existing = articlesByUrl.get(article.url);
       const relatedAssets = existing?.relatedAssets ?? [];
       if (!relatedAssets.some((asset) => asset.symbol === position.symbol)) {
@@ -138,10 +139,10 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
 }));
 
 newsRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
-  if (!req.user!.assetNewsEnabled) {
+  if (!requireAuthUser(req).assetNewsEnabled) {
     res.json([]);
     return;
   }
-  const result = await marketDataGateway.readNewsWithCache(routeParam(req.params.symbol, "symbol"), userNewsLanguages(req));
+  const result = await marketDataGateway.readNewsWithCache(routeParam(req.params["symbol"], "symbol"), userNewsLanguages(req));
   res.json(result.data);
 }));

@@ -1,7 +1,7 @@
-import { runBackendScript } from "../helpers/backend-script.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { marketScriptHelpers as helpers, seedUser } from "../helpers/backend-script.js";
+import type { AssetMarketSnapshotRow } from "../../repositories/market/market-snapshot.repository.js";
+import { marketScriptHelpers as helpers, runBackendScript, seedUser } from "../helpers/backend-script.js";
 
 /**
  * Tests dédiés au comportement d'upsert du snapshot marché : préservation des valeurs utiles
@@ -51,7 +51,7 @@ test("snapshot upsert keeps useful existing values when Yahoo returns null field
     });
     const row = db.prepare("SELECT market_state, last_price, day_change, day_change_percent, previous_close, open_price, day_high, day_low, volume, bid_price, ask_price, regular_market_time, average_volume_3m, average_volume_10d, fifty_two_week_low, fifty_two_week_high, fifty_two_week_change_percent, ex_dividend_date, updated_at FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
     console.log("__RESULT__" + JSON.stringify(row));
-  `);
+  `) as AssetMarketSnapshotRow & { fifty_two_week_change_percent: number };
 
   assert.equal(result.market_state, "POSTPOST");
   assert.equal(result.last_price, 1305);
@@ -102,7 +102,7 @@ test("marketInfo from quoteSummary replaces missing slow snapshot fields and pre
     const dto = marketSnapshotService.readMarketDto("TTE.PA");
     const row = db.prepare("SELECT average_volume_3m, fifty_two_week_low, fifty_two_week_high, ex_dividend_date FROM asset_market_snapshots WHERE asset_id = ?").get(asset.id);
     console.log("__RESULT__" + JSON.stringify({ dto, row }));
-  `);
+  `) as { row: { average_volume_3m: number; fifty_two_week_low: number; fifty_two_week_high: number; ex_dividend_date: string }; dto: { avgVolume3M: number; week52Low: number; week52High: number; exDividendDate: string } };
 
   assert.equal(result.row.average_volume_3m, 6128825);
   assert.equal(result.row.fifty_two_week_low, 49.24);
@@ -129,7 +129,7 @@ test("market snapshot dto does not convert missing numeric fields to zero", () =
       dayChangePercent: dto.dayChangePercent,
       volume: dto.volume
     }));
-  `);
+  `) as { dayChange: undefined; dayChangePercent: undefined; volume: undefined };
 
   assert.equal(result.dayChange, undefined);
   assert.equal(result.dayChangePercent, undefined);

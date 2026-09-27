@@ -12,22 +12,22 @@ export function ObjectiveTargetSection({ form, update }: { form: ObjectiveFormSt
       <div className="grid gap-4 md:grid-cols-2">
         {visible("targetAmount") ? (
           <Field label={t("form.fields.targetAmount")}>
-            <input className="input" inputMode="decimal" onChange={(event) => update("targetAmount", event.target.value)} value={form.targetAmount} />
+            <input className="input" inputMode="decimal" onChange={(event) => { update("targetAmount", event.target.value); }} value={form.targetAmount} />
           </Field>
         ) : null}
         {visible("targetAge") ? (
           <Field label={t("form.fields.targetAge")}>
-            <input className="input" inputMode="numeric" onChange={(event) => update("targetAge", event.target.value)} value={form.targetAge} />
+            <input className="input" inputMode="numeric" onChange={(event) => { update("targetAge", event.target.value); }} value={form.targetAge} />
           </Field>
         ) : null}
         {visible("monthlyIncome") ? (
           <Field label={t("form.fields.monthlyIncome")}>
-            <input className="input" inputMode="decimal" onChange={(event) => update("monthlyIncome", event.target.value)} value={form.monthlyIncome} />
+            <input className="input" inputMode="decimal" onChange={(event) => { update("monthlyIncome", event.target.value); }} value={form.monthlyIncome} />
           </Field>
         ) : null}
         {visible("finalCapitalTarget") ? (
           <Field label={t("form.fields.finalCapitalTarget")}>
-            <input className="input" inputMode="decimal" onChange={(event) => update("finalCapitalTarget", event.target.value)} value={form.finalCapitalTarget} />
+            <input className="input" inputMode="decimal" onChange={(event) => { update("finalCapitalTarget", event.target.value); }} value={form.finalCapitalTarget} />
           </Field>
         ) : null}
         {visible("indexIncomeToInflation") || visible("continueSavingsAfterAnnuityStart") ? (
@@ -37,7 +37,7 @@ export function ObjectiveTargetSection({ form, update }: { form: ObjectiveFormSt
                 checked={form.indexIncomeToInflation}
                 description={t("form.fields.indexInflationHelp")}
                 label={t("form.fields.indexInflation")}
-                onChange={(checked) => update("indexIncomeToInflation", checked)}
+                onChange={(checked) => { update("indexIncomeToInflation", checked); }}
               />
             ) : null}
             {visible("continueSavingsAfterAnnuityStart") ? (
@@ -45,7 +45,7 @@ export function ObjectiveTargetSection({ form, update }: { form: ObjectiveFormSt
                 checked={form.continueSavingsAfterAnnuityStart}
                 description={t("form.fields.continueSavingsAfterAnnuityStartHelp")}
                 label={t("form.fields.continueSavingsAfterAnnuityStart")}
-                onChange={(checked) => update("continueSavingsAfterAnnuityStart", checked)}
+                onChange={(checked) => { update("continueSavingsAfterAnnuityStart", checked); }}
               />
             ) : null}
           </div>

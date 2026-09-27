@@ -10,12 +10,13 @@ import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { routeParam } from "../shared/params.js";
+import { requireAuthUser } from "../../middleware/auth.js";
 
 export const marketRouter = express.Router();
 
 // Compat: endpoint kept for scripts/tests and older UI paths; rich screens use /assets or dashboard DTOs.
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
-  const symbol = routeParam(req.params.symbol, "symbol");
+  const symbol = routeParam(req.params["symbol"], "symbol");
   if (config.enableMarketLiveRefresh) {
     const snapshot = marketSnapshotService.readSnapshotBySymbol(symbol);
     if (snapshot) {
@@ -34,7 +35,7 @@ marketRouter.get("/market/features", (_req, res) => {
 });
 
 marketRouter.get("/market/events", (req, res) => {
-  marketEventsService.connect(req.user!.id, res);
+  marketEventsService.connect(requireAuthUser(req).id, res);
 });
 
 marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
@@ -43,13 +44,13 @@ marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
     z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
     z.object({ scope: z.literal("watchlist"), range: z.literal("1d").default("1d"), force: z.boolean().optional() })
   ]).parse(req.body ?? {});
-  const force = req.user!.role === "admin" && body.force === true;
+  const force = requireAuthUser(req).role === "admin" && body.force === true;
 
   const result = body.scope === "watchlist"
-    ? chartRefreshService.requestWatchlistRefresh({ userId: req.user!.id, range: body.range, force })
+    ? chartRefreshService.requestWatchlistRefresh({ userId: requireAuthUser(req).id, range: body.range, force })
     : body.scope === "portfolio"
-      ? chartRefreshService.requestPortfolioRefresh({ userId: req.user!.id, range: body.range, force })
-      : await chartRefreshService.requestAssetRefreshWithInitialization({ userId: req.user!.id, symbol: body.symbol, range: body.range, scope: "asset", force });
+      ? chartRefreshService.requestPortfolioRefresh({ userId: requireAuthUser(req).id, range: body.range, force })
+      : await chartRefreshService.requestAssetRefreshWithInitialization({ userId: requireAuthUser(req).id, symbol: body.symbol, range: body.range, scope: "asset", force });
 
   if (result.status === "not-found") {
     res.status(404).json(result);
@@ -59,10 +60,10 @@ marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
 }));
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
-  const range = parseRange(req.query.range);
-  res.json(await marketDataService.getChartData(routeParam(req.params.symbol, "symbol"), range, intradayDebugClock(range)));
+  const range = parseRange(req.query["range"]);
+  res.json(await marketDataService.getChartData(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range)));
 }));
 
-marketRouter.get("/dividends/:symbol", asyncRoute(async (req, res) => {
-  res.json(dividendsService.readDividends(routeParam(req.params.symbol, "symbol")));
+marketRouter.get("/dividends/:symbol", asyncRoute((req, res) => {
+  res.json(dividendsService.readDividends(routeParam(req.params["symbol"], "symbol")));
 }));

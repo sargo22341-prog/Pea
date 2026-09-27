@@ -1,5 +1,7 @@
 import type { RangeKey } from "@pea/shared";
 import { getLastTradingDay } from "../services/market/calendars/marketCalendar.service.js";
+import { getFinalCloseTime, getFirstOpenTime } from "../services/market/calendars/getMarketCalendar.js";
+import { primitiveText } from "./text.js";
 
 type YahooInterval = "5m" | "1h" | "1d";
 export type ChartDisplayInterval = "5m" | "2h" | "4h" | "1d";
@@ -11,7 +13,7 @@ export interface MarketHours {
 }
 
 export function parseRange(value: unknown): RangeKey {
-  const range = String(value ?? "1m").toLowerCase();
+  const range = primitiveText(value ?? "1m").toLowerCase();
   if (range === "max") return "all";
   if (range === "1a") return "1y";
   if (range === "5a") return "5y";
@@ -24,7 +26,7 @@ export function parseRange(value: unknown): RangeKey {
 
 export function yahooRange(
   range: RangeKey,
-  market: { symbol?: string; exchange?: string; fullExchangeName?: string } = {}
+  market: { symbol?: string; exchange?: string | undefined; fullExchangeName?: string | undefined } = {}
 ): { period1: Date; period2?: Date; interval: YahooInterval; displayInterval: ChartDisplayInterval; tradingDay?: string; marketHours?: MarketHours } {
   const now = new Date();
   const start = new Date(now);
@@ -66,12 +68,12 @@ export function isValidHistoricalDate(value: unknown): value is Date | string | 
 export function buildHistoricalOptions(
   range: RangeKey,
   options: {
-    period1?: Date | string | number | null;
-    period2?: Date | string | number | null;
+    period1?: Date | string | number | null | undefined;
+    period2?: Date | string | number | null | undefined;
     events?: "history" | "dividends";
     symbol?: string;
-    exchange?: string;
-    fullExchangeName?: string;
+    exchange?: string | undefined;
+    fullExchangeName?: string | undefined;
   } = {}
 ) {
   const rangeOptions = yahooRange(range, options);
@@ -79,12 +81,12 @@ export function buildHistoricalOptions(
   const period2 = options.period2 ?? rangeOptions.period2;
   const built: {
     period1: Date | string | number;
-    period2?: Date | string | number;
+    period2?: Date|string|number | undefined;
     interval: YahooInterval;
     displayInterval: ChartDisplayInterval;
-    events?: "history" | "dividends";
-    tradingDay?: string;
-    marketHours?: MarketHours;
+    events?: "history"|"dividends" | undefined;
+    tradingDay?: string | undefined;
+    marketHours?: MarketHours | undefined;
   } = {
     period1: isValidHistoricalDate(period1) ? period1 : rangeOptions.period1,
     interval: rangeOptions.interval,
@@ -116,6 +118,6 @@ function getMarketSession(symbol?: string, exchange?: string, fullExchangeName?:
     period1: session.period1,
     period2,
     tradingDay: session.date,
-    marketHours: { timezone: session.calendar.timezone, openTime: session.calendar.sessions[0].openTime, closeTime: session.calendar.sessions[session.calendar.sessions.length - 1].closeTime }
+    marketHours: { timezone: session.calendar.timezone, openTime: getFirstOpenTime(session.calendar.sessions), closeTime: getFinalCloseTime(session.calendar.sessions) }
   };
 }

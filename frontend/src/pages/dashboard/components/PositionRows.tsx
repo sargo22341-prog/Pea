@@ -61,7 +61,7 @@ function LazyPositionRow({
     if (!target || visibleSoon) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry?.isIntersecting) {
           setVisibleSoon(true);
           observer.disconnect();
         }
@@ -69,7 +69,7 @@ function LazyPositionRow({
       { rootMargin: "360px 0px" }
     );
     observer.observe(target);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); };
   }, [visibleSoon]);
 
   if (!loadedPosition || !visibleSoon) {

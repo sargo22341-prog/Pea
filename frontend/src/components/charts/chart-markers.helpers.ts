@@ -20,7 +20,7 @@ export function useChartMarkerModel({
     right?: number;
     top?: number;
     bottom?: number;
-  };
+  } | undefined;
   range: RangeKey;
   transactionMarkers: PortfolioTransactionMarker[];
   xDomain: [number, number] | [string, string];

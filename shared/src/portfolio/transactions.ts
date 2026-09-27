@@ -3,7 +3,7 @@ import type { PeaEligibilityResult } from "../assets.js";
 
 export interface CreatePositionInput {
   symbol: string;
-  name?: string;
+  name?: string | undefined;
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
@@ -13,7 +13,7 @@ export interface UpdatePositionInput {
   quantity: number;
   averageBuyPrice: number;
   currency: CurrencyCode;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface BoursoramaImportRow {
@@ -28,26 +28,26 @@ export interface BoursoramaImportRow {
   amountVariation: number;
   variation: number;
   symbol: string | null;
-  peaEligibility?: PeaEligibilityResult;
+  peaEligibility?: PeaEligibilityResult | undefined;
   detectedAsset?: {
     symbol: string;
     name: string;
     confidenceScore: number;
-  };
+  } | undefined;
   needsReview: boolean;
   errors: string[];
-  existingPositionId?: number;
-  action?: "replace" | "merge" | "ignore";
+  existingPositionId?: number | undefined;
+  action?: "replace" | "merge" | "ignore" | undefined;
 }
 
 export interface BoursoramaUpdateRow extends BoursoramaImportRow {
-  currentQuantity?: number;
+  currentQuantity?: number | undefined;
   csvQuantity: number;
   quantityDiff: number;
-  currentAverageBuyPrice?: number;
+  currentAverageBuyPrice?: number | undefined;
   csvAverageBuyPrice: number;
   proposedAction: "add" | "update" | "reduce" | "delete" | "unchanged" | "ignore";
-  positionId?: number;
+  positionId?: number | undefined;
 }
 
 export type PortfolioTransactionSource = "csv" | "pdf_avis_opere" | "manual";
@@ -57,18 +57,18 @@ export interface PortfolioTransaction {
   id: string;
   assetId?: string;
   source: PortfolioTransactionSource;
-  sourceFileName?: string;
+  sourceFileName?: string | undefined;
   dateExecution?: string;
   valueDate?: string;
-  assetName?: string;
-  isin?: string;
-  ticker?: string;
+  assetName?: string | undefined;
+  isin?: string | undefined;
+  ticker?: string | undefined;
   type: PortfolioTransactionType;
   quantity: number;
   executedPrice?: number;
-  totalFees?: number;
+  totalFees?: number | undefined;
   currency: CurrencyCode;
-  rawTextSnippet?: string;
+  rawTextSnippet?: string | undefined;
   createdAt: string;
 }
 
@@ -80,17 +80,17 @@ export interface EditablePortfolioTransaction extends PortfolioTransaction {
 
 export interface ParsedAvisOperation {
   id: string;
-  dateExecution?: string;
-  nomValeur?: string;
-  isin?: string;
-  ticker?: string;
-  quantite?: number | string;
+  dateExecution?: string | undefined;
+  nomValeur?: string | undefined;
+  isin?: string | undefined;
+  ticker?: string | undefined;
+  quantite?: number | string | undefined;
   sensOperation: "achat" | "vente" | "inconnu";
-  coursExecute?: number | string;
-  montantTotalFrais?: number | string;
+  coursExecute?: number | string | undefined;
+  montantTotalFrais?: number | string | undefined;
   devise: CurrencyCode;
-  sourceFileName?: string;
-  rawTextSnippet?: string;
+  sourceFileName?: string | undefined;
+  rawTextSnippet?: string | undefined;
   errors?: string[];
   warnings: string[];
   potentialDuplicate?: boolean;

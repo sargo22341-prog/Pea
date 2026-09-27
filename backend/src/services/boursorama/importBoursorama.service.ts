@@ -23,15 +23,15 @@ export interface BoursoramaRow {
   amountVariation: number;
   variation: number;
   symbol: string | null;
-  peaEligibility?: ReturnType<typeof evaluatePeaEligibility>;
+  peaEligibility?: ReturnType<typeof evaluatePeaEligibility> | undefined;
   detectedAsset?: {
     symbol: string;
     name: string;
     confidenceScore: number;
-  };
+  } | undefined;
   needsReview: boolean;
   errors: string[];
-  existingPositionId?: number;
+  existingPositionId?: number | undefined;
 }
 
 const headers = ["name", "isin", "quantity", "buyingPrice", "lastPrice", "intradayVariation", "amount", "amountVariation", "variation"];
@@ -49,7 +49,7 @@ function splitCsvLine(line: string) {
   let current = "";
   let quoted = false;
   for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
+    const char = line.charAt(index);
     if (char === '"') {
       if (quoted && line[index + 1] === '"') {
         current += '"';
@@ -68,7 +68,7 @@ function splitCsvLine(line: string) {
   return cells;
 }
 
-export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "symbol" | "needsReview">> {
+export function parseBoursoramaCsv(content: string): Omit<BoursoramaRow, "symbol" | "needsReview">[] {
   const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
   const start = lines[0]?.toLowerCase().includes("isin") ? 1 : 0;
   const parsed = lines.slice(start).map((line, index) => {
@@ -79,19 +79,19 @@ export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "
     headers.forEach((header, cellIndex) => {
       row[header] = cells[cellIndex] ?? "";
     });
-    if (!row.name) errors.push("Nom manquant.");
-    if (!row.isin) errors.push("ISIN manquant.");
+    if (!row["name"]) errors.push("Nom manquant.");
+    if (!row["isin"]) errors.push("ISIN manquant.");
     return {
       line: index + start + 1,
-      name: String(row.name),
-      isin: String(row.isin),
-      quantity: normalizeFrenchNumber(String(row.quantity)),
-      buyingPrice: normalizeFrenchNumber(String(row.buyingPrice)),
-      lastPrice: normalizeFrenchNumber(String(row.lastPrice)),
-      intradayVariation: normalizeFrenchNumber(String(row.intradayVariation)),
-      amount: normalizeFrenchNumber(String(row.amount)),
-      amountVariation: normalizeFrenchNumber(String(row.amountVariation)),
-      variation: normalizeFrenchNumber(String(row.variation)),
+      name: String(row["name"]),
+      isin: String(row["isin"]),
+      quantity: normalizeFrenchNumber(String(row["quantity"])),
+      buyingPrice: normalizeFrenchNumber(String(row["buyingPrice"])),
+      lastPrice: normalizeFrenchNumber(String(row["lastPrice"])),
+      intradayVariation: normalizeFrenchNumber(String(row["intradayVariation"])),
+      amount: normalizeFrenchNumber(String(row["amount"])),
+      amountVariation: normalizeFrenchNumber(String(row["amountVariation"])),
+      variation: normalizeFrenchNumber(String(row["variation"])),
       errors
     };
   });
@@ -101,7 +101,7 @@ export function parseBoursoramaCsv(content: string): Array<Omit<BoursoramaRow, "
 
 export async function resolveYahooSymbolFromIsin(isin: string, name: string) {
   const byIsin = await findBestCandidate(isin);
-  if (byIsin) return byIsin;
+  if (byIsin.symbol) return byIsin;
   return findBestCandidate(name);
 }
 
@@ -113,14 +113,14 @@ async function findBestCandidate(query: string): Promise<{ symbol: string | null
   return {
     symbol: best.symbol,
     asset: best,
-    needsReview: candidates.length > 1 || !["eligible", "likely_eligible"].includes(best.peaEligibility?.status ?? "unknown")
+    needsReview: candidates.length > 1 || !["eligible", "likely_eligible"].includes(best.peaEligibility.status)
   };
 }
 
 async function assertYahooSymbolExists(symbol: string) {
   const key = symbol.trim().toUpperCase();
   const result = await marketDataGateway.readQuoteWithCache(key);
-  const foundSymbol = result.data.symbol?.toUpperCase();
+  const foundSymbol = result.data.symbol.toUpperCase();
   if (!foundSymbol || foundSymbol !== key) {
     throw new Error(`Ticker Yahoo introuvable: ${key}.`);
   }
@@ -152,10 +152,10 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
   }
   return rows;
 }
-export async function confirmBoursoramaImport(rows: Array<BoursoramaRow & { action?: "replace" | "merge" | "ignore" }>) {
+export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: "replace" | "merge" | "ignore" | undefined })[]) {
   const imported: string[] = [];
   const skipped: string[] = [];
-  const errors: Array<{ line: number; message: string }> = [];
+  const errors: { line: number; message: string }[] = [];
   if (rows.length > maxImportRows) {
     return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
   }
@@ -197,8 +197,8 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   const rows: BoursoramaUpdateRow[] = [];
   for (const row of previewRows) {
     const existing = row.symbol ? portfolioRepository.findPositionBySymbol(row.symbol, currentUserId()) : undefined;
-    const currentQuantity = existing ? Number(existing.quantity) : undefined;
-    const currentAverageBuyPrice = existing ? Number(existing.average_buy_price) : undefined;
+    const currentQuantity = existing ? existing.quantity : undefined;
+    const currentAverageBuyPrice = existing ? existing.average_buy_price : undefined;
     const quantityDiff = row.quantity - (currentQuantity ?? 0);
     const proposedAction =
       !row.symbol || row.errors.length
@@ -223,11 +223,11 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   }
   const existingRows = portfolioRepository.listPositions(currentUserId());
   for (const existing of existingRows) {
-    const symbol = String(existing.symbol).toUpperCase();
+    const symbol = existing.symbol.toUpperCase();
     if (csvSymbols.has(symbol)) continue;
     rows.push({
       line: 0,
-      name: String(existing.name),
+      name: existing.name,
       isin: "",
       quantity: 0,
       buyingPrice: 0,
@@ -239,14 +239,14 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
       symbol,
       needsReview: true,
       errors: [],
-      existingPositionId: Number(existing.id),
-      currentQuantity: Number(existing.quantity),
+      existingPositionId: existing.id,
+      currentQuantity: existing.quantity,
       csvQuantity: 0,
-      quantityDiff: -Number(existing.quantity),
-      currentAverageBuyPrice: Number(existing.average_buy_price),
+      quantityDiff: -existing.quantity,
+      currentAverageBuyPrice: existing.average_buy_price,
       csvAverageBuyPrice: 0,
       proposedAction: "delete",
-      positionId: Number(existing.id)
+      positionId: existing.id
     });
   }
   return rows;
@@ -254,7 +254,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
 export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
   const imported: string[] = [];
   const skipped: string[] = [];
-  const errors: Array<{ line: number; message: string }> = [];
+  const errors: { line: number; message: string }[] = [];
   if (rows.length > maxImportRows) {
     return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
   }

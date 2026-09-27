@@ -41,7 +41,7 @@ test("user creation only maps username uniqueness violations to 409", () => {
         server.close();
       }
     });
-  `);
+  `) as { duplicateStatus: number; storageFailureStatus: number; storageFailureBody: { message: string } };
 
   assert.equal(result.duplicateStatus, 409);
   assert.equal(result.storageFailureStatus, 500);

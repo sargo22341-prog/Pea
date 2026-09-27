@@ -38,20 +38,20 @@ function mapScreenerQuotes(rawQuotes: unknown): TopMover[] {
   return rawQuotes
     .map((quote): TopMover | null => {
       const row = quote as Record<string, unknown>;
-      const symbol = optionalString(row.symbol);
-      const price = finiteNumber(row.regularMarketPrice);
-      const changePercent = finiteNumber(row.regularMarketChangePercent);
-      const change = finiteNumber(row.regularMarketChange);
+      const symbol = optionalString(row["symbol"]);
+      const price = finiteNumber(row["regularMarketPrice"]);
+      const changePercent = finiteNumber(row["regularMarketChangePercent"]);
+      const change = finiteNumber(row["regularMarketChange"]);
 
       if (!symbol || price === undefined || changePercent === undefined || change === undefined) return null;
 
       return {
         symbol,
-        shortName: optionalString(row.shortName) ?? optionalString(row.displayName) ?? optionalString(row.longName) ?? symbol,
+        shortName: optionalString(row["shortName"]) ?? optionalString(row["displayName"]) ?? optionalString(row["longName"]) ?? symbol,
         price,
         changePercent,
         change,
-        currency: optionalString(row.currency)
+        currency: optionalString(row["currency"])
       };
     })
     .filter((item): item is TopMover => Boolean(item))
@@ -76,8 +76,8 @@ async function fetchTrendingFr(): Promise<TopMover[]> {
     const trending = await retryTemporary("trendingSymbols:FR", () =>
       yahooClient.trendingSymbols("FR", { count: LIST_COUNT, lang: "fr-FR", region: "FR" }, { validateResult: false })
     );
-    const symbols = Array.isArray((trending as { quotes?: unknown })?.quotes)
-      ? (trending as { quotes: Array<{ symbol?: unknown }> }).quotes
+    const symbols = Array.isArray((trending as { quotes?: unknown }).quotes)
+      ? (trending as { quotes: { symbol?: unknown }[] }).quotes
           .map((quote) => optionalString(quote.symbol))
           .filter((symbol): symbol is string => Boolean(symbol))
           .slice(0, LIST_COUNT)

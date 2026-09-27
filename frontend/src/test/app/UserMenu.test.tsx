@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { Shell } from "../../components/common/Shell";
 import { SettingsPage } from "../../pages/settings/SettingsPage";
+import { first } from "../utils/first";
 
 vi.mock("../../components/common/ServerSettings", () => ({
   ServerSettingsSection: () => <section>Server settings</section>
@@ -66,7 +67,7 @@ describe("UserMenu", () => {
     const user = userEvent.setup();
     renderShell(baseUser);
 
-    await user.click(screen.getAllByRole("button", { name: "Menu utilisateur" })[0]);
+    await user.click(first(screen.getAllByRole("button", { name: "Menu utilisateur" })));
 
     expect(screen.getByRole("menuitem", { name: /objectif/i })).toHaveAttribute("href", "/objectives");
     expect(screen.getByRole("menuitem", { name: /parametres/i })).toHaveAttribute("href", "/settings");
@@ -76,13 +77,13 @@ describe("UserMenu", () => {
     const user = userEvent.setup();
     const { unmount } = renderShell({ ...baseUser, role: "user" });
 
-    await user.click(screen.getAllByRole("button", { name: "Menu utilisateur" })[0]);
+    await user.click(first(screen.getAllByRole("button", { name: "Menu utilisateur" })));
     expect(screen.queryByRole("menuitem", { name: /administration serveur/i })).not.toBeInTheDocument();
 
     unmount();
     renderShell({ ...baseUser, role: "admin" });
 
-    await user.click(screen.getAllByRole("button", { name: "Menu utilisateur" })[0]);
+    await user.click(first(screen.getAllByRole("button", { name: "Menu utilisateur" })));
     expect(screen.getByRole("menuitem", { name: /administration serveur/i })).toHaveAttribute("href", "/admin");
   });
 

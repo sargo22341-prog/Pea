@@ -8,3 +8,6 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 <!-- notes -->
 
 - update Package
+- Import Boursorama : l'ISIN reconnu par Yahoo est désormais prioritaire sur la recherche par nom de l'actif.
+- Qualité : contrôles TypeScript et ESLint renforcés au maximum sur tout le projet, sans aucun avertissement restant.
+- Graphiques et écrans d'administration fiabilisés (couleurs des graphiques, chargements et rafraîchissements des données).

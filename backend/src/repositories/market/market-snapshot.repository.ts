@@ -118,7 +118,7 @@ export class MarketSnapshotRepository {
 
   lastCheckedAt(assetId: number): string | undefined {
     const row = db.prepare("SELECT last_checked_at FROM asset_quote_snapshot WHERE asset_id = ?").get(assetId) as { last_checked_at?: string | null } | undefined;
-    return row?.last_checked_at ? String(row.last_checked_at) : undefined;
+    return row?.last_checked_at ? row.last_checked_at : undefined;
   }
 
   lastPrice(assetId: number): number | undefined {

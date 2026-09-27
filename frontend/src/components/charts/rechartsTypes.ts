@@ -15,7 +15,7 @@ export interface ChartTooltipEntry {
   color?: string;
 }
 
-export type ChartTooltipPayload = ReadonlyArray<ChartTooltipEntry>;
+export type ChartTooltipPayload = readonly ChartTooltipEntry[];
 
 /**
  * Type guard : vérifie qu'une valeur Recharts (`props.payload` ou cast unknown) est bien un

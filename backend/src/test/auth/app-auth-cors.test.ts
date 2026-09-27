@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runBackendScript } from "../helpers/backend-script.js";
 
-type CorsHeaders = {
+interface CorsHeaders {
   allowCredentials: string | null;
   allowOrigin: string | null;
   status: number;
-};
+}
 
 function requestHealthWithOrigin(nodeEnv: string, origin: string) {
   const script = `
@@ -53,7 +53,7 @@ test("API health is available under /api for reverse proxies and mobile setup", 
         server.close();
       }
     });
-  `);
+  `) as { status: number; body: { ok: boolean } };
 
   assert.equal(result.status, 200);
   assert.equal(result.body.ok, true);
@@ -146,7 +146,7 @@ test("production login accepts Android WebView origin when configured", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } }) as { setupStatus: number; loginStatus: number; allowOrigin: string; body: { username: string } };
 
   assert.equal(result.setupStatus, 201);
   assert.equal(result.loginStatus, 200);
@@ -176,7 +176,7 @@ test("production mutating requests accept configured Capacitor origin", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { CORS_ORIGINS: "capacitor://localhost" } });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "capacitor://localhost" } }) as { status: number; allowOrigin: string; body: { username: string } };
 
   assert.equal(result.status, 201);
   assert.equal(result.allowOrigin, "capacitor://localhost");
@@ -201,7 +201,7 @@ test("production mutating requests reject unconfigured origins", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } }) as { status: number };
 
   assert.equal(result.status, 403);
 });
@@ -224,7 +224,7 @@ test("production mutating requests reject missing Origin", () => {
         server.close();
       }
     });
-  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } });
+  `, { nodeEnv: "production", env: { CORS_ORIGINS: "https://localhost" } }) as { status: number };
 
   assert.equal(result.status, 403);
 });

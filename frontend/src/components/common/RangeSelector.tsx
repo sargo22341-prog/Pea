@@ -10,7 +10,7 @@ export function RangeSelector({ value, onChange }: { value: RangeKey; onChange: 
       <span className="sr-only">Range du graphique</span>
       <select
         className="h-9 w-full appearance-none rounded-md border border-line bg-panel2 py-1 pl-3 pr-8 text-sm font-semibold text-slate-100 outline-none transition focus:border-sky"
-        onChange={(event) => onChange(event.target.value as RangeKey)}
+        onChange={(event) => { onChange(event.target.value as RangeKey); }}
         value={value}
       >
         {ranges.map((range) => (

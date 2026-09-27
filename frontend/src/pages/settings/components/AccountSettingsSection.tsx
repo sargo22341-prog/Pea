@@ -66,27 +66,27 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
         <AvatarCropModal
           src={cropSrc}
           onConfirm={(blob) => void handleCropConfirm(blob)}
-          onCancel={() => setCropSrc(null)}
+          onCancel={() => { setCropSrc(null); }}
         />
       )}
       <Collapsible onToggle={onToggle} open={open} title={t("account.title", { ns: "settings" })}>
-        <form className="space-y-4" onSubmit={submit}>
+        <form className="space-y-4" onSubmit={(event) => { void submit(event); }}>
           <div className="grid gap-3 md:grid-cols-2">
             <label>
               <span className="muted mb-1 block">{t("fields.username", { ns: "common" })}</span>
-              <input className="input" onChange={(event) => setUsername(event.target.value)} placeholder={user?.username} />
+              <input className="input" onChange={(event) => { setUsername(event.target.value); }} placeholder={user?.username} />
             </label>
             <label>
               <span className="muted mb-1 block">{t("account.currentPassword", { ns: "settings" })}</span>
-              <input className="input" onChange={(event) => setCurrentPassword(event.target.value)} type="password" value={currentPassword} />
+              <input className="input" onChange={(event) => { setCurrentPassword(event.target.value); }} type="password" value={currentPassword} />
             </label>
             <label>
               <span className="muted mb-1 block">{t("account.newPassword", { ns: "settings" })}</span>
-              <input className="input" onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
+              <input className="input" onChange={(event) => { setPassword(event.target.value); }} type="password" value={password} />
             </label>
             <label>
               <span className="muted mb-1 block">{t("common.confirmation", { ns: "common" })}</span>
-              <input className="input" onChange={(event) => setConfirmPassword(event.target.value)} type="password" value={confirmPassword} />
+              <input className="input" onChange={(event) => { setConfirmPassword(event.target.value); }} type="password" value={confirmPassword} />
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
               ) : !shouldLoadProfileIcon || !profileIconUrl ? (
                 <span>{initial}</span>
               ) : (
-                <img alt="" className="h-full w-full object-cover" onError={() => setProfileFailed(true)} src={profileIconUrl} />
+                <img alt="" className="h-full w-full object-cover" onError={() => { setProfileFailed(true); }} src={profileIconUrl} />
               )}
               <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                 <Camera className="text-white" size={20} />
@@ -131,7 +131,7 @@ export function AccountSettingsSection({ open, onToggle }: { open?: boolean; onT
             )}
           </div>
 
-          <input accept="image/png,image/jpeg" className="hidden" onChange={(event) => handleFileChange(event.target.files?.[0])} ref={fileInputRef} type="file" />
+          <input accept="image/png,image/jpeg" className="hidden" onChange={(event) => { handleFileChange(event.target.files?.[0]); }} ref={fileInputRef} type="file" />
         </div>
 
         {toast && <Toast tone={toast.tone}>{toast.text}</Toast>}

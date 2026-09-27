@@ -61,7 +61,7 @@ export class StoredRangeRebuilderService {
         const session = getLastTradingDay(asset.symbol, asset.exchange, closeDate);
         candleRepository.deleteAllRangeWindow(asset.id, session.period1.toISOString(), session.period2.toISOString());
 
-        const finalClosePrice = Number(resolvedClose.closePrice);
+        const finalClosePrice = resolvedClose.closePrice;
         updated += candleRepository.upsertCandles([
           {
             assetId: asset.id,

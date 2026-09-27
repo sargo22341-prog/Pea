@@ -30,7 +30,7 @@ export class ObjectivePortfolioService {
     const firstInvestmentTime = sorted
       .map((transaction) => {
         const date = new Date(transaction.traded_at);
-        const amount = Number(transaction.quantity) * Number(transaction.price) + Number(transaction.total_fees ?? 0);
+        const amount = transaction.quantity * transaction.price + (transaction.total_fees ?? 0);
         const signed = transaction.type === "sell" ? -amount : amount;
         return signed > 0 && Number.isFinite(date.getTime()) ? dayStartTime(date) : undefined;
       })
@@ -46,14 +46,14 @@ export class ObjectivePortfolioService {
         return {
           date: point.date,
           age: currentAge === undefined || !Number.isFinite(date.getTime()) ? 0 : Math.max(0, currentAge - (now.getTime() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000)),
-          real: Math.max(0, Number(point.value) || 0)
+          real: Math.max(0, point.value || 0)
         };
       });
 
     for (const transaction of sorted) {
       const date = new Date(transaction.traded_at);
       if (!Number.isFinite(date.getTime())) continue;
-      const amount = Number(transaction.quantity) * Number(transaction.price) + Number(transaction.total_fees ?? 0);
+      const amount = transaction.quantity * transaction.price + (transaction.total_fees ?? 0);
       const signed = transaction.type === "sell" ? -amount : amount;
       monthly.set(monthKey(date), (monthly.get(monthKey(date)) ?? 0) + signed);
     }

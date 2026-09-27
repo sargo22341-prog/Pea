@@ -283,7 +283,7 @@ export function parseAvisOperesText(text: string, fileName?: string): ParsedAvis
 /**
  * Additionne uniquement les montants définis et retourne `undefined` si aucun montant n’est présent.
  */
-function sumFees(...values: Array<number | undefined>) {
+function sumFees(...values: (number | undefined)[]) {
   const present = values.filter((value): value is number => value !== undefined);
   return present.length ? present.reduce((sum, value) => sum + value, 0) : undefined;
 }

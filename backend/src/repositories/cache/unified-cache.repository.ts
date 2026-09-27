@@ -92,8 +92,8 @@ export class UnifiedCacheRepository {
   }
 
   /** Retourne le nombre d'entrées par scope, pour observabilité/admin. */
-  countByScope(): Array<{ scope: CacheScope; count: number }> {
-    return db.prepare("SELECT scope, COUNT(*) AS count FROM cache_entries GROUP BY scope").all() as Array<{ scope: CacheScope; count: number }>;
+  countByScope(): { scope: CacheScope; count: number }[] {
+    return db.prepare("SELECT scope, COUNT(*) AS count FROM cache_entries GROUP BY scope").all() as { scope: CacheScope; count: number }[];
   }
 }
 

@@ -33,7 +33,7 @@ export function PortfolioEvolutionHeader({
             {comparisonCount > 0 ? comparisonCount : t("actions.compare", { defaultValue: "Comparer", ns: "common" })}
           </button>
         )}
-        <RangeSelector onChange={(nextRange) => setRange("user-click", nextRange)} value={range} />
+        <RangeSelector onChange={setRange} value={range} />
       </div>
     </div>
   );

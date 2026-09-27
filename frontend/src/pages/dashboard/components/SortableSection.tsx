@@ -3,11 +3,11 @@ import { ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-export type SortOption<TKey extends string> = {
+export interface SortOption<TKey extends string> {
   direction: SortDirection;
   key: TKey;
   label: string;
-};
+}
 
 export function SortableSection<TKey extends string>({
   activeDirection,
@@ -25,7 +25,7 @@ export function SortableSection<TKey extends string>({
   as?: "div" | "section";
   children: ReactNode;
   className?: string;
-  options: Array<SortOption<TKey>>;
+  options: SortOption<TKey>[];
   title: ReactNode;
   titleClassName?: string;
   onSortChange: (key: TKey, direction: SortDirection) => void;
@@ -43,7 +43,7 @@ export function SortableSection<TKey extends string>({
       if (!sortMenuRef.current?.contains(event.target as Node)) setSortOpen(false);
     }
     document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    return () => { document.removeEventListener("mousedown", closeOnOutsideClick); };
   }, [sortOpen]);
 
   function updateSort(option: SortOption<TKey>) {
@@ -56,7 +56,7 @@ export function SortableSection<TKey extends string>({
       <div className="flex items-center justify-between gap-3 border-b border-line p-4">
         <div className={titleClassName}>
           {title}
-          <p className="mt-1 truncate text-xs text-slate-400">{t("sort.active", { label: activeSort.label, ns: "dashboard" })}</p>
+          {activeSort ? <p className="mt-1 truncate text-xs text-slate-400">{t("sort.active", { label: activeSort.label, ns: "dashboard" })}</p> : null}
         </div>
 
         <div className="relative shrink-0" ref={sortMenuRef}>
@@ -64,7 +64,7 @@ export function SortableSection<TKey extends string>({
             aria-expanded={sortOpen}
             aria-haspopup="menu"
             className="btn-ghost px-2.5 sm:px-3"
-            onClick={() => setSortOpen((current) => !current)}
+            onClick={() => { setSortOpen((current) => !current); }}
             title={activeDirection === "asc" ? t("sort.ascending", { ns: "dashboard" }) : t("sort.descending", { ns: "dashboard" })}
             type="button"
           >
@@ -80,7 +80,7 @@ export function SortableSection<TKey extends string>({
                   <button
                     className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-panel2 ${active ? "bg-sky/15 text-sky" : "text-slate-100"}`}
                     key={`${option.key}:${option.direction}`}
-                    onClick={() => updateSort(option)}
+                    onClick={() => { updateSort(option); }}
                     role="menuitemradio"
                     type="button"
                   >

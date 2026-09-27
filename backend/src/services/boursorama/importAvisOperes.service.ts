@@ -76,12 +76,12 @@ export function detectPotentialDuplicateTransaction(
     ""
   ).toUpperCase();
 
-  const parsedAssetId = parsedTransaction.resolvedAsset?.symbol?.toUpperCase();
+  const parsedAssetId = parsedTransaction.resolvedAsset?.symbol.toUpperCase();
 
   return existingTransactions.some((transaction) => {
     const sameDate = transaction.dateExecution?.slice(0, 10) === parsedDate;
     const sameQuantity =
-      Math.abs(Number(transaction.quantity) - Number(parsedTransaction.quantite)) < 0.000001;
+      Math.abs(transaction.quantity - Number(parsedTransaction.quantite)) < 0.000001;
 
     const ticker = (transaction.ticker ?? transaction.assetId ?? "").toUpperCase();
 
@@ -185,8 +185,8 @@ function findExistingPosition(operation: ParsedAvisOperation) {
   const rows = portfolioRepository.listPositions(currentUserId());
 
   for (const row of rows) {
-    const symbol = String(row.symbol).toUpperCase();
-    const name = String(row.name).toUpperCase();
+    const symbol = row.symbol.toUpperCase();
+    const name = row.name.toUpperCase();
 
     if (
       candidates.some(
@@ -222,7 +222,7 @@ function bestCandidate(items: SearchResult[]) {
   if (!best) return undefined;
 
   const eligible = ["eligible", "likely_eligible"].includes(
-    best.peaEligibility?.status ?? "unknown"
+    best.peaEligibility.status
   );
 
   return {
@@ -242,7 +242,7 @@ function bestCandidate(items: SearchResult[]) {
 export async function confirmAvisOperesImport(rows: unknown[]) {
   const imported: string[] = [];
   const skipped: string[] = [];
-  const errors: Array<{ line: number; message: string }> = [];
+  const errors: { line: number; message: string }[] = [];
 
   for (let index = 0; index < rows.length; index += 1) {
     try {

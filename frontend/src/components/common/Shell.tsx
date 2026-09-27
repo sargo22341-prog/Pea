@@ -27,21 +27,23 @@ export function Shell({ user }: { user: User }) {
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }), [user.assetNewsEnabled]);
 
   useEffect(() => {
-    const onProfileIconUpdated = (event: Event) => {
-      const detail = event instanceof CustomEvent ? event.detail : undefined;
-      const nextHasProfileIcon = typeof detail === "object" && detail !== null && "hasProfileIcon" in detail ? Boolean(detail.hasProfileIcon) : true;
+    const onProfileIconUpdated = (event: WindowEventMap["profile-icon-updated"]) => {
+      const { cacheBust, hasProfileIcon: nextHasProfileIcon } = event.detail;
       setHasProfileIcon(nextHasProfileIcon);
       setProfileFailed(!nextHasProfileIcon);
-      setProfileCacheBust(typeof detail === "object" && detail !== null && typeof detail.cacheBust === "number" ? detail.cacheBust : Date.now());
+      setProfileCacheBust(cacheBust);
     };
     window.addEventListener("profile-icon-updated", onProfileIconUpdated);
-    return () => window.removeEventListener("profile-icon-updated", onProfileIconUpdated);
+    return () => { window.removeEventListener("profile-icon-updated", onProfileIconUpdated); };
   }, []);
 
-  useEffect(() => {
+  // Resynchronise l'icone quand le profil charge change (ajustement pendant le rendu, sans effet).
+  const [syncedHasProfileIcon, setSyncedHasProfileIcon] = useState(user.hasProfileIcon);
+  if (syncedHasProfileIcon !== user.hasProfileIcon) {
+    setSyncedHasProfileIcon(user.hasProfileIcon);
     setHasProfileIcon(Boolean(user.hasProfileIcon));
     setProfileFailed(!user.hasProfileIcon);
-  }, [user.hasProfileIcon]);
+  }
 
   return (
     <div className="min-h-screen min-w-0 overflow-x-hidden pb-20 lg:pb-0">
@@ -57,7 +59,7 @@ export function Shell({ user }: { user: User }) {
           <div className="lg:hidden">
             <UserMenu
               compact
-              onProfileIconError={() => setProfileFailed(true)}
+              onProfileIconError={() => { setProfileFailed(true); }}
               profileIconUrl={profileIconUrl}
               shouldLoadProfileIcon={shouldLoadProfileIcon}
               user={user}
@@ -75,7 +77,7 @@ export function Shell({ user }: { user: User }) {
               </NavLink>
             ))}
             <UserMenu
-              onProfileIconError={() => setProfileFailed(true)}
+              onProfileIconError={() => { setProfileFailed(true); }}
               profileIconUrl={profileIconUrl}
               shouldLoadProfileIcon={shouldLoadProfileIcon}
               user={user}

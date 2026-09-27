@@ -65,7 +65,7 @@ async function tickerNewsByLanguage(symbol: string, language: NewsLanguage): Pro
       return retryTemporary(`news:${key}:${language}`, () => yahooSearch(key, options));
     });
 
-    const primaryArticles = normalizeNewsArticles(result?.news);
+    const primaryArticles = normalizeNewsArticles(result.news);
     let payload = filterNewsByExactTicker(key, primaryArticles);
     logger.debug("news", "filtered", { symbol: key, beforeCount: primaryArticles.length, afterCount: payload.length });
 
@@ -76,7 +76,7 @@ async function tickerNewsByLanguage(symbol: string, language: NewsLanguage): Pro
           logger.debug("news", "yahoo-call", { symbol: key, language, query: companyName, options });
           return retryTemporary(`news:${key}:${language}:${companyName}`, () => yahooSearch(companyName, options));
         });
-        const fallbackArticles = normalizeNewsArticles(fallbackResult?.news);
+        const fallbackArticles = normalizeNewsArticles(fallbackResult.news);
         payload = filterNewsByFallbackKeywords(key, companyName, fallbackArticles);
         logger.debug("news", "filtered", { symbol: key, beforeCount: fallbackArticles.length, afterCount: payload.length });
       }
@@ -113,7 +113,7 @@ async function companyNewsByLanguage(symbol: string, companyName: string, langua
       return retryTemporary(`news:company:${key}:${language}:${query}`, () => yahooSearch(query, options));
     });
 
-    const articles = normalizeNewsArticles(result?.news);
+    const articles = normalizeNewsArticles(result.news);
     const payload = filterNewsByFallbackKeywords(key, query, articles);
     logger.debug("news", "company filtered", { symbol: key, language, query, beforeCount: articles.length, afterCount: payload.length });
     writeNewsCache(cacheKey, payload);
@@ -143,7 +143,7 @@ async function globalNewsByLanguage(language: NewsLanguage): Promise<MarketDataR
       }
       return results;
     });
-    const payload = sortNewsByDateDesc(dedupeNewsArticles(result.flatMap((item) => normalizeNewsArticles(item?.news))));
+    const payload = sortNewsByDateDesc(dedupeNewsArticles(result.flatMap((item) => normalizeNewsArticles(item.news))));
     if (payload.length) writeNewsCache(cacheKey, payload);
     return { data: payload, stale: false };
   } catch (error) {

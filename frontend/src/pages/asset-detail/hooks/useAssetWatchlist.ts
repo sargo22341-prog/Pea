@@ -1,5 +1,5 @@
 import type { Quote } from "@pea/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { i18n } from "../../../i18n";
 import { api } from "../../../lib/api";
 
@@ -8,15 +8,17 @@ export function useAssetWatchlist({
   onError,
   quote
 }: {
-  initialWatchlisted?: boolean;
+  initialWatchlisted?: boolean | undefined;
   onError: (message: string) => void;
-  quote?: Pick<Quote, "symbol" | "name" | "exchange" | "currency">;
+  quote?: Pick<Quote, "symbol" | "name" | "exchange" | "currency"> | undefined;
 }) {
-  const [watchlisted, setWatchlisted] = useState(false);
-
-  useEffect(() => {
+  const [watchlisted, setWatchlisted] = useState(Boolean(initialWatchlisted));
+  const [syncedInitialWatchlisted, setSyncedInitialWatchlisted] = useState(initialWatchlisted);
+  // Nouvelle valeur serveur : elle remplace l'etat local (ajustement pendant le rendu, sans effet).
+  if (syncedInitialWatchlisted !== initialWatchlisted) {
+    setSyncedInitialWatchlisted(initialWatchlisted);
     setWatchlisted(Boolean(initialWatchlisted));
-  }, [initialWatchlisted]);
+  }
 
   async function toggleWatchlist() {
     if (!quote) return;

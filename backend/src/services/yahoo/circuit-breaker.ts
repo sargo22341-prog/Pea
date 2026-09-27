@@ -117,7 +117,7 @@ export class CircuitBreaker {
     } else if (state === "half-open") {
       this.consecutiveSuccesses = 0;
       logger.warn("market-data", "Yahoo circuit breaker half-open", { breaker: this.name, previous });
-    } else if (state === "closed") {
+    } else {
       this.consecutiveFailures = 0;
       this.consecutiveSuccesses = 0;
       this.openedAt = 0;

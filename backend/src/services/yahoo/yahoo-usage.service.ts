@@ -17,12 +17,12 @@ const fundamentalsModules = [
 export interface YahooUsageMetadata {
   method?: string;
   modules?: string[];
-  ticker?: string;
+  ticker?: string | undefined;
   tickers?: string[];
   tickerCount?: number;
   internalSource?: string;
-  range?: string;
-  interval?: string;
+  range?: string | undefined;
+  interval?: string | undefined;
 }
 
 function uniqueTickers(value: string) {
@@ -89,10 +89,10 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
     return { method: "search", ticker: /^[A-Z0-9._-]+$/.test(parts[1] ?? "") ? parts[1] : undefined, modules: ["news"], internalSource: sourceFor("search", key) };
   }
   if (prefix === "screener") {
-    return { method: "screener", modules: [parts[1]].filter(Boolean), internalSource: sourceFor("screener", key) };
+    return { method: "screener", modules: parts[1] ? [parts[1]] : [], internalSource: sourceFor("screener", key) };
   }
   if (prefix === "trendingSymbols") {
-    return { method: "trendingSymbols", modules: [parts[1]].filter(Boolean), internalSource: sourceFor("trendingSymbols", key) };
+    return { method: "trendingSymbols", modules: parts[1] ? [parts[1]] : [], internalSource: sourceFor("trendingSymbols", key) };
   }
   if (prefix === "icon") {
     return { method: "quoteSummary", ticker: parts[1], modules: ["assetProfile"], internalSource: sourceFor("quoteSummary", key) };
@@ -101,7 +101,7 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
   return { method: prefix || "unknown", internalSource: sourceFor(prefix, key) };
 }
 
-export function recordYahooUsage(key: string, input: Omit<YahooUsageLogInput, "method" | "durationMs" | "success"> & { durationMs: number; success: boolean; metadata?: YahooUsageMetadata }) {
+export function recordYahooUsage(key: string, input: Omit<YahooUsageLogInput, "method" | "durationMs" | "success"> & { durationMs: number; success: boolean; metadata?: YahooUsageMetadata | undefined }) {
   const inferred = inferYahooUsageMetadata(key);
   const metadata = { ...inferred, ...input.metadata };
   try {

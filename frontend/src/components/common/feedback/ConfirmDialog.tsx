@@ -30,7 +30,7 @@ export function ConfirmDialog({
     }
 
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    return () => { window.removeEventListener("keydown", closeOnEscape); };
   }, [onCancel]);
 
   return createPortal(
@@ -40,7 +40,7 @@ export function ConfirmDialog({
         aria-labelledby="confirm-dialog-title"
         aria-modal="true"
         className={`w-full max-w-md overflow-hidden rounded-lg border border-line bg-ink/95 shadow-glow backdrop-blur ${MOTION.dialog}`}
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) => { event.stopPropagation(); }}
         role="dialog"
       >
         <div className="flex items-start gap-3 border-b border-line p-4">

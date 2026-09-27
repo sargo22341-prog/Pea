@@ -86,7 +86,7 @@ describe("EditPositionModal numeric inputs", () => {
     await user.type(price, "123.45");
     await user.click(screen.getByRole("button", { name: /sauver/i }));
 
-    await waitFor(() => expect(api.updatePositionTransaction).toHaveBeenCalled());
+    await waitFor(() => { expect(api.updatePositionTransaction).toHaveBeenCalled(); });
     expect(api.updatePositionTransaction).toHaveBeenCalledWith(1, "tx-1", expect.objectContaining({
       quantity: 2,
       price: 123.45,
@@ -119,7 +119,8 @@ describe("EditPositionModal API outcomes", () => {
     await screen.findByDisplayValue("101");
 
     await user.click(screen.getByRole("button", { name: "Supprimer" }));
-    const [, confirm] = screen.getAllByRole("button", { name: "Supprimer" });
+    const confirm = screen.getAllByRole("button", { name: "Supprimer" }).at(1);
+    if (!confirm) throw new Error("Expected a confirmation button");
     await user.click(confirm);
 
     expect(await screen.findByText("Cette suppression rendrait la quantite detenue negative.")).toBeInTheDocument();
@@ -140,10 +141,10 @@ describe("EditPositionModal API outcomes", () => {
     await user.type(price, "112");
     await user.click(screen.getByRole("button", { name: /sauver/i }));
 
-    await waitFor(() => expect(api.updatePositionTransaction).toHaveBeenCalledWith(1, "tx-2", expect.objectContaining({
+    await waitFor(() => { expect(api.updatePositionTransaction).toHaveBeenCalledWith(1, "tx-2", expect.objectContaining({
       type: "sell",
       quantity: 8,
       price: 112
-    })));
+    })); });
   });
 });

@@ -17,10 +17,10 @@ export function AssetPositionSummary({
 }: {
   position: PositionWithMarket;
   currentPrice: number;
-  firstPriceOfRange?: number;
-  rangePerformance?: PositionRangePerformance;
+  firstPriceOfRange?: number | undefined;
+  rangePerformance?: PositionRangePerformance | undefined;
   range: RangeKey;
-  stats?: PositionTransactionStats;
+  stats?: PositionTransactionStats | undefined;
 }) {
   const { t } = useTranslation(["common", "asset", "dashboard"]);
   const prive = usePrivacy();

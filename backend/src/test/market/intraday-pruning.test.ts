@@ -1,27 +1,9 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
-
-function lancerScriptBackend(script: string) {
-  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), "pea-test-"));
-  const cheminSqlite = path.join(dossierTemp, "test.sqlite");
-  const resultat = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
-    cwd: path.resolve(import.meta.dirname, "..", ".."),
-    encoding: "utf8",
-    env: { ...process.env, NODE_ENV: "development", PEA_TEST_SQLITE_PATH: cheminSqlite }
-  });
-  fs.rmSync(dossierTemp, { recursive: true, force: true });
-  assert.equal(resultat.status, 0, resultat.stderr);
-  const lignResultat = resultat.stdout.split(/\r?\n/).find((l) => l.trim().startsWith("__RESULT__"));
-  assert.ok(lignResultat, resultat.stdout);
-  return JSON.parse(lignResultat.slice("__RESULT__".length));
-}
+import { runBackendScript } from "../helpers/backend-script.js";
 
 test("pruneIntradayCache garde exactement les N derniers trading_days par symbole", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { pruneIntradayCache } from "./services/yahoo/cache/history.cache.ts";
 
@@ -39,14 +21,14 @@ test("pruneIntradayCache garde exactement les N derniers trading_days par symbol
     ).all().map((r) => r.trading_day);
 
     console.log("__RESULT__" + JSON.stringify({ restants }));
-  `);
+  `) as { restants: string[] };
 
   assert.deepEqual(result.restants, ["2026-04-25", "2026-04-28", "2026-04-29"],
     "doit garder exactement les 3 derniers trading_days");
 });
 
 test("pruneIntradayCache ne touche pas aux donnees d'un autre symbole", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { pruneIntradayCache } from "./services/yahoo/cache/history.cache.ts";
 
@@ -70,14 +52,14 @@ test("pruneIntradayCache ne touche pas aux donnees d'un autre symbole", () => {
     ).get().n;
 
     console.log("__RESULT__" + JSON.stringify({ bnp, mc }));
-  `);
+  `) as { bnp: number; mc: number };
 
   assert.equal(result.bnp, 3, "BNP.PA doit avoir 3 entrees restantes");
   assert.equal(result.mc, 5, "MC.PA ne doit pas etre affecte");
 });
 
 test("pruneBefore supprime les candles 1d anterieurs au cutoff", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
@@ -109,14 +91,14 @@ test("pruneBefore supprime les candles 1d anterieurs au cutoff", () => {
     const apres = candleRepository.countCandles(assetId, "1d", "5m");
 
     console.log("__RESULT__" + JSON.stringify({ avant, apres }));
-  `);
+  `) as { avant: number; apres: number };
 
   assert.equal(result.avant, 5, "5 candles doivent exister avant pruning");
   assert.equal(result.apres, 3, "3 candles doivent rester apres pruning (cutoff exclu)");
 });
 
 test("la retention 30 jours supporte 35 jours de candles 1d inseres en DB", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
@@ -152,14 +134,14 @@ test("la retention 30 jours supporte 35 jours de candles 1d inseres en DB", () =
     const apres = candleRepository.countCandles(assetId, "1d", "5m");
 
     console.log("__RESULT__" + JSON.stringify({ avant, apres, cutoff }));
-  `);
+  `) as { avant: number; apres: number };
 
   assert.equal(result.avant, 35, "35 candles doivent exister avant pruning");
   assert.equal(result.apres, 30, "exactement 30 candles doivent rester apres retention 30 jours");
 });
 
 test("pruneBefore pour 1d ne supprime pas les candles d'autres ranges", () => {
-  const result = lancerScriptBackend(`
+  const result = runBackendScript(`
     import { db } from "./db.ts";
     import { candleRepository } from "./repositories/candles/candle.repository.ts";
 
@@ -182,7 +164,7 @@ test("pruneBefore pour 1d ne supprime pas les candles d'autres ranges", () => {
     const un_w = candleRepository.countCandles(assetId, "1w", "2h");
 
     console.log("__RESULT__" + JSON.stringify({ un_d, un_w }));
-  `);
+  `) as { un_d: number; un_w: number };
 
   assert.equal(result.un_d, 2, "1d doit avoir perdu 1 candle");
   assert.equal(result.un_w, 3, "1w ne doit pas etre affecte par le pruning de 1d");

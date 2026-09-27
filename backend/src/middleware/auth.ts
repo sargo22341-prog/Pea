@@ -3,12 +3,16 @@ import { config } from "../config.js";
 import { authCookieName, authService, type AuthUser } from "../services/auth/auth.service.js";
 import { HttpError } from "../utils/http-error.js";
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthUser;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: AuthUser | undefined;
   }
+}
+
+/** Utilisateur d'une route protegee par requireAuth ; leve une 401 si la requete n'est pas authentifiee. */
+export function requireAuthUser(req: Request): AuthUser {
+  if (!req.user) throw new HttpError(401, "Authentification requise.");
+  return req.user;
 }
 
 export function readCookie(req: Request, name: string) {

@@ -31,7 +31,7 @@ export const objectivesMigration: Migration = {
       CREATE INDEX IF NOT EXISTS idx_financial_objectives_user_active ON financial_objectives(user_id, active);
       CREATE INDEX IF NOT EXISTS idx_objective_projection_cache_next_update ON objective_projection_cache(next_update_at);
     `);
-    const columns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+    const columns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
     if (!columns.some((column) => column.name === "projection_end_age")) {
       db.exec("ALTER TABLE users ADD COLUMN projection_end_age INTEGER NOT NULL DEFAULT 90");
     }

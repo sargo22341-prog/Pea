@@ -15,7 +15,7 @@ import { sortWatchlistItems, watchlistCacheVersion } from "./dashboardSort.helpe
 const lazyChartRetryCooldownMs = 60_000;
 const lazyChartRefreshTimeoutMs = 45_000;
 
-const watchlistSortOptions: Array<Omit<SortOption<WatchlistSortKey>, "label"> & { labelKey: string }> = [
+const watchlistSortOptions: (Omit<SortOption<WatchlistSortKey>, "label"> & { labelKey: string })[] = [
   { labelKey: "sort.nameAsc", key: "name", direction: "asc" },
   { labelKey: "sort.nameDesc", key: "name", direction: "desc" },
   { labelKey: "sort.priceAsc", key: "price", direction: "asc" },
@@ -121,7 +121,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
   const sortedItems = useMemo(() => {
     return sortWatchlistItems(watchlist.data ?? [], sortKey, sortDirection);
   }, [sortDirection, sortKey, watchlist.data]);
-  const translatedSortOptions = useMemo<Array<SortOption<WatchlistSortKey>>>(
+  const translatedSortOptions = useMemo<SortOption<WatchlistSortKey>[]>(
     () => watchlistSortOptions.map((option) => ({ ...option, label: t(option.labelKey, { ns: "settings" }) })),
     [t]
   );
@@ -165,7 +165,7 @@ export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaul
             <div
               className="grid min-w-0 cursor-pointer grid-cols-[1fr_96px_1fr_24px] items-center gap-2 p-3 transition-colors hover:bg-white/[0.03] sm:grid-cols-[1fr_140px_1fr_24px] sm:gap-3 sm:p-4"
               key={item.symbol}
-              onClick={() => navigate(`/assets/${item.symbol}`)}
+              onClick={() => { void navigate(`/assets/${item.symbol}`); }}
               role="row"
             >
               <div className="flex min-w-0 items-center gap-3 overflow-hidden">

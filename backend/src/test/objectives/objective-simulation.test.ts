@@ -44,7 +44,7 @@ function projectedSeries(mode?: ObjectiveSimulationMode, overrides: Partial<Obje
   return projection.series.filter((point) => point.projected !== undefined);
 }
 
-function monthlyRates(series: Array<{ projected?: number }>) {
+function monthlyRates(series: { projected?: number }[]) {
   return series.slice(1).map((point, index) => (point.projected ?? 0) / (series[index]?.projected ?? 1) - 1);
 }
 
@@ -88,7 +88,9 @@ test("le mode chocs enchaine croissance, chute marquee puis reprise", () => {
   assert.ok(crashIndex >= 0, "un choc doit provoquer une chute mensuelle marquee");
   const recovery = rates.slice(crashIndex + 1).find((rate) => rate > 0.01);
   assert.ok(recovery !== undefined, "une reprise doit suivre le choc");
-  assert.ok(rates.some((rate) => Math.abs(rate - rates[0]!) < 1e-12), "des mois calmes doivent rester sur la tendance");
+  const [firstRate] = rates;
+  assert.ok(firstRate !== undefined);
+  assert.ok(rates.some((rate) => Math.abs(rate - firstRate) < 1e-12), "des mois calmes doivent rester sur la tendance");
 });
 
 test("le mode lisse ignore les parametres aleatoires", () => {
@@ -116,12 +118,13 @@ test("le mode Monte-Carlo fournit une mediane encadree et une probabilite de reu
   const future = projection.series.filter((point) => point.projected !== undefined);
   assert.ok(future.length > 0);
   for (const point of future) {
-    assert.ok(point.projectedLow !== undefined && point.projectedHigh !== undefined);
-    assert.ok(point.projectedLow! <= point.projected! + 1e-6, "la borne basse doit rester sous la mediane");
-    assert.ok(point.projectedHigh! >= point.projected! - 1e-6, "la borne haute doit rester au-dessus de la mediane");
+    assert.ok(point.projected !== undefined && point.projectedLow !== undefined && point.projectedHigh !== undefined);
+    assert.ok(point.projectedLow <= point.projected + 1e-6, "la borne basse doit rester sous la mediane");
+    assert.ok(point.projectedHigh >= point.projected - 1e-6, "la borne haute doit rester au-dessus de la mediane");
   }
-  const last = future.at(-1)!;
-  assert.ok(last.projectedHigh! > last.projectedLow!, "l'intervalle doit s'elargir avec le temps");
+  const last = future.at(-1);
+  assert.ok(last?.projectedHigh !== undefined && last.projectedLow !== undefined);
+  assert.ok(last.projectedHigh > last.projectedLow, "l'intervalle doit s'elargir avec le temps");
   const probability = projection.summary?.successProbability;
   assert.ok(probability !== undefined && probability >= 0 && probability <= 100);
 });

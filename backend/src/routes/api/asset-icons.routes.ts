@@ -18,7 +18,7 @@ function setIconCacheHeaders(res: express.Response) {
 }
 
 assetIconsRouter.get("/assets/:symbol/icon", asyncRoute(async (req, res) => {
-  const symbol = routeParam(req.params.symbol, "symbol");
+  const symbol = routeParam(req.params["symbol"], "symbol");
   let icon = iconService.getIconFile(symbol);
   if (icon?.filePath && icon.mimeType) {
     setIconCacheHeaders(res);
@@ -43,22 +43,22 @@ assetIconsRouter.post(
   requireAdmin,
   asyncRoute(async (req, res) => {
     const upload = await parseMultipartIcon(req);
-    const symbol = routeParam(req.params.symbol, "symbol");
+    const symbol = routeParam(req.params["symbol"], "symbol");
     if (!iconService.isAllowedImageMime(upload.mimeType)) throw new HttpError(400, "Type d'image non supporte.");
     if (!detectSupportedImageMime(upload.buffer)) throw new HttpError(400, "Image invalide.");
     if (upload.buffer.length > 1024 * 1024) throw new HttpError(400, "Image trop lourde, maximum 1MB.");
     logger.debug("icons", "icon upload", { symbol: symbol.toUpperCase(), mimeType: upload.mimeType, size: upload.buffer.length });
-    res.json(await iconService.saveIconFromBuffer(symbol, upload.buffer, "manual"));
+    res.json(iconService.saveIconFromBuffer(symbol, upload.buffer, "manual"));
   })
 );
 
-assetIconsRouter.delete("/assets/:symbol/icon", requireAdmin, asyncRoute(async (req, res) => {
-  const symbol = routeParam(req.params.symbol, "symbol");
+assetIconsRouter.delete("/assets/:symbol/icon", requireAdmin, asyncRoute((req, res) => {
+  const symbol = routeParam(req.params["symbol"], "symbol");
   iconService.resetIcon(symbol);
   logger.debug("icons", "icon delete", { symbol: symbol.toUpperCase() });
   res.status(204).send();
 }));
 
-assetIconsRouter.get("/asset-icons", asyncRoute(async (_req, res) => {
+assetIconsRouter.get("/asset-icons", asyncRoute((_req, res) => {
   res.json(iconService.listKnownAssets());
 }));

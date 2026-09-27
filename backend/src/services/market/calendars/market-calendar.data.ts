@@ -99,15 +99,19 @@ export interface MarketCalendar {
   dayOverrides?: MarketDayOverride[];
 }
 
-export type MarketCalendarRule = {
+export interface MarketCalendarRule {
   market: MarketName;
   suffixes?: string[];
   exchangeKeywords?: string[];
   exactExchangeWords?: string[];
-};
+}
+
+function session(openTime: string, closeTime: string): MarketSession {
+  return { openTime, closeTime };
+}
 
 function sessions(openTime: string, closeTime: string): MarketSession[] {
-  return [{ openTime, closeTime }];
+  return [session(openTime, closeTime)];
 }
 
 function market(
@@ -174,24 +178,24 @@ export const marketCalendars: Record<MarketName, MarketCalendar> = {
   venezuela: market("venezuela", "America/Caracas", "Caracas", sessions("09:30", "13:00")),
   uruguay: market("uruguay", "America/Montevideo", "Montevideo", sessions("11:00", "17:00")),
   seoul: market("seoul", "Asia/Seoul", "Seoul", sessions("09:00", "15:30")),
-  tokyo: market("tokyo", "Asia/Tokyo", "Tokyo", [sessions("09:00", "11:30")[0], sessions("12:30", "15:30")[0]]),
-  hongkong: market("hongkong", "Asia/Hong_Kong", "Hong Kong", [sessions("09:30", "12:00")[0], sessions("13:00", "16:00")[0]]),
-  shanghai: market("shanghai", "Asia/Shanghai", "Shanghai", [sessions("09:30", "11:30")[0], sessions("13:00", "15:00")[0]]),
-  shenzhen: market("shenzhen", "Asia/Shanghai", "Shenzhen", [sessions("09:30", "11:30")[0], sessions("13:00", "15:00")[0]]),
-  beijing: market("beijing", "Asia/Shanghai", "Beijing", [sessions("09:30", "11:30")[0], sessions("13:00", "15:00")[0]]),
+  tokyo: market("tokyo", "Asia/Tokyo", "Tokyo", [session("09:00", "11:30"), session("12:30", "15:30")]),
+  hongkong: market("hongkong", "Asia/Hong_Kong", "Hong Kong", [session("09:30", "12:00"), session("13:00", "16:00")]),
+  shanghai: market("shanghai", "Asia/Shanghai", "Shanghai", [session("09:30", "11:30"), session("13:00", "15:00")]),
+  shenzhen: market("shenzhen", "Asia/Shanghai", "Shenzhen", [session("09:30", "11:30"), session("13:00", "15:00")]),
+  beijing: market("beijing", "Asia/Shanghai", "Beijing", [session("09:30", "11:30"), session("13:00", "15:00")]),
   taiwan: market("taiwan", "Asia/Taipei", "Taipei", sessions("09:00", "13:30")),
-  singapore: market("singapore", "Asia/Singapore", "Singapore", [sessions("09:00", "12:00")[0], sessions("13:00", "17:00")[0]]),
-  thailand: market("thailand", "Asia/Bangkok", "Bangkok", [sessions("10:00", "12:30")[0], sessions("14:30", "16:30")[0]]),
-  malaysia: market("malaysia", "Asia/Kuala_Lumpur", "Kuala Lumpur", [sessions("09:00", "12:30")[0], sessions("14:30", "16:45")[0]]),
+  singapore: market("singapore", "Asia/Singapore", "Singapore", [session("09:00", "12:00"), session("13:00", "17:00")]),
+  thailand: market("thailand", "Asia/Bangkok", "Bangkok", [session("10:00", "12:30"), session("14:30", "16:30")]),
+  malaysia: market("malaysia", "Asia/Kuala_Lumpur", "Kuala Lumpur", [session("09:00", "12:30"), session("14:30", "16:45")]),
   indonesia: market(
     "indonesia",
     "Asia/Jakarta",
     "Jakarta",
-    [sessions("09:00", "12:00")[0], sessions("13:30", "15:50")[0]],
-    [{ days: [5], sessions: [sessions("09:00", "11:30")[0], sessions("14:00", "15:50")[0]] }]
+    [session("09:00", "12:00"), session("13:30", "15:50")],
+    [{ days: [5], sessions: [session("09:00", "11:30"), session("14:00", "15:50")] }]
   ),
   philippines: market("philippines", "Asia/Manila", "Manila", sessions("09:30", "15:30")),
-  vietnam: market("vietnam", "Asia/Ho_Chi_Minh", "Ho Chi Minh", [sessions("09:00", "11:30")[0], sessions("13:00", "15:00")[0]]),
+  vietnam: market("vietnam", "Asia/Ho_Chi_Minh", "Ho Chi Minh", [session("09:00", "11:30"), session("13:00", "15:00")]),
   india: market("india", "Asia/Kolkata", "Mumbai", sessions("09:15", "15:30")),
   saudi: market("saudi", "Asia/Riyadh", "Riyadh", sessions("10:00", "15:00")),
   dubai: market("dubai", "Asia/Dubai", "Dubai", sessions("10:00", "14:45")),

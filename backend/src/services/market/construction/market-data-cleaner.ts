@@ -50,7 +50,7 @@ export class MarketDataCleaner {
     const rows = marketDataConstructionRepository.unlinkedAssets();
     const deleted = marketDataConstructionRepository.cleanupUnlinkedAssets(rows);
     if (rows.length) {
-      const symbols = rows.map((row) => String(row.symbol).toUpperCase());
+      const symbols = rows.map((row) => row.symbol.toUpperCase());
       logger.info("market-data", "unlinked assets cleaned", { assets: symbols, deleted });
     }
 

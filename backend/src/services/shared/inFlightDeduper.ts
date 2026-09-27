@@ -41,7 +41,7 @@ export async function dedupeInFlight<T>(key: string, fn: () => Promise<T>): Prom
         if (inFlight.get(key) === promise) inFlight.delete(key);
         return result;
       },
-      (error) => {
+      (error: unknown) => {
         logDebug("ERROR", key);
         // Libère IMMÉDIATEMENT en cas d'erreur — un nouvel appelant doit pouvoir retenter sans
         // hériter du dernier échec.

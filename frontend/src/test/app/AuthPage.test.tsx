@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { closestElement } from "../utils/dom";
 import { AuthPage } from "../../pages/auth/AuthPage";
 
 describe("AuthPage – login mode", () => {
@@ -16,7 +17,7 @@ describe("AuthPage – login mode", () => {
 
   it("shows error when username is empty and form is submitted", async () => {
     render(<AuthPage mode="login" onLogin={vi.fn()} />);
-    fireEvent.submit(screen.getByRole("button", { name: /se connecter/i }).closest("form")!);
+    fireEvent.submit(closestElement(screen.getByRole("button", { name: /se connecter/i }), "form"));
     await waitFor(() => {
       expect(screen.getByText("Username requis.")).toBeInTheDocument();
     });
@@ -26,7 +27,7 @@ describe("AuthPage – login mode", () => {
     const user = userEvent.setup();
     render(<AuthPage mode="login" onLogin={vi.fn()} />);
     await user.type(screen.getByLabelText(/username/i), "alice");
-    fireEvent.submit(screen.getByRole("button", { name: /se connecter/i }).closest("form")!);
+    fireEvent.submit(closestElement(screen.getByRole("button", { name: /se connecter/i }), "form"));
     await waitFor(() => {
       expect(screen.getByText("Mot de passe requis.")).toBeInTheDocument();
     });
@@ -66,7 +67,7 @@ describe("AuthPage – login mode", () => {
     await user.type(screen.getByLabelText(/mot de passe/i), "pass");
     await user.click(screen.getByRole("button", { name: /se connecter/i }));
     expect(screen.getByRole("button", { name: /validation/i })).toBeDisabled();
-    await act(async () => {
+    act(() => {
       resolve();
     });
     await waitFor(() => expect(screen.getByRole("button", { name: /se connecter/i })).toBeEnabled());
@@ -90,7 +91,7 @@ describe("AuthPage – setup mode", () => {
     await user.type(screen.getByLabelText(/username/i), "alice");
     await user.type(screen.getByLabelText(/^mot de passe$/i), "longpassword1");
     await user.type(screen.getByLabelText(/confirmation/i), "different");
-    fireEvent.submit(screen.getByRole("button", { name: /creer le compte/i }).closest("form")!);
+    fireEvent.submit(closestElement(screen.getByRole("button", { name: /creer le compte/i }), "form"));
     await waitFor(() => {
       expect(screen.getByText("Les mots de passe ne correspondent pas.")).toBeInTheDocument();
     });

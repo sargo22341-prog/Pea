@@ -121,17 +121,17 @@ export interface YahooNewsRaw extends YahooRawRecord {
   thumbnail?: {
     originalUrl?: string;
     url?: string;
-    resolutions?: Array<{ url?: string }>;
+    resolutions?: { url?: string }[];
   };
   relatedTickers?: unknown[];
 }
 
 export interface YahooScreenerRaw extends YahooRawRecord {
   quotes?: YahooQuoteRaw[];
-  finance?: { result?: Array<{ quotes?: YahooQuoteRaw[] }> };
+  finance?: { result?: { quotes?: YahooQuoteRaw[] }[] };
 }
 
-type YahooClientAdapter = {
+interface YahooClientAdapter {
   quote(symbol: string): Promise<YahooQuoteRaw>;
   quote(symbols: string[], options: { return: "array" }): Promise<YahooQuoteRaw[]>;
   quoteCombine(symbol: string): Promise<YahooQuoteRaw>;
@@ -140,7 +140,7 @@ type YahooClientAdapter = {
   search(query: string, options: YahooRawRecord, moduleOptions?: YahooRawRecord): Promise<YahooSearchRaw>;
   screener(options: YahooRawRecord, queryOptions?: unknown, validationOptions?: YahooRawRecord): Promise<YahooScreenerRaw>;
   fundamentalsTimeSeries(symbol: string, options: YahooRawRecord): Promise<YahooFinancialTimeSeriesRaw>;
-};
+}
 
 const client = yahooClient as unknown as YahooClientAdapter;
 

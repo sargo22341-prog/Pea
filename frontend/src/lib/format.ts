@@ -25,9 +25,9 @@ const compactRangeLabels: Record<RangeKey, string> = {
   all: "Tout"
 };
 
-export function formatRangeLabel(range: ChartRange | string, options: { compact?: boolean } = {}) {
-  const normalized = String(range).toLowerCase() as RangeKey;
-  return (options.compact ? compactRangeLabels[normalized] : rangeLabels[normalized]) ?? String(range);
+export function formatRangeLabel(range: string, options: { compact?: boolean } = {}) {
+  const labels: Partial<Record<string, string>> = options.compact ? compactRangeLabels : rangeLabels;
+  return labels[range.toLowerCase()] ?? range;
 }
 
 /**

@@ -9,7 +9,7 @@ import { PositionRows } from "./PositionRows";
 import { SortableSection, type SortOption } from "./SortableSection";
 import { sortPositions } from "./dashboardSort.helpers";
 
-const sortOptions: Array<Omit<SortOption<DashboardSortKey>, "label"> & { labelKey: string }> = [
+const sortOptions: (Omit<SortOption<DashboardSortKey>, "label"> & { labelKey: string })[] = [
   { labelKey: "sort.nameAsc", key: "name", direction: "asc" },
   { labelKey: "sort.nameDesc", key: "name", direction: "desc" },
   { labelKey: "sort.marketValueAsc", key: "currentMarketValue", direction: "asc" },
@@ -39,21 +39,28 @@ export function PositionList({
   const [performanceRefreshing, setPerformanceRefreshing] = useState(false);
   const refreshGuardTimer = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
+  // Preferences et periode sont resynchronisees pendant le rendu (pas d'effet en cascade).
+  const [syncedDefaults, setSyncedDefaults] = useState({ key: defaultSortKey, direction: defaultSortDirection });
+  if (syncedDefaults.key !== defaultSortKey || syncedDefaults.direction !== defaultSortDirection) {
+    setSyncedDefaults({ key: defaultSortKey, direction: defaultSortDirection });
     setSortKey(defaultSortKey);
     setSortDirection(defaultSortDirection);
-  }, [defaultSortDirection, defaultSortKey]);
+  }
+  const [performanceRange, setPerformanceRange] = useState(range);
+  if (performanceRange !== range) {
+    setPerformanceRange(range);
+    setPerformanceError(null);
+    setPerformanceById(new Map());
+  }
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
-    setPerformanceError(null);
-    setPerformanceById(new Map());
     api.positionsPerformance(range, controller.signal)
       .then((items) => {
         if (!cancelled) setPerformanceById(new Map(items.map((item) => [item.id, item])));
       })
-      .catch((caughtError) => {
+      .catch((caughtError: unknown) => {
         if (!cancelled) setPerformanceError(caughtError instanceof Error ? caughtError.message : t("positionRows.performanceUnavailable", { ns: "dashboard" }));
       });
     return () => {
@@ -71,7 +78,7 @@ export function PositionList({
       if (payload.type !== "portfolio-performance-refresh-started" && payload.type !== "portfolio-chart-refresh-started") return;
       setPerformanceRefreshing(true);
       if (refreshGuardTimer.current) window.clearTimeout(refreshGuardTimer.current);
-      refreshGuardTimer.current = window.setTimeout(() => setPerformanceRefreshing(false), 45_000);
+      refreshGuardTimer.current = window.setTimeout(() => { setPerformanceRefreshing(false); }, 45_000);
     },
     reload: () =>
       api.positionsPerformance(range)
@@ -79,7 +86,7 @@ export function PositionList({
           setPerformanceById(new Map(items.map((item) => [item.id, item])));
           setPerformanceRefreshing(false);
         })
-        .catch((caughtError) => {
+        .catch((caughtError: unknown) => {
           setPerformanceError(caughtError instanceof Error ? caughtError.message : t("positionRows.performanceUnavailable", { ns: "dashboard" }));
           setPerformanceRefreshing(false);
         }),
@@ -104,7 +111,7 @@ export function PositionList({
 
   const prive = usePrivacy();
   const rangeLabel = formatRangeLabel(range);
-  const translatedSortOptions = useMemo<Array<SortOption<DashboardSortKey>>>(
+  const translatedSortOptions = useMemo<SortOption<DashboardSortKey>[]>(
     () => sortOptions.map((option) => ({ ...option, label: t(option.labelKey, { ns: "settings" }) })),
     [t]
   );

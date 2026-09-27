@@ -13,12 +13,12 @@ export function readNewsCache(cacheKey: string): MarketDataResult<NewsArticle[]>
   const row = yahooCacheRepository.readSymbol("cached_news", cacheKey);
 
   if (!row) return null;
-  const ageSeconds = nowSeconds() - Number(row.fetched_at);
+  const ageSeconds = nowSeconds() - row.fetched_at;
   if (ageSeconds > NEWS_STALE_REJECT_S) {
     logger.warn("cache", "stale news cache rejected", { cacheKey, ageSeconds, staleRejectSeconds: NEWS_STALE_REJECT_S });
     return null;
   }
-  const data = JSON.parse(String(row.payload)) as NewsArticle[];
+  const data = JSON.parse(row.payload) as NewsArticle[];
   if (data.some((article) => !article.publishedAt)) return { data, stale: true };
   return { data, stale: ageSeconds >= NEWS_FRESH_TTL_S };
 }

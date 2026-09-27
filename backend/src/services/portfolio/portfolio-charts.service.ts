@@ -126,26 +126,28 @@ export class PortfolioChartsService {
     const sortedTimestamps = [...timestamps].filter(Number.isFinite).sort((a, b) => a - b);
     const firstTimestamp = sortedTimestamps[0];
     const lastTimestamp = sortedTimestamps[sortedTimestamps.length - 1];
-    if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) return [];
+    if (firstTimestamp === undefined || lastTimestamp === undefined) return [];
 
     const rows = portfolioChartRepository.listTransactionMarkers(userId);
 
     return rows.flatMap((row) => {
       const transactionTime = new Date(row.traded_at).getTime();
       if (!Number.isFinite(transactionTime) || !isTransactionVisibleInRange(row.traded_at, transactionTime, firstTimestamp, lastTimestamp, range)) return [];
-      const symbol = String(row.symbol).toUpperCase();
+      const nearestChartPointDatetime = nearestTimestamp(transactionTime, sortedTimestamps);
+      if (nearestChartPointDatetime === undefined) return [];
+      const symbol = row.symbol.toUpperCase();
       const price = row.price == null ? undefined : Number(row.price);
       return [{
         id: String(row.id),
         assetId: String(row.asset_row_id ?? row.position_id),
         symbol,
-        name: String(row.asset_name ?? row.position_name ?? symbol),
+        name: row.asset_name ?? row.position_name,
         logoUrl: `/api/assets/${encodeURIComponent(symbol)}/icon`,
         quantity: Number(row.quantity),
         price: Number.isFinite(price) ? price : undefined,
         transactionDate: new Date(transactionTime).toISOString(),
         type: row.type,
-        nearestChartPointDatetime: nearestTimestamp(transactionTime, sortedTimestamps)
+        nearestChartPointDatetime
       }];
     });
   }
@@ -176,7 +178,7 @@ export class PortfolioChartsService {
     };
   }
 
-  private async portfolioIntradayBaseline(userId: number, options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string } | undefined> {
+  private async portfolioIntradayBaseline(userId: number, options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string | undefined } | undefined> {
     const positions = portfolioReadService.listPositions(userId);
     if (!positions.length) return undefined;
 
@@ -189,7 +191,7 @@ export class PortfolioChartsService {
       let quantity: number;
       const entry = txCache.get(position.id);
       if (chart.baselineDatetime && entry?.hasDated) {
-        const latestChartTime = chart.timestamps.reduce((latest, timestamp) => Math.max(latest, Number(timestamp)), 0);
+        const latestChartTime = chart.timestamps.reduce((latest, timestamp) => Math.max(latest, timestamp), 0);
         const latestTransactionTime = entry.transactions.reduce((latest, transaction) => Math.max(latest, new Date(transaction.traded_at).getTime()), 0);
         quantity = latestChartTime > 0 && latestTransactionTime > latestChartTime
           ? positionFromTransactionCache(position, entry.transactions).quantity

@@ -38,7 +38,7 @@ describe("App – auth gate", () => {
   it("shows loading state while /api/auth/me is in flight", () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(() => new Promise(() => {}))
+      vi.fn().mockImplementation(() => new Promise(() => undefined))
     );
     renderApp();
     expect(screen.getByText(/chargement/i)).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ setupRequired: true, user: null, appTimezone: "Europe/Paris" })
+        json: () => Promise.resolve({ setupRequired: true, user: null, appTimezone: "Europe/Paris" })
       })
     );
     renderApp();
@@ -65,7 +65,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ setupRequired: false, user: null, appTimezone: "Europe/Paris" })
+        json: () => Promise.resolve({ setupRequired: false, user: null, appTimezone: "Europe/Paris" })
       })
     );
     renderApp();
@@ -94,7 +94,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({
+        json: () => Promise.resolve({
           setupRequired: false,
           user: {
             id: 1,
@@ -118,7 +118,7 @@ describe("App – auth gate", () => {
       expect(screen.queryByText("Connexion")).not.toBeInTheDocument();
       expect(screen.queryByText("Creer le premier compte")).not.toBeInTheDocument();
     });
-    await waitFor(() => expect(eventSourceSpy).toHaveBeenCalledWith("/api/market/events", { withCredentials: true }));
+    await waitFor(() => { expect(eventSourceSpy).toHaveBeenCalledWith("/api/market/events", { withCredentials: true }); });
     expect(fetch).not.toHaveBeenCalledWith("/api/market/features", expect.anything());
   });
 
@@ -128,7 +128,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Authentification requise." })
+        json: () => Promise.resolve({ message: "Authentification requise." })
       })
     );
     renderApp();

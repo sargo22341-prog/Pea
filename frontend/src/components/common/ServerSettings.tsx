@@ -1,5 +1,5 @@
 import { Save, Server, Wifi } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { describeNetworkError, fetchWithTimeout } from "../../lib/api-core";
 import { clearNativeAuthToken, configureNativeBackendUrl, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
@@ -86,7 +86,7 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
     };
   }, []);
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setToast(null);
@@ -106,13 +106,13 @@ function ServerUrlForm({ onSaved, submitLabel }: { onSaved: () => void; submitLa
   }
 
   return (
-    <form className="space-y-3" onSubmit={submit}>
+    <form className="space-y-3" onSubmit={(event) => { void submit(event); }}>
       <label>
         <span className="muted mb-1 block">{t("settings:server.url")}</span>
         <input
           className="input"
           inputMode="url"
-          onChange={(event) => setServerUrl(event.target.value)}
+          onChange={(event) => { setServerUrl(event.target.value); }}
           placeholder="https://pea.home"
           value={serverUrl}
         />

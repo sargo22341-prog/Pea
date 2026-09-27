@@ -5,7 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 import { config } from "./config.js";
 import "./db.js";
 import { createRateLimit } from "./middleware/rate-limit.js";
@@ -82,7 +82,7 @@ app.use(express.json());
 if (config.debug) {
   app.use(
     morgan(config.nodeEnv === "production" ? "combined" : "dev", {
-      stream: { write: (message) => logger.debug("api", "request timing", { message: message.trim() }) }
+      stream: { write: (message) => { logger.debug("api", "request timing", { message: message.trim() }); } }
     })
   );
 }
@@ -138,8 +138,8 @@ if (config.nodeEnv === "production") {
 
 app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof ZodError) {
-    logger.warn("api", "validation error", { details: error.flatten() });
-    res.status(400).json({ message: "Données invalides", details: error.flatten() });
+    logger.warn("api", "validation error", { details: z.flattenError(error) });
+    res.status(400).json({ message: "Données invalides", details: z.flattenError(error) });
     return;
   }
 

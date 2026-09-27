@@ -14,7 +14,7 @@
 class SymbolLockService {
   private locks = new Map<string, Promise<unknown>>();
 
-  async withLock<T>(scope: string, fn: () => Promise<T>): Promise<T> {
+  async withLock<T>(scope: string, fn: () => T | Promise<T>): Promise<T> {
     const previous = this.locks.get(scope) ?? Promise.resolve();
     let release!: () => void;
     const ticket = new Promise<void>((resolve) => {

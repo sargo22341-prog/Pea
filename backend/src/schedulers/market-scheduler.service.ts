@@ -26,10 +26,10 @@ function errorMessage(error: unknown) {
 }
 
 export class MarketSchedulerService {
-  private timer?: NodeJS.Timeout;
+  private timer?: NodeJS.Timeout | undefined;
   private running = false;
-  private lastTickDurationMs?: number;
-  private lastTickFinishedAt?: string;
+  private lastTickDurationMs?: number | undefined;
+  private lastTickFinishedAt?: string | undefined;
 
   start() {
     if (this.timer) return;
@@ -66,7 +66,7 @@ export class MarketSchedulerService {
       return;
     }
     const activeLease = lease;
-    const heartbeat = setInterval(() => this.renewLease(activeLease), Math.max(1_000, Math.floor(tickLockTtlMs / 3)));
+    const heartbeat = setInterval(() => { this.renewLease(activeLease); }, Math.max(1_000, Math.floor(tickLockTtlMs / 3)));
     this.running = true;
     try {
       schedulerHealthRepository.markTick(schedulerName, now);
@@ -88,7 +88,7 @@ export class MarketSchedulerService {
         }
       }
       await runWithYahooUsageSource("tache scheduler: live-market-refresh", () => liveMarketRefreshTask.run(groups.values(), now));
-      await runWithYahooUsageSource("tache scheduler: weekly-refresh", () => weeklyRefreshTask.run(now));
+      runWithYahooUsageSource("tache scheduler: weekly-refresh", () => { weeklyRefreshTask.run(now); });
       marketLogRepository.cleanupOlderThan(90, now);
       schedulerHealthRepository.markSuccess(schedulerName, now);
     } catch (error) {
@@ -143,23 +143,23 @@ export class MarketSchedulerService {
       marketKey: market.market_key,
       displayName: market.display_name,
       timezone: market.timezone,
-      tradingDate: currentRun?.trading_date ?? "",
+      tradingDate: currentRun.trading_date,
       assetsCount: market.assets_count,
       enabled: Boolean(market.enabled),
-      openExpectedAt: currentRun?.open_expected_at ?? null,
-      openConfirmedAt: currentRun?.open_confirmed_at ?? null,
-      openLastCheckedAt: currentRun?.open_last_checked_at ?? null,
-      nextOpenCheckAt: currentRun?.next_open_check_at ?? null,
-      openStatus: currentRun?.open_status ?? "pending",
-      openMessage: currentRun?.open_status_message ?? currentRun?.open_last_error ?? null,
-      openAttempts: currentRun?.open_attempts ?? 0,
-      closeExpectedAt: currentRun?.close_expected_at ?? null,
-      closeConfirmedAt: currentRun?.close_confirmed_at ?? null,
-      closeLastCheckedAt: currentRun?.close_last_checked_at ?? null,
-      nextCloseCheckAt: currentRun?.next_close_check_at ?? null,
-      closeStatus: currentRun?.close_status ?? "pending",
-      closeMessage: currentRun?.close_status_message ?? currentRun?.close_last_error ?? null,
-      closeAttempts: currentRun?.close_attempts ?? 0
+      openExpectedAt: currentRun.open_expected_at ?? null,
+      openConfirmedAt: currentRun.open_confirmed_at ?? null,
+      openLastCheckedAt: currentRun.open_last_checked_at ?? null,
+      nextOpenCheckAt: currentRun.next_open_check_at ?? null,
+      openStatus: currentRun.open_status,
+      openMessage: currentRun.open_status_message ?? currentRun.open_last_error ?? null,
+      openAttempts: currentRun.open_attempts,
+      closeExpectedAt: currentRun.close_expected_at ?? null,
+      closeConfirmedAt: currentRun.close_confirmed_at ?? null,
+      closeLastCheckedAt: currentRun.close_last_checked_at ?? null,
+      nextCloseCheckAt: currentRun.next_close_check_at ?? null,
+      closeStatus: currentRun.close_status,
+      closeMessage: currentRun.close_status_message ?? currentRun.close_last_error ?? null,
+      closeAttempts: currentRun.close_attempts
     };
   }
 
@@ -167,12 +167,13 @@ export class MarketSchedulerService {
     if (run) return run;
     const local = localTradingDate(now, market.timezone);
     const weekend = isWeekend(local.weekday);
-    const sessions = JSON.parse(market.sessions_json);
-    const overrides = market.overrides_json ? JSON.parse(market.overrides_json) : undefined;
+    // JSON ecrit par serializeSessions() lors de l'enregistrement du marche suivi.
+    const sessions = JSON.parse(market.sessions_json) as MarketSchedule["sessions"];
+    const overrides = market.overrides_json ? JSON.parse(market.overrides_json) as MarketSchedule["dayOverrides"] : undefined;
     const syntheticCalendar: MarketSchedule = {
       timezone: market.timezone,
       sessions,
-      dayOverrides: overrides
+      ...(overrides ? { dayOverrides: overrides } : {})
     };
     const times = expectedTimes(syntheticCalendar, local.isoDate);
     const skippedNoAssets = market.assets_count === 0;
@@ -183,7 +184,7 @@ export class MarketSchedulerService {
       market_key: market.market_key,
       trading_date: local.isoDate,
       timezone: market.timezone,
-      open_expected_at: times.openExpectedAt?.toISOString() ?? null,
+      open_expected_at: times.openExpectedAt.toISOString(),
       open_status: openStatus,
       open_confirmed_at: null,
       open_attempts: 0,
@@ -192,7 +193,7 @@ export class MarketSchedulerService {
       next_open_check_at: null,
       open_status_message: null,
       open_job_id: null,
-      close_expected_at: times.closeExpectedAt?.toISOString() ?? null,
+      close_expected_at: times.closeExpectedAt.toISOString(),
       close_status: closeStatus,
       close_confirmed_at: null,
       close_attempts: 0,
@@ -251,9 +252,7 @@ export class MarketSchedulerService {
     return candidates.filter((task) => new Date(task.runAt).getTime() >= now.getTime() - 60_000).sort((a, b) => a.runAt.localeCompare(b.runAt))[0] ?? null;
   }
 
-  async runWeeklyRefresh(now = new Date()) {
-    return weeklyRefreshTask.run(now);
-  }
+
 
   runtimeStats(now = new Date()) {
     const health = schedulerHealthRepository.get(schedulerName);

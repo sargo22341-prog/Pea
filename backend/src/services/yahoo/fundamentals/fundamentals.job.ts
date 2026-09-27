@@ -44,7 +44,7 @@ async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<Y
         FUNDAMENTALS_FRESH_TTL_S,
         FUNDAMENTALS_STALE_REJECT_S
       ),
-    (data) => writeCache("cached_fundamentals", `${key}:annual-financials`, data)
+    (data) => { writeCache("cached_fundamentals", `${key}:annual-financials`, data); }
   );
 }
 
@@ -109,9 +109,9 @@ export async function fetchMarketInfo(symbol: string): Promise<MarketDataResult<
 
 /** Produit les donnees supplementaires (calendrier, consensus, fonds) depuis le cache fundamentals. */
 export async function fetchExtraData(symbol: string): Promise<MarketDataResult<{
-  calendarEventsData?: AssetCalendarEventsData;
-  analystConsensus?: AssetAnalystConsensus;
-  fundDetails?: AssetFundDetails;
+  calendarEventsData?: AssetCalendarEventsData | undefined;
+  analystConsensus?: AssetAnalystConsensus | undefined;
+  fundDetails?: AssetFundDetails | undefined;
 }>> {
   const result = await fetchFundamentalsSummary(symbol);
   return {
@@ -125,9 +125,9 @@ export async function fetchExtraData(symbol: string): Promise<MarketDataResult<{
 }
 
 export function readCachedExtraData(symbol: string): MarketDataResult<{
-  calendarEventsData?: AssetCalendarEventsData;
-  analystConsensus?: AssetAnalystConsensus;
-  fundDetails?: AssetFundDetails;
+  calendarEventsData?: AssetCalendarEventsData | undefined;
+  analystConsensus?: AssetAnalystConsensus | undefined;
+  fundDetails?: AssetFundDetails | undefined;
 }> | null {
   const result = readCachedFundamentalsSummary(symbol);
   if (!result) return null;

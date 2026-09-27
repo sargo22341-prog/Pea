@@ -4,7 +4,7 @@ export interface RuntimeHealthDto {
     cacheEntries: {
       totalRows: number;
       expiredRows: number;
-      byScope: Array<{ scope: string; rows: number; expiredRows: number }>;
+      byScope: { scope: string; rows: number; expiredRows: number }[];
     };
     derivedCaches: {
       portfolioChartCacheRows: number;
@@ -14,7 +14,7 @@ export interface RuntimeHealthDto {
     cleanup: {
       lastRunAt?: string;
       durationMs?: number;
-      deletedRows?: Record<string, number>;
+      deletedRows?: Record<string, number> | undefined;
       totalDeletedRows?: number;
       lastError?: string;
       lastErrorAt?: string;
@@ -37,22 +37,22 @@ export interface RuntimeHealthDto {
     running: number;
     failed: number;
     completed: number;
-    oldestPendingAgeMs?: number;
-    oldestRunningAgeMs?: number;
+    oldestPendingAgeMs?: number | undefined;
+    oldestRunningAgeMs?: number | undefined;
     activeWorkers: number;
     maxConcurrentTasks: number;
     busySymbols: number;
-    byTypePriority: Array<{ type: string; priority: number; pending: number; running: number; failed: number; completed: number }>;
+    byTypePriority: { type: string; priority: number; pending: number; running: number; failed: number; completed: number }[];
   };
   scheduler: {
-    lastTickAt?: string | null;
-    lastTickDurationMs?: number;
-    lastSuccessAt?: string | null;
-    lastError?: string | null;
-    lockOwner?: string | null;
-    heartbeatAgeMs?: number;
+    lastTickAt?: string|null | undefined;
+    lastTickDurationMs?: number | undefined;
+    lastSuccessAt?: string|null | undefined;
+    lastError?: string|null | undefined;
+    lockOwner?: string|null | undefined;
+    heartbeatAgeMs?: number | undefined;
     trackedMarkets: number;
-    nextTickAt?: string | null;
+    nextTickAt?: string|null | undefined;
     running: boolean;
     status: "healthy" | "warning" | "error";
   };
@@ -74,36 +74,36 @@ export interface RuntimeHealthDto {
 export interface AssetMarketDto {
   symbol: string;
   marketState: MarketState;
-  regularMarketPrice?: number;
-  regularMarketTime?: string;
-  previousClose?: number;
-  openPrice?: number;
-  dayHigh?: number;
-  dayLow?: number;
-  dayChange?: number;
-  dayChangePercent?: number;
-  volume?: number;
-  avgVolume3M?: number;
-  avgVolume10D?: number;
-  bid?: number;
-  ask?: number;
-  currency?: CurrencyCode;
-  exchangeName?: string;
-  quoteType?: string;
-  week52Low?: number;
-  week52High?: number;
-  dividendYield?: number;
-  annualDividend?: number;
-  exDividendDate?: string;
+  regularMarketPrice?: number | undefined;
+  regularMarketTime?: string | undefined;
+  previousClose?: number | undefined;
+  openPrice?: number | undefined;
+  dayHigh?: number | undefined;
+  dayLow?: number | undefined;
+  dayChange?: number | undefined;
+  dayChangePercent?: number | undefined;
+  volume?: number | undefined;
+  avgVolume3M?: number | undefined;
+  avgVolume10D?: number | undefined;
+  bid?: number | undefined;
+  ask?: number | undefined;
+  currency?: CurrencyCode | undefined;
+  exchangeName?: string | undefined;
+  quoteType?: string | undefined;
+  week52Low?: number | undefined;
+  week52High?: number | undefined;
+  dividendYield?: number | undefined;
+  annualDividend?: number | undefined;
+  exDividendDate?: string | undefined;
   revenue?: number;
   netIncome?: number;
   netMargin?: number;
   freshness?: {
-    marketCoreUpdatedAt?: string;
-    liquidityUpdatedAt?: string;
-    range52wUpdatedAt?: string;
-    dividendInfoUpdatedAt?: string;
-    marketProfileUpdatedAt?: string;
+    marketCoreUpdatedAt?: string | undefined;
+    liquidityUpdatedAt?: string | undefined;
+    range52wUpdatedAt?: string | undefined;
+    dividendInfoUpdatedAt?: string | undefined;
+    marketProfileUpdatedAt?: string | undefined;
   };
   cachedAt: number;
   expiresAt: number;
@@ -112,38 +112,38 @@ export interface AssetMarketDto {
 export interface AssetDividendsDto {
   symbol: string;
   totalDividends?: number;
-  annualDividend?: number;
-  dividendYield?: number;
-  exDate?: string;
-  history: Array<{
+  annualDividend?: number | undefined;
+  dividendYield?: number | undefined;
+  exDate?: string | undefined;
+  history: {
     date: string;
     amount: number;
-  }>;
+  }[];
   cachedAt: number;
   expiresAt: number;
 }
 
 export interface AssetArticlesDto {
   symbol: string;
-  articles: Array<{
+  articles: {
     title: string;
     url: string;
     source: string;
     publishedAt: string;
-    imageUrl?: string;
+    imageUrl?: string | undefined;
     summary?: string;
-  }>;
+  }[];
   cachedAt: number;
   expiresAt: number;
 }
 
 export interface HistoryPoint {
   date: string;
-  open?: number;
-  high?: number;
-  low?: number;
+  open?: number | undefined;
+  high?: number | undefined;
+  low?: number | undefined;
   close: number;
-  volume?: number;
+  volume?: number | undefined;
   stale?: boolean;
 }
 
@@ -160,14 +160,14 @@ export interface NewsArticle {
   title: string;
   description: string;
   url: string;
-  imageUrl?: string;
-  publisher?: string;
-  publishedAt?: string;
+  imageUrl?: string | undefined;
+  publisher?: string | undefined;
+  publishedAt?: string | undefined;
   relatedTickers?: string[];
-  relatedAssets?: Array<{
+  relatedAssets?: {
     symbol: string;
     name: string;
-  }>;
+  }[];
 }
 
 export interface NewsFeedPage {

@@ -38,11 +38,11 @@ export class CandleFinalizationService {
     return {};
   }
 
-  async finalizeClosedOneDayCandles(input: {
+  finalizeClosedOneDayCandles(input: {
     asset: AssetRow;
     session: OpenMarketDay;
-    quote?: Quote;
-    yahooTradingDay?: YahooTradingDay;
+    quote?: Quote | undefined;
+    yahooTradingDay?: YahooTradingDay | undefined;
     rebuildContext: "forced-rebuild" | "post-close";
   }) {
     const { asset, session, quote, yahooTradingDay, rebuildContext } = input;
@@ -122,8 +122,8 @@ export class CandleFinalizationService {
   async fetchClosedIntradaySession(input: {
     asset: AssetRow;
     tradingDay: YahooTradingDay;
-    quote?: Quote;
-    persist?: boolean;
+    quote?: Quote | undefined;
+    persist?: boolean | undefined;
   }): Promise<HistoryPoint[]> {
     const { asset, tradingDay, quote, persist = false } = input;
     const interval = chartConfigService.getIntervalForRange("1d");
@@ -141,7 +141,8 @@ export class CandleFinalizationService {
     });
     const close = this.closePriceForFinalization(asset, quote, tradingDay);
     const closeTime = tradingDay.period2.getTime();
-    const lastTime = points.length ? new Date(points[points.length - 1].date).getTime() : undefined;
+    const lastPoint = points.at(-1);
+    const lastTime = lastPoint ? new Date(lastPoint.date).getTime() : undefined;
     const hasClosePoint = points.some((point) => new Date(point.date).getTime() === closeTime);
 
     if (close.price && (!hasClosePoint || Number(lastTime) < closeTime)) {
@@ -176,7 +177,7 @@ export class CandleFinalizationService {
         points
       });
       candleRepository.upsertCandles(candles);
-      await this.finalizeClosedOneDayCandles({
+      this.finalizeClosedOneDayCandles({
         asset,
         session: tradingDay,
         quote,

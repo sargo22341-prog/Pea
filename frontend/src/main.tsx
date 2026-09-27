@@ -6,7 +6,10 @@ import { unregisterServiceWorkers } from "./lib/app-loading/service-worker-clean
 import "./i18n";
 import "./styles/index.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Element #root introuvable dans index.html.");
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />

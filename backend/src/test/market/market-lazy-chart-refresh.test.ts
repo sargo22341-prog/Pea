@@ -59,7 +59,7 @@ test("lazy chart refresh is stale-while-revalidate and dedupes in-flight refresh
         server.close();
       }
     });
-  `);
+  `) as { firstStatus: number; firstBody: { status: string }; secondStatus: number; secondBody: { status: string }; chartCalls: number; firstDurationMs: number };
 
   assert.equal(result.firstStatus, 202);
   assert.equal(result.firstBody.status, "started");
@@ -95,7 +95,7 @@ test("lazy chart refresh is skipped while cache is fresh", () => {
     yahooApi.chart = async () => { chartCalls += 1; return { quotes: [], dividends: [], splits: [] }; };
     const fresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     console.log("__RESULT__" + JSON.stringify({ fresh, chartCalls }));
-  `);
+  `) as { fresh: { status: string }; chartCalls: number };
 
   assert.equal(result.fresh.status, "skipped-fresh");
   assert.equal(result.chartCalls, 0);
@@ -125,7 +125,7 @@ test("lazy chart refresh skips Yahoo while market open status is pending", () =>
     const refresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 20));
     console.log("__RESULT__" + JSON.stringify({ refresh, chartCalls }));
-  `);
+  `) as { refresh: { status: string }; chartCalls: number };
 
   assert.equal(result.refresh.status, "skipped-market-closed");
   assert.equal(result.chartCalls, 0);
@@ -155,7 +155,7 @@ test("lazy chart refresh initializes an unknown comparison symbol once", () => {
     const asset = db.prepare("SELECT symbol FROM assets WHERE symbol = 'URTH'").get();
     const candles = db.prepare("SELECT COUNT(*) AS count FROM chart_candles c JOIN assets a ON a.id = c.asset_id WHERE c.range_key = '1d' AND a.symbol = 'URTH'").get();
     console.log("__RESULT__" + JSON.stringify({ refresh, quoteCalls, chartCalls, asset, candles }));
-  `);
+  `) as { refresh: { status: string }; quoteCalls: number; chartCalls: number; asset: { symbol: string }; candles: { count: number } };
 
   assert.equal(result.refresh.status, "started");
   assert.ok(result.quoteCalls >= 1);
@@ -197,7 +197,7 @@ test("lazy chart refresh uses configured 1d interval instead of ratio threshold"
     const refresh = chartRefreshService.requestAssetRefresh({ userId: 1, symbol: "AAA.PA", range: "1d", scope: "asset" });
     await new Promise((resolve) => setTimeout(resolve, 50));
     console.log("__RESULT__" + JSON.stringify({ refresh, chartCalls }));
-  `);
+  `) as { refresh: { status: string }; chartCalls: number };
 
   assert.equal(result.refresh.status, "started");
   assert.equal(result.chartCalls, 1);

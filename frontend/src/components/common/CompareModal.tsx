@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
 import { usePullToRefreshSuspended } from "../../hooks/usePullToRefreshSuspended";
 import { MOTION } from "./motion";
+import { paletteColor } from "../charts/chartFormat";
 import { COMPARE_COLORS } from "../charts/comparison/compareColors";
 
 interface SelectedAsset {
@@ -47,10 +48,10 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
               <span
                 key={asset.symbol}
                 className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold text-black"
-                style={{ backgroundColor: COMPARE_COLORS[i] }}
+                style={{ backgroundColor: paletteColor(COMPARE_COLORS, i) }}
               >
                 {asset.symbol}
-                <button onClick={() => onRemove(asset.symbol)} type="button">
+                <button onClick={() => { onRemove(asset.symbol); }} type="button">
                   <X size={12} />
                 </button>
               </span>
@@ -66,7 +67,7 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
               className="input pl-9"
               placeholder={t("portfolio:compare.placeholder")}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); }}
             />
           </div>
         ) : (

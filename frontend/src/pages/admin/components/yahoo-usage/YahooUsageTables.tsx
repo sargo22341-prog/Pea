@@ -10,7 +10,7 @@ export function YahooUsageTopTable({ emptyLabel, onSelect, rows, title }: { empt
         <table className="w-full text-left text-sm">
           <tbody className="divide-y divide-line">
             {rows.slice(0, 10).map((row) => (
-              <tr className="cursor-pointer transition hover:bg-sky/5" key={row.key} onClick={() => onSelect(row)}>
+              <tr className="cursor-pointer transition hover:bg-sky/5" key={row.key} onClick={() => { onSelect(row); }}>
                 <td className="p-3 font-medium">{row.key}</td>
                 <td className="p-3 text-right text-slate-300">{formatNumber(row.calls)}</td>
               </tr>
@@ -34,7 +34,7 @@ export function YahooUsageRecentErrors({ data, onSelect }: { data: YahooUsageSta
           <table className="w-full text-left text-sm">
             <tbody className="divide-y divide-line">
               {data.recentErrors.map((error) => (
-                <tr key={error.id} className="cursor-pointer align-top transition hover:bg-coral/5" onClick={() => onSelect(error)}>
+                <tr key={error.id} className="cursor-pointer align-top transition hover:bg-coral/5" onClick={() => { onSelect(error); }}>
                   <td className="p-3">
                     <p className="font-medium">{error.method} {error.ticker ?? error.tickers[0] ?? ""}</p>
                     <p className="muted">{formatDateTime(error.createdAt)} - {formatMs(error.durationMs)}</p>

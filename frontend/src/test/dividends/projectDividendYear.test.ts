@@ -28,12 +28,12 @@ describe("projectDividendYear", () => {
     );
 
     expect(projected).toHaveLength(1);
-    expect(projected[0].date).toBe("2027-05-20T00:00:00.000Z");
-    expect(projected[0].year).toBe(TARGET_YEAR);
-    expect(projected[0].amountPerShare).toBeCloseTo(1.44, 6);
-    expect(projected[0].totalAmount).toBeCloseTo(14.4, 6);
-    expect(projected[0].projected).toBe(true);
-    expect(projected[0].status).toBe("estimated");
+    expect(projected[0]?.date).toBe("2027-05-20T00:00:00.000Z");
+    expect(projected[0]?.year).toBe(TARGET_YEAR);
+    expect(projected[0]?.amountPerShare).toBeCloseTo(1.44, 6);
+    expect(projected[0]?.totalAmount).toBeCloseTo(14.4, 6);
+    expect(projected[0]?.projected).toBe(true);
+    expect(projected[0]?.status).toBe("estimated");
   });
 
   it("conserve chaque detachement de l'annee de base et les trie par date", () => {
@@ -80,14 +80,14 @@ describe("projectDividendYear", () => {
       TARGET_YEAR
     );
 
-    expect(hausse[0].amountPerShare).toBeCloseTo(4.5, 6);
-    expect(baisse[0].amountPerShare).toBeCloseTo(0.5, 6);
+    expect(hausse[0]?.amountPerShare).toBeCloseTo(4.5, 6);
+    expect(baisse[0]?.amountPerShare).toBeCloseTo(0.5, 6);
   });
 
   it("projette sans croissance quand l'annee de reference est absente", () => {
     const projected = projectDividendYear([event({ date: "2026-05-20T00:00:00.000Z", year: 2026, amountPerShare: 2 })], TARGET_YEAR);
 
-    expect(projected[0].amountPerShare).toBeCloseTo(2, 6);
+    expect(projected[0]?.amountPerShare).toBeCloseTo(2, 6);
   });
 
   it("ignore un actif sans dividende sur l'annee de base", () => {
@@ -112,7 +112,7 @@ describe("projectDividendYear", () => {
     );
 
     expect(projected).toHaveLength(1);
-    expect(projected[0].date).toBe("2029-02-28T00:00:00.000Z");
+    expect(projected[0]?.date).toBe("2029-02-28T00:00:00.000Z");
   });
 
   it("expose les annees servant de base et de reference", () => {

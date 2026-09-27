@@ -1,30 +1,40 @@
+import { parseIsoDateParts } from "@pea/shared";
+import { timeToMinutes } from "../../timezone/date-time.service.js";
 import { marketCalendarRules, marketCalendars, usExchangeKeywords, type MarketCalendar, type MarketCalendarRule, type MarketName, type MarketSession } from "./market-calendar.data.js";
 
 export type { MarketCalendar, MarketDayOverride, MarketName, MarketSession } from "./market-calendar.data.js";
 
 export function getSessionsForDate(calendar: Pick<MarketCalendar, "sessions" | "dayOverrides">, isoDate: string): MarketSession[] {
   if (!calendar.dayOverrides?.length) return calendar.sessions;
-  const [y, m, d] = isoDate.split("-").map(Number);
+  const [y, m, d] = parseIsoDateParts(isoDate);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   const override = calendar.dayOverrides.find((o) => o.days.includes(weekday));
   return override ? override.sessions : calendar.sessions;
 }
 
+function requireSession(session: MarketSession | undefined): MarketSession {
+  if (!session) throw new Error("Market calendar has no trading session");
+  return session;
+}
+
+export function getFirstSession(sessions: MarketSession[]) {
+  return requireSession(sessions[0]);
+}
+
+export function getLastSession(sessions: MarketSession[]) {
+  return requireSession(sessions.at(-1));
+}
+
 export function getFirstOpenTime(sessions: MarketSession[]) {
-  return sessions[0].openTime;
+  return getFirstSession(sessions).openTime;
 }
 
 export function getFinalCloseTime(sessions: MarketSession[]) {
-  return sessions[sessions.length - 1].closeTime;
-}
-
-function toMinutes(time: string) {
-  const [hour, minute] = time.split(":").map(Number);
-  return hour * 60 + minute;
+  return getLastSession(sessions).closeTime;
 }
 
 export function isInsideAnySession(localMinutes: number, sessions: MarketSession[]) {
-  return sessions.some((session) => localMinutes >= toMinutes(session.openTime) && localMinutes <= toMinutes(session.closeTime));
+  return sessions.some((session) => localMinutes >= timeToMinutes(session.openTime) && localMinutes <= timeToMinutes(session.closeTime));
 }
 
 function normalizeMarketInput(symbol?: string, exchange?: string) {
@@ -32,8 +42,8 @@ function normalizeMarketInput(symbol?: string, exchange?: string) {
 }
 
 function getYahooSuffix(symbol?: string): string | undefined {
-  const raw = String(symbol ?? "").trim().toUpperCase();
-  const match = raw.match(/\.([A-Z0-9]+)$/);
+  const raw = (symbol ?? "").trim().toUpperCase();
+  const match = /\.([A-Z0-9]+)$/.exec(raw);
   return match?.[1];
 }
 
@@ -63,7 +73,7 @@ function calendar(market: MarketName): MarketCalendar {
 export function getMarketCalendar(symbol?: string, exchange?: string): MarketCalendar {
   const input = normalizeMarketInput(symbol, exchange);
   const suffix = getYahooSuffix(symbol);
-  const rawSymbol = String(symbol ?? "").trim().toUpperCase();
+  const rawSymbol = (symbol ?? "").trim().toUpperCase();
   const matchedRule = marketCalendarRules.find((rule) => ruleMatches(rule, input, suffix));
   if (matchedRule) return calendar(matchedRule.market);
   if (!rawSymbol.includes(".") || hasExchange(input, ...usExchangeKeywords)) return calendar("us");

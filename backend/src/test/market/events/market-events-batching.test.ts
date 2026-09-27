@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runBackendScript, seedUser } from "../../helpers/backend-script.js";
 
-type StreamedEvent = { event: string; data: { type: string; markets: string[]; range?: string; updatedAt: string } };
+interface StreamedEvent { event: string; data: { type: string; markets: string[]; range?: string; updatedAt: string } }
 
 test("market refresh sends all impacted events in a single write and only to concerned users", () => {
   const result = runBackendScript(`
@@ -41,7 +41,7 @@ test("market refresh sends all impacted events in a single write and only to con
       return { event: eventLine.slice("event: ".length), data: JSON.parse(dataLine.slice("data: ".length)) };
     });
     console.log("__RESULT__" + JSON.stringify({ ownerWrites: owner.writes.length, strangerWrites: stranger.writes.length, events }));
-  `);
+  `) as { ownerWrites: number; strangerWrites: number; events: { event: string; data: { type: string; markets: string[]; updatedAt: string; range?: string | undefined } }[] };
 
   assert.equal(result.ownerWrites, 1);
   assert.equal(result.strangerWrites, 0);

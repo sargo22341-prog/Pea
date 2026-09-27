@@ -13,7 +13,7 @@ test("live stored intraday with no points is not marked preparing when no refres
     addTracked("AAA.PA", "AAA", "Paris");
     const chart = await marketDataService.getChartData("AAA.PA", "1d");
     console.log("__RESULT__" + JSON.stringify({ isPreparing: chart.isPreparing ?? false, points: chart.timestamps.length }));
-  `);
+  `) as { points: number; isPreparing: boolean };
 
   assert.equal(result.points, 0);
   assert.equal(result.isPreparing, false);
@@ -37,7 +37,7 @@ test("live stored intraday pending open returns temporary availability status wi
       isPreparing: chart.isPreparing ?? false,
       availabilityStatus: chart.availabilityStatus
     }));
-  `);
+  `) as { points: number; isPreparing: boolean; availabilityStatus: string };
 
   assert.equal(result.points, 0);
   assert.equal(result.isPreparing, false);
@@ -66,7 +66,7 @@ test("live stored intraday pending open still serves older candles when availabl
       isPreparing: chart.isPreparing ?? false,
       availabilityStatus: chart.availabilityStatus
     }));
-  `);
+  `) as { points: number; isPreparing: boolean; availabilityStatus: undefined };
 
   assert.equal(result.points, 2);
   assert.equal(result.isPreparing, false);
@@ -95,7 +95,7 @@ test("live stored intraday pending open serves latest known intraday candles fro
       interval: chart.interval,
       availabilityStatus: chart.availabilityStatus
     }));
-  `);
+  `) as { points: number; interval: string; availabilityStatus: undefined };
 
   assert.equal(result.points, 2);
   assert.equal(result.interval, "15m");
@@ -112,11 +112,11 @@ test("live stored non-intraday empty chart queues initial range construction", (
     addTracked("URTH", "URTH", "NYSE");
     const chart = await marketDataService.getChartData("URTH", "1w");
     console.log("__RESULT__" + JSON.stringify({ isPreparing: chart.isPreparing ?? false, missingRanges: chart.missingRanges, jobId: chart.jobId ?? null }));
-  `);
+  `) as { isPreparing: boolean; missingRanges: string[]; jobId: string };
 
   assert.equal(result.isPreparing, true);
   assert.deepEqual(result.missingRanges, ["1w"]);
-  assert.ok(String(result.jobId).startsWith("job-"));
+  assert.ok(result.jobId.startsWith("job-"));
 });
 
 test("dividend yield normalization accepts Yahoo fraction and percent units", () => {
@@ -130,7 +130,7 @@ test("dividend yield normalization accepts Yahoo fraction and percent units", ()
       empty: normalizeDividendYield(null),
       aberrant: normalizeDividendYield(10050)
     }));
-  `);
+  `) as { fraction: number; percent: number; basisPointsLow: number; basisPoints: number; empty: null; aberrant: null };
 
   assert.equal(result.fraction, 0.0475);
   assert.equal(result.percent, 0.0475);
@@ -181,7 +181,7 @@ test("lazy chart refresh uses intraday interval for memory cache freshness", () 
     await new Promise((resolve) => setTimeout(resolve, 20));
     Date.now = realDateNow;
     console.log("__RESULT__" + JSON.stringify({ fresh, stale, chartCalls }));
-  `);
+  `) as { fresh: { status: string }; stale: { status: string }; chartCalls: number };
 
   assert.equal(result.fresh.status, "skipped-fresh");
   assert.equal(result.stale.status, "started");

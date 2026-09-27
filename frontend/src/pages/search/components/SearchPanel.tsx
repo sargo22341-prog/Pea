@@ -32,7 +32,7 @@ export function SearchPanel({
 
       <label className="relative block">
         <Search className="absolute left-3 top-3 text-slate-500" size={18} />
-        <input className="input pl-10" onChange={(event) => onQueryChange(event.target.value)} placeholder={t("searchPage.placeholder", { ns: "common" })} value={query} />
+        <input className="input pl-10" onChange={(event) => { onQueryChange(event.target.value); }} placeholder={t("searchPage.placeholder", { ns: "common" })} value={query} />
       </label>
 
       {error && <div className="card border-coral p-4 text-coral">{error}</div>}
@@ -77,7 +77,7 @@ function SearchResultRow({
           {item.regularMarketChangePercent === undefined ? "n/a" : percent(item.regularMarketChangePercent)}
         </p>
       </div>
-      <button className="text-amber" onClick={() => onToggleWatchlist(item)} title={t("searchPage.watchlist", { ns: "common" })} type="button">
+      <button className="text-amber" onClick={() => { onToggleWatchlist(item); }} title={t("searchPage.watchlist", { ns: "common" })} type="button">
         <Star fill={item.isInWatchlist ? "currentColor" : "none"} size={22} />
       </button>
     </div>

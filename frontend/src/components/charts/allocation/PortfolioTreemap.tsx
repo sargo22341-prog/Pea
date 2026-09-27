@@ -4,7 +4,7 @@ import { Tooltip, Treemap } from "recharts";
 import { useAuthenticatedImageUrl } from "../../../hooks/useAuthenticatedImageUrl";
 import { AssetIcon } from "../../common/AssetIcon";
 import { ChartEmpty } from "../ChartEmpty";
-import { chartColors, formatPercent } from "../chartFormat";
+import { chartColors, formatPercent, paletteColor } from "../chartFormat";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
 
 type TreemapContentProps = Partial<PortfolioTreemapItem> & {
@@ -15,10 +15,10 @@ type TreemapContentProps = Partial<PortfolioTreemapItem> & {
   index?: number;
 };
 
-type TreemapTooltipProps = {
+interface TreemapTooltipProps {
   active?: boolean;
-  payload?: Array<{ payload?: PortfolioTreemapItem }>;
-};
+  payload?: { payload?: PortfolioTreemapItem }[];
+}
 
 function TreemapContent(props: TreemapContentProps) {
   const { x = 0, y = 0, width = 0, height = 0, index = 0, symbol, percentage } = props;
@@ -28,7 +28,7 @@ function TreemapContent(props: TreemapContentProps) {
 
   return (
     <g>
-      <rect fill={chartColors[index % chartColors.length]} height={height} rx={6} ry={6} stroke="#071014" strokeWidth={3} width={width} x={x} y={y} />
+      <rect fill={paletteColor(chartColors, index)} height={height} rx={6} ry={6} stroke="#071014" strokeWidth={3} width={width} x={x} y={y} />
       {showDetails ? (
         <>
           {showLogo && iconUrl ? <image height={28} href={iconUrl} width={28} x={x + 10} y={y + 10} /> : null}
@@ -45,7 +45,7 @@ function TreemapContent(props: TreemapContentProps) {
 }
 
 function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
-  const item = payload?.[0]?.payload as PortfolioTreemapItem | undefined;
+  const item = payload?.[0]?.payload;
   if (!active || !item) return null;
 
   return (
@@ -62,7 +62,7 @@ function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
 
 export const PortfolioTreemap = memo(function PortfolioTreemap({ data }: { data: PortfolioTreemapItem[] }) {
   if (!data.length) return <ChartEmpty />;
-  const treemapData = data as unknown as Array<Record<string, unknown>>;
+  const treemapData = data as unknown as Record<string, unknown>[];
 
   return (
     <div className="h-[420px] min-w-0">

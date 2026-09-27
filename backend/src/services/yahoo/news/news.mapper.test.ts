@@ -25,6 +25,8 @@ test("news articles keep HTTP inputs after HTTPS normalization", () => {
   ]);
 
   assert.equal(articles.length, 1);
-  assert.equal(articles[0].url, "https://example.com/news");
-  assert.equal(articles[0].imageUrl, "https://cdn.example.com/news.png");
+  const [article] = articles;
+  assert.ok(article);
+  assert.equal(article.url, "https://example.com/news");
+  assert.equal(article.imageUrl, "https://cdn.example.com/news.png");
 });

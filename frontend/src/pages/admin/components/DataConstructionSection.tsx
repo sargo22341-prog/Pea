@@ -85,7 +85,7 @@ export function DataConstructionSection() {
         <p>{t("admin.construction.status", { ns: "common", status })}</p>
         {job?.currentTaskLabel ? <p>{t("admin.construction.currentTask", { ns: "common", task: job.currentTaskLabel })}</p> : null}
         <p>{job?.currentMessage ?? t("admin.construction.idle", { ns: "common" })}</p>
-        {job?.errors?.length ? (
+        {job?.errors.length ? (
           <ul className="space-y-1 text-coral">
             {job.errors.slice(-3).map((error) => (
               <li key={error}>{error}</li>

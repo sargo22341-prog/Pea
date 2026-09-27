@@ -38,13 +38,13 @@ export class PortfolioReadService {
     if (!ownedPosition) return [];
     const rows = portfolioRepository.listTransactions(positionId);
     if (!rows.length) {
-      if (Number(ownedPosition.quantity) <= 0 && Number(ownedPosition.average_buy_price) <= 0) return [];
+      if (ownedPosition.quantity <= 0 && ownedPosition.average_buy_price <= 0) return [];
       return [legacyTransactionFromPosition(mapPosition(ownedPosition))];
     }
 
     return rows.map((row) => ({
       id: String(row.id),
-      positionId: Number(row.position_id),
+      positionId: row.position_id,
       assetId: String(row.position_id),
       source: row.source === "pdf_avis_opere" || row.source === "csv" ? row.source : "manual",
       sourceFileName: row.source_file_name ?? undefined,
@@ -54,10 +54,10 @@ export class PortfolioReadService {
       isin: row.isin ?? undefined,
       ticker: row.ticker ?? undefined,
       type: row.type === "sell" ? "sell" : "buy",
-      quantity: Number(row.quantity),
-      executedPrice: Number(row.price),
-      price: Number(row.price),
-      totalFees: row.total_fees == null ? undefined : Number(row.total_fees),
+      quantity: row.quantity,
+      executedPrice: row.price,
+      price: row.price,
+      totalFees: row.total_fees ?? undefined,
       currency: row.currency,
       rawTextSnippet: row.raw_text_snippet ?? undefined,
       createdAt: row.traded_at
@@ -73,7 +73,7 @@ export class PortfolioReadService {
     const resolvedUserId = requireUserId(userId);
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<PortfolioSummary>(cacheUserId, "portfolio-summary", range);
+      const cached = frontendBlockCache.read(cacheUserId, "portfolio-summary", range) as PortfolioSummary | undefined;
       if (cached) return cached;
     }
     const basePositions = this.listPositions(resolvedUserId);
@@ -111,11 +111,11 @@ export class PortfolioReadService {
       return {
         userId: cached.user_id,
         symbol: cached.symbol,
-        quantity: Number(cached.quantity),
-        averagePrice: Number(cached.average_price),
-        transactionCount: Number(cached.transaction_count),
-        totalFees: Number(cached.total_fees),
-        investedAmount: Number(cached.invested_amount)
+        quantity: cached.quantity,
+        averagePrice: cached.average_price,
+        transactionCount: cached.transaction_count,
+        totalFees: cached.total_fees,
+        investedAmount: cached.invested_amount
       };
     }
 
@@ -138,8 +138,7 @@ export class PortfolioReadService {
   enrichPositionWithQuote(position: Position, quote?: Quote, txCache?: Map<number, PositionTransactionCache>): PositionWithMarket {
     const resolvedCache = txCache ?? buildTransactionCache([position.id]);
     const entry = resolvedCache.get(position.id);
-    const dated = entry?.hasDated ?? false;
-    const effectivePosition = dated ? positionFromTransactionCache(position, entry!.transactions) : position;
+    const effectivePosition = entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
     const currentPrice = quote?.price || effectivePosition.averageBuyPrice;
     const marketValue = currentPrice * effectivePosition.quantity;
     const costBasis = effectivePosition.averageBuyPrice * effectivePosition.quantity;
@@ -166,13 +165,13 @@ export class PortfolioReadService {
     if (!position) return undefined;
     const transactions = portfolioRepository.listTransactionSequence(positionId);
     const transactionCount = transactions.length;
-    const totalFees = transactions.reduce((sum, row) => sum + Number(row.total_fees ?? 0), 0);
-    const investedAmount = Number(position.quantity) * Number(position.average_buy_price);
+    const totalFees = transactions.reduce((sum, row) => sum + (row.total_fees ?? 0), 0);
+    const investedAmount = position.quantity * position.average_buy_price;
     const payload: UserAssetPositionDto = {
       userId: cacheUserId,
-      symbol: String(position.symbol).toUpperCase(),
-      quantity: Number(position.quantity),
-      averagePrice: Number(position.average_buy_price),
+      symbol: position.symbol.toUpperCase(),
+      quantity: position.quantity,
+      averagePrice: position.average_buy_price,
       transactionCount,
       totalFees,
       investedAmount

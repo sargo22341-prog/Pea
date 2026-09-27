@@ -2,7 +2,7 @@ import type { DatabaseAdapter } from "../../db-adapter.js";
 import type { Migration } from "../types.js";
 
 function hasColumn(db: DatabaseAdapter, table: string, column: string) {
-  return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some((row) => row.name === column);
+  return (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((row) => row.name === column);
 }
 
 function addColumnIfMissing(db: DatabaseAdapter, column: string, definition: string) {

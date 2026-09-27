@@ -1,6 +1,7 @@
-import { runBackendScript } from "../helpers/backend-script.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { WatchlistItem } from "@pea/shared";
+import { runBackendScript } from "../helpers/backend-script.js";
 
 test("watchlist add, list and remove flow", () => {
   const result = runBackendScript(`
@@ -57,7 +58,7 @@ test("watchlist add, list and remove flow", () => {
         server.close();
       }
     });
-  `);
+  `) as { emptyStatus: number; emptyBody: unknown[]; addStatus: number; listedCount: number; listedSymbol: string; removeStatus: number; afterRemoveCount: number; removeAgainStatus: number };
 
   assert.equal(result.emptyStatus, 200);
   assert.deepEqual(result.emptyBody, []);
@@ -106,7 +107,7 @@ test("adding the same symbol twice is idempotent and returns exactly one watchli
         server.close();
       }
     });
-  `);
+  `) as { firstStatus: number; secondStatus: number; count: number };
 
   // The service uses ON CONFLICT DO UPDATE (upsert), so both calls succeed with 201
   assert.equal(result.firstStatus, 201);
@@ -161,7 +162,7 @@ test("watchlist is isolated between users: bob cannot see alice's watchlist item
         server.close();
       }
     });
-  `);
+  `) as { bobCount: number };
 
   assert.equal(result.bobCount, 0);
 });
@@ -194,11 +195,11 @@ test("watchlist add/remove invalide le cache frontend et la liste est relue imme
       return { afterAddCache, afterAddList, afterRemoveCache, afterRemoveList };
     });
     console.log("__RESULT__" + JSON.stringify({ ...output, events }));
-  `);
+  `) as { afterAddCache: number; afterAddList: WatchlistItem[]; afterRemoveCache: number; afterRemoveList: unknown[]; events: { userId: string; event: string; payload: { symbols: string[]; updatedAt: string } }[] };
 
   assert.equal(result.afterAddCache, 0);
   assert.equal(result.afterAddList.length, 1);
-  assert.equal(result.afterAddList[0].symbol, "AIR.PA");
+  assert.equal(result.afterAddList[0]?.symbol, "AIR.PA");
   assert.equal(result.afterRemoveCache, 0);
   assert.equal(result.afterRemoveList.length, 0);
   assert.equal(result.events.filter((entry: { event: string }) => entry.event === "watchlist-assets-updated").length, 2);
@@ -240,15 +241,15 @@ test("watchlist stores closed-market item cache longer per asset", () => {
       return { first, rows };
     });
     console.log("__RESULT__" + JSON.stringify({ ...output, quoteCalls, chartCalls, before }));
-  `);
+  `) as { first: WatchlistItem[]; quoteCalls: number; chartCalls: number; rows: { cache_key: string; expires_at: number }[]; before: number };
 
   assert.equal(result.first.length, 2);
   assert.equal(result.quoteCalls, 2);
   assert.equal(result.chartCalls, 2);
-  const closed = result.rows.find((row: { cache_key: string }) => String(row.cache_key).includes("AAA.PA"));
-  const open = result.rows.find((row: { cache_key: string }) => String(row.cache_key).includes("BBB"));
+  const closed = result.rows.find((row: { cache_key: string }) => row.cache_key.includes("AAA.PA"));
+  const open = result.rows.find((row: { cache_key: string }) => row.cache_key.includes("BBB"));
   assert.ok(closed, JSON.stringify(result.rows));
   assert.ok(open, JSON.stringify(result.rows));
-  assert.ok(Number(closed.expires_at) - result.before > 48 * 60 * 60 * 1000);
-  assert.ok(Number(open.expires_at) - result.before < 10 * 60 * 1000);
+  assert.ok(closed.expires_at - result.before > 48 * 60 * 60 * 1000);
+  assert.ok(open.expires_at - result.before < 10 * 60 * 1000);
 });

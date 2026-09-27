@@ -30,7 +30,7 @@ const ERROR_THRESHOLD = 10;
 const BACKOFF_START_THRESHOLD = 3;
 
 function readPositiveIntEnv(name: string, fallback: number) {
-  if (process.env.NODE_ENV !== "test") return fallback;
+  if (process.env["NODE_ENV"] !== "test") return fallback;
   const raw = process.env[name]?.trim();
   if (!raw) return fallback;
   const parsed = Number(raw);
@@ -151,13 +151,10 @@ export class AuthFailureTracker {
 
 export const authFailureTracker = new AuthFailureTracker();
 
-export function clientIpFrom(req: { ip?: string; socket?: { remoteAddress?: string }; headers?: Record<string, string | string[] | undefined> }): string {
-  return (
-    req.ip ||
-    req.socket?.remoteAddress ||
-    (Array.isArray(req.headers?.["x-forwarded-for"]) ? req.headers!["x-forwarded-for"]![0] : (req.headers?.["x-forwarded-for"] as string | undefined)) ||
-    "unknown"
-  );
+export function clientIpFrom(req: { ip?: string | undefined; socket?: { remoteAddress?: string | undefined }; headers?: Record<string, string | string[] | undefined> }): string {
+  const forwardedFor = req.headers?.["x-forwarded-for"];
+  const forwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+  return req.ip || req.socket?.remoteAddress || forwardedIp || "unknown";
 }
 
 export function sleep(ms: number) {

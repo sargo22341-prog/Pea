@@ -7,12 +7,14 @@ import { marketDataGateway } from "../../services/market/data/market-data-gatewa
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { asyncRoute } from "../shared/async-route.js";
+import { requireAuthUser } from "../../middleware/auth.js";
+import { primitiveText } from "../../utils/text.js";
 
 export const searchRouter = express.Router();
 
 searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   const totalStartedAt = performance.now();
-  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const q = typeof req.query["q"] === "string" ? req.query["q"].trim() : "";
   if (!q) throw new HttpError(400, "Le paramètre q est requis");
 
   if (req.user?.localPeaSearchEnabled) {
@@ -35,8 +37,8 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
   const quoteBySymbol = new Map(quotes.data.map((quote) => [quote.symbol.toUpperCase(), quote]));
 
   const dbStartedAt = performance.now();
-  const watchlistSymbols = new Set(watchlistRepository.symbols(req.user!.id));
-  const portfolioSymbols = new Set(portfolioRepository.positionSymbols(req.user!.id));
+  const watchlistSymbols = new Set(watchlistRepository.symbols(requireAuthUser(req).id));
+  const portfolioSymbols = new Set(portfolioRepository.positionSymbols(requireAuthUser(req).id));
   const dbMs = performance.now() - dbStartedAt;
 
   const enriched: EnrichedSearchResult[] = items.map((item) => {
@@ -68,6 +70,6 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
 }));
 
 searchRouter.get("/search", asyncRoute(async (req, res) => {
-  const result = await marketDataGateway.search(String(req.query.q ?? ""));
+  const result = await marketDataGateway.search(primitiveText(req.query["q"]));
   res.json(result.data.map((item) => ({ ...item, stale: result.stale })));
 }));

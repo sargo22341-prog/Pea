@@ -31,11 +31,11 @@ export class FinancialsRepository {
   readAnnualRows(assetId: number): FinancialYearItem[] {
     const rows = db
       .prepare("SELECT fiscal_year, total_revenue, net_income, net_margin FROM asset_financials WHERE asset_id = ? AND period = 'annual' ORDER BY fiscal_year ASC")
-      .all(assetId) as Array<{ fiscal_year: number; total_revenue: number | null; net_income: number | null; net_margin: number | null }>;
+      .all(assetId) as { fiscal_year: number; total_revenue: number | null; net_income: number | null; net_margin: number | null }[];
     return rows
       .filter((row) => row.total_revenue != null && row.net_income != null && row.net_margin != null)
       .map((row) => ({
-        year: Number(row.fiscal_year),
+        year: row.fiscal_year,
         revenue: Number(row.total_revenue),
         netIncome: Number(row.net_income),
         netMargin: Number(row.net_margin)

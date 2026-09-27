@@ -1,4 +1,4 @@
-import type { RangeKey } from "@pea/shared";
+import { parseIsoDateParts, type RangeKey } from "@pea/shared";
 import { getZonedDateParts, timeToMinutes, zonedTimeToUtc } from "../../timezone/date-time.service.js";
 import { logger } from "../../shared/logger.service.js";
 import { marketDataGateway } from "../data/market-data-gateway.service.js";
@@ -27,7 +27,7 @@ function getLocalDateParts(date: Date, timeZone: string) {
 }
 
 function addDaysToIsoDate(isoDate: string, days: number) {
-  const [year, month, day] = isoDate.split("-").map(Number);
+  const [year, month, day] = parseIsoDateParts(isoDate);
   const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0));
   return date.toISOString().slice(0, 10);
 }
@@ -68,7 +68,7 @@ export function isTradingDay(symbol?: string, exchange?: string, date = new Date
 
 /** Retourne l'ouverture marche uniquement depuis `quote.marketState` Yahoo. */
 export function isMarketOpen(marketState?: string | null) {
-  return String(marketState ?? "").toUpperCase() === "REGULAR";
+  return (marketState ?? "").toUpperCase() === "REGULAR";
 }
 
 export function getSessionForDate(symbol: string | undefined, exchange: string | undefined, isoDate: string): OpenMarketDay {
@@ -122,7 +122,7 @@ export async function getLastAvailableTradingDayFromYahoo(symbol: string, now = 
   return { ...session, close: valid.close, pointDate: valid.date };
 }
 
-function resolveMarketInput(market: string | { symbol?: string; exchange?: string }) {
+function resolveMarketInput(market: string | { symbol?: string; exchange?: string | undefined }) {
   if (typeof market === "string") return { symbol: market };
   return market;
 }
@@ -131,7 +131,7 @@ const previousOpenMarketDaysCache = new Map<string, OpenMarketDay[]>();
 const maxPreviousOpenMarketDaysCacheEntries = 512;
 
 export function getPreviousOpenMarketDays(
-  market: string | { symbol?: string; exchange?: string },
+  market: string | { symbol?: string; exchange?: string | undefined },
   endDate: Date,
   count: number
 ): OpenMarketDay[] {
@@ -143,7 +143,7 @@ export function getPreviousOpenMarketDays(
   if (cached) return cached.map((day) => ({ ...day, period1: new Date(day.period1), period2: new Date(day.period2), calendar: day.calendar }));
 
   const days: OpenMarketDay[] = [];
-  const ignored: Array<{ date: string; reason: string }> = [];
+  const ignored: { date: string; reason: string }[] = [];
   const maxLookbackDays = Math.max(20, count * 4 + 20);
   let cursorDate = endLocalDate;
 
@@ -176,7 +176,7 @@ export function getPreviousOpenMarketDays(
 }
 
 export function getOpenMarketDaysBetween(
-  market: string | { symbol?: string; exchange?: string },
+  market: string | { symbol?: string; exchange?: string | undefined },
   startDate: Date,
   endDate: Date
 ): OpenMarketDay[] {
@@ -185,7 +185,7 @@ export function getOpenMarketDaysBetween(
   const startLocalDate = getLocalDateParts(startDate, calendar.timezone).isoDate;
   const endLocalDate = getLocalDateParts(endDate, calendar.timezone).isoDate;
   const days: OpenMarketDay[] = [];
-  const ignored: Array<{ date: string; reason: string }> = [];
+  const ignored: { date: string; reason: string }[] = [];
   let cursorDate = endLocalDate;
 
   while (cursorDate >= startLocalDate) {
@@ -215,7 +215,7 @@ export function getOpenMarketDaysBetween(
 
 function trimPreviousOpenMarketDaysCache() {
   while (previousOpenMarketDaysCache.size > maxPreviousOpenMarketDaysCacheEntries) {
-    const oldestKey = previousOpenMarketDaysCache.keys().next().value as string | undefined;
+    const oldestKey = previousOpenMarketDaysCache.keys().next().value;
     if (!oldestKey) return;
     previousOpenMarketDaysCache.delete(oldestKey);
   }

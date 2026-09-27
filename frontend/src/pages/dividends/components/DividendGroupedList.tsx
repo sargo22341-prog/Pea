@@ -15,11 +15,11 @@ export interface DividendGroup {
   currency: CurrencyCode;
   quarters: [number, number, number, number];
   total: number;
-  dividendPercent?: number;
-  yieldOnCostPercent?: number;
+  dividendPercent?: number | undefined;
+  yieldOnCostPercent?: number | undefined;
   hasEstimated: boolean;
   hasProjected: boolean;
-  stale?: boolean;
+  stale?: boolean | undefined;
 }
 
 interface DividendGroupedListProps {
@@ -73,7 +73,7 @@ function DividendAssetRow({ group, index, prive }: { group: DividendGroup; index
             {group.name}
           </p>
           <p className="mt-1 text-sm text-slate-400">
-            {t("dividendsPage.shares", { ns: "dashboard", quantity: masquerValeur(`${formatQuantity(group.quantity)}`, prive) })}
+            {t("dividendsPage.shares", { ns: "dashboard", quantity: masquerValeur(formatQuantity(group.quantity), prive) })}
           </p>
         </div>
       </div>

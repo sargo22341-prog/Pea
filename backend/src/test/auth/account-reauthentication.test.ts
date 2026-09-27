@@ -54,7 +54,7 @@ test("credential changes require the current password", () => {
         server.close();
       }
     });
-  `);
+  `) as { withoutCurrent: number; withWrongCurrent: number; preferenceOnly: number; withCurrent: number; login: number };
 
   assert.equal(result.withoutCurrent, 401);
   assert.equal(result.withWrongCurrent, 401);

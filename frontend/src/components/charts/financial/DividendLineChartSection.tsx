@@ -4,13 +4,14 @@ import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts"
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { formatMaybeDate, formatMonthYear, formatPlainPercent, money } from "../../../lib/format";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
+import { labelText } from "../chartFormat";
 
-type DividendChartPoint = {
+interface DividendChartPoint {
   date: string;
   amount: number;
   currency: string;
   status: DividendEvent["status"];
-};
+}
 
 export const DividendLineChartSection = memo(function DividendLineChartSection({
   dividends,
@@ -19,9 +20,9 @@ export const DividendLineChartSection = memo(function DividendLineChartSection({
   averageBuyPrice
 }: {
   dividends: DividendEvent[];
-  marketInfo?: AssetMarketInfo;
+  marketInfo?: AssetMarketInfo | undefined;
   currentPrice?: number;
-  averageBuyPrice?: number;
+  averageBuyPrice?: number | undefined;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const currentYear = new Date().getUTCFullYear();
@@ -109,9 +110,9 @@ export const DividendLineChartSection = memo(function DividendLineChartSection({
                 }}
                 formatter={(value, _name, item) => money(Number(value), (item.payload as DividendChartPoint).currency)}
                 labelFormatter={(value, payload) => {
-                  const point = payload?.[0]?.payload as DividendChartPoint | undefined;
+                  const point = payload[0]?.payload as DividendChartPoint | undefined;
                   const suffix = point?.status === "estimated" ? " (infos marche)" : "";
-                  return `${formatMaybeDate(String(value))}${suffix}`;
+                  return `${formatMaybeDate(labelText(value))}${suffix}`;
                 }}
                 labelStyle={{ color: "#f8fafc" }}
               />
@@ -209,7 +210,7 @@ function dividendsForYear(dividends: DividendEvent[], year: number) {
 
 function latestDividendAmount(dividends: DividendEvent[]) {
   const latest = [...dividends].sort((a, b) => b.date.localeCompare(a.date))[0];
-  return latest ? Number(latest.amount) : undefined;
+  return latest ? latest.amount : undefined;
 }
 
 function sameUtcDay(value: string, expected: Date) {

@@ -29,7 +29,7 @@ test("malformed or oversized JSON bodies are rejected as client errors instead o
         server.close();
       }
     });
-  `);
+  `) as { malformedStatus: number; malformedBody: { message: string }; oversizedStatus: number };
 
   assert.equal(result.malformedStatus, 400);
   assert.equal(result.malformedBody.message, "Requete invalide.");

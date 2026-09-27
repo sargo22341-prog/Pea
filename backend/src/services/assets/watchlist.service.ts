@@ -5,20 +5,24 @@ import { requireUserId } from "../auth/user-context.js";
 import { marketDataService } from "../market/data/market-data.service.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { chartConfigService } from "../market/charts/chart-config.service.js";
+import { chartHistoryPoints } from "../market/charts/chart-history.js";
 import { marketEventsService } from "../market/events/market-events.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { invalidateFrontendBlockCache } from "../shared/cache.service.js";
+
+/** Metadonnees optionnelles fournies par le client a l'ajout (issues de la recherche). */
+export type WatchlistAddInput = { [K in "name" | "exchange" | "currency"]?: SearchResult[K] | undefined };
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { marketAwareCacheTtlMs } from "../portfolio/portfolio-cache-ttl.js";
 
 function mapWatchlistRow(row: WatchlistRow): WatchlistItem {
   return {
-    id: Number(row.id),
-    symbol: String(row.symbol),
-    name: String(row.name),
-    exchange: row.exchange ? String(row.exchange) : undefined,
-    currency: row.currency ? String(row.currency) : undefined,
-    createdAt: String(row.created_at),
+    id: row.id,
+    symbol: row.symbol,
+    name: row.name,
+    exchange: row.exchange ? row.exchange : undefined,
+    currency: row.currency ? row.currency : undefined,
+    createdAt: row.created_at,
     history: []
   };
 }
@@ -28,7 +32,7 @@ export class WatchlistService {
     const resolvedUserId = requireUserId(userId);
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<WatchlistItem[]>(cacheUserId, "watchlist", range);
+      const cached = frontendBlockCache.read(cacheUserId, "watchlist", range) as WatchlistItem[] | undefined;
       if (cached) return cached;
     }
     const rows = watchlistRepository.list(resolvedUserId);
@@ -37,7 +41,7 @@ export class WatchlistService {
     return payload;
   }
 
-  async add(symbol: string, input?: Partial<SearchResult>, userId?: number | string): Promise<WatchlistItem> {
+  async add(symbol: string, input?: WatchlistAddInput, userId?: number | string): Promise<WatchlistItem> {
     const resolvedUserId = requireUserId(userId);
     const key = symbol.toUpperCase();
     let name = input?.name || key;
@@ -91,7 +95,7 @@ export class WatchlistService {
     const cacheUserId = String(userId);
     const itemCacheKey = `${range}:${item.symbol.toUpperCase()}`;
     if (config.enableMarketLiveRefresh) {
-      const cached = frontendBlockCache.read<WatchlistItem>(cacheUserId, "watchlist-item", itemCacheKey);
+      const cached = frontendBlockCache.read(cacheUserId, "watchlist-item", itemCacheKey) as WatchlistItem | undefined;
       if (cached) return cached;
     }
 
@@ -102,7 +106,7 @@ export class WatchlistService {
         name: item.name || quote.name,
         currency: item.currency || quote.currency,
         quote,
-        history: chart.timestamps.map((timestamp, index) => ({ date: new Date(timestamp).toISOString(), close: chart.prices[index] })),
+        history: chartHistoryPoints(chart),
         marketDataUnavailable: Boolean(quote.stale || quote.unavailable)
       };
       if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "watchlist-item", payload, marketAwareCacheTtlMs(range, quote), itemCacheKey);

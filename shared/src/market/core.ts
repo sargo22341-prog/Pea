@@ -1,7 +1,8 @@
 export type RangeKey = "1d" | "1w" | "1m" | "1y" | "5y" | "10y" | "ytd" | "all";
 export type DisplayRangeKey = "intraday" | "1W" | "1M" | "YTD" | "1Y" | "5Y" | "10Y" | "ALL";
 export type MarketState = "OPEN" | "CLOSED" | "PRE" | "POST";
-export type CurrencyCode = "EUR" | "USD" | "GBP" | "CHF" | string;
+/** Code devise ISO 4217 (EUR, USD, GBP, CHF...) ; toute devise renvoyee par Yahoo est acceptee. */
+export type CurrencyCode = string;
 
 export interface TopMover {
   symbol: string;
@@ -9,7 +10,7 @@ export interface TopMover {
   price: number;
   changePercent: number;
   change: number;
-  currency?: CurrencyCode;
+  currency?: CurrencyCode | undefined;
 }
 
 export interface TopAndLosersResponse {
@@ -39,42 +40,42 @@ export interface Quote {
   symbol: string;
   name: string;
   price: number;
-  previousClose?: number;
-  change?: number;
-  changePercent?: number;
+  previousClose?: number | undefined;
+  change?: number | undefined;
+  changePercent?: number | undefined;
   currency: CurrencyCode;
-  exchange?: string;
-  quoteType?: string;
-  marketState?: string;
-  dividendRate?: number;
-  dividendYield?: number;
-  logoUrl?: string;
+  exchange?: string | undefined;
+  quoteType?: string | undefined;
+  marketState?: string | undefined;
+  dividendRate?: number | undefined;
+  dividendYield?: number | undefined;
+  logoUrl?: string | undefined;
   stale?: boolean;
   unavailable?: boolean;
 }
 
 export interface AssetMarketInfo {
-  marketState?: string;
-  regularMarketPrice?: number;
-  regularMarketChange?: number;
-  regularMarketChangePercent?: number;
-  regularMarketTime?: string;
-  regularMarketPreviousClose?: number;
-  regularMarketOpen?: number;
-  regularMarketDayHigh?: number;
-  regularMarketDayLow?: number;
-  exchangeName?: string;
-  currency?: CurrencyCode;
-  regularMarketVolume?: number;
-  bid?: number;
-  ask?: number;
-  fiftyTwoWeekLow?: number;
-  fiftyTwoWeekHigh?: number;
-  averageDailyVolume3Month?: number;
-  totalAssets?: number;
-  dividendRate?: number;
-  dividendYield?: number;
-  exDividendDate?: string;
+  marketState?: string | undefined;
+  regularMarketPrice?: number | undefined;
+  regularMarketChange?: number | undefined;
+  regularMarketChangePercent?: number | undefined;
+  regularMarketTime?: string | undefined;
+  regularMarketPreviousClose?: number | undefined;
+  regularMarketOpen?: number | undefined;
+  regularMarketDayHigh?: number | undefined;
+  regularMarketDayLow?: number | undefined;
+  exchangeName?: string | undefined;
+  currency?: CurrencyCode | undefined;
+  regularMarketVolume?: number | undefined;
+  bid?: number | undefined;
+  ask?: number | undefined;
+  fiftyTwoWeekLow?: number | undefined;
+  fiftyTwoWeekHigh?: number | undefined;
+  averageDailyVolume3Month?: number | undefined;
+  totalAssets?: number | undefined;
+  dividendRate?: number | undefined;
+  dividendYield?: number | undefined;
+  exDividendDate?: string | undefined;
 }
 
 export interface AssetChartDto {
@@ -85,18 +86,18 @@ export interface AssetChartDto {
   prices: number[];
   baselinePrice?: number;
   baselineDatetime?: string;
-  performance?: number[];
+  performance?: number[] | undefined;
   performanceEuro?: number;
   performancePercent?: number;
   marketState?: MarketState;
-  marketSession?: MarketSessionDto;
+  marketSession?: MarketSessionDto | undefined;
   cachedAt: number;
   expiresAt: number;
   isPreparing?: boolean;
-  availabilityStatus?: "pending_open_confirmation" | "unavailable";
-  missingRanges?: RangeKey[];
-  missingAssets?: string[];
-  jobId?: string;
+  availabilityStatus?: "pending_open_confirmation" | "unavailable" | undefined;
+  missingRanges?: RangeKey[] | undefined;
+  missingAssets?: string[] | undefined;
+  jobId?: string | undefined;
 }
 
 export interface MarketSessionDto {
@@ -116,7 +117,7 @@ export interface DataConstructionJobDto {
   status: "idle" | "queued" | "running" | "success" | "error";
   progressPercent: number;
   currentMessage: string;
-  currentTaskLabel?: string;
+  currentTaskLabel?: string | undefined;
   errors: string[];
   createdAt: string;
   updatedAt: string;
@@ -207,21 +208,21 @@ export interface YahooUsageRecentErrorDto {
   id: number;
   createdAt: string;
   method: string;
-  ticker?: string;
+  ticker?: string | undefined;
   tickers: string[];
   modules: string[];
-  errorMessage?: string;
-  internalSource?: string;
+  errorMessage?: string | undefined;
+  internalSource?: string | undefined;
   durationMs: number;
 }
 
 export interface YahooUsageCallDto extends YahooUsageRecentErrorDto {
   success: boolean;
   tickerCount: number;
-  range?: string;
-  interval?: string;
+  range?: string | undefined;
+  interval?: string | undefined;
   cacheHit: boolean;
-  requestKey?: string;
+  requestKey?: string | undefined;
 }
 
 export interface YahooUsageStatsDto {

@@ -1,3 +1,5 @@
+import { parseIsoDateParts, parseTimeParts } from "@pea/shared";
+
 export const FALLBACK_TIMEZONE = "Europe/Paris";
 
 /** Garantit une timezone IANA utilisable par Intl.DateTimeFormat. */
@@ -23,8 +25,8 @@ export function localIsoDate(date: Date, timeZone: string) {
 
 /** Convertit `YYYY-MM-DD` + `HH:mm` local en instant UTC pour les domaines Recharts. */
 export function zonedTimeToUtc(day: string, time: string, timeZone: string) {
-  const [year, month, date] = day.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
+  const [year, month, date] = parseIsoDateParts(day);
+  const [hour, minute] = parseTimeParts(time);
   const utc = new Date(Date.UTC(year, month - 1, date, hour, minute));
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: normalizeTimeZone(timeZone),

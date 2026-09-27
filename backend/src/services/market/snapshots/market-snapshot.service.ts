@@ -154,8 +154,8 @@ export class MarketSnapshotService {
     const row = marketSnapshotRepository.readQuoteSnapshot(assetId);
     if (!row) return undefined;
     return {
-      symbol: String(row.symbol),
-      name: String(row.name),
+      symbol: row.symbol,
+      name: row.name,
       price: Number(row.last_price ?? row.previous_close ?? 0),
       previousClose: row.previous_close == null ? undefined : Number(row.previous_close),
       change: row.day_change == null ? undefined : Number(row.day_change),
@@ -192,7 +192,7 @@ export class MarketSnapshotService {
         marketEventsService.emitToAll("asset-annex-updated", { symbol: key, updatedAt });
         return quote;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         logger.warn("market-data", "background snapshot refresh failed", {
           symbol: key,
           error: error instanceof Error ? error.message : String(error)

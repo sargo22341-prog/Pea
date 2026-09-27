@@ -46,7 +46,7 @@ export async function fetchHistory(symbol: string, range: RangeKey, quoteReader:
     historicalOptions.period2 = new Date(Math.min(marketSession.period2.getTime(), Date.now()));
   }
 
-  const displayInterval = String(historicalOptions.displayInterval);
+  const displayInterval = historicalOptions.displayInterval;
   logger.debug("chart", "history fetch requested", { symbol: key, range, interval: historicalOptions.interval, displayInterval, tradingDay: historicalOptions.tradingDay });
   const historyFreshTtl = range === "1w" ? HISTORY_WEEK_FRESH_TTL_S : HISTORY_LONG_FRESH_TTL_S;
   const historyStaleReject = range === "1w" ? HISTORY_WEEK_STALE_REJECT_S : HISTORY_LONG_STALE_REJECT_S;
@@ -54,7 +54,7 @@ export async function fetchHistory(symbol: string, range: RangeKey, quoteReader:
     ? () => readIntradayCache(key, historicalOptions.tradingDay)
     : () => readHistoryCache(key, range, displayInterval, historyFreshTtl, historyStaleReject);
   const cacheWriter =
-    range === "1d" ? (data: HistoryPoint[]) => writeIntradayCache(key, data, historicalOptions.tradingDay) : (data: HistoryPoint[]) => writeHistoryCache(key, range, displayInterval, data);
+    range === "1d" ? (data: HistoryPoint[]) => { writeIntradayCache(key, data, historicalOptions.tradingDay); } : (data: HistoryPoint[]) => { writeHistoryCache(key, range, displayInterval, data); };
 
   if (range === "1d") {
     const cached = readIntradayCache(key, historicalOptions.tradingDay);
