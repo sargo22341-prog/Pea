@@ -7,4 +7,4 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 
 <!-- notes -->
 
-- Les nouvelles versions sont publiées automatiquement sur GitHub : image Docker sur ghcr.io et APK Android signé attaché à chaque release.
+- update Package
