@@ -83,7 +83,10 @@ describe("lazyWithReload", () => {
   it("surfaces the error when a reload already happened during the cooldown", async () => {
     const previousReloadAt = String(Date.now());
     sessionStorage.setItem(RELOAD_KEY, previousReloadAt);
-    const factory = vi.fn().mockRejectedValue(new TypeError("chunk missing"));
+    const chunkError = new TypeError("chunk missing");
+    const factory = vi.fn().mockRejectedValue(chunkError);
+    // React signale l'erreur capturee par la boundary : attendue ici, elle ne doit pas polluer la sortie.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     renderLazy(factory);
     await advance(TOTAL_RETRY_DELAY_MS);
@@ -91,5 +94,6 @@ describe("lazyWithReload", () => {
     expect(sessionStorage.getItem(RELOAD_KEY)).toBe(previousReloadAt);
     expect(reloadPage).not.toHaveBeenCalled();
     expect(screen.getByText("boundary: chunk missing")).toBeInTheDocument();
+    expect(consoleError.mock.calls.flat()).toContain(chunkError);
   });
 });

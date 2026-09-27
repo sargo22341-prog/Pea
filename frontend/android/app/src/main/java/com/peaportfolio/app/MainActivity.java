@@ -65,6 +65,22 @@ public class MainActivity extends BridgeActivity {
     Window window = getWindow();
     WindowCompat.setDecorFitsSystemWindows(window, false);
     window.getDecorView().setBackgroundColor(APP_BACKGROUND_COLOR);
+
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+      makeLegacySystemBarsTransparent(window);
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      window.setNavigationBarContrastEnforced(false);
+    }
+  }
+
+  /**
+   * Android 15 impose l'edge-to-edge aux applications ciblant l'API 35+ : ces setters y sont
+   * sans effet et dépréciés. Ils restent nécessaires pour des barres transparentes jusqu'à l'API 34.
+   */
+  @SuppressWarnings("deprecation")
+  private static void makeLegacySystemBarsTransparent(Window window) {
     window.setStatusBarColor(Color.TRANSPARENT);
     window.setNavigationBarColor(Color.TRANSPARENT);
 
@@ -74,7 +90,6 @@ public class MainActivity extends BridgeActivity {
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       window.setStatusBarContrastEnforced(false);
-      window.setNavigationBarContrastEnforced(false);
     }
   }
 

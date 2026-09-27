@@ -10,9 +10,9 @@ vi.mock("recharts", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   const Empty = () => null;
   const LineChart = ({ children, data }: { children: React.ReactNode; data: { amount: number }[] }) => (
-    <div data-testid="line-chart">
+    <svg data-testid="line-chart">
       {React.Children.map(children, (child) => (React.isValidElement(child) ? React.cloneElement(child, { chartData: data } as never) : child))}
-    </div>
+    </svg>
   );
   const Line = ({ chartData = [], label }: { chartData?: { amount: number }[]; label?: React.ReactNode }) => (
     <>

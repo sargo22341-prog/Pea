@@ -6,3 +6,4 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
+- Android : modernisation de la configuration des barres système et du build, sans changement visible, pour préparer les prochaines versions d'Android et de Gradle.

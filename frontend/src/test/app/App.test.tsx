@@ -3,6 +3,12 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 
+// Le vrai tableau de bord charge ses propres chunks lazy : un stub garde le test
+// deterministe et evite un import qui se terminerait apres la fin du fichier.
+vi.mock("../../pages/dashboard/DashboardPage", () => ({
+  DashboardPage: () => <p>dashboard stub</p>
+}));
+
 class EventSourceMock {
   static CONNECTING = 0;
   static OPEN = 1;
@@ -119,6 +125,7 @@ describe("App – auth gate", () => {
       expect(screen.queryByText("Creer le premier compte")).not.toBeInTheDocument();
     });
     await waitFor(() => { expect(eventSourceSpy).toHaveBeenCalledWith("/api/market/events", { withCredentials: true }); });
+    expect(await screen.findByText("dashboard stub")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith("/api/market/features", expect.anything());
   });
 
