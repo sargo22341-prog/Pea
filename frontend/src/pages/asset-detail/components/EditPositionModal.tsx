@@ -7,6 +7,7 @@ import { toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { MOTION } from "../../../components/common/motion";
+import { SplitAdjustedNote } from "./splits/SplitAdjustedNote";
 import { draftTransaction, errorMessage, maxSellQuantity, parseNonNegativeNumber, toFormRow, type EditableTransactionFormRow } from "./editTransactionForm";
 
 export function EditPositionModal({
@@ -187,7 +188,8 @@ export function EditPositionModal({
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.quantity")}</span>
-                        <input className="input" max={row.type === "sell" ? position.quantity : undefined} min="0" onChange={(event) => { patchTransactionQuantity(index, event.target.value, row); }} step="any" type="number" value={row.quantity} />
+                        <input className="input" max={row.type === "sell" ? maxSellQuantity(row, position) : undefined} min="0" onChange={(event) => { patchTransactionQuantity(index, event.target.value, row); }} step="any" type="number" value={row.quantity} />
+                        {row.splitFactor ? <SplitAdjustedNote currency={row.currency} factor={row.splitFactor} price={Number(row.price)} quantity={Number(row.quantity)} /> : null}
                       </label>
                       <label>
                         <span className="muted mb-1 block">{t("common:fields.price")}</span>

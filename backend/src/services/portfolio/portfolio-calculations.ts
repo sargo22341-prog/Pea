@@ -2,6 +2,8 @@ import type { DividendEvent, Position, PositionWithMarket } from "@pea/shared";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { logger } from "../shared/logger.service.js";
+import { appliedSplitsByPosition } from "./splits/applied-splits.js";
+import { adjustTransactionsForSplits } from "./splits/split-adjustment.js";
 
 /**
  * Représente une ligne de transaction brute telle que lue depuis la base.
@@ -120,6 +122,12 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
       total_fees: row.total_fees ?? null,
       traded_at: row.traded_at
     });
+  }
+
+  // Divisions d'actions validées par l'utilisateur : lecture ajustée, lignes stockées intactes.
+  for (const [positionId, splits] of appliedSplitsByPosition(positionIds)) {
+    const entry = cache.get(positionId);
+    if (entry) entry.transactions = adjustTransactionsForSplits(entry.transactions, splits);
   }
 
   return cache;

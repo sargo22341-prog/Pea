@@ -1,143 +1,95 @@
+import type { CalendarEvent, CalendarEventType } from "@pea/shared";
 import { db } from "../../db.js";
 
-type EventType = "earnings" | "earnings_call" | "ex_dividend" | "dividend";
-
-interface CalendarEventInsert {
+export interface CalendarEventInsert {
   symbol: string;
-  eventType: EventType;
+  eventType: CalendarEventType;
   eventDate: string;
   isEstimate: boolean;
-}
-
-interface CalendarEventsSummary {
-  calendarEvents?: {
-    earnings?: {
-      isEarningsDateEstimate?: unknown;
-      earningsDate?: unknown;
-      earningsCallDate?: unknown;
-    };
-    exDividendDate?: unknown;
-    dividendDate?: unknown;
-  };
-}
-
-function toIsoDate(value: unknown): string | undefined {
-  if (!value) return undefined;
-  const raw = typeof value === "object" && "raw" in value ? (value as { raw?: unknown }).raw : value;
-  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
-  if (typeof raw === "number" && Number.isFinite(raw)) return new Date(raw * 1000).toISOString();
-  if (typeof raw === "string") {
-    const t = new Date(raw).getTime();
-    return Number.isFinite(t) ? new Date(t).toISOString() : undefined;
-  }
-  return undefined;
-}
-
-function extractFromSummary(symbol: string, summary: CalendarEventsSummary): CalendarEventInsert[] {
-  const cal = summary.calendarEvents;
-  if (!cal) return [];
-
-  const events: CalendarEventInsert[] = [];
-  const earnings = cal.earnings ?? {};
-  const isEstimate = Boolean(earnings.isEarningsDateEstimate);
-
-  const earningsDates: unknown[] = Array.isArray(earnings.earningsDate)
-    ? earnings.earningsDate
-    : earnings.earningsDate ? [earnings.earningsDate] : [];
-
-  for (const d of earningsDates) {
-    const date = toIsoDate(d);
-    if (date) events.push({ symbol, eventType: "earnings", eventDate: date, isEstimate });
-  }
-
-  const callDates: unknown[] = Array.isArray(earnings.earningsCallDate)
-    ? earnings.earningsCallDate
-    : earnings.earningsCallDate ? [earnings.earningsCallDate] : [];
-
-  for (const d of callDates) {
-    const date = toIsoDate(d);
-    if (date) events.push({ symbol, eventType: "earnings_call", eventDate: date, isEstimate: false });
-  }
-
-  const exDiv = toIsoDate(cal.exDividendDate);
-  if (exDiv) events.push({ symbol, eventType: "ex_dividend", eventDate: exDiv, isEstimate: false });
-
-  const divPayment = toIsoDate(cal.dividendDate);
-  if (divPayment) events.push({ symbol, eventType: "dividend", eventDate: divPayment, isEstimate: false });
-
-  return events;
-}
-
-const upsertStmt = db.prepare(`
-  INSERT INTO asset_calendar_events (symbol, event_type, event_date, is_estimate)
-  VALUES (?, ?, ?, ?)
-  ON CONFLICT(symbol, event_type, event_date) DO UPDATE SET is_estimate = excluded.is_estimate
-`);
-
-export function upsertCalendarEvents(symbol: string, summary: CalendarEventsSummary) {
-  const events = extractFromSummary(symbol.toUpperCase(), summary);
-  for (const ev of events) {
-    upsertStmt.run(ev.symbol, ev.eventType, ev.eventDate, ev.isEstimate ? 1 : 0);
-  }
-}
-
-export function readCalendarEventsBySymbol(symbol: string) {
-  const s = symbol.toUpperCase();
-  return db.prepare(`
-    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
-      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
-      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
-      WHERE ace.symbol = ? AND ace.event_date < datetime('now')
-      ORDER BY ace.event_date DESC LIMIT 20
-    )
-    UNION ALL
-    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
-      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
-      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
-      WHERE ace.symbol = ? AND ace.event_date >= datetime('now')
-      ORDER BY ace.event_date ASC LIMIT 30
-    )
-    ORDER BY event_date ASC
-  `).all(s, s) as RawEventRow[];
-}
-
-export function readCalendarEventsForPortfolio(userId: number) {
-  return db.prepare(`
-    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
-      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
-      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
-      WHERE ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)
-        AND ace.event_date < datetime('now')
-      ORDER BY ace.event_date DESC LIMIT 10
-    )
-    UNION ALL
-    SELECT id, symbol, event_type, event_date, is_estimate, asset_name FROM (
-      SELECT ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name
-      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
-      WHERE ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)
-        AND ace.event_date >= datetime('now')
-      ORDER BY ace.event_date ASC LIMIT 30
-    )
-    ORDER BY event_date ASC
-  `).all(userId, userId) as RawEventRow[];
+  /** Consensus de la publication (événements `earnings` uniquement). */
+  epsAverage?: number | undefined;
+  revenueAverage?: number | undefined;
 }
 
 interface RawEventRow {
   id: number;
   symbol: string;
-  event_type: string;
+  event_type: CalendarEventType;
   event_date: string;
   is_estimate: number;
   asset_name: string | null;
+  currency: string | null;
+  eps_average: number | null;
+  revenue_average: number | null;
 }
 
-export function mapEventRow(row: RawEventRow) {
+/** Évènements passés puis à venir les plus proches, d'un actif ou des positions d'un utilisateur. */
+function eventsQuery(scopeClause: string, pastLimit: number, futureLimit: number) {
+  const columns = "ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name, a.currency, ace.eps_average, ace.revenue_average";
+  return `
+    SELECT * FROM (
+      SELECT ${columns}
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ${scopeClause} AND ace.event_date < datetime('now')
+      ORDER BY ace.event_date DESC LIMIT ${pastLimit}
+    )
+    UNION ALL
+    SELECT * FROM (
+      SELECT ${columns}
+      FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+      WHERE ${scopeClause} AND ace.event_date >= datetime('now')
+      ORDER BY ace.event_date ASC LIMIT ${futureLimit}
+    )
+    ORDER BY event_date ASC
+  `;
+}
+
+const SYMBOL_PAST_LIMIT = 20;
+const PORTFOLIO_PAST_LIMIT = 10;
+const FUTURE_LIMIT = 30;
+
+export function upsertCalendarEvents(events: CalendarEventInsert[]) {
+  const statement = db.prepare(`
+    INSERT INTO asset_calendar_events (symbol, event_type, event_date, is_estimate, eps_average, revenue_average)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(symbol, event_type, event_date) DO UPDATE SET
+      is_estimate = excluded.is_estimate,
+      eps_average = COALESCE(excluded.eps_average, eps_average),
+      revenue_average = COALESCE(excluded.revenue_average, revenue_average)
+  `);
+  for (const event of events) {
+    statement.run(event.symbol.toUpperCase(), event.eventType, event.eventDate, event.isEstimate ? 1 : 0, event.epsAverage ?? null, event.revenueAverage ?? null);
+  }
+}
+
+export function readCalendarEventsBySymbol(symbol: string) {
+  const key = symbol.toUpperCase();
+  return db.prepare(eventsQuery("ace.symbol = ?", SYMBOL_PAST_LIMIT, FUTURE_LIMIT)).all(key, key) as RawEventRow[];
+}
+
+export function readCalendarEventsForPortfolio(userId: number) {
+  const scope = "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)";
+  return db.prepare(eventsQuery(scope, PORTFOLIO_PAST_LIMIT, FUTURE_LIMIT)).all(userId, userId) as RawEventRow[];
+}
+
+/** Première date d'un type d'évènement à partir de `fromIso` (par exemple le prochain détachement annoncé). */
+export function readNextEventDate(symbol: string, eventType: CalendarEventType, fromIso: string): string | undefined {
+  const row = db.prepare(
+    "SELECT event_date FROM asset_calendar_events WHERE symbol = ? AND event_type = ? AND event_date >= ? ORDER BY event_date ASC LIMIT 1"
+  ).get(symbol.toUpperCase(), eventType, fromIso) as { event_date: string } | undefined;
+  return row?.event_date;
+}
+
+export function mapEventRow(row: RawEventRow): CalendarEvent {
   return {
     id: row.id,
     symbol: row.symbol,
-    eventType: row.event_type as EventType,
+    eventType: row.event_type,
     eventDate: row.event_date,
     isEstimate: row.is_estimate === 1,
-    assetName: row.asset_name ?? row.symbol
+    assetName: row.asset_name ?? row.symbol,
+    currency: row.currency ?? undefined,
+    epsAverage: row.eps_average ?? undefined,
+    revenueAverage: row.revenue_average ?? undefined
   };
 }

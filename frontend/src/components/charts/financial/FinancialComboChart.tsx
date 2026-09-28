@@ -5,7 +5,7 @@ import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis 
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { ChartEmpty } from "../ChartEmpty";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
-import { compactMoney, formatPercent, labelText } from "../chartFormat";
+import { CHART_ANIMATION_MS, compactMoney, formatPercent, labelText } from "../chartFormat";
 
 function MarginLabel({ x, y, value }: LabelProps) {
   if (x === undefined || y === undefined || value === undefined) return null;
@@ -38,9 +38,10 @@ export const FinancialComboChart = memo(function FinancialComboChart({ data }: {
             labelStyle={{ color: "#f8fafc" }}
           />
           <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
-          <Bar dataKey="revenue" fill="#38bdf8" name="Revenue" radius={[6, 6, 0, 0]} yAxisId="amount" />
-          <Bar dataKey="netIncome" fill="#4ade80" name="Net Income" radius={[6, 6, 0, 0]} yAxisId="amount" />
+          <Bar animationDuration={CHART_ANIMATION_MS} dataKey="revenue" fill="#38bdf8" name={t("chart.revenue", { ns: "dashboard" })} radius={[6, 6, 0, 0]} yAxisId="amount" />
+          <Bar animationDuration={CHART_ANIMATION_MS} dataKey="netIncome" fill="#4ade80" name={t("chart.netIncome", { ns: "dashboard" })} radius={[6, 6, 0, 0]} yAxisId="amount" />
           <Line
+            animationDuration={CHART_ANIMATION_MS}
             dataKey="netMargin"
             dot={{ fill: "#d4af37", r: 4 }}
             label={<MarginLabel />}

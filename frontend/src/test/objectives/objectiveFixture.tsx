@@ -19,6 +19,7 @@ export const objectiveUser: User = {
   watchlistDefaultSortKey: "name",
   watchlistDefaultSortDirection: "asc",
   privacyModeEnabled: false,
+  advancedModeEnabled: false,
   createdAt: "2026-05-20T00:00:00.000Z"
 };
 

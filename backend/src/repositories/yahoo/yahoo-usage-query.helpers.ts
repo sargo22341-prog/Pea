@@ -47,6 +47,10 @@ export function buildWhere(query: YahooUsageStatsQuery) {
     clauses.push("internal_source LIKE ?");
     params.push(`%${query.source}%`);
   }
+  if (query.feature) {
+    clauses.push("feature = ?");
+    params.push(query.feature);
+  }
   if (query.success !== undefined) {
     clauses.push("success = ?");
     params.push(query.success ? 1 : 0);

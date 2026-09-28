@@ -24,6 +24,10 @@ export const MOTION = {
   gaugeFill: "motion-gauge-fill",
   /** Curseur d'une jauge horizontale. */
   gaugeThumb: "motion-gauge-thumb",
+  /** Barre horizontale (poids, répartition) qui se remplit depuis la gauche. */
+  barGrow: "motion-bar-grow",
+  /** Soulignement d'onglet actif qui glisse. */
+  tabIndicator: "motion-tab-indicator",
   /** Surbrillance breve d'une valeur qui vient de monter. */
   flashUp: "motion-flash-up",
   /** Surbrillance breve d'une valeur qui vient de baisser. */

@@ -40,7 +40,7 @@ describe("useAssetDetailData", () => {
     await waitFor(() => { expect(result.current.data?.chart?.timestamps).toEqual([10, 20, 30]); });
 
     expect(api.asset).toHaveBeenCalledTimes(1);
-    expect(api.history).toHaveBeenCalledWith("AI.PA", "1m", expect.anything());
+    expect(api.history).toHaveBeenCalledWith("AI.PA", "1m", expect.anything(), []);
     expect(api.positionPerformance).toHaveBeenCalledWith(7, "1m", expect.anything());
     expect(result.current.data?.positionRangePerformance?.intervalPerformancePercent).toBe(12);
     expect(result.current.data?.news).toEqual([{ title: "full details only" }]);
@@ -58,7 +58,7 @@ describe("useAssetDetailData", () => {
     expect(api.positionPerformance).not.toHaveBeenCalled();
 
     await act(async () => { await result.current.reload(); });
-    expect(api.asset).toHaveBeenLastCalledWith("AI.PA", "1m");
+    expect(api.asset).toHaveBeenLastCalledWith("AI.PA", "1m", []);
     expect(result.current.data?.chart?.range).toBe("1m");
   });
 
@@ -73,7 +73,28 @@ describe("useAssetDetailData", () => {
 
     await waitFor(() => { expect(result.current.data?.chart?.range).toBe("1m"); });
     expect(api.asset).toHaveBeenCalledTimes(2);
-    expect(api.asset).toHaveBeenLastCalledWith("AI.PA", "1m");
+    expect(api.asset).toHaveBeenLastCalledWith("AI.PA", "1m", []);
     expect(result.current.error).toBeNull();
+  });
+
+  it("reloads only the chart with moving averages when overlays change", async () => {
+    vi.mocked(api.asset).mockResolvedValue(details("1y"));
+    vi.mocked(api.history).mockResolvedValue({
+      symbol: "AI.PA", range: "1Y", interval: "1d", timestamps: [1, 2], prices: [1, 2], cachedAt: 0, expiresAt: 0,
+      movingAverages: { ma50: [null, 1.5] }
+    });
+
+    const { result, rerender } = renderHook(({ overlays }) => useAssetDetailData("AI.PA", "1y", overlays), {
+      initialProps: { overlays: [] as ("ma50" | "ma200")[] }
+    });
+    await waitFor(() => { expect(result.current.data).not.toBeNull(); });
+
+    rerender({ overlays: ["ma50"] });
+    await waitFor(() => { expect(result.current.data?.chart?.movingAverages?.ma50).toEqual([null, 1.5]); });
+
+    expect(api.asset).toHaveBeenCalledTimes(1);
+    expect(api.history).toHaveBeenCalledWith("AI.PA", "1y", expect.anything(), ["ma50"]);
+    expect(api.positionPerformance).not.toHaveBeenCalled();
+    expect(result.current.data?.positionRangePerformance?.intervalPerformancePercent).toBe(0);
   });
 });

@@ -53,5 +53,281 @@
     "hold": "Conserver",
     "reduce": "Alleger",
     "sell": "Vendre"
+  },
+  "tabs": {
+    "label": "Sections de la fiche",
+    "overview": "Apercu",
+    "fundamentals": "Fondamentaux",
+    "analysts": "Analystes",
+    "dividends": "Dividendes",
+    "news": "Actualites",
+    "composition": "Composition",
+    "performance": "Performance"
+  },
+  "valuation": {
+    "title": "Valorisation",
+    "moreRatios": "Plus de ratios",
+    "notMeaningful": "n.s.",
+    "trailingPE": "PER",
+    "trailingPEHint": "Price Earning Ratio : cours divise par le benefice par action des 12 derniers mois. Plus il est bas, moins le titre est cher par rapport a ses benefices. Non significatif (n.s.) si l'entreprise est en perte.",
+    "forwardPE": "estime : {{value}}",
+    "priceToBook": "P/B",
+    "priceToBookHint": "Price to Book : cours divise par l'actif net comptable par action. Sous 1, le titre vaut moins que ses capitaux propres.",
+    "trailingEps": "BPA",
+    "trailingEpsHint": "Benefice par action des 12 derniers mois.",
+    "forwardEps": "estime : {{value}}",
+    "marketCap": "Capitalisation",
+    "marketCapHint": "Valeur boursiere totale : cours multiplie par le nombre d'actions.",
+    "priceToSales": "P/S",
+    "priceToSalesHint": "Price to Sales : capitalisation divisee par le chiffre d'affaires des 12 derniers mois.",
+    "enterpriseValue": "Valeur d'entreprise",
+    "enterpriseValueHint": "VE : capitalisation plus dette nette. C'est le prix a payer pour racheter toute l'entreprise.",
+    "enterpriseToEbitda": "VE/EBITDA",
+    "enterpriseToEbitdaHint": "Valeur d'entreprise divisee par l'excedent brut d'exploitation (EBITDA). Compare des entreprises plus ou moins endettees.",
+    "beta": "Beta",
+    "betaHint": "Sensibilite du titre au marche : 1 = bouge comme le marche, au-dessus = plus volatil.",
+    "floatShares": "Flottant",
+    "floatSharesHint": "Nombre d'actions reellement echangeables en bourse (hors actionnaires de controle).",
+    "fiftyTwoWeekTitle": "Performance sur 52 semaines",
+    "fiftyTwoWeekAsset": "Ce titre",
+    "fiftyTwoWeekIndex": "S&P 500"
+  },
+  "health": {
+    "title": "Sante financiere",
+    "verdictHint": "Synthese de la rentabilite, de l'endettement et de la croissance selon des seuils fixes. Information, pas un conseil en investissement.",
+    "financialSectorHint": "Banque ou assurance : la dette fait partie du metier, les ratios d'endettement ne sont pas notes.",
+    "showRatios": "Voir les ratios",
+    "disclaimer": "Donnees Yahoo Finance, a titre d'information uniquement.",
+    "thresholdHigher": "Vert si superieur ou egal a {{good}}, rouge sous {{weak}}.",
+    "thresholdLower": "Vert si inferieur ou egal a {{good}}, rouge au-dessus de {{weak}}.",
+    "verdict": {
+      "good": "Solide",
+      "fair": "Correcte",
+      "weak": "Fragile"
+    },
+    "rating": {
+      "good": "bon",
+      "fair": "moyen",
+      "weak": "faible"
+    },
+    "categories": {
+      "profitability": "Rentabilite",
+      "debt": "Endettement",
+      "growth": "Croissance"
+    },
+    "metrics": {
+      "returnOnEquity": "ROE",
+      "returnOnEquityHint": "Rentabilite des capitaux propres : benefice net divise par les fonds propres.",
+      "profitMargin": "Marge nette",
+      "profitMarginHint": "Part du chiffre d'affaires qui reste en benefice net.",
+      "operatingMargin": "Marge operationnelle",
+      "operatingMarginHint": "Part du chiffre d'affaires qui reste apres les couts d'exploitation.",
+      "debtToEquity": "Dette / fonds propres",
+      "debtToEquityHint": "Dette totale rapportee aux capitaux propres.",
+      "currentRatio": "Liquidite generale",
+      "currentRatioHint": "Actifs a court terme divises par les dettes a court terme.",
+      "revenueGrowth": "Croissance du CA",
+      "revenueGrowthHint": "Evolution du chiffre d'affaires sur un an.",
+      "earningsGrowth": "Croissance des benefices",
+      "earningsGrowthHint": "Evolution du benefice sur un an.",
+      "grossMargin": "Marge brute",
+      "grossMarginHint": "Chiffre d'affaires moins le cout des ventes, en part du chiffre d'affaires.",
+      "returnOnAssets": "ROA",
+      "returnOnAssetsHint": "Rentabilite des actifs : benefice net divise par le total du bilan.",
+      "quickRatio": "Liquidite immediate",
+      "quickRatioHint": "Comme la liquidite generale, sans les stocks.",
+      "totalCash": "Tresorerie",
+      "totalCashHint": "Liquidites et placements a court terme.",
+      "totalDebt": "Dette totale",
+      "totalDebtHint": "Emprunts a court et long terme.",
+      "freeCashflow": "Free cash flow",
+      "freeCashflowHint": "FCF : tresorerie generee apres investissements, disponible pour les dividendes, les rachats d'actions ou le desendettement.",
+      "operatingCashflow": "Flux d'exploitation",
+      "operatingCashflowHint": "Tresorerie generee par l'activite courante."
+    }
+  },
+  "etf": {
+    "title": "Informations fonds / ETF",
+    "issuer": "Emetteur",
+    "netAssets": "Actifs nets",
+    "fees": "Frais annuels",
+    "feesHint": "TER : frais preleves chaque annee sur l'encours du fonds.",
+    "turnover": "Rotation portefeuille",
+    "turnoverHint": "Part du portefeuille renouvelee chaque annee. Une rotation elevee genere des frais de transaction caches.",
+    "holdingsTitle": "{{count}} principales lignes",
+    "allocationTitle": "Classes d'actifs",
+    "sectorsTitle": "Repartition sectorielle",
+    "allocation": {
+      "stock": "Actions",
+      "bond": "Obligations",
+      "cash": "Liquidites",
+      "other": "Autres"
+    },
+    "sectors": {
+      "realestate": "Immobilier",
+      "consumer_cyclical": "Consommation cyclique",
+      "basic_materials": "Materiaux de base",
+      "consumer_defensive": "Consommation defensive",
+      "technology": "Technologie",
+      "communication_services": "Communication",
+      "financial_services": "Services financiers",
+      "utilities": "Services publics",
+      "industrials": "Industrie",
+      "energy": "Energie",
+      "healthcare": "Sante"
+    },
+    "returns": {
+      "title": "Rendements",
+      "hint": "Rendements annualises au-dela d'un an, dividendes reinvestis. Les performances passees ne prejugent pas des performances futures.",
+      "asOf": "Au {{date}}",
+      "ytd": "Depuis janvier",
+      "oneYear": "1 an",
+      "threeYear": "3 ans",
+      "fiveYear": "5 ans",
+      "tenYear": "10 ans",
+      "byYear": "Voir par annee"
+    },
+    "risk": {
+      "title": "Risque sur 3 ans",
+      "volatility": "Volatilite",
+      "volatilityHint": "Ecart-type annualise des rendements : plus il est eleve, plus le fonds fluctue.",
+      "sharpe": "Ratio de Sharpe",
+      "sharpeHint": "Rendement obtenu au-dessus du taux sans risque par unite de volatilite. Au-dessus de 1, le risque a ete bien remunere.",
+      "beta": "Beta",
+      "betaHint": "Sensibilite du fonds a son indice de reference : 1 = suit l'indice.",
+      "alpha": "Alpha",
+      "alphaHint": "Surperformance annuelle par rapport a ce que le beta laissait attendre.",
+      "rSquared": "R2",
+      "rSquaredHint": "Part des mouvements du fonds expliquee par son indice. Proche de 100 %, le fonds replique fidelement l'indice."
+    }
+  },
+  "splits": {
+    "detected": "{{ratio}} le {{date}} detectee : vos quantites avant cette date doivent etre ajustees.",
+    "division": "Division d'action {{from}} -> {{to}}",
+    "reverse": "Regroupement d'actions {{from}} -> {{to}}",
+    "apply": "Appliquer",
+    "ignore": "Ignorer",
+    "learnMore": "En savoir plus",
+    "explanation": "Apres une division, Yahoo publie des cours divises et des historiques ajustes, alors que vos transactions gardent les quantites d'origine : la valorisation parait fausse. Appliquer ajuste a la lecture les transactions anterieures (quantite multipliee, prix divise, montant inchange) sans modifier ce que vous avez saisi. Ignorez si vos quantites sont deja ajustees, par exemple apres un import posterieur a la division.",
+    "adjustedBadge": "ajuste x{{factor}}",
+    "adjustedHint": "Division d'action appliquee : lue comme {{quantity}} titres a {{price}}.",
+    "pendingBadge": "Division a valider"
+  },
+  "overlays": {
+    "label": "Calques du graphique",
+    "ma50": "MM50 (moyenne 50 seances)",
+    "ma200": "MM200 (moyenne 200 seances)",
+    "levels": "Supports / resistances"
+  },
+  "statements": {
+    "title": "Etats financiers",
+    "viewLabel": "Vue des etats financiers",
+    "periodLabel": "Periodicite",
+    "views": {
+      "results": "Resultats",
+      "balance": "Bilan",
+      "flows": "Flux"
+    },
+    "annual": "Annuel",
+    "quarterly": "Trimestriel",
+    "ttm": "12 mois glissants",
+    "quarter": "T{{quarter}} {{year}}",
+    "loading": "Chargement des etats financiers...",
+    "empty": "Aucune donnee publiee pour cette periode.",
+    "showData": "Afficher les donnees",
+    "metric": "Indicateur",
+    "metrics": {
+      "netDebt": "Dette nette",
+      "totalDebt": "Dette totale",
+      "totalEquity": "Capitaux propres",
+      "cash": "Tresorerie",
+      "operatingCashFlow": "Flux d'exploitation",
+      "freeCashFlow": "Free cash flow",
+      "capex": "Investissements",
+      "dividendsPaid": "Dividendes verses",
+      "buybacks": "Rachats d'actions"
+    }
+  },
+  "analystTrend": {
+    "title": "Tendance des recommandations",
+    "history": "Historique",
+    "direction": {
+      "more-positive": "Plus positif qu'il y a 3 mois",
+      "stable": "Stable sur 3 mois",
+      "more-negative": "Plus negatif qu'il y a 3 mois"
+    },
+    "monthsAgo_zero": "Ce mois",
+    "monthsAgo_one": "Il y a 1 mois",
+    "monthsAgo_other": "Il y a {{count}} mois",
+    "actions": {
+      "up": "Releve",
+      "down": "Abaisse",
+      "init": "Initie",
+      "main": "Maintenu",
+      "reit": "Reitere",
+      "other": "Mis a jour"
+    }
+  },
+  "earnings": {
+    "title": "Resultats trimestriels",
+    "nextDate": "Prochaine publication",
+    "estimatedDate": "Date estimee",
+    "expectedEps": "BPA attendu",
+    "expectedRevenue": "CA attendu",
+    "range": "de {{low}} a {{high}}",
+    "history": "Voir les 4 derniers trimestres",
+    "estimate": "Estime : {{value}}",
+    "actual": "Publie : {{value}}",
+    "legend": "Cercle vide : consensus. Cercle plein : publie, vert si le consensus est battu, rouge sinon."
+  },
+  "insights": {
+    "title": "Signaux techniques",
+    "horizons": {
+      "shortTerm": "Court terme",
+      "midTerm": "Moyen terme",
+      "longTerm": "Long terme"
+    },
+    "directions": {
+      "bullish": "haussier",
+      "bearish": "baissier",
+      "neutral": "neutre"
+    },
+    "valuation": {
+      "undervalued": "Sous-evalue de {{discount}} selon {{provider}}.",
+      "overvalued": "Survalorise de {{discount}} selon {{provider}}.",
+      "fair": "Proche de sa juste valeur selon {{provider}}."
+    },
+    "levels": "Supports et resistances",
+    "support": "Support",
+    "supportHint": "Niveau de prix ou les achats ont tendance a freiner la baisse.",
+    "resistance": "Resistance",
+    "resistanceHint": "Niveau de prix ou les ventes ont tendance a freiner la hausse.",
+    "stopLoss": "Stop suggere",
+    "stopLossHint": "Niveau sous lequel le fournisseur considere le scenario haussier invalide.",
+    "disclaimer": "Information fournie par {{provider}} via Yahoo Finance, pas un conseil en investissement."
+  },
+  "similar": {
+    "title": "Actifs similaires",
+    "peaOnly": "PEA uniquement",
+    "noPeaAsset": "Aucun actif similaire eligible au PEA.",
+    "watch": "Ajouter {{name}} a la liste de suivi",
+    "compare": "Comparer avec {{name}}"
+  },
+  "dividendSustainability": {
+    "title": "Croissance et soutenabilite",
+    "payout": "Taux de distribution",
+    "payoutHint": "Part du benefice versee en dividendes. Vert jusqu'a {{good}}, rouge au-dela de {{weak}} ou en cas de perte.",
+    "coverage": "Couverture par le FCF",
+    "coverageValue": "x{{value}}",
+    "coverageHint": "Flux de tresorerie disponible du dernier exercice divise par les dividendes verses. Vert a partir de x{{good}}, rouge sous x{{weak}}.",
+    "growth": "Croissance 5 ans",
+    "growthHint": "Taux de croissance annuel moyen du dividende par action sur les 5 dernieres annees civiles completes.",
+    "perYear": "{{value}}/an",
+    "streak": "Hausses consecutives",
+    "streakValue_one": "{{count}} an",
+    "streakValue_other": "{{count}} ans",
+    "streakHint": "Nombre d'annees civiles consecutives de hausse du dividende par action, jusqu'a l'an dernier.",
+    "history": "Historique annuel",
+    "source": "Donnees Yahoo Finance, a titre d'information : pas un conseil en investissement."
   }
 }

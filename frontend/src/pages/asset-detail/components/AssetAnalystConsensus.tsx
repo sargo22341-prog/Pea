@@ -3,14 +3,7 @@ import type { ReactNode } from "react";
 import { Target, TrendingUp, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { money } from "../../../lib/format";
-
-const RECOMMENDATION_LABEL_KEYS: Record<string, string> = {
-  strong_buy: "analyst.strongBuy",
-  buy: "analyst.buy",
-  hold: "analyst.hold",
-  underperform: "analyst.reduce",
-  sell: "analyst.sell"
-};
+import { CONSENSUS_SCALE, consensusStep, recommendationLabelKey } from "../../../utils/assetTone";
 
 export function AssetAnalystConsensus({
   data,
@@ -36,21 +29,11 @@ export function AssetAnalystConsensus({
   const potential = (upside / currentPrice) * 100;
   const score = recommendationMean;
   const scorePosition = ((score - 1) / 4) * 100;
-  const recommendationLabel = recommendationKey ? t(RECOMMENDATION_LABEL_KEYS[recommendationKey] ?? recommendationKey).toUpperCase() : "-";
+  const recommendationLabel = recommendationKey ? t(recommendationLabelKey(recommendationKey)).toUpperCase() : "-";
 
-  const scoreColor =
-    score <= 1.5 ? "bg-emerald-600" :
-      score <= 2.5 ? "bg-lime-500" :
-        score <= 3.5 ? "bg-yellow-400 text-black" :
-          score <= 4.5 ? "bg-orange-500" :
-            "bg-red-500";
-
-  const labelColor =
-    score <= 1.5 ? "text-mint" :
-      score <= 2.5 ? "text-lime-400" :
-        score <= 3.5 ? "text-yellow-300" :
-          score <= 4.5 ? "text-orange-400" :
-            "text-red-400";
+  const step = consensusStep(score);
+  const scoreColor = `${step.bar} ${step.key === "hold" ? "text-black" : ""}`;
+  const labelColor = step.text;
 
   return (
     <section className="w-full">
@@ -106,11 +89,9 @@ export function AssetAnalystConsensus({
             </div>
 
             <div className="mt-2 grid grid-cols-5 text-center text-[9px]">
-              <div className="text-mint"><p>1</p><p>{t("analyst.strongBuy")}</p></div>
-              <div className="text-lime-400"><p>2</p><p>{t("analyst.buy")}</p></div>
-              <div className="text-yellow-300"><p>3</p><p>{t("analyst.hold")}</p></div>
-              <div className="text-orange-400"><p>4</p><p>{t("analyst.reduce")}</p></div>
-              <div className="text-red-400"><p>5</p><p>{t("analyst.sell")}</p></div>
+              {CONSENSUS_SCALE.map((item, index) => (
+                <div className={item.text} key={item.key}><p>{index + 1}</p><p>{t(`analyst.${item.key}`)}</p></div>
+              ))}
             </div>
           </div>
         </div>

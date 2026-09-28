@@ -5,7 +5,8 @@ import { usePrivacy } from "../../../contexts/privacy-context";
 import { useMarketEventReload, type MarketEventPayload } from "../../../hooks/useMarketEventReload";
 import { api } from "../../../lib/api";
 import { formatRangeLabel } from "../../../lib/format";
-import { PositionRows } from "./PositionRows";
+import { PositionRows } from "./positions/PositionRows";
+import { usePendingSplitSymbols } from "./positions/usePendingSplitSymbols";
 import { SortableSection, type SortOption } from "./SortableSection";
 import { sortPositions } from "./dashboardSort.helpers";
 
@@ -38,6 +39,7 @@ export function PositionList({
   const [performanceError, setPerformanceError] = useState<string | null>(null);
   const [performanceRefreshing, setPerformanceRefreshing] = useState(false);
   const refreshGuardTimer = useRef<number | undefined>(undefined);
+  const pendingSplitSymbols = usePendingSplitSymbols();
 
   // Preferences et periode sont resynchronisees pendant le rendu (pas d'effet en cascade).
   const [syncedDefaults, setSyncedDefaults] = useState({ key: defaultSortKey, direction: defaultSortDirection });
@@ -130,7 +132,7 @@ export function PositionList({
         </h2>
       }
     >
-      <PositionRows error={performanceError} performanceById={performanceById} positions={sortedPositions} prive={prive} rangeLabel={rangeLabel} />
+      <PositionRows error={performanceError} pendingSplitSymbols={pendingSplitSymbols} performanceById={performanceById} positions={sortedPositions} prive={prive} rangeLabel={rangeLabel} />
     </SortableSection>
   );
 }

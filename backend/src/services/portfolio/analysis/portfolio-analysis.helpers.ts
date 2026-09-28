@@ -55,13 +55,13 @@ export function safeYear(value: unknown) {
 
 export function isEtf(position: Pick<PositionWithMarket, "quote">, fundamentals?: Fundamentals) {
   const quoteType = primitiveText(position.quote?.quoteType ?? fundamentals?.quoteType?.quoteType).toUpperCase();
-  const typeDisp = primitiveText(fundamentals?.quoteType?.typeDisp).toUpperCase();
+  const typeDisp = primitiveText(fundamentals?.quoteType?.["typeDisp"]).toUpperCase();
   const fundFamily = safeText(fundamentals?.fundProfile?.family);
   return quoteType.includes("ETF") || typeDisp.includes("ETF") || Boolean(fundFamily);
 }
 
 export function getLogo(position: PositionWithMarket, fundamentals?: Fundamentals) {
-  return position.quote?.logoUrl ?? safeText(fundamentals?.price?.logoUrl);
+  return position.quote?.logoUrl ?? safeText(fundamentals?.price?.["logoUrl"]);
 }
 
 export function getCountry(position: PositionWithMarket, fundamentals?: Fundamentals) {
@@ -80,8 +80,7 @@ export function rawSectorWeightings(fundamentals?: Fundamentals): { sector: stri
   if (!Array.isArray(rawSectors)) return [];
 
   const weightings = rawSectors.flatMap((sectorWeighting) => {
-    if (!sectorWeighting || typeof sectorWeighting !== "object") return [];
-    return Object.entries(sectorWeighting as Record<string, unknown>).flatMap(([key, value]) => {
+    return Object.entries(sectorWeighting).flatMap(([key, value]) => {
       const sector = formatSectorKey(key);
       const numericValue = safeNumber(value);
       if (!sector || numericValue === undefined || numericValue <= 0) return [];
@@ -213,13 +212,13 @@ export function persistedFundamentals(symbol: string): Fundamentals | undefined 
     ...cachedSummary?.data,
     quoteType: {
       ...(cachedSummary?.data.quoteType && typeof cachedSummary.data.quoteType === "object" ? cachedSummary.data.quoteType : {}),
-      quoteType: asset.quote_type ?? (cachedSummary?.data.quoteType as { quoteType?: string } | undefined)?.quoteType ?? undefined
+      quoteType: asset.quote_type ?? cachedSummary?.data.quoteType?.quoteType ?? null
     },
     assetProfile: {
       ...(cachedSummary?.data.assetProfile ?? {}),
-      country: profile?.country ?? cachedSummary?.data.assetProfile?.country ?? undefined,
-      sector: profile?.sector ?? cachedSummary?.data.assetProfile?.sector ?? undefined,
-      sectorDisp: profile?.sector ?? cachedSummary?.data.assetProfile?.sectorDisp ?? undefined
+      country: profile?.country ?? cachedSummary?.data.assetProfile?.country ?? null,
+      sector: profile?.sector ?? cachedSummary?.data.assetProfile?.sector ?? null,
+      sectorDisp: profile?.sector ?? cachedSummary?.data.assetProfile?.sectorDisp ?? null
     },
     annualFinancials: financialsService.readFinancialRows(symbol)
   };

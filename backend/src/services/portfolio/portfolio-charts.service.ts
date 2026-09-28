@@ -7,6 +7,8 @@ import { marketDataService } from "../market/data/market-data.service.js";
 import { nowMs, toDisplayRange } from "../shared/cache.service.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
 import { buildTransactionCache, getQuantityAtTime, positionFromTransactionCache } from "./portfolio-calculations.js";
+import { appliedSplitsByPosition } from "./splits/applied-splits.js";
+import { splitFactorAt } from "./splits/split-adjustment.js";
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
@@ -129,6 +131,8 @@ export class PortfolioChartsService {
     if (firstTimestamp === undefined || lastTimestamp === undefined) return [];
 
     const rows = portfolioChartRepository.listTransactionMarkers(userId);
+    // Les cours affichés sont ajustés des divisions : les marqueurs validés le sont aussi.
+    const splitsByPosition = appliedSplitsByPosition([...new Set(rows.map((row) => Number(row.position_id)))]);
 
     return rows.flatMap((row) => {
       const transactionTime = new Date(row.traded_at).getTime();
@@ -136,14 +140,15 @@ export class PortfolioChartsService {
       const nearestChartPointDatetime = nearestTimestamp(transactionTime, sortedTimestamps);
       if (nearestChartPointDatetime === undefined) return [];
       const symbol = row.symbol.toUpperCase();
-      const price = row.price == null ? undefined : Number(row.price);
+      const splitFactor = splitFactorAt(row.traded_at, splitsByPosition.get(Number(row.position_id)) ?? []);
+      const price = row.price == null ? undefined : Number(row.price) / splitFactor;
       return [{
         id: String(row.id),
         assetId: String(row.asset_row_id ?? row.position_id),
         symbol,
         name: row.asset_name ?? row.position_name,
         logoUrl: `/api/assets/${encodeURIComponent(symbol)}/icon`,
-        quantity: Number(row.quantity),
+        quantity: Number(row.quantity) * splitFactor,
         price: Number.isFinite(price) ? price : undefined,
         transactionDate: new Date(transactionTime).toISOString(),
         type: row.type,

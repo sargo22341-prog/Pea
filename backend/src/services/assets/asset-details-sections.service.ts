@@ -1,6 +1,7 @@
 import type {
   AssetDetails,
   AssetMarketInfo,
+  ChartOverlayKey,
   DividendEvent,
   NewsArticle,
   NewsLanguage,
@@ -10,6 +11,7 @@ import type {
 import { config } from "../../config.js";
 import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { getMarketSessionInfo } from "../market/calendars/marketCalendar.service.js";
+import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { financialsService } from "../market/financials/financials.service.js";
@@ -18,12 +20,10 @@ import { buildTransactionCache, dividendsReceivedFor } from "../portfolio/portfo
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { logger } from "../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
-import { readCachedExtraData } from "../yahoo/fundamentals/fundamentals.job.js";
+import { readCachedExtraData, type FundamentalsExtraData } from "../yahoo/fundamentals/fundamentals.job.js";
 import { assetNewsRefreshService } from "./asset-news-refresh.service.js";
 import { assetDataService } from "./asset-data.service.js";
 import type { AuthUser } from "../auth/auth.service.js";
-
-type ExtraAssetData = Partial<Pick<AssetDetails, "calendarEventsData" | "analystConsensus" | "fundDetails">>;
 
 function positionToUnavailableQuote(symbol: string, position?: Awaited<ReturnType<typeof portfolioService.getPosition>>): Quote {
   return {
@@ -65,7 +65,7 @@ function firstPrice(...values: unknown[]): number | undefined {
 
 export function shouldQueueAnnexRefresh(input: {
   dividends: DividendEvent[];
-  extraData: ExtraAssetData;
+  extraData: FundamentalsExtraData;
   financials: AssetDetails["financials"];
   isEtf: boolean;
   marketInfo?: AssetMarketInfo;
@@ -118,7 +118,7 @@ export class PortfolioSection {
 }
 
 export class MarketSection {
-  async load(symbol: string, range: RangeKey, positionFallbackQuote: Quote): Promise<SectionResult<{
+  async load(symbol: string, range: RangeKey, positionFallbackQuote: Quote, overlays: readonly ChartOverlayKey[] = []): Promise<SectionResult<{
     quote: Quote;
     assetStatic: Awaited<ReturnType<typeof assetDataService.static>>;
     assetChart: Awaited<ReturnType<typeof assetDataService.chart>>;
@@ -135,7 +135,7 @@ export class MarketSection {
 
     const [assetStatic, assetChart, assetMarket, marketInfoResult] = await Promise.all([
       assetDataService.static(symbol),
-      assetDataService.chart(symbol, range, config.enableMarketLiveRefresh ? {} : intradayDebugClock(range)),
+      assetDataService.chart(symbol, range, config.enableMarketLiveRefresh ? {} : intradayDebugClock(range), overlays),
       assetDataService.market(symbol),
       config.enableMarketLiveRefresh
         ? Promise.resolve<{ data: AssetMarketInfo }>({ data: {} })
@@ -181,6 +181,7 @@ export class MarketSection {
       averageDailyVolume3Month: firstMarketNumber(assetMarket.avgVolume3M, marketInfo.averageDailyVolume3Month),
       dividendRate: firstMarketNumber(assetMarket.annualDividend, marketInfo.dividendRate),
       dividendYield: firstMarketNumber(assetMarket.dividendYield, marketInfo.dividendYield),
+      payoutRatio: marketInfo.payoutRatio,
       exDividendDate: assetMarket.exDividendDate ?? marketInfo.exDividendDate,
       currency: assetMarket.currency ?? marketInfo.currency,
       exchangeName: assetMarket.exchangeName ?? marketInfo.exchangeName
@@ -215,13 +216,24 @@ export class NewsSection {
   }
 }
 
+/**
+ * Mode live : la fiche ne lit que le cache, sans appel Yahoo synchrone. Un cache périmé (TTL
+ * dépassé, nouveaux modules à récupérer) est rafraîchi en arrière-plan par la file de construction ;
+ * un cache absent est traité par `shouldQueueAnnexRefresh`.
+ */
+function readLiveExtraData(symbol: string): { data: FundamentalsExtraData } {
+  const cached = readCachedExtraData(symbol);
+  if (cached?.stale) dataConstructionQueue.enqueueAnnexRefreshIfNotRecentlyQueued(symbol);
+  return cached ?? { data: {} };
+}
+
 export class FundamentalsSection {
   async load(symbol: string, quote: Quote): Promise<{
     assetDividends: AssetDetails["dividendsDto"];
     dividends: DividendEvent[];
     financials: AssetDetails["financials"];
     isEtf: boolean;
-    extraData: ExtraAssetData;
+    extraData: FundamentalsExtraData;
     marketUnavailable: boolean;
   }> {
     let marketUnavailable = false;
@@ -237,7 +249,7 @@ export class FundamentalsSection {
         isEtf: (quote.quoteType ?? "").toUpperCase().includes("ETF")
       }),
       config.enableMarketLiveRefresh
-        ? Promise.resolve(readCachedExtraData(symbol) ?? { data: {} as ExtraAssetData })
+        ? Promise.resolve(readLiveExtraData(symbol))
         : marketDataGateway.readExtraDataWithCache(symbol).catch((error: unknown) => {
             logger.warn("market-data", "extraData fallback", {
               symbol,

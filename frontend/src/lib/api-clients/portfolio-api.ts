@@ -10,7 +10,9 @@ import type {
   PositionWithMarket,
   PositionRangePerformance,
   RangeKey,
-  UpdatePositionInput
+  SplitDecision,
+  UpdatePositionInput,
+  UserAssetSplit
 } from "@pea/shared";
 import { dedupedRequest, request } from "../api-core";
 
@@ -56,5 +58,9 @@ export const portfolioApi = {
   positionPerformance: (id: number, range: RangeKey, signal?: AbortSignal) =>
     request<PositionRangePerformance>(`/api/portfolio/positions/${id}/performance?range=${range}`, { signal: signal ?? null }),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
-  portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal)
+  portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
+  splits: (symbol?: string, signal?: AbortSignal) =>
+    request<UserAssetSplit[]>(`/api/splits${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ""}`, { signal: signal ?? null }),
+  decideSplit: (id: number, decision: SplitDecision) =>
+    request<UserAssetSplit>(`/api/splits/${id}/decision`, { method: "POST", body: JSON.stringify({ decision }) })
 };

@@ -1,9 +1,10 @@
-import type { MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
+import type { ChartOverlayKey, MarketSessionDto, PortfolioTransactionMarker, RangeKey } from "@pea/shared";
 import { memo, useId, useRef } from "react";
-import { Area, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { useElementSize } from "../../hooks/useElementSize";
 import type { PriceHistoryInputPoint } from "../../hooks/usePriceHistoryChart";
 import { formatHistoryTick, formatHistoryTooltipLabel } from "./chartAxis";
+import { CHART_ANIMATION_MS, MOVING_AVERAGE_COLORS } from "./chartFormat";
 import { useChartMarkerModel } from "./chart-markers.helpers";
 import { ComparisonChart } from "./comparison/ComparisonChart";
 import { HistoryTooltip } from "./PriceHistoryTooltip";
@@ -35,6 +36,10 @@ interface PriceHistoryChartProps {
   userTimezone?: string | undefined;
   hideXAxisTicks?: boolean;
   maskValues?: boolean;
+  /** Moyennes mobiles à tracer ; leurs valeurs sont portées par les points (`ma50`, `ma200`). */
+  movingAverages?: readonly { key: ChartOverlayKey; label: string }[];
+  /** Niveaux horizontaux (supports, résistances) masqués s'ils sortent de l'échelle affichée. */
+  referenceLevels?: readonly { key: string; label: string; value: number; color: string }[];
 }
 
 export const PriceHistoryChart = memo(function PriceHistoryChart({
@@ -50,7 +55,9 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
   transactionMarkers = [],
   userTimezone,
   hideXAxisTicks = false,
-  maskValues = false
+  maskValues = false,
+  movingAverages = [],
+  referenceLevels = []
 }: PriceHistoryChartProps) {
   const { chartData, compressTimeAxis, renderData, resolveXDate, trend, xDataKey, xDomain, xTicks } = useChartDataModel({
     baselinePrice,
@@ -121,6 +128,7 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
                   formatHistoryTooltipLabel(resolveXDate(value), range, oneDayTooltipFormat, userTimezone, marketSession)
                 }
                 maskValues={maskValues}
+                movingAverages={movingAverages}
                 payload={asChartTooltipPayload(props.payload)}
               />
             )}
@@ -149,6 +157,32 @@ export const PriceHistoryChart = memo(function PriceHistoryChart({
             strokeWidth={3}
             type="monotone"
           />
+          {referenceLevels.map((level) => (
+            <ReferenceLine
+              ifOverflow="discard"
+              key={level.key}
+              label={{ value: level.label, position: "insideTopLeft", fill: level.color, fontSize: 11 }}
+              stroke={level.color}
+              strokeDasharray="2 4"
+              strokeOpacity={0.8}
+              yAxisId="value"
+              y={level.value}
+            />
+          ))}
+          {movingAverages.map((average) => (
+            <Line
+              animationDuration={CHART_ANIMATION_MS}
+              connectNulls
+              dataKey={average.key}
+              dot={false}
+              key={average.key}
+              stroke={MOVING_AVERAGE_COLORS[average.key]}
+              strokeDasharray="6 4"
+              strokeWidth={1.5}
+              type="monotone"
+              yAxisId="value"
+            />
+          ))}
         </ComposedChart>
       </SafeResponsiveContainer>
       {markerOverlayPoints.length > 0 && (

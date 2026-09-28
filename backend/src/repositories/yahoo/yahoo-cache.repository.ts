@@ -6,13 +6,15 @@ import { unifiedCacheRepository, type CacheScope } from "../cache/unified-cache.
  * On le mappe désormais vers les scopes équivalents de `cache_entries`. Le type est conservé
  * comme alias pour limiter l'impact des refactos en cours dans le reste du code.
  */
-export type YahooCacheTable = "cached_quotes" | "cached_dividends" | "cached_news" | "cached_fundamentals";
+export type YahooCacheTable = "cached_quotes" | "cached_dividends" | "cached_news" | "cached_fundamentals" | "cached_insights" | "cached_recommendations";
 
 const TABLE_TO_SCOPE: Record<YahooCacheTable, CacheScope> = {
   cached_quotes: "quote",
   cached_dividends: "dividends",
   cached_news: "news",
-  cached_fundamentals: "fundamentals"
+  cached_fundamentals: "fundamentals",
+  cached_insights: "insights",
+  cached_recommendations: "recommendations"
 };
 
 export class YahooCacheRepository {

@@ -1,0 +1,348 @@
+{
+  "assetProfile": {
+    "maxAge": 86400
+  },
+  "fundProfile": {
+    "maxAge": 1,
+    "styleBoxUrl": "https://s.yimg.com/lq/i/fi/3_0stylelargeeq2.gif",
+    "family": "BlackRock Asset Management Ireland - ETF",
+    "categoryName": null,
+    "legalType": "Exchange Traded Fund",
+    "managementInfo": {
+      "managerName": null,
+      "managerBio": null
+    },
+    "feesExpensesInvestment": {
+      "annualReportExpenseRatio": 0.002,
+      "annualHoldingsTurnover": 0.113299996,
+      "totalNetAssets": 283558.8,
+      "projectionValues": {}
+    },
+    "feesExpensesInvestmentCat": {
+      "totalNetAssets": 283558.8,
+      "projectionValuesCat": {}
+    },
+    "brokerages": []
+  },
+  "summaryDetail": {
+    "maxAge": 1,
+    "priceHint": 2,
+    "previousClose": 128.37,
+    "open": 129.11,
+    "dayLow": 128.49,
+    "dayHigh": 129.3,
+    "regularMarketPreviousClose": 128.37,
+    "regularMarketOpen": 129.11,
+    "regularMarketDayLow": 128.49,
+    "regularMarketDayHigh": 129.3,
+    "volume": 78656,
+    "regularMarketVolume": 78656,
+    "averageVolume": 88135,
+    "averageVolume10days": 93471,
+    "averageDailyVolume10Day": 93471,
+    "bid": 0,
+    "ask": 0,
+    "bidSize": 0,
+    "askSize": 0,
+    "fiftyTwoWeekLow": 106.13,
+    "fiftyTwoWeekHigh": 129.83,
+    "allTimeHigh": 129.83,
+    "allTimeLow": 16.46,
+    "fulldayPrice": 128.91,
+    "fulldayChange": 0.54000854,
+    "fulldayChangePercent": 0.004206657,
+    "fiftyDayAverage": 126.971,
+    "twoHundredDayAverage": 119.15665,
+    "navPrice": 142.217,
+    "currency": "EUR",
+    "fromCurrency": null,
+    "toCurrency": null,
+    "lastMarket": null,
+    "coinMarketCapLink": null,
+    "algorithm": null,
+    "tradeable": false
+  },
+  "price": {
+    "maxAge": 1,
+    "regularMarketChangePercent": 0.004206657,
+    "regularMarketChange": 0.54000854,
+    "regularMarketTime": "2026-09-25T15:39:06.000Z",
+    "priceHint": 2,
+    "regularMarketPrice": 128.91,
+    "regularMarketDayHigh": 129.3,
+    "regularMarketDayLow": 128.49,
+    "regularMarketVolume": 78656,
+    "averageDailyVolume10Day": 93471,
+    "averageDailyVolume3Month": 88135,
+    "regularMarketPreviousClose": 128.37,
+    "regularMarketSource": "DELAYED",
+    "regularMarketOpen": 129.11,
+    "fulldayChangePercent": 0.004206657,
+    "fulldayChange": 0.54000854,
+    "fulldayPrice": 128.91,
+    "exchange": "AMS",
+    "exchangeName": "Amsterdam",
+    "exchangeDataDelayedBy": 0,
+    "marketState": "CLOSED",
+    "quoteType": "ETF",
+    "symbol": "IWDA.AS",
+    "underlyingSymbol": null,
+    "shortName": "iShares Core MSCI World UCITS E",
+    "longName": "iShares Core MSCI World UCITS ETF USD (Acc)",
+    "currency": "EUR",
+    "quoteSourceName": "Delayed Quote",
+    "currencySymbol": "€",
+    "fromCurrency": null,
+    "toCurrency": null,
+    "lastMarket": null
+  },
+  "defaultKeyStatistics": {
+    "maxAge": 1,
+    "priceHint": 2,
+    "category": null,
+    "fundFamily": "BlackRock Asset Management Ireland - ETF",
+    "fundInceptionDate": "2023-07-28T00:00:00.000Z",
+    "legalType": "Exchange Traded Fund",
+    "lastSplitFactor": null,
+    "latestShareClass": null,
+    "leadInvestor": null
+  },
+  "topHoldings": {
+    "maxAge": 1,
+    "cashPosition": 0.0049,
+    "stockPosition": 0.9947,
+    "bondPosition": 0,
+    "otherPosition": 0.0004,
+    "preferredPosition": 0,
+    "convertiblePosition": 0,
+    "holdings": [
+      {
+        "symbol": "NVDA",
+        "holdingName": "NVIDIA Corp",
+        "holdingPercent": 0.0543234
+      },
+      {
+        "symbol": "AAPL",
+        "holdingName": "Apple Inc",
+        "holdingPercent": 0.0507692
+      },
+      {
+        "symbol": "MSFT",
+        "holdingName": "Microsoft Corp",
+        "holdingPercent": 0.0391851
+      },
+      {
+        "symbol": "AMZN",
+        "holdingName": "Amazon.com Inc",
+        "holdingPercent": 0.0278937
+      },
+      {
+        "symbol": "GOOGL",
+        "holdingName": "Alphabet Inc Class A",
+        "holdingPercent": 0.021826701
+      },
+      {
+        "symbol": "AVGO",
+        "holdingName": "Broadcom Inc",
+        "holdingPercent": 0.0179429
+      },
+      {
+        "symbol": "GOOG",
+        "holdingName": "Alphabet Inc Class C",
+        "holdingPercent": 0.0171435
+      },
+      {
+        "symbol": "META",
+        "holdingName": "Meta Platforms Inc Class A",
+        "holdingPercent": 0.0137305
+      },
+      {
+        "symbol": "MU",
+        "holdingName": "Micron Technology Inc",
+        "holdingPercent": 0.0113796
+      },
+      {
+        "symbol": "TSLA",
+        "holdingName": "Tesla Inc",
+        "holdingPercent": 0.0106168
+      }
+    ],
+    "equityHoldings": {
+      "priceToEarnings": 0.04337,
+      "priceToBook": 0.25725,
+      "priceToSales": 0.33409,
+      "priceToCashflow": 0.05987
+    },
+    "bondHoldings": {},
+    "bondRatings": [
+      {
+        "us_government": 0
+      }
+    ],
+    "sectorWeightings": [
+      {
+        "realestate": 0.0166
+      },
+      {
+        "consumer_cyclical": 0.0879
+      },
+      {
+        "basic_materials": 0.033099998
+      },
+      {
+        "consumer_defensive": 0.048699997
+      },
+      {
+        "technology": 0.305
+      },
+      {
+        "communication_services": 0.081
+      },
+      {
+        "financial_services": 0.1634
+      },
+      {
+        "utilities": 0.0232
+      },
+      {
+        "industrials": 0.1083
+      },
+      {
+        "energy": 0.0403
+      },
+      {
+        "healthcare": 0.092700005
+      }
+    ]
+  },
+  "fundPerformance": {
+    "maxAge": 1,
+    "performanceOverview": {},
+    "performanceOverviewCat": {},
+    "trailingReturns": {
+      "asOfDate": "1970-01-01T00:00:00.000Z",
+      "ytd": 0,
+      "oneMonth": 0,
+      "threeMonth": 0,
+      "oneYear": 0,
+      "threeYear": 0,
+      "fiveYear": 0,
+      "tenYear": 0,
+      "lastBullMkt": 0,
+      "lastBearMkt": 0
+    },
+    "trailingReturnsNav": {
+      "ytd": 0,
+      "oneMonth": 0,
+      "threeMonth": 0,
+      "oneYear": 0,
+      "threeYear": 0,
+      "fiveYear": 0,
+      "tenYear": 0
+    },
+    "trailingReturnsCat": {
+      "ytd": 0,
+      "oneMonth": 0,
+      "threeMonth": 0,
+      "oneYear": 0,
+      "threeYear": 0,
+      "fiveYear": 0,
+      "tenYear": 0,
+      "lastBullMkt": 0,
+      "lastBearMkt": 0
+    },
+    "annualTotalReturns": {
+      "returns": [
+        {
+          "year": 2025,
+          "annualValue": 0.2102834
+        },
+        {
+          "year": 2024,
+          "annualValue": 0.191094
+        },
+        {
+          "year": 2023,
+          "annualValue": 0.2426561
+        },
+        {
+          "year": 2022,
+          "annualValue": -0.1811367
+        },
+        {
+          "year": 2021,
+          "annualValue": 0.2218729
+        },
+        {
+          "year": 2020,
+          "annualValue": 0.16055849
+        },
+        {
+          "year": 2019,
+          "annualValue": 0.2712787
+        },
+        {
+          "year": 2018,
+          "annualValue": -0.0901083
+        },
+        {
+          "year": 2017,
+          "annualValue": 0.2275287
+        },
+        {
+          "year": 2016,
+          "annualValue": 0.0750787
+        },
+        {
+          "year": 2015,
+          "annualValue": -0.0112548005
+        },
+        {
+          "year": 2014,
+          "annualValue": 0.061515003
+        },
+        {
+          "year": 2013,
+          "annualValue": 0.2604934
+        },
+        {
+          "year": 2012,
+          "annualValue": 0.17066771
+        },
+        {
+          "year": 2011,
+          "annualValue": -0.064233094
+        },
+        {
+          "year": 2010,
+          "annualValue": 0.1301071
+        }
+      ],
+      "returnsCat": []
+    },
+    "pastQuarterlyReturns": {
+      "returns": []
+    },
+    "riskOverviewStatistics": {
+      "riskStatistics": []
+    },
+    "riskOverviewStatisticsCat": {
+      "riskStatisticsCat": []
+    }
+  },
+  "quoteType": {
+    "exchange": "AMS",
+    "quoteType": "ETF",
+    "symbol": "IWDA.AS",
+    "underlyingSymbol": "IWDA.AS",
+    "shortName": "iShares Core MSCI World UCITS E",
+    "longName": "iShares Core MSCI World UCITS ETF USD (Acc)",
+    "firstTradeDateEpochUtc": "2009-09-25T07:00:00.000Z",
+    "timeZoneFullName": "Europe/Amsterdam",
+    "timeZoneShortName": "CEST",
+    "uuid": "33e3ce97-5e4f-3280-9482-3eb9c4c11754",
+    "messageBoardId": "finmb_69484685",
+    "gmtOffSetMilliseconds": 7200000,
+    "maxAge": 1
+  }
+}

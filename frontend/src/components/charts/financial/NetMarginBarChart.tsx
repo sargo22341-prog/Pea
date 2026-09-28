@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { AssetIcon } from "../../common/AssetIcon";
 import { ChartEmpty } from "../ChartEmpty";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
-import { formatPercent } from "../chartFormat";
+import { CHART_ANIMATION_MS, formatPercent } from "../chartFormat";
 
 interface NetMarginTooltipProps {
   active?: boolean;
@@ -81,7 +81,7 @@ export const NetMarginBarChart = memo(function NetMarginBarChart({ data }: { dat
             width={compactAxis ? 54 : 190}
           />
           <Tooltip content={<NetMarginTooltip />} />
-          <Bar dataKey="netMargin" fill="#4ade80" name={t("chart.netMargin", { ns: "dashboard" })} radius={[0, 6, 6, 0]} />
+          <Bar animationDuration={CHART_ANIMATION_MS} dataKey="netMargin" fill="#4ade80" name={t("chart.netMargin", { ns: "dashboard" })} radius={[0, 6, 6, 0]} />
         </BarChart>
       </SafeResponsiveContainer>
     </div>

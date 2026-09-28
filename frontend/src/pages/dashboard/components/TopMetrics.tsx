@@ -1,8 +1,9 @@
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
-import { Activity, Coins, LineChart, ReceiptText, TrendingUp } from "lucide-react";
+import { Activity, Coins, LineChart, Percent, ReceiptText, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { formatRangeLabel, money, percent } from "../../../lib/format";
+import { formatFractionPercent } from "../../../lib/format-metrics";
 import { masquerValeur } from "../../../lib/privacy";
 import { Metric } from "./Metric";
 
@@ -21,13 +22,18 @@ export function TopMetrics({
 }) {
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
+  // Tuile affichée seulement quand au moins une position verse un dividende connu.
+  const yieldOnCost = summary?.yieldOnCost !== undefined && summary.yieldOnCost > 0 ? summary.yieldOnCost : undefined;
 
   return (
     <section className="space-y-3">
       <PortfolioTotal loading={loading} prive={prive} value={summary?.totalValue} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className={`grid grid-cols-2 gap-3 ${yieldOnCost === undefined ? "md:grid-cols-5" : "md:grid-cols-3 xl:grid-cols-6"}`}>
         <Metric icon={TrendingUp} label={t("topMetrics.invested", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalCost, summary.currency), prive) : undefined} />
         <Metric icon={Coins} label={t("topMetrics.dividends", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, summary.currency), prive) : undefined} />
+        {yieldOnCost !== undefined ? (
+          <Metric icon={Percent} label={t("topMetrics.yieldOnCost", { ns: "dashboard" })} value={masquerValeur(formatFractionPercent(yieldOnCost), prive)} />
+        ) : null}
         <Metric icon={ReceiptText} label={t("topMetrics.fees", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalFees, summary.currency), prive) : undefined} />
         <Metric
           icon={LineChart}

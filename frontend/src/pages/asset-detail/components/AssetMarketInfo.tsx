@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { MOTION } from "../../../components/common/motion";
 import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../../../lib/format";
 import { type InfoTone, toneFromNumber } from "../../../utils/assetTone";
-import { AssetInfoTile } from "./AssetInfoTile";
+import { AssetInfoTile } from "../../../components/common/metrics/AssetInfoTile";
+import { RANGE52_FILL_CLASSES, RANGE52_THUMB_CLASSES, range52Position } from "../../../components/common/metrics/range52";
 
 export function AssetMarketInfo({
   marketInfo,
@@ -75,33 +76,11 @@ function Range52Slider({
 }) {
   const { t } = useTranslation(["asset"]);
 
-  if (
-    low52 == null ||
-    high52 == null ||
-    currentPrice == null ||
-    !Number.isFinite(low52) ||
-    !Number.isFinite(high52) ||
-    !Number.isFinite(currentPrice) ||
-    high52 <= low52
-  ) {
+  const position = range52Position(low52, high52, currentPrice);
+  if (!position || low52 === undefined || high52 === undefined || currentPrice === undefined) {
     return <span className="text-slate-500">n/a</span>;
   }
-
-  const ratio = Math.max(0, Math.min(1, (currentPrice - low52) / (high52 - low52)));
-  const percentPosition = ratio * 100;
-  const rangeTone = percentPosition > 70 ? "green" : percentPosition < 30 ? "red" : "amber";
-  const progressClass =
-    rangeTone === "green"
-      ? "bg-mint shadow-[0_0_14px_rgba(74,222,128,0.2)]"
-      : rangeTone === "red"
-        ? "bg-coral shadow-[0_0_14px_rgba(251,113,133,0.2)]"
-        : "bg-amber shadow-[0_0_14px_rgba(251,191,36,0.18)]";
-  const thumbClass =
-    rangeTone === "green"
-      ? "bg-mint shadow-[0_0_16px_rgba(74,222,128,0.5)]"
-      : rangeTone === "red"
-        ? "bg-coral shadow-[0_0_16px_rgba(251,113,133,0.48)]"
-        : "bg-amber shadow-[0_0_16px_rgba(251,191,36,0.42)]";
+  const percentPosition = position.ratio * 100;
 
   return (
     <div className="min-w-0 pt-1">
@@ -110,9 +89,9 @@ function Range52Slider({
         <span className="text-right">{money(high52, currency)}</span>
       </div>
       <div className="relative h-2 rounded-full bg-slate-950/80 shadow-[inset_0_1px_4px_rgba(0,0,0,0.55)]">
-        <div className={`h-full rounded-full ${MOTION.gaugeFill} ${progressClass}`} style={{ width: `${percentPosition}%` }} />
+        <div className={`h-full rounded-full ${MOTION.gaugeFill} ${RANGE52_FILL_CLASSES[position.tone]}`} style={{ width: `${percentPosition}%` }} />
         <div
-          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 ${MOTION.gaugeThumb} ${thumbClass}`}
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 ${MOTION.gaugeThumb} ${RANGE52_THUMB_CLASSES[position.tone]}`}
           style={{ left: `${percentPosition}%` }}
         />
       </div>

@@ -1,0 +1,25 @@
+{
+  "symbol": "MC.PA",
+  "recommendedSymbols": [
+    {
+      "symbol": "RMS.PA",
+      "score": 0.152647
+    },
+    {
+      "symbol": "OR.PA",
+      "score": 0.133391
+    },
+    {
+      "symbol": "KER.PA",
+      "score": 0.130684
+    },
+    {
+      "symbol": "AI.PA",
+      "score": 0.094062
+    },
+    {
+      "symbol": "SAN.PA",
+      "score": 0.076297
+    }
+  ]
+}

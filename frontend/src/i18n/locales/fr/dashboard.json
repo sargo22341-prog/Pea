@@ -34,6 +34,18 @@
     "miniGraph": "Mini-graph {{range}}",
     "partial": "partiel"
   },
+  "positionSignals": {
+    "yieldOnCost": "Rdt/cout {{value}}",
+    "yieldOnCostHint": "Rendement sur cout : dividende annuel attendu rapporte a votre prix de revient unitaire.",
+    "range52": "Fourchette 52 semaines : {{low}} - {{high}} ({{distance}})",
+    "atHigh": "au plus haut",
+    "belowHigh": "{{value}} sous le plus haut",
+    "consensusChanged": "Consensus des analystes passe de {{from}} a {{to}} le {{date}}"
+  },
+  "benchmarks": {
+    "label": "Comparer a un indice",
+    "hint": "Courbe base 100 en pointille"
+  },
   "chart": {
     "portfolio": "Portefeuille",
     "subtitle": "Valorisation agregee depuis les historiques Yahoo Finance.",
@@ -41,6 +53,8 @@
     "emptyFinancialAnnual": "Aucune donnee financiere annuelle disponible.",
     "emptyNetMargin": "Aucune marge nette disponible.",
     "netMargin": "Marge nette",
+    "revenue": "Chiffre d'affaires",
+    "netIncome": "Resultat net",
     "atPrice": "a {{price}}",
     "preparing": "Donnees en cours de preparation...",
     "loadingComparisons": "Chargement des comparaisons...",
@@ -51,6 +65,7 @@
     "invested": "Total investi",
     "dividends": "Total dividendes",
     "fees": "Total frais",
+    "yieldOnCost": "Rendement sur cout",
     "rangePerformance": "Performance sur {{range}}"
   },
   "dividendsPage": {
@@ -71,6 +86,30 @@
     "projectedOption": "{{year}} (projection)",
     "projectionTitle": "Projection {{year}}",
     "projectionBasis": "Projection estimee a partir de {{base}} et {{reference}}",
-    "projected": "Annee projetee"
+    "projected": "Annee projetee",
+    "announced": "Inclut annonce",
+    "announcedAndEstimated": "Inclut annonce et estime",
+    "status": {
+      "real": "Detaches {{value}}",
+      "announced": "Annonces {{value}}",
+      "estimated": "Estimes {{value}}"
+    },
+    "growth5y": "Croissance 5 ans",
+    "perYear": "{{value}}/an",
+    "payout": "Distribution",
+    "annualHistory": "Historique annuel",
+    "simulation": {
+      "title": "Simuler le reinvestissement",
+      "horizon": "Horizon",
+      "years_one": "{{count}} an",
+      "years_other": "{{count}} ans",
+      "growth": "Croissance du dividende",
+      "summary": "Dans {{years}} ans : {{with}} de dividendes par an en reinvestissant, contre {{without}} sans reinvestir.",
+      "yearTick": "+{{year}} an(s)",
+      "incomeWith": "Avec reinvestissement",
+      "incomeWithout": "Sans reinvestissement",
+      "cumulative": "Cumul : {{with}} contre {{without}}",
+      "assumption": "Hypothese : le cours et le dividende progressent au meme rythme (rendement constant) ; dans un PEA, les dividendes reinvestis ne sont pas imposes. Simulation indicative, pas un conseil en investissement."
+    }
   }
 }

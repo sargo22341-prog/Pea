@@ -1,4 +1,4 @@
-import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
+import type { YahooUsageCallDto, YahooUsageFeature, YahooUsageStatsDto } from "@pea/shared";
 import { db } from "../../db.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { parseJsonStringArray } from "../../utils/json.js";
@@ -18,6 +18,7 @@ export interface YahooUsageLogInput {
   interval?: string | undefined;
   cacheHit?: boolean | undefined;
   requestKey?: string | undefined;
+  feature?: YahooUsageFeature | undefined;
 }
 
 export interface YahooUsageStatsQuery {
@@ -28,6 +29,7 @@ export interface YahooUsageStatsQuery {
   module?: string | undefined;
   ticker?: string | undefined;
   source?: string | undefined;
+  feature?: YahooUsageFeature | undefined;
   success?: boolean | undefined;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
   limit?: number | undefined;
@@ -46,8 +48,8 @@ export const yahooUsageRepository = {
       const modules = input.modules?.map((item) => item.trim()).filter(Boolean) ?? [];
       db.prepare(
         `INSERT INTO yahoo_usage_logs
-          (created_at, method, modules_json, ticker, tickers_json, ticker_count, duration_ms, success, error_message, internal_source, range, interval, cache_hit, request_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          (created_at, method, modules_json, ticker, tickers_json, ticker_count, duration_ms, success, error_message, internal_source, range, interval, cache_hit, request_key, feature)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         new Date().toISOString(),
         input.method,
@@ -62,7 +64,8 @@ export const yahooUsageRepository = {
         input.range ?? null,
         input.interval ?? null,
         input.cacheHit ? 1 : 0,
-        input.requestKey ?? null
+        input.requestKey ?? null,
+        input.feature ?? null
       );
 
       writesSinceCleanup += 1;
@@ -144,6 +147,14 @@ export const yahooUsageRepository = {
       params
     );
 
+    // Volume récent par fonctionnalité, indépendant des filtres : sert à mesurer le coût d'un interrupteur.
+    const byFeature24h = countRows(
+      `SELECT COALESCE(feature, 'other') AS key, COUNT(*) AS calls, SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS errors, AVG(duration_ms) AS avgDurationMs
+       FROM yahoo_usage_logs WHERE julianday(created_at) >= julianday('now', '-24 hours')
+       GROUP BY COALESCE(feature, 'other') ORDER BY calls DESC, key ASC`,
+      []
+    );
+
     const recentErrors = db
       .prepare(
         `SELECT id, created_at, method, ticker, tickers_json, modules_json, error_message, internal_source, duration_ms
@@ -180,6 +191,7 @@ export const yahooUsageRepository = {
       bySource: bySource.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
       topTickers: tickerCounts(whereSql, params),
       topModules: moduleCounts(whereSql, params),
+      byFeature24h: byFeature24h.map((row) => ({ key: String(row.key), calls: row.calls, errors: row.errors ?? 0, avgDurationMs: Math.round(row.avgDurationMs ?? 0) })),
       recentErrors: recentErrors.map((row) => ({
         id: row.id,
         createdAt: row.created_at,

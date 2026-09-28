@@ -1,18 +1,10 @@
 import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "../../repositories/yahoo/yahoo-usage.repository.js";
 import { currentYahooUsageSource } from "./yahoo-usage-context.js";
+import { featureFlagsService } from "../admin/feature-flags.service.js";
+import { fundamentalsModules } from "./fundamentals/fundamentals-modules.js";
+import { yahooUsageFeatureForKey } from "./usage/yahoo-usage-feature.js";
 
 const quoteSummaryModules = ["summaryProfile", "assetProfile", "price", "summaryDetail"];
-const fundamentalsModules = [
-  "assetProfile",
-  "calendarEvents",
-  "financialData",
-  "fundProfile",
-  "fundPerformance",
-  "topHoldings",
-  "summaryDetail",
-  "price",
-  "quoteType"
-];
 
 export interface YahooUsageMetadata {
   method?: string;
@@ -68,7 +60,7 @@ export function inferYahooUsageMetadata(key: string): YahooUsageMetadata {
     return { method: "quoteSummary", ticker: parts[1], modules: quoteSummaryModules, internalSource: sourceFor("quoteSummary", key) };
   }
   if (prefix === "fundamentals") {
-    return { method: "quoteSummary", ticker: parts[1], modules: fundamentalsModules, internalSource: sourceFor("quoteSummary", key) };
+    return { method: "quoteSummary", ticker: parts[1], modules: fundamentalsModules(featureFlagsService.isEnabled("extended_fundamentals")), internalSource: sourceFor("quoteSummary", key) };
   }
   if (prefix === "fundamentals-timeseries") {
     return { method: "fundamentalsTimeSeries", ticker: parts[1], modules: [parts[2] ?? "financials"], internalSource: sourceFor("fundamentalsTimeSeries", key) };
@@ -118,7 +110,8 @@ export function recordYahooUsage(key: string, input: Omit<YahooUsageLogInput, "m
       range: metadata.range,
       interval: metadata.interval,
       cacheHit: input.cacheHit,
-      requestKey: key
+      requestKey: key,
+      feature: yahooUsageFeatureForKey(key)
     });
   } catch {
     // Le tracking ne doit jamais modifier le resultat de l'appel Yahoo metier.

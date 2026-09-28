@@ -9,6 +9,7 @@ import { authFailureTracker, clientIpFrom, sleep } from "../../services/auth/aut
 import { logger } from "../../services/shared/logger.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { detectSupportedImageMime } from "../../utils/image-signature.js";
+import { featureFlagsService } from "../../services/admin/feature-flags.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartIcon } from "../shared/multipart.js";
 
@@ -41,7 +42,12 @@ function sendSessionResult(res: express.Response, req: express.Request, result: 
 }
 
 authRouter.get("/me", asyncRoute((req, res) => {
-  res.json({ user: req.user ?? null, setupRequired: !authService.hasUsers(), appTimezone: config.appTimezone });
+  res.json({
+    user: req.user ?? null,
+    setupRequired: !authService.hasUsers(),
+    appTimezone: config.appTimezone,
+    features: req.user ? featureFlagsService.enabledKeys() : []
+  });
 }));
 
 authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) => {
@@ -103,7 +109,8 @@ authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async
     assetNewsEnabled: z.boolean().optional(),
     newsLanguages: z.array(z.enum(["fr", "en"])).optional(),
     language: z.enum(["fr", "en"]).optional(),
-    privacyModeEnabled: z.boolean().optional()
+    privacyModeEnabled: z.boolean().optional(),
+    advancedModeEnabled: z.boolean().optional()
   }).parse(req.body);
   if (body.password && body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
   const updated = await authService.updateUser(requireAuthUser(req).id, body);

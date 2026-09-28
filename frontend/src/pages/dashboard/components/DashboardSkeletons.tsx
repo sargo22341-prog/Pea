@@ -1,5 +1,5 @@
 import type { RangeKey } from "@pea/shared";
-import { PortfolioEvolutionHeader } from "./PortfolioEvolutionHeader";
+import { PortfolioEvolutionHeader } from "./evolution/PortfolioEvolutionHeader";
 import type { DashboardRangeSetter } from "./types";
 
 export function PortfolioEvolutionSkeleton({ range, setRange }: { range: RangeKey; setRange: DashboardRangeSetter }) {

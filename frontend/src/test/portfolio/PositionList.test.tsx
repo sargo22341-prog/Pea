@@ -7,7 +7,8 @@ import { first } from "../utils/first";
 
 vi.mock("../../lib/api", () => ({
   api: {
-    positionsPerformance: vi.fn()
+    positionsPerformance: vi.fn(),
+    splits: vi.fn()
   }
 }));
 
@@ -75,6 +76,7 @@ describe("PositionList mini charts", () => {
   beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
     vi.clearAllMocks();
+    vi.mocked(api.splits).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -92,6 +94,30 @@ describe("PositionList mini charts", () => {
     expect(screen.queryByText("Quantite")).not.toBeInTheDocument();
     expect(screen.queryByText("Prix actuel")).not.toBeInTheDocument();
     expect(screen.getAllByRole("img", { name: /mini-graph 1d/i }).length).toBeGreaterThan(0);
+  });
+
+  it("flags a position whose stock split awaits the user decision", async () => {
+    vi.mocked(api.positionsPerformance).mockResolvedValue([performance()] as never);
+    vi.mocked(api.splits).mockResolvedValue([
+      { id: 1, symbol: "AI.PA", assetName: "AIR LIQUIDE", positionId: 1, date: "2024-06-10", numerator: 2, denominator: 1, status: "pending" }
+    ]);
+
+    renderList();
+
+    expect((await screen.findAllByTitle("Division a valider")).length).toBeGreaterThan(0);
+  });
+
+  it("does not flag a split that was already decided", async () => {
+    vi.mocked(api.positionsPerformance).mockResolvedValue([performance()] as never);
+    vi.mocked(api.splits).mockResolvedValue([
+      { id: 1, symbol: "AI.PA", assetName: "AIR LIQUIDE", positionId: 1, date: "2024-06-10", numerator: 2, denominator: 1, status: "applied" }
+    ]);
+
+    renderList();
+    await screen.findByText("AIR LIQUIDE");
+    await waitFor(() => { expect(api.splits).toHaveBeenCalled(); });
+
+    expect(screen.queryByTitle("Division a valider")).not.toBeInTheDocument();
   });
 
   it("refetches the current range on SSE portfolio updates without changing page state", async () => {

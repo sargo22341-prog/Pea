@@ -35,7 +35,7 @@ export class PortfolioAnalysisService {
     return {
       symbol: symbol.toUpperCase(),
       name: name ?? symbol.toUpperCase(),
-      logoUrl: safeText(result.data.price?.logoUrl),
+      logoUrl: safeText(result.data.price?.["logoUrl"]),
       quoteType: safeText(result.data.quoteType?.quoteType),
       isEtf: etf,
       financials: etf ? [] : annualFinancialRows(result.data)

@@ -57,9 +57,9 @@ export class MarketDataConstructionRepository {
     deleted.push({ table: "cached_intraday_history", rows: runDelete(`DELETE FROM cached_intraday_history WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
     deleted.push({ table: "asset_icons", rows: runDelete(`DELETE FROM asset_icons WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
 
-    // cache_entries : purger toutes les clés qui matchent le symbole (quote/dividends/news/fundamentals/asset_article)
+    // cache_entries : purger toutes les clés qui matchent le symbole (quote/dividends/news/fundamentals/asset_article/insights/recommendations)
     // ainsi que les clés history qui commencent par `${symbol}:`.
-    const directScopes: CacheScope[] = ["quote", "dividends", "news", "fundamentals", "asset_article"];
+    const directScopes: CacheScope[] = ["quote", "dividends", "news", "fundamentals", "asset_article", "insights", "recommendations"];
     const directlyDeleted = unifiedCacheRepository.deleteKeysInScopes(directScopes, symbols);
     let prefixedDeleted = 0;
     for (const symbol of symbols) {

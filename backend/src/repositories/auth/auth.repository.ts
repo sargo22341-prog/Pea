@@ -23,6 +23,7 @@ export interface AuthUserRow {
   news_language_en_enabled: number | null;
   language: string | null;
   privacy_mode_enabled: number | null;
+  advanced_mode_enabled: number | null;
   created_at: string;
 }
 
@@ -87,6 +88,7 @@ export class AuthRepository {
     newsLanguageEnEnabled: number;
     language: string;
     privacyModeEnabled: number;
+    advancedModeEnabled: number;
   }) {
     db.prepare(
       `UPDATE users
@@ -105,6 +107,7 @@ export class AuthRepository {
            news_language_en_enabled = ?,
            language = ?,
            privacy_mode_enabled = ?,
+           advanced_mode_enabled = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`
     ).run(
@@ -123,6 +126,7 @@ export class AuthRepository {
       input.newsLanguageEnEnabled,
       input.language,
       input.privacyModeEnabled,
+      input.advancedModeEnabled,
       userId
     );
   }

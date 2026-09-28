@@ -3,6 +3,7 @@ import { z } from "zod";
 import { config } from "../../config.js";
 import { dividendsService } from "../../services/market/dividends/dividends.service.js";
 import { chartRefreshService } from "../../services/market/charts/chart-refresh.service.js";
+import { parseChartOverlays } from "../../services/market/charts/chart-overlays.service.js";
 import { marketEventsService } from "../../services/market/events/market-events.service.js";
 import { assetDataService } from "../../services/assets/asset-data.service.js";
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
@@ -61,7 +62,8 @@ marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
 
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query["range"]);
-  res.json(await assetDataService.chart(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range)));
+  const overlays = parseChartOverlays(req.query["overlays"]);
+  res.json(await assetDataService.chart(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range), overlays));
 }));
 
 marketRouter.get("/dividends/:symbol", asyncRoute((req, res) => {

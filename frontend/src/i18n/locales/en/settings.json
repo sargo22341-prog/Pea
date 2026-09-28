@@ -54,7 +54,10 @@
     "newsLanguagesHelp": "Keep at least one language enabled for articles.",
     "newsLanguageLocked": "At least one language must remain enabled",
     "saved": "Preferences saved.",
-    "saveError": "Unable to save."
+    "saveError": "Unable to save.",
+    "advancedMode": "Advanced mode",
+    "advancedModeHelp": "Expands the detail blocks of the asset page by default.",
+    "advancedModeDetails": "When off, asset pages stay short: full ratios, charts and history open with one click. A block you open or close yourself keeps your choice in this browser."
   },
   "sort": {
     "nameAsc": "Name A -> Z",

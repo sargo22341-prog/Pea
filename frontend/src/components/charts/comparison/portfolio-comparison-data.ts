@@ -7,6 +7,8 @@ export interface PortfolioComparisonSerie {
   label: string;
   timestamps: number[];
   prices: number[];
+  /** Indice de référence : tracé en pointillé pour le distinguer des actifs comparés. */
+  dashed?: boolean | undefined;
 }
 
 export interface ComparisonPoint extends Record<string, number | null> {

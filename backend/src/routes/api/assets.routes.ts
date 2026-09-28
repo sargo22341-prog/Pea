@@ -1,6 +1,7 @@
 import express from "express";
 import { assetDetailsAssembler } from "../../services/assets/asset-details-assembler.service.js";
 import { parseRange } from "../../utils/range.js";
+import { parseChartOverlays } from "../../services/market/charts/chart-overlays.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { routeParam } from "../shared/params.js";
 import { userNewsLanguages } from "../shared/news.helpers.js";
@@ -12,6 +13,7 @@ assetsRouter.get("/assets/:symbol", asyncRoute(async (req, res) => {
   const details = await assetDetailsAssembler.assemble({
     symbol: routeParam(req.params["symbol"], "symbol"),
     range: parseRange(req.query["range"]),
+    overlays: parseChartOverlays(req.query["overlays"]),
     user: requireAuthUser(req),
     newsLanguages: userNewsLanguages(req)
   });

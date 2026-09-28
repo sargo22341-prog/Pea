@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DataConstructionSection } from "./components/DataConstructionSection";
+import { FeatureFlagsSection } from "./components/FeatureFlagsSection";
 import { MarketDataActionsSection } from "./components/MarketDataActionsSection";
 import { RuntimeHealthSection } from "./components/RuntimeHealthSection";
 import { TrackedMarketsSection } from "./components/TrackedMarketsSection";
 import { UserManagementSection } from "./components/UserManagementSection";
 import { YahooUsageSection } from "./components/YahooUsageSection";
 
-export function AdminPage() {
+export function AdminPage({ onFeaturesChanged }: { onFeaturesChanged?: (() => Promise<void>) | undefined }) {
   const { t } = useTranslation("common");
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ export function AdminPage() {
       <UserManagementSection onToggle={() => { toggleSection("users"); }} open={openSection === "users"} />
       <DataConstructionSection />
       <RuntimeHealthSection onToggle={() => { toggleSection("runtime"); }} open={openSection === "runtime"} />
+      <FeatureFlagsSection onChanged={onFeaturesChanged} onToggle={() => { toggleSection("features"); }} open={openSection === "features"} />
       <YahooUsageSection onToggle={() => { toggleSection("yahooUsage"); }} open={openSection === "yahooUsage"} />
       <TrackedMarketsSection onToggle={() => { toggleSection("markets"); }} open={openSection === "markets"} />
       <MarketDataActionsSection onToggle={() => { toggleSection("actions"); }} open={openSection === "actions"} />

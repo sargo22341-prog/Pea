@@ -1,0 +1,225 @@
+{
+  "recommendationTrend": {
+    "trend": [
+      {
+        "period": "0m",
+        "strongBuy": 7,
+        "buy": 31,
+        "hold": 3,
+        "sell": 1,
+        "strongSell": 0
+      },
+      {
+        "period": "-1m",
+        "strongBuy": 6,
+        "buy": 32,
+        "hold": 4,
+        "sell": 1,
+        "strongSell": 0
+      },
+      {
+        "period": "-2m",
+        "strongBuy": 7,
+        "buy": 33,
+        "hold": 3,
+        "sell": 1,
+        "strongSell": 0
+      },
+      {
+        "period": "-3m",
+        "strongBuy": 6,
+        "buy": 33,
+        "hold": 3,
+        "sell": 1,
+        "strongSell": 1
+      }
+    ],
+    "maxAge": 86400
+  },
+  "earnings": {
+    "maxAge": 86400,
+    "earningsChart": {
+      "quarterly": [
+        {
+          "date": "3Q2025",
+          "actual": 5.49,
+          "estimate": 5.37491,
+          "fiscalQuarter": "3Q2025",
+          "calendarQuarter": "3Q2025",
+          "difference": "0.12",
+          "surprisePct": "2.14",
+          "periodEndDate": "2025-09-30T00:00:00.000Z",
+          "reportedDate": "2025-10-15T05:00:00.000Z"
+        },
+        {
+          "date": "4Q2025",
+          "actual": 7.34,
+          "estimate": 7.54521,
+          "fiscalQuarter": "4Q2025",
+          "calendarQuarter": "4Q2025",
+          "difference": "-0.21",
+          "surprisePct": "-2.72",
+          "periodEndDate": "2025-12-31T00:00:00.000Z",
+          "reportedDate": "2026-01-28T00:00:00.000Z"
+        },
+        {
+          "date": "1Q2026",
+          "actual": 7.15,
+          "estimate": 6.621,
+          "fiscalQuarter": "1Q2026",
+          "calendarQuarter": "1Q2026",
+          "difference": "0.53",
+          "surprisePct": "7.99",
+          "periodEndDate": "2026-03-31T00:00:00.000Z",
+          "reportedDate": "2026-04-15T00:00:00.000Z"
+        },
+        {
+          "date": "2Q2026",
+          "actual": 7.58,
+          "estimate": 6.94813,
+          "fiscalQuarter": "2Q2026",
+          "calendarQuarter": "2Q2026",
+          "difference": "0.63",
+          "surprisePct": "9.09",
+          "periodEndDate": "2026-06-30T00:00:00.000Z",
+          "reportedDate": "2026-07-14T00:00:00.000Z"
+        }
+      ],
+      "currentQuarterEstimate": 10.58262,
+      "currentQuarterEstimateDate": "3Q",
+      "currentCalendarQuarter": "3Q2026",
+      "currentQuarterEstimateYear": 2026,
+      "currentFiscalQuarter": "3Q2026",
+      "currentPeriodEndDate": "2026-09-30T00:00:00.000Z",
+      "earningsDate": [
+        "2026-10-14T15:30:00.000Z"
+      ],
+      "isEarningsDateEstimate": false
+    },
+    "financialsChart": {
+      "yearly": [
+        {
+          "date": 2022,
+          "revenue": 21173400000,
+          "earnings": 5624200000,
+          "profitMargin": 0.26562575
+        },
+        {
+          "date": 2023,
+          "revenue": 27558500000,
+          "earnings": 7839000000,
+          "profitMargin": 0.28444943
+        },
+        {
+          "date": 2024,
+          "revenue": 28262900000,
+          "earnings": 7571600000,
+          "profitMargin": 0.26789892
+        },
+        {
+          "date": 2025,
+          "revenue": 32667300000,
+          "earnings": 9392700000,
+          "profitMargin": 0.28752607
+        }
+      ],
+      "quarterly": [
+        {
+          "date": "2Q2025",
+          "fiscalQuarter": "2Q2025",
+          "revenue": 7691700000,
+          "earnings": 2290300000,
+          "profitMargin": 0.2977625
+        },
+        {
+          "date": "3Q2025",
+          "fiscalQuarter": "3Q2025",
+          "revenue": 7516000000,
+          "earnings": 2125000000,
+          "profitMargin": 0.28273016
+        },
+        {
+          "date": "4Q2025",
+          "fiscalQuarter": "4Q2025",
+          "revenue": 9718100000,
+          "earnings": 2839600000,
+          "profitMargin": 0.29219705
+        },
+        {
+          "date": "1Q2026",
+          "fiscalQuarter": "1Q2026",
+          "revenue": 8767000000,
+          "earnings": 2756700000,
+          "profitMargin": 0.31444052
+        }
+      ]
+    },
+    "financialCurrency": "EUR",
+    "defaultMethodology": "nongaap"
+  },
+  "calendarEvents": {
+    "maxAge": 1,
+    "earnings": {
+      "earningsDate": [
+        "2026-10-14T15:30:00.000Z"
+      ],
+      "earningsCallDate": [
+        "2026-07-15T13:00:00.000Z"
+      ],
+      "isEarningsDateEstimate": false,
+      "earningsAverage": 10.58262,
+      "earningsLow": 8.65,
+      "earningsHigh": 11.5,
+      "revenueAverage": 11659847070,
+      "revenueLow": 10520000000,
+      "revenueHigh": 12104478220
+    },
+    "exDividendDate": "2026-07-27T00:00:00.000Z"
+  },
+  "earningsHistory": {
+    "history": [
+      {
+        "maxAge": 1,
+        "epsActual": 5.49,
+        "epsEstimate": 5.37491,
+        "epsDifference": 0.12,
+        "surprisePercent": 0.0214,
+        "quarter": "2025-09-30T00:00:00.000Z",
+        "currency": "EUR",
+        "period": "-4q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 7.34,
+        "epsEstimate": 7.54521,
+        "epsDifference": -0.21,
+        "surprisePercent": -0.0272,
+        "quarter": "2025-12-31T00:00:00.000Z",
+        "currency": "EUR",
+        "period": "-3q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 7.15,
+        "epsEstimate": 6.621,
+        "epsDifference": 0.53,
+        "surprisePercent": 0.0799,
+        "quarter": "2026-03-31T00:00:00.000Z",
+        "currency": "EUR",
+        "period": "-2q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 7.58,
+        "epsEstimate": 6.94813,
+        "epsDifference": 0.63,
+        "surprisePercent": 0.090900004,
+        "quarter": "2026-06-30T00:00:00.000Z",
+        "currency": "EUR",
+        "period": "-1q"
+      }
+    ],
+    "defaultMethodology": "nongaap",
+    "maxAge": 86400
+  }
+}

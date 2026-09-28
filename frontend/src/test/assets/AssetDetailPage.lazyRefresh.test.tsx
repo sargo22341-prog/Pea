@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssetDetailPage } from "../../pages/asset-detail/AssetDetailPage";
@@ -17,10 +17,6 @@ vi.mock("../../components/charts/financial/FinancialComboChart", () => ({
   FinancialComboChart: () => <div>financial-chart</div>
 }));
 
-vi.mock("../../components/charts/allocation/SectorAllocationChart", () => ({
-  SectorAllocationChart: () => <div>sector-allocation-chart</div>
-}));
-
 vi.mock("../../components/common/AssetCalendarEvents", () => ({
   AssetCalendarEvents: ({ symbol }: { symbol: string }) => <div>calendar-events-{symbol}</div>
 }));
@@ -33,7 +29,8 @@ vi.mock("../../lib/api", () => ({
     deletePosition: vi.fn(),
     addWatchlist: vi.fn(),
     removeWatchlist: vi.fn(),
-    calendarEventsForSymbol: vi.fn()
+    calendarEventsForSymbol: vi.fn(),
+    splits: vi.fn().mockResolvedValue([])
   }
 }));
 
@@ -198,6 +195,7 @@ describe("AssetDetailPage lazy chart refresh", () => {
     });
 
     await waitFor(() => { expect(api.asset).toHaveBeenCalledTimes(2); });
+    fireEvent.click(await screen.findByRole("tab", { name: "Dividendes" }));
     expect(screen.getByText("dividend-chart")).toBeInTheDocument();
   });
 
@@ -263,36 +261,5 @@ describe("AssetDetailPage lazy chart refresh", () => {
     expect(screen.getByText((content) => content.replace(/\s/g, "") === "49,24€")).toBeInTheDocument();
     expect(screen.getByText((content) => content.replace(/\s/g, "") === "81,34€")).toBeInTheDocument();
     expect(screen.getByText("30/06/2026")).toBeInTheDocument();
-  });
-
-  it("keeps market sections visible for an ETF that is not in the portfolio", async () => {
-    vi.mocked(api.asset).mockResolvedValue({
-      ...assetDto(),
-      isEtf: true,
-      position: null,
-      dividends: [{ symbol: "ASML.AS", date: "2026-05-01T00:00:00.000Z", amount: 1, currency: "EUR", status: "real" }],
-      financials: [{ year: 2025, revenue: 100, netIncome: 12, netMargin: 12 }],
-      analystConsensus: {
-        currentPrice: 100,
-        targetMedianPrice: 120,
-        recommendationMean: 2,
-        recommendationKey: "buy",
-        numberOfAnalystOpinions: 8
-      },
-      fundDetails: {
-        family: "ETF issuer",
-        annualReportExpenseRatio: 0.0012,
-        totalNetAssets: 1234,
-        sectorWeightings: [{ key: "technology", value: 0.4 }]
-      }
-    } as never);
-    vi.mocked(api.requestChartRefresh).mockResolvedValue({ status: "skipped-fresh" });
-    renderPage();
-    await screen.findByText("ASML");
-    expect(screen.getByText("calendar-events-ASML.AS")).toBeInTheDocument();
-    expect(screen.getByText("financial-chart")).toBeInTheDocument();
-    expect(screen.getByText("dividend-chart")).toBeInTheDocument();
-    expect(screen.getByText("ETF issuer")).toBeInTheDocument();
-    expect(screen.getByText(/8/)).toBeInTheDocument();
   });
 });

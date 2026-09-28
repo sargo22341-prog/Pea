@@ -5,6 +5,7 @@ import { useUserPreferences } from "../hooks/useUserPreferences";
 import { formatRangeLabel } from "../../../lib/format";
 import { Collapsible, Toast } from "../../../components/common/feedback";
 import { languageOptions } from "../../../i18n";
+import { PreferenceSwitch } from "../../../components/common/forms/PreferenceSwitch";
 
 const sortOptions: { label: string; key: DashboardSortKey; direction: SortDirection }[] = [
   { label: "settings:sort.nameAsc", key: "name", direction: "asc" },
@@ -86,60 +87,34 @@ export function UserPreferencesSection({ onUserUpdated, open, onToggle }: { onUs
           <span className="muted mt-1 block text-xs">{t("settings:preferences.interfaceLanguageHelp")}</span>
         </label>
       </div>
-      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
-        <button
-          aria-checked={preferences.privacyModeEnabled}
-          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.privacyModeEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => { preferences.setPrivacyModeEnabled((current) => !current); }}
-          role="switch"
-          type="button"
-        >
-          <span className={`h-4 w-4 rounded-full bg-white transition ${preferences.privacyModeEnabled ? "translate-x-5" : ""}`} />
-        </button>
-        <span>
-          <span className="block font-semibold">{t("settings:preferences.privateMode")}</span>
-          <span className="muted block">{t("settings:preferences.privateModeHelp")}</span>
-          <span className="mt-2 block text-sm text-slate-300">
-            {t("settings:preferences.privateModeDetails")}
-          </span>
-        </span>
-      </label>
-      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
-        <button
-          aria-checked={preferences.localPeaSearchEnabled}
-          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.localPeaSearchEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => { preferences.setLocalPeaSearchEnabled((current) => !current); }}
-          role="switch"
-          type="button"
-        >
-          <span className={`h-4 w-4 rounded-full bg-white transition ${preferences.localPeaSearchEnabled ? "translate-x-5" : ""}`} />
-        </button>
-        <span>
-          <span className="block font-semibold">{t("settings:preferences.localPeaSearch")}</span>
-          <span className="muted block">{t("settings:preferences.localPeaSearchHelp")}</span>
-          <span className="mt-2 block text-sm text-slate-300">
-            {t("settings:preferences.localPeaSearchDetails")}
-          </span>
-        </span>
-      </label>
-      <label className="flex items-start gap-3 rounded-md border border-line bg-ink p-3">
-        <button
-          aria-checked={preferences.assetNewsEnabled}
-          className={`mt-1 flex h-6 w-11 shrink-0 items-center rounded-full p-1 transition ${preferences.assetNewsEnabled ? "bg-mint" : "bg-panel2"}`}
-          onClick={() => { preferences.setAssetNewsEnabled((current) => !current); }}
-          role="switch"
-          type="button"
-        >
-          <span className={`h-4 w-4 rounded-full bg-white transition ${preferences.assetNewsEnabled ? "translate-x-5" : ""}`} />
-        </button>
-        <span>
-          <span className="block font-semibold">{t("settings:preferences.assetNews")}</span>
-          <span className="muted block">{t("settings:preferences.assetNewsHelp")}</span>
-          <span className="mt-2 block text-sm text-slate-300">
-            {t("settings:preferences.assetNewsDetails")}
-          </span>
-        </span>
-      </label>
+      <PreferenceSwitch
+        checked={preferences.advancedModeEnabled}
+        details={t("settings:preferences.advancedModeDetails")}
+        help={t("settings:preferences.advancedModeHelp")}
+        onToggle={() => { preferences.setAdvancedModeEnabled((current) => !current); }}
+        title={t("settings:preferences.advancedMode")}
+      />
+      <PreferenceSwitch
+        checked={preferences.privacyModeEnabled}
+        details={t("settings:preferences.privateModeDetails")}
+        help={t("settings:preferences.privateModeHelp")}
+        onToggle={() => { preferences.setPrivacyModeEnabled((current) => !current); }}
+        title={t("settings:preferences.privateMode")}
+      />
+      <PreferenceSwitch
+        checked={preferences.localPeaSearchEnabled}
+        details={t("settings:preferences.localPeaSearchDetails")}
+        help={t("settings:preferences.localPeaSearchHelp")}
+        onToggle={() => { preferences.setLocalPeaSearchEnabled((current) => !current); }}
+        title={t("settings:preferences.localPeaSearch")}
+      />
+      <PreferenceSwitch
+        checked={preferences.assetNewsEnabled}
+        details={t("settings:preferences.assetNewsDetails")}
+        help={t("settings:preferences.assetNewsHelp")}
+        onToggle={() => { preferences.setAssetNewsEnabled((current) => !current); }}
+        title={t("settings:preferences.assetNews")}
+      />
       <div className="rounded-md border border-line bg-ink p-3">
         <p className="font-semibold">{t("settings:preferences.newsLanguages")}</p>
         <p className="muted mt-1 text-sm">{t("settings:preferences.newsLanguagesHelp")}</p>

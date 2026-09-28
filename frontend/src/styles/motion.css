@@ -92,6 +92,17 @@
     transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* Barre horizontale (poids, répartition) qui se remplit depuis la gauche, même courbe que les jauges. */
+  .motion-bar-grow {
+    animation: pea-gauge-fill 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    transform-origin: left center;
+  }
+
+  /* Soulignement d'onglet actif qui glisse vers l'onglet choisi. */
+  .motion-tab-indicator {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   .motion-gauge-thumb {
     animation: pea-fade-in 0.65s ease-out backwards;
     transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -211,6 +222,7 @@
     box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.22);
   }
 
+  .motion-bar-grow,
   .motion-dialog,
   .motion-fade-in,
   .motion-flash-down,
@@ -226,7 +238,8 @@
   }
 
   .motion-gauge-fill,
-  .motion-gauge-thumb {
+  .motion-gauge-thumb,
+  .motion-tab-indicator {
     transition: none;
   }
 }

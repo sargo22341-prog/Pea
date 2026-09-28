@@ -1,7 +1,4 @@
 import type {
-  AssetAnalystConsensus,
-  AssetCalendarEventsData,
-  AssetFundDetails,
   AssetMarketInfo,
   DividendEvent,
   HistoryPoint,
@@ -15,6 +12,7 @@ import type {
 import type { MarketDataResult } from "./market-data-provider.js";
 import { yahooApi } from "../../yahoo/yahoo.api.js";
 import { yahooService } from "../../yahoo/index.js";
+import type { FundamentalsExtraData } from "../../yahoo/fundamentals/fundamentals.job.js";
 
 /**
  * Single market-data facade for application services.
@@ -56,11 +54,7 @@ export class MarketDataGateway {
     return yahooService.marketInfo(symbol);
   }
 
-  readExtraDataWithCache(symbol: string): Promise<MarketDataResult<{
-    calendarEventsData?: AssetCalendarEventsData | undefined;
-    analystConsensus?: AssetAnalystConsensus | undefined;
-    fundDetails?: AssetFundDetails | undefined;
-  }>> {
+  readExtraDataWithCache(symbol: string): Promise<MarketDataResult<FundamentalsExtraData>> {
     return yahooService.extraData(symbol);
   }
 

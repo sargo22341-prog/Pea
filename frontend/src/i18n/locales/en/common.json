@@ -221,7 +221,24 @@
       "calls24h": "Calls 24h",
       "calls7d": "Calls 7 days",
       "errorRate": "Error rate",
-      "avgDuration": "Average duration"
+      "avgDuration": "Average duration",
+      "byFeature24h": "Calls / 24 h by feature",
+      "noFeature": "No call in the last 24 h",
+      "features": {
+        "quotes": "Quotes",
+        "charts": "Charts",
+        "dividends": "Dividends and splits",
+        "fundamentals": "Fundamentals",
+        "annual-statements": "Annual statements",
+        "quarterly-statements": "Quarterly statements",
+        "insights": "Technical signals",
+        "similar-assets": "Similar assets",
+        "news": "News",
+        "search": "Search",
+        "screeners": "Market lists",
+        "asset-icons": "Logos",
+        "other": "Other"
+      }
     },
     "runtime": {
       "title": "Runtime monitoring",
@@ -302,6 +319,24 @@
         "calendar": "Calendar",
         "cleanup": "Cleanup"
       }
+    },
+    "features": {
+      "title": "Yahoo features",
+      "help": "Each feature adds Yahoo Finance calls. When disabled, it makes no call at all and its block disappears from asset pages. Measure its cost in the Yahoo usage section before enabling it.",
+      "saveError": "Unable to save",
+      "updated": "Changed on {{date}} by {{user}}",
+      "defaultOn": "Enabled by default",
+      "defaultOff": "Disabled by default",
+      "keys": {
+        "extended_fundamentals": "Extended fundamentals",
+        "extended_fundamentalsHelp": "Balance sheet, cash flow, analyst trend and quarterly results (2 calls per asset per week).",
+        "quarterly_statements": "Quarterly statements",
+        "quarterly_statementsHelp": "Quarterly balance sheet and cash flow, loaded only when a user asks for them.",
+        "insights": "Technical signals",
+        "insightsHelp": "Short, mid and long-term outlook and relative valuation (1 call per asset per day).",
+        "similar_assets": "Similar assets",
+        "similar_assetsHelp": "Suggestions of related assets on the asset page (1 call per asset per week)."
+      }
     }
   },
   "news": {
@@ -324,7 +359,9 @@
     "day": "Day",
     "published": "Published",
     "estimate": "Estimate",
-    "planned": "Planned"
+    "planned": "Planned",
+    "epsEstimate": "Expected EPS {{value}}",
+    "revenueEstimate": "Expected revenue {{value}}"
   },
   "files": {
     "chooseImage": "Choose an image",
@@ -356,5 +393,21 @@
     "adjust": "Adjust image",
     "loading": "Loading...",
     "help": "Drag to reposition - mouse wheel or slider to zoom"
+  },
+  "disclosure": {
+    "showDetails": "Show details",
+    "hide": "Hide"
+  },
+  "dividends": {
+    "aristocrat": "Aristocrat",
+    "aristocratHint": "Dividend per share raised at least {{count}} years in a row (currently {{streak}}), complete calendar years.",
+    "payoutGauge": "Payout ratio {{value}}: {{rating}}",
+    "rating": {
+      "good": "comfortable",
+      "fair": "to watch",
+      "weak": "fragile"
+    },
+    "historyLabel": "Annual dividend per share",
+    "historyEntry": "{{year}}: {{value}}"
   }
 }

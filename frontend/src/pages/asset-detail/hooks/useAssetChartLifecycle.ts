@@ -162,9 +162,12 @@ export function useAssetChartLifecycle({
 
 function chartDtoToPoints(chart?: AssetChartDto) {
   if (!chart) return [];
+  const { ma50, ma200 } = chart.movingAverages ?? {};
   return chart.timestamps.map((timestamp, index) => ({
     date: timestamp,
-    value: chart.prices[index] ?? null
+    value: chart.prices[index] ?? null,
+    ...(ma50 ? { ma50: ma50[index] ?? null } : {}),
+    ...(ma200 ? { ma200: ma200[index] ?? null } : {})
   }));
 }
 

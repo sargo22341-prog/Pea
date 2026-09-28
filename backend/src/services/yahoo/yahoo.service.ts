@@ -1,7 +1,7 @@
-import type { AssetAnalystConsensus, AssetCalendarEventsData, AssetFundDetails, AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
+import type { AssetMarketInfo, DividendEvent, HistoryPoint, NewsArticle, NewsFeedPage, NewsLanguage, Quote, RangeKey, SearchResult } from "@pea/shared";
 import type { MarketDataProvider, MarketDataResult } from "../market/data/market-data-provider.js";
 import { fetchDividends } from "./dividends/dividends.job.js";
-import { fetchExtraData, fetchFundamentals, fetchMarketInfo } from "./fundamentals/fundamentals.job.js";
+import { fetchExtraData, fetchFundamentals, fetchMarketInfo, type FundamentalsExtraData } from "./fundamentals/fundamentals.job.js";
 import { fetchHistory } from "./history/history.job.js";
 import { fetchCompanyNews, fetchGlobalNews, fetchNews } from "./news/news.job.js";
 import { fetchQuote, fetchQuoteBatch, fetchQuoteCombine, searchYahoo } from "./quotes/quote.job.js";
@@ -27,11 +27,7 @@ export class YahooService implements MarketDataProvider {
     return fetchMarketInfo(symbol);
   }
 
-  extraData(symbol: string): Promise<MarketDataResult<{
-    calendarEventsData?: AssetCalendarEventsData | undefined;
-    analystConsensus?: AssetAnalystConsensus | undefined;
-    fundDetails?: AssetFundDetails | undefined;
-  }>> {
+  extraData(symbol: string): Promise<MarketDataResult<FundamentalsExtraData>> {
     return fetchExtraData(symbol);
   }
 

@@ -2,7 +2,7 @@ import type { YahooUsageBucketDto, YahooUsageCallDto, YahooUsageRecentErrorDto, 
 import { useTranslation } from "react-i18next";
 import { formatDateTime, formatMs, formatNumber } from "./yahooUsageUtils";
 
-export function YahooUsageTopTable({ emptyLabel, onSelect, rows, title }: { emptyLabel: string; onSelect: (row: YahooUsageBucketDto) => void; rows: YahooUsageBucketDto[]; title: string }) {
+export function YahooUsageTopTable({ emptyLabel, formatKey, onSelect, rows, title }: { emptyLabel: string; formatKey?: (key: string) => string; onSelect: (row: YahooUsageBucketDto) => void; rows: YahooUsageBucketDto[]; title: string }) {
   return (
     <section className="overflow-hidden rounded-md border border-line">
       <h3 className="border-b border-line bg-panel2/60 p-3 text-sm font-semibold text-slate-300">{title}</h3>
@@ -11,7 +11,7 @@ export function YahooUsageTopTable({ emptyLabel, onSelect, rows, title }: { empt
           <tbody className="divide-y divide-line">
             {rows.slice(0, 10).map((row) => (
               <tr className="cursor-pointer transition hover:bg-sky/5" key={row.key} onClick={() => { onSelect(row); }}>
-                <td className="p-3 font-medium">{row.key}</td>
+                <td className="p-3 font-medium">{formatKey ? formatKey(row.key) : row.key}</td>
                 <td className="p-3 text-right text-slate-300">{formatNumber(row.calls)}</td>
               </tr>
             ))}

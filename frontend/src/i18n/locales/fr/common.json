@@ -221,7 +221,24 @@
       "calls24h": "Appels 24h",
       "calls7d": "Appels 7 jours",
       "errorRate": "Taux d'erreur",
-      "avgDuration": "Duree moyenne"
+      "avgDuration": "Duree moyenne",
+      "byFeature24h": "Appels / 24 h par fonctionnalite",
+      "noFeature": "Aucun appel sur 24 h",
+      "features": {
+        "quotes": "Cotations",
+        "charts": "Graphiques",
+        "dividends": "Dividendes et divisions",
+        "fundamentals": "Fondamentaux",
+        "annual-statements": "Comptes annuels",
+        "quarterly-statements": "Comptes trimestriels",
+        "insights": "Signaux techniques",
+        "similar-assets": "Actifs similaires",
+        "news": "Actualites",
+        "search": "Recherche",
+        "screeners": "Listes de marche",
+        "asset-icons": "Logos",
+        "other": "Autres"
+      }
     },
     "runtime": {
       "title": "Monitoring runtime",
@@ -302,6 +319,24 @@
         "calendar": "Calendrier",
         "cleanup": "Nettoyage"
       }
+    },
+    "features": {
+      "title": "Fonctionnalites Yahoo",
+      "help": "Chaque fonctionnalite ajoute des appels Yahoo Finance. Desactivee, elle ne fait plus aucun appel et son bloc disparait des fiches. Mesurez son cout dans le suivi Yahoo avant de l'activer.",
+      "saveError": "Enregistrement impossible",
+      "updated": "Modifie le {{date}} par {{user}}",
+      "defaultOn": "Active par defaut",
+      "defaultOff": "Desactive par defaut",
+      "keys": {
+        "extended_fundamentals": "Fondamentaux etendus",
+        "extended_fundamentalsHelp": "Bilan, flux de tresorerie, tendance des analystes et resultats trimestriels (2 appels par actif et par semaine).",
+        "quarterly_statements": "Comptes trimestriels",
+        "quarterly_statementsHelp": "Bilan et flux trimestriels, charges uniquement quand un utilisateur les demande.",
+        "insights": "Signaux techniques",
+        "insightsHelp": "Tendances court, moyen et long terme et valorisation relative (1 appel par actif et par jour).",
+        "similar_assets": "Actifs similaires",
+        "similar_assetsHelp": "Suggestions d'actifs proches sur la fiche (1 appel par actif et par semaine)."
+      }
     }
   },
   "news": {
@@ -324,7 +359,9 @@
     "day": "Journee",
     "published": "Publie",
     "estimate": "Estimation",
-    "planned": "Prevu"
+    "planned": "Prevu",
+    "epsEstimate": "BPA attendu {{value}}",
+    "revenueEstimate": "CA attendu {{value}}"
   },
   "files": {
     "chooseImage": "Choisir une image",
@@ -356,5 +393,21 @@
     "adjust": "Ajuster l'image",
     "loading": "Chargement...",
     "help": "Glissez pour repositionner - molette ou curseur pour zoomer"
+  },
+  "disclosure": {
+    "showDetails": "Voir le detail",
+    "hide": "Masquer"
+  },
+  "dividends": {
+    "aristocrat": "Aristocrate",
+    "aristocratHint": "Dividende par action releve au moins {{count}} annees de suite (actuellement {{streak}}), annees civiles completes.",
+    "payoutGauge": "Taux de distribution {{value}} : {{rating}}",
+    "rating": {
+      "good": "confortable",
+      "fair": "a surveiller",
+      "weak": "fragile"
+    },
+    "historyLabel": "Dividende annuel par action",
+    "historyEntry": "{{year}} : {{value}}"
   }
 }

@@ -54,3 +54,15 @@ export const DIVIDENDS_STALE_REJECT_S = 90 * DAY;
 // jours pour éviter d'afficher des fondamentaux trop vieux dans /analysis.
 export const FUNDAMENTALS_FRESH_TTL_S = 7 * DAY;
 export const FUNDAMENTALS_STALE_REJECT_S = 60 * DAY;
+
+// Bilan et flux de trésorerie (fundamentalsTimeSeries) : publiés au plus chaque trimestre.
+export const STATEMENTS_FRESH_TTL_S = 7 * DAY;
+export const STATEMENTS_STALE_REJECT_S = 90 * DAY;
+
+// Actifs similaires (recommendationsBySymbol) : liste qui évolue lentement.
+export const RECOMMENDATIONS_FRESH_TTL_S = 7 * DAY;
+export const RECOMMENDATIONS_STALE_REJECT_S = 60 * DAY;
+
+// Signaux techniques (insights) : recalculés chaque séance par le fournisseur.
+export const INSIGHTS_FRESH_TTL_S = 1 * DAY;
+export const INSIGHTS_STALE_REJECT_S = 7 * DAY;

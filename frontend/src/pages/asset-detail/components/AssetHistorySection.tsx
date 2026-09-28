@@ -1,9 +1,10 @@
-import type { AssetChartDto, MarketSessionDto, RangeKey } from "@pea/shared";
+import type { AssetChartDto, ChartOverlayKey, MarketSessionDto, RangeKey } from "@pea/shared";
 import { GitCompare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ComparisonChart, PriceHistoryChart } from "../../../components/charts/PriceHistoryChart";
 import { RangeSelector } from "../../../components/common/RangeSelector";
 import { formatMarketSessionHours } from "../../../lib/timezone";
+import { ChartOverlayMenu } from "./ChartOverlayMenu";
 
 interface ChartPoint { date: string | number; value: number | null }
 
@@ -20,6 +21,10 @@ export function AssetHistorySection({
   marketSession,
   onCompare,
   onRangeChange,
+  levels,
+  onToggleOverlay,
+  overlays,
+  referenceLevels,
   preparingSymbols,
   quoteCurrency,
   range,
@@ -39,6 +44,10 @@ export function AssetHistorySection({
   marketSession?: MarketSessionDto | null | undefined;
   onCompare: () => void;
   onRangeChange: (range: RangeKey) => void;
+  levels?: { available: boolean; selected: boolean; onToggle: () => void } | undefined;
+  onToggleOverlay: (key: ChartOverlayKey) => void;
+  overlays: readonly ChartOverlayKey[];
+  referenceLevels?: readonly { key: string; label: string; value: number; color: string }[] | undefined;
   preparingSymbols: string[];
   quoteCurrency: string;
   range: RangeKey;
@@ -58,6 +67,7 @@ export function AssetHistorySection({
             <GitCompare size={17} />
             {compareTargetsCount > 0 ? compareTargetsCount : t("portfolio:compare.title")}
           </button>
+          <ChartOverlayMenu levels={levels} onToggle={onToggleOverlay} selected={overlays} />
           <RangeSelector onChange={onRangeChange} value={range} />
         </div>
       </div>
@@ -83,6 +93,8 @@ export function AssetHistorySection({
             heightClassName="h-80"
             hideXAxisTicks
             marketSession={chartMarketSession}
+            movingAverages={overlays.map((key) => ({ key, label: t(`asset:overlays.${key}`) }))}
+            {...(referenceLevels ? { referenceLevels } : {})}
             range={range}
             userTimezone={userTimezone}
           />

@@ -5,11 +5,16 @@ export interface PriceHistoryInputPoint {
   /** Instant du point : timestamp en millisecondes (prefere, sans conversion) ou date ISO. */
   date: string | number;
   value?: number | null;
+  /** Moyennes mobiles alignées sur le point, quand elles sont demandées. */
+  ma50?: number | null;
+  ma200?: number | null;
 }
 
 export interface PriceHistoryChartPoint {
   date: number;
   value: number | null;
+  ma50?: number | null;
+  ma200?: number | null;
 }
 
 export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: RangeKey, baselinePrice?: number) {
@@ -39,6 +44,10 @@ export function usePriceHistoryChart(points: PriceHistoryInputPoint[], range: Ra
   };
 }
 
+function finiteOrNull(value: number | null) {
+  return value != null && Number.isFinite(value) ? value : null;
+}
+
 export function normalizePriceHistoryPoints(points: PriceHistoryInputPoint[]) {
   const byDate = new Map<number, PriceHistoryChartPoint>();
 
@@ -48,7 +57,9 @@ export function normalizePriceHistoryPoints(points: PriceHistoryInputPoint[]) {
     const value = point.value;
     byDate.set(timestamp, {
       date: timestamp,
-      value: value != null && Number.isFinite(value) ? value : null
+      value: value != null && Number.isFinite(value) ? value : null,
+      ...(point.ma50 === undefined ? {} : { ma50: finiteOrNull(point.ma50) }),
+      ...(point.ma200 === undefined ? {} : { ma200: finiteOrNull(point.ma200) })
     });
   }
 

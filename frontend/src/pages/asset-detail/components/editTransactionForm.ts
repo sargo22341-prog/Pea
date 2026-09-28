@@ -7,7 +7,7 @@ export type EditableTransactionFormRow = Omit<EditablePortfolioTransaction, "qua
   price: string;
   executedPrice: string;
   totalFees: string;
-  /** Effet de la transaction enregistrée sur la quantité détenue (+ achat, - vente, 0 brouillon). */
+  /** Effet de la transaction enregistrée sur la quantité détenue, divisions appliquées (+ achat, - vente, 0 brouillon). */
   savedQuantityEffect: number;
 };
 
@@ -20,7 +20,7 @@ export function toFormRow(row: EditablePortfolioTransaction): EditableTransactio
     price: String(row.price),
     executedPrice: String(row.executedPrice ?? row.price),
     totalFees: String(row.totalFees ?? 0),
-    savedQuantityEffect: row.type === "sell" ? -row.quantity : row.quantity
+    savedQuantityEffect: (row.type === "sell" ? -row.quantity : row.quantity) * (row.splitFactor ?? 1)
   };
 }
 
@@ -49,10 +49,12 @@ export function draftTransaction(position: PositionWithMarket): EditableTransact
 /**
  * Quantité maximale vendable pour une ligne : la quantité détenue sans l'effet de la transaction
  * éditée. Sans cette exclusion, modifier une vente existante (même son seul prix) serait bloqué
- * dès que la position restante est inférieure à la quantité vendue. Le backend reste l'arbitre final.
+ * dès que la position restante est inférieure à la quantité vendue. La quantité détenue tient compte
+ * des divisions d'actions validées : la limite est ramenée aux unités saisies sur la ligne. Le backend
+ * reste l'arbitre final.
  */
 export function maxSellQuantity(row: EditableTransactionFormRow, position: PositionWithMarket) {
-  return Math.max(0, position.quantity - row.savedQuantityEffect);
+  return Math.max(0, (position.quantity - row.savedQuantityEffect) / (row.splitFactor ?? 1));
 }
 
 export function parseNonNegativeNumber(value: string, label: string, t: Translate) {

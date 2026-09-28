@@ -97,9 +97,11 @@ describe("DividendsPage", () => {
     });
     await renderPage();
 
-    const rows = screen.getAllByRole("link");
+    // La ligne animée regroupe le lien vers l'actif et sa ligne de croissance.
+    const rows = screen.getAllByRole("link").map((link) => link.parentElement);
     expect(rows[0]).toHaveClass("motion-rise");
     expect(rows[0]?.getAttribute("style")).toBeNull();
+    expect(rows[1]).toHaveClass("motion-rise");
     expect(rows[1]).toHaveStyle({ animationDelay: "35ms" });
   });
 

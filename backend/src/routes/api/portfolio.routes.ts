@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { dividendService } from "../../services/portfolio/dividend.service.js";
+import { dividendService } from "../../services/portfolio/dividends/dividend.service.js";
 import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { logger } from "../../services/shared/logger.service.js";

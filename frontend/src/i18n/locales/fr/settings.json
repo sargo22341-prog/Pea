@@ -54,7 +54,10 @@
     "newsLanguagesHelp": "Gardez au moins une langue activee pour les articles.",
     "newsLanguageLocked": "Au moins une langue doit rester activee",
     "saved": "Preferences enregistrees.",
-    "saveError": "Enregistrement impossible."
+    "saveError": "Enregistrement impossible.",
+    "advancedMode": "Mode avance",
+    "advancedModeHelp": "Deplie d'office les blocs de detail de la fiche actif.",
+    "advancedModeDetails": "Desactive, les fiches restent courtes : ratios complets, graphiques et historiques s'ouvrent d'un clic. Un bloc ouvert ou ferme a la main garde votre choix sur ce navigateur."
   },
   "sort": {
     "nameAsc": "Nom A -> Z",

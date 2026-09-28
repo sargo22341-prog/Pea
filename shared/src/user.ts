@@ -1,3 +1,4 @@
+import type { AppFeatureKey } from "./features.js";
 import type { RangeKey } from "./market.js";
 
 export type DashboardSortKey = "name" | "currentMarketValue" | "intervalPerformancePercent";
@@ -23,6 +24,8 @@ export interface User {
   newsLanguages: NewsLanguage[];
   language: AppLanguage;
   privacyModeEnabled: boolean;
+  /** Déplie d'office les blocs de détail de la fiche actif. */
+  advancedModeEnabled: boolean;
   createdAt: string;
 }
 
@@ -30,6 +33,8 @@ export interface AuthMe {
   user: User | null;
   setupRequired: boolean;
   appTimezone: string;
+  /** Fonctionnalités activées par l'administrateur (vide sans session). */
+  features: AppFeatureKey[];
 }
 
 export interface AdminManagedUser {

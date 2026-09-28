@@ -1,0 +1,305 @@
+{
+  "assetProfile": {
+    "maxAge": 86400
+  },
+  "fundProfile": {
+    "maxAge": 1,
+    "styleBoxUrl": "https://s.yimg.com/lq/i/fi/3_0stylelargeeq2.gif",
+    "family": "Amundi Luxembourg S.A.",
+    "categoryName": null,
+    "legalType": "Exchange Traded Fund",
+    "managementInfo": {
+      "managerName": null,
+      "managerBio": null
+    },
+    "feesExpensesInvestment": {
+      "annualReportExpenseRatio": 0.0038,
+      "annualHoldingsTurnover": 0,
+      "totalNetAssets": 250673.05,
+      "projectionValues": {}
+    },
+    "feesExpensesInvestmentCat": {
+      "totalNetAssets": 250673.05,
+      "projectionValuesCat": {}
+    },
+    "brokerages": []
+  },
+  "summaryDetail": {
+    "maxAge": 1,
+    "priceHint": 2,
+    "previousClose": 698.18,
+    "open": 702.24,
+    "dayLow": 698.99,
+    "dayHigh": 703.2,
+    "regularMarketPreviousClose": 698.18,
+    "regularMarketOpen": 702.24,
+    "regularMarketDayLow": 698.99,
+    "regularMarketDayHigh": 703.2,
+    "trailingPE": 23.220778,
+    "volume": 4455,
+    "regularMarketVolume": 4455,
+    "averageVolume": 5817,
+    "averageVolume10days": 5623,
+    "averageDailyVolume10Day": 5623,
+    "bid": 0,
+    "ask": 0,
+    "bidSize": 0,
+    "askSize": 0,
+    "yield": 0,
+    "fiftyTwoWeekLow": 579.1863,
+    "fiftyTwoWeekHigh": 706.18,
+    "allTimeHigh": 706.18,
+    "allTimeLow": 218.0715,
+    "fulldayPrice": 701.13,
+    "fulldayChange": 2.9500122,
+    "fulldayChangePercent": 0.004225289,
+    "fiftyDayAverage": 690.6768,
+    "twoHundredDayAverage": 648.79224,
+    "navPrice": 699.9322,
+    "currency": "EUR",
+    "fromCurrency": null,
+    "toCurrency": null,
+    "lastMarket": null,
+    "coinMarketCapLink": null,
+    "algorithm": null,
+    "tradeable": false
+  },
+  "price": {
+    "maxAge": 1,
+    "regularMarketChangePercent": 0.004225289,
+    "regularMarketChange": 2.9500122,
+    "regularMarketTime": "2026-09-25T15:35:28.000Z",
+    "priceHint": 2,
+    "regularMarketPrice": 701.13,
+    "regularMarketDayHigh": 703.2,
+    "regularMarketDayLow": 698.99,
+    "regularMarketVolume": 4455,
+    "averageDailyVolume10Day": 5623,
+    "averageDailyVolume3Month": 5817,
+    "regularMarketPreviousClose": 698.18,
+    "regularMarketSource": "DELAYED",
+    "regularMarketOpen": 702.24,
+    "fulldayChangePercent": 0.004225289,
+    "fulldayChange": 2.9500122,
+    "fulldayPrice": 701.13,
+    "exchange": "PAR",
+    "exchangeName": "Paris",
+    "exchangeDataDelayedBy": 15,
+    "marketState": "CLOSED",
+    "quoteType": "ETF",
+    "symbol": "CW8.PA",
+    "underlyingSymbol": null,
+    "shortName": "Amundi MSCI World Swap UCITS ET",
+    "longName": "Amundi Index Solutions - Amundi MSCI World Swap UCITS ETF EUR Acc",
+    "currency": "EUR",
+    "quoteSourceName": "Delayed Quote",
+    "currencySymbol": "€",
+    "fromCurrency": null,
+    "toCurrency": null,
+    "lastMarket": null
+  },
+  "defaultKeyStatistics": {
+    "maxAge": 1,
+    "priceHint": 2,
+    "category": null,
+    "ytdReturn": 0.1528141,
+    "beta3Year": 0.99,
+    "yield": 0,
+    "fundFamily": "Amundi Luxembourg S.A.",
+    "fundInceptionDate": "2024-03-15T00:00:00.000Z",
+    "legalType": "Exchange Traded Fund",
+    "threeYearAverageReturn": 0.1818334,
+    "fiveYearAverageReturn": 0.117958,
+    "lastSplitFactor": null,
+    "latestShareClass": null,
+    "leadInvestor": null
+  },
+  "topHoldings": {
+    "maxAge": 1,
+    "cashPosition": 0,
+    "stockPosition": 0.9996,
+    "bondPosition": 0,
+    "otherPosition": 0.0004,
+    "preferredPosition": 0,
+    "convertiblePosition": 0,
+    "holdings": [],
+    "equityHoldings": {
+      "priceToEarnings": 0.04379,
+      "priceToBook": 0.25465,
+      "priceToSales": 0.33721,
+      "priceToCashflow": 0.06003
+    },
+    "bondHoldings": {},
+    "bondRatings": [
+      {
+        "us_government": 0
+      }
+    ],
+    "sectorWeightings": [
+      {
+        "realestate": 0.0167
+      },
+      {
+        "consumer_cyclical": 0.0874
+      },
+      {
+        "basic_materials": 0.033099998
+      },
+      {
+        "consumer_defensive": 0.048699997
+      },
+      {
+        "technology": 0.3062
+      },
+      {
+        "communication_services": 0.08
+      },
+      {
+        "financial_services": 0.1634
+      },
+      {
+        "utilities": 0.0235
+      },
+      {
+        "industrials": 0.1073
+      },
+      {
+        "energy": 0.040999997
+      },
+      {
+        "healthcare": 0.092700005
+      }
+    ]
+  },
+  "fundPerformance": {
+    "maxAge": 1,
+    "performanceOverview": {
+      "asOfDate": "2026-09-25T00:00:00.000Z",
+      "ytdReturnPct": 0.1528141,
+      "fiveYrAvgReturnPct": 0.117958,
+      "oneYearTotalReturn": 0.2011539,
+      "threeYearTotalReturn": 0.1818334
+    },
+    "performanceOverviewCat": {},
+    "trailingReturns": {
+      "asOfDate": "2026-09-25T00:00:00.000Z",
+      "ytd": 0.140985,
+      "oneMonth": 0.0156305,
+      "threeMonth": 0.0271774,
+      "oneYear": 0.2086577,
+      "threeYear": 0.1710573,
+      "fiveYear": 0.113389105,
+      "tenYear": 0.123628594,
+      "lastBullMkt": 0,
+      "lastBearMkt": 0
+    },
+    "trailingReturnsNav": {
+      "ytd": 0.140985,
+      "oneMonth": 0.0156305,
+      "threeMonth": 0.0271774,
+      "oneYear": 0.2086577,
+      "threeYear": 0.1710573,
+      "fiveYear": 0.113389105,
+      "tenYear": 0.123628594
+    },
+    "trailingReturnsCat": {
+      "ytd": 0,
+      "oneMonth": 0,
+      "threeMonth": 0,
+      "oneYear": 0,
+      "threeYear": 0,
+      "fiveYear": 0,
+      "tenYear": 0,
+      "lastBullMkt": 0,
+      "lastBearMkt": 0
+    },
+    "annualTotalReturns": {
+      "returns": [
+        {
+          "year": 2025,
+          "annualValue": 0.0661602
+        },
+        {
+          "year": 2024,
+          "annualValue": 0.27094892
+        },
+        {
+          "year": 2023,
+          "annualValue": 0.1962966
+        },
+        {
+          "year": 2022,
+          "annualValue": -0.1374484
+        },
+        {
+          "year": 2021,
+          "annualValue": 0.323367
+        },
+        {
+          "year": 2020,
+          "annualValue": 0.0625432
+        },
+        {
+          "year": 2019,
+          "annualValue": 0.2850669
+        }
+      ],
+      "returnsCat": []
+    },
+    "pastQuarterlyReturns": {
+      "returns": []
+    },
+    "riskOverviewStatistics": {
+      "riskStatistics": [
+        {
+          "year": "5y",
+          "alpha": 0.08,
+          "beta": 1.01,
+          "meanAnnualReturn": 0.97,
+          "rSquared": 99.02,
+          "stdDev": 15.2,
+          "sharpeRatio": 0.51,
+          "treynorRatio": 6.98
+        },
+        {
+          "year": "3y",
+          "alpha": -0.21,
+          "beta": 0.99,
+          "meanAnnualReturn": 1.58,
+          "rSquared": 98.76,
+          "stdDev": 12.24,
+          "sharpeRatio": 1.17,
+          "treynorRatio": 15.34
+        },
+        {
+          "year": "10y",
+          "alpha": 0.2,
+          "beta": 1.01,
+          "meanAnnualReturn": 1.1,
+          "rSquared": 99.15,
+          "stdDev": 14.86,
+          "sharpeRatio": 0.72,
+          "treynorRatio": 10.21
+        }
+      ]
+    },
+    "riskOverviewStatisticsCat": {
+      "riskStatisticsCat": []
+    }
+  },
+  "quoteType": {
+    "exchange": "PAR",
+    "quoteType": "ETF",
+    "symbol": "CW8.PA",
+    "underlyingSymbol": "CW8.PA",
+    "shortName": "Amundi MSCI World Swap UCITS ET",
+    "longName": "Amundi Index Solutions - Amundi MSCI World Swap UCITS ETF EUR Acc",
+    "firstTradeDateEpochUtc": "2009-06-16T07:00:00.000Z",
+    "timeZoneFullName": "Europe/Paris",
+    "timeZoneShortName": "CEST",
+    "uuid": "056a37ef-dc98-331c-95dc-47c70e69444f",
+    "messageBoardId": "finmb_60751237",
+    "gmtOffSetMilliseconds": 7200000,
+    "maxAge": 1
+  }
+}

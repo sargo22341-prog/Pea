@@ -46,6 +46,7 @@ const baseUser: User = {
   watchlistDefaultSortKey: "name",
   watchlistDefaultSortDirection: "asc",
   privacyModeEnabled: false,
+  advancedModeEnabled: false,
   hasProfileIcon: false,
   createdAt: "2026-05-21T00:00:00.000Z"
 };

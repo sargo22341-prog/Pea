@@ -11,6 +11,15 @@ import { buildTransactionCache, computeTotalDividendsReceived, positionFromTrans
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
 import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
 import type { EditablePortfolioTransaction } from "@pea/shared";
+import { appliedSplitsByPosition } from "./splits/applied-splits.js";
+import { splitFactorAt, type AppliedSplit } from "./splits/split-adjustment.js";
+import { withPositionSignals } from "./insights/position-signals.js";
+import { portfolioYieldOnCost } from "./insights/yield-on-cost.js";
+
+function splitFactorOrUndefined(tradedAt: string, splits: AppliedSplit[]) {
+  const factor = splitFactorAt(tradedAt, splits);
+  return factor === 1 ? undefined : factor;
+}
 
 /**
  * `PortfolioReadService` (anciennement `PortfolioQueryService`) : lectures pures du portefeuille
@@ -42,6 +51,7 @@ export class PortfolioReadService {
       return [legacyTransactionFromPosition(mapPosition(ownedPosition))];
     }
 
+    const splits = appliedSplitsByPosition([positionId]).get(positionId) ?? [];
     return rows.map((row) => ({
       id: String(row.id),
       positionId: row.position_id,
@@ -60,7 +70,8 @@ export class PortfolioReadService {
       totalFees: row.total_fees ?? undefined,
       currency: row.currency,
       rawTextSnippet: row.raw_text_snippet ?? undefined,
-      createdAt: row.traded_at
+      createdAt: row.traded_at,
+      splitFactor: splitFactorOrUndefined(row.traded_at, splits)
     }));
   }
 
@@ -79,7 +90,7 @@ export class PortfolioReadService {
     const basePositions = this.listPositions(resolvedUserId);
     const quotesBySymbol = await this.quotesForPositions(basePositions);
     const txCache = buildTransactionCache(basePositions.map((p) => p.id));
-    const positions = basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache));
+    const positions = withPositionSignals(basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache)));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
     const totalDividendsReceived = computeTotalDividendsReceived(positions, txCache);
@@ -96,7 +107,8 @@ export class PortfolioReadService {
       positionsCount: positions.reduce((sum, position) => sum + position.quantity, 0),
       assetsCount: positions.length,
       currency: "EUR",
-      positions
+      positions,
+      yieldOnCost: portfolioYieldOnCost(positions)
     };
     if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, portfolioCacheTtlMs(range, basePositions), range);
     return payload;

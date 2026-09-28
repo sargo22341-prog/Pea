@@ -10,7 +10,9 @@ export type CacheScope =
   | "news"
   | "fundamentals"
   | "history"
-  | "asset_article";
+  | "asset_article"
+  | "insights"
+  | "recommendations";
 
 export interface CacheEntryRow {
   scope: CacheScope;

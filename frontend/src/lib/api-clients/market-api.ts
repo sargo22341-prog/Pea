@@ -1,6 +1,7 @@
 import type {
   AssetChartDto,
   CalendarEvent,
+  ChartOverlayKey,
   DividendEvent,
   EnrichedSearchResult,
   MarketListId,
@@ -16,6 +17,7 @@ import type {
 } from "@pea/shared";
 import { apiUrl, dedupedRequest, request, requestHeaders, resolveApiUrl } from "../api-core";
 import { isNativeApp } from "../native-auth";
+import { overlaysQuery } from "./chart-query";
 
 export type { MarketEventPayload } from "@pea/shared";
 
@@ -183,8 +185,8 @@ export const marketApi = {
   subscribeMarketEvents,
   requestChartRefresh: (input: { scope: "asset"; symbol: string; range?: "1d" } | { scope: "portfolio" | "watchlist"; range?: "1d" }) =>
     request<{ status: string }>("/api/market/chart-refresh", { method: "POST", body: JSON.stringify(input) }),
-  history: (symbol: string, range: RangeKey, signal?: AbortSignal) =>
-    request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}`, { signal: signal ?? null }),
+  history: (symbol: string, range: RangeKey, signal?: AbortSignal, overlays: readonly ChartOverlayKey[] = []) =>
+    request<AssetChartDto>(`/api/history/${encodeURIComponent(symbol)}?range=${range}${overlaysQuery(overlays)}`, { signal: signal ?? null }),
   dividends: (symbol: string) => request<DividendEvent[]>(`/api/dividends/${encodeURIComponent(symbol)}`),
   news: (symbol: string) => request<NewsArticle[]>(`/api/news/${encodeURIComponent(symbol)}`),
   globalNews: (page: number, signal?: AbortSignal) => request<NewsFeedPage>(`/api/news-global?page=${page}`, { signal: signal ?? null }),

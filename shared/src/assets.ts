@@ -11,6 +11,16 @@ import type {
   NewsArticle,
   Quote
 } from "./market.js";
+import type {
+  AssetAnalystConsensus,
+  AssetAnalystTrend,
+  AssetCalendarEventsData,
+  AssetEarnings,
+  AssetFinancialHealth,
+  AssetFundDetails,
+  AssetValuation,
+  FinancialYearItem
+} from "./fundamentals.js";
 import type { PositionRangePerformance, PositionTransactionStats, PositionWithMarket, UserAssetPositionDto } from "./portfolio.js";
 
 export type PeaEligibilityStatus = "eligible" | "likely_eligible" | "not_eligible" | "unknown";
@@ -92,33 +102,10 @@ export interface CalendarEvent {
   eventDate: string;
   isEstimate: boolean;
   assetName: string;
-}
-
-export interface AssetCalendarEventsData {
-  earningsDate?: string | undefined;
-  earningsCallDate?: string | undefined;
-  isEarningsDateEstimate?: boolean;
-  exDividendDate?: string | undefined;
-  dividendDate?: string | undefined;
-}
-
-export interface AssetAnalystConsensus {
-  currentPrice?: number | undefined;
-  targetHighPrice?: number | undefined;
-  targetLowPrice?: number | undefined;
-  targetMeanPrice?: number | undefined;
-  targetMedianPrice?: number | undefined;
-  recommendationMean?: number | undefined;
-  recommendationKey?: string | undefined;
-  numberOfAnalystOpinions?: number;
-}
-
-export interface AssetFundDetails {
-  family?: string | undefined;
-  annualReportExpenseRatio?: number | undefined;
-  annualHoldingsTurnover?: number | undefined;
-  totalNetAssets?: number | undefined;
-  sectorWeightings?: { key: string; value: number }[] | undefined;
+  currency?: string | undefined;
+  /** Consensus de la prochaine publication de résultats. */
+  epsAverage?: number | undefined;
+  revenueAverage?: number | undefined;
 }
 
 export interface AssetDetails {
@@ -147,6 +134,10 @@ export interface AssetDetails {
   calendarEventsData?: AssetCalendarEventsData | undefined;
   analystConsensus?: AssetAnalystConsensus | undefined;
   fundDetails?: AssetFundDetails | undefined;
+  valuation?: AssetValuation | undefined;
+  financialHealth?: AssetFinancialHealth | undefined;
+  analystTrend?: AssetAnalystTrend | undefined;
+  earnings?: AssetEarnings | undefined;
 }
 
 export interface AssetIcon {
@@ -159,11 +150,4 @@ export interface AssetIcon {
   lastAttemptAt?: string;
   updatedAt?: string;
   hasIcon?: boolean;
-}
-
-export interface FinancialYearItem {
-  year: number;
-  revenue: number;
-  netIncome: number;
-  netMargin: number;
 }

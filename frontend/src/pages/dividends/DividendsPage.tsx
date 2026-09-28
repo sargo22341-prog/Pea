@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DividendAnnualEstimate } from "./components/DividendAnnualEstimate";
 import { DividendGroupedList } from "./components/DividendGroupedList";
+import { ReinvestmentSimulationCard } from "./components/ReinvestmentSimulationCard";
 import { StaleBadge } from "../../components/common/StaleBadge";
 import { useAsync } from "../../hooks/useAsync";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";
@@ -55,12 +56,20 @@ export function DividendsPage() {
         monthlyDividends={dividendOverview.monthlyDividends}
         onYearChange={setYear}
         projectedYear={dividendOverview.projectedYear}
+        statusTotals={dividendOverview.statusTotals}
         total={dividendOverview.total}
         year={year}
         years={dividendOverview.years}
       />
 
       <DividendGroupedList currency={dividendOverview.currency} groups={dividendOverview.groups} total={dividendOverview.total} year={year} />
+
+      <ReinvestmentSimulationCard
+        annualIncome={data?.expectedAnnualIncome}
+        currency={dividendOverview.currency}
+        defaultGrowth={dividendOverview.reinvestmentGrowth}
+        marketValue={data?.marketValue}
+      />
     </div>
   );
 }

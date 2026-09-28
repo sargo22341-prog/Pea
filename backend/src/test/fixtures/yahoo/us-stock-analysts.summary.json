@@ -1,0 +1,381 @@
+{
+  "recommendationTrend": {
+    "trend": [
+      {
+        "period": "0m",
+        "strongBuy": 6,
+        "buy": 19,
+        "hold": 13,
+        "sell": 3,
+        "strongSell": 3
+      },
+      {
+        "period": "-1m",
+        "strongBuy": 6,
+        "buy": 19,
+        "hold": 14,
+        "sell": 3,
+        "strongSell": 2
+      },
+      {
+        "period": "-2m",
+        "strongBuy": 6,
+        "buy": 22,
+        "hold": 14,
+        "sell": 2,
+        "strongSell": 2
+      },
+      {
+        "period": "-3m",
+        "strongBuy": 6,
+        "buy": 22,
+        "hold": 16,
+        "sell": 1,
+        "strongSell": 2
+      }
+    ],
+    "maxAge": 86400
+  },
+  "earnings": {
+    "maxAge": 86400,
+    "earningsChart": {
+      "quarterly": [
+        {
+          "date": "3Q2025",
+          "actual": 1.85,
+          "estimate": 1.76993,
+          "fiscalQuarter": "4Q2025",
+          "calendarQuarter": "3Q2025",
+          "difference": "0.08",
+          "surprisePct": "4.52",
+          "periodEndDate": "2025-09-30T00:00:00.000Z",
+          "reportedDate": "2025-10-30T20:30:00.000Z"
+        },
+        {
+          "date": "4Q2025",
+          "actual": 2.84,
+          "estimate": 2.6708,
+          "fiscalQuarter": "1Q2026",
+          "calendarQuarter": "4Q2025",
+          "difference": "0.17",
+          "surprisePct": "6.34",
+          "periodEndDate": "2025-12-31T00:00:00.000Z",
+          "reportedDate": "2026-01-29T21:30:00.000Z"
+        },
+        {
+          "date": "1Q2026",
+          "actual": 2.01,
+          "estimate": 1.94275,
+          "fiscalQuarter": "2Q2026",
+          "calendarQuarter": "1Q2026",
+          "difference": "0.07",
+          "surprisePct": "3.46",
+          "periodEndDate": "2026-03-31T00:00:00.000Z",
+          "reportedDate": "2026-04-30T20:30:00.000Z"
+        },
+        {
+          "date": "2Q2026",
+          "actual": 2.02,
+          "estimate": 1.89243,
+          "fiscalQuarter": "3Q2026",
+          "calendarQuarter": "2Q2026",
+          "difference": "0.13",
+          "surprisePct": "6.74",
+          "periodEndDate": "2026-06-30T00:00:00.000Z",
+          "reportedDate": "2026-07-30T20:30:28.000Z"
+        }
+      ],
+      "currentQuarterEstimate": 1.97754,
+      "currentQuarterEstimateDate": "3Q",
+      "currentCalendarQuarter": "3Q2026",
+      "currentQuarterEstimateYear": 2026,
+      "currentFiscalQuarter": "4Q2026",
+      "currentPeriodEndDate": "2026-09-30T00:00:00.000Z",
+      "earningsDate": [
+        "2026-10-29T20:00:00.000Z"
+      ],
+      "isEarningsDateEstimate": false
+    },
+    "financialsChart": {
+      "yearly": [
+        {
+          "date": 2022,
+          "revenue": 394328000000,
+          "earnings": 99803000000,
+          "profitMargin": 0.2530964
+        },
+        {
+          "date": 2023,
+          "revenue": 383285000000,
+          "earnings": 96995000000,
+          "profitMargin": 0.25306234
+        },
+        {
+          "date": 2024,
+          "revenue": 391035000000,
+          "earnings": 93736000000,
+          "profitMargin": 0.23971257
+        },
+        {
+          "date": 2025,
+          "revenue": 416161000000,
+          "earnings": 112010000000,
+          "profitMargin": 0.26915064
+        }
+      ],
+      "quarterly": [
+        {
+          "date": "2Q2025",
+          "fiscalQuarter": "3Q2025",
+          "revenue": 94036000000,
+          "earnings": 23434000000,
+          "profitMargin": 0.24920243
+        },
+        {
+          "date": "3Q2025",
+          "fiscalQuarter": "4Q2025",
+          "revenue": 102466000000,
+          "earnings": 27466000000,
+          "profitMargin": 0.2680499
+        },
+        {
+          "date": "4Q2025",
+          "fiscalQuarter": "1Q2026",
+          "revenue": 143756000000,
+          "earnings": 42097000000,
+          "profitMargin": 0.2928365
+        },
+        {
+          "date": "1Q2026",
+          "fiscalQuarter": "2Q2026",
+          "revenue": 111184000000,
+          "earnings": 29578000000,
+          "profitMargin": 0.26602748
+        }
+      ]
+    },
+    "financialCurrency": "USD",
+    "defaultMethodology": "gaap"
+  },
+  "calendarEvents": {
+    "maxAge": 1,
+    "earnings": {
+      "earningsDate": [
+        "2026-10-29T20:00:00.000Z"
+      ],
+      "earningsCallDate": [
+        "2026-07-30T20:00:00.000Z"
+      ],
+      "isEarningsDateEstimate": false,
+      "earningsAverage": 1.98124,
+      "earningsLow": 1.93,
+      "earningsHigh": 2.07,
+      "revenueAverage": 113624521680,
+      "revenueLow": 112248100000,
+      "revenueHigh": 117219700000
+    },
+    "exDividendDate": "2026-08-10T00:00:00.000Z",
+    "dividendDate": "2026-08-13T00:00:00.000Z"
+  },
+  "upgradeDowngradeHistory": {
+    "history": [
+      {
+        "epochGradeDate": "2026-09-23T17:25:04.000Z",
+        "firm": "B of A Securities",
+        "toGrade": "Buy",
+        "fromGrade": "Buy",
+        "action": "reit",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 370,
+        "priorPriceTarget": 370
+      },
+      {
+        "epochGradeDate": "2026-09-18T11:45:30.000Z",
+        "firm": "Evercore ISI Group",
+        "toGrade": "Outperform",
+        "fromGrade": "Outperform",
+        "action": "main",
+        "priceTargetAction": "Raises",
+        "currentPriceTarget": 380,
+        "priorPriceTarget": 365
+      },
+      {
+        "epochGradeDate": "2026-09-17T18:02:51.000Z",
+        "firm": "B of A Securities",
+        "toGrade": "Buy",
+        "fromGrade": "Buy",
+        "action": "reit",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 370,
+        "priorPriceTarget": 370
+      },
+      {
+        "epochGradeDate": "2026-09-10T13:14:37.000Z",
+        "firm": "TD Cowen",
+        "toGrade": "Buy",
+        "fromGrade": "Buy",
+        "action": "reit",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 400,
+        "priorPriceTarget": 400
+      },
+      {
+        "epochGradeDate": "2026-09-10T11:52:11.000Z",
+        "firm": "Rosenblatt",
+        "toGrade": "Neutral",
+        "fromGrade": "Neutral",
+        "action": "main",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 303,
+        "priorPriceTarget": 303
+      },
+      {
+        "epochGradeDate": "2026-09-10T11:32:27.000Z",
+        "firm": "B of A Securities",
+        "toGrade": "Buy",
+        "fromGrade": "Buy",
+        "action": "main",
+        "priceTargetAction": "Lowers",
+        "currentPriceTarget": 370,
+        "priorPriceTarget": 380
+      },
+      {
+        "epochGradeDate": "2026-09-08T15:47:34.000Z",
+        "firm": "HSBC",
+        "toGrade": "Buy",
+        "fromGrade": "Buy",
+        "action": "reit",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 366,
+        "priorPriceTarget": 366
+      },
+      {
+        "epochGradeDate": "2026-09-08T11:12:31.000Z",
+        "firm": "Needham",
+        "toGrade": "Hold",
+        "fromGrade": "Hold",
+        "action": "reit",
+        "priceTargetAction": "",
+        "currentPriceTarget": 0,
+        "priorPriceTarget": 0
+      },
+      {
+        "epochGradeDate": "2026-09-02T17:34:35.000Z",
+        "firm": "Morgan Stanley",
+        "toGrade": "Overweight",
+        "fromGrade": "Overweight",
+        "action": "reit",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 360,
+        "priorPriceTarget": 360
+      },
+      {
+        "epochGradeDate": "2026-09-02T16:01:42.000Z",
+        "firm": "DA Davidson",
+        "toGrade": "Neutral",
+        "fromGrade": "Neutral",
+        "action": "main",
+        "priceTargetAction": "Maintains",
+        "currentPriceTarget": 270,
+        "priorPriceTarget": 270
+      },
+      {
+        "epochGradeDate": "2026-09-01T12:17:07.000Z",
+        "firm": "Rosenblatt",
+        "toGrade": "Neutral",
+        "fromGrade": "Neutral",
+        "action": "main",
+        "priceTargetAction": "Raises",
+        "currentPriceTarget": 303,
+        "priorPriceTarget": 300
+      },
+      {
+        "epochGradeDate": "2026-08-17T20:20:47.000Z",
+        "firm": "Rothschild & Co",
+        "toGrade": "Buy",
+        "fromGrade": "Neutral",
+        "action": "up",
+        "priceTargetAction": "Raises",
+        "currentPriceTarget": 400,
+        "priorPriceTarget": 260
+      },
+      {
+        "epochGradeDate": "2026-08-10T12:38:05.000Z",
+        "firm": "Jefferies",
+        "toGrade": "Underperform",
+        "fromGrade": "Hold",
+        "action": "down",
+        "priceTargetAction": "Lowers",
+        "currentPriceTarget": 263.66,
+        "priorPriceTarget": 285.56
+      },
+      {
+        "epochGradeDate": "2026-08-04T12:28:39.000Z",
+        "firm": "China Renaissance",
+        "toGrade": "Hold",
+        "fromGrade": "Buy",
+        "action": "down",
+        "priceTargetAction": "Announces",
+        "currentPriceTarget": 280,
+        "priorPriceTarget": 0
+      },
+      {
+        "epochGradeDate": "2026-07-31T18:07:40.000Z",
+        "firm": "JP Morgan",
+        "toGrade": "Overweight",
+        "fromGrade": "Overweight",
+        "action": "main",
+        "priceTargetAction": "Lowers",
+        "currentPriceTarget": 340,
+        "priorPriceTarget": 345
+      }
+    ],
+    "maxAge": 86400
+  },
+  "earningsHistory": {
+    "history": [
+      {
+        "maxAge": 1,
+        "epsActual": 1.85,
+        "epsEstimate": 1.76993,
+        "epsDifference": 0.08,
+        "surprisePercent": 0.0452,
+        "quarter": "2025-09-30T00:00:00.000Z",
+        "currency": "USD",
+        "period": "-4q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 2.84,
+        "epsEstimate": 2.6708,
+        "epsDifference": 0.17,
+        "surprisePercent": 0.0634,
+        "quarter": "2025-12-31T00:00:00.000Z",
+        "currency": "USD",
+        "period": "-3q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 2.01,
+        "epsEstimate": 1.94275,
+        "epsDifference": 0.07,
+        "surprisePercent": 0.0346,
+        "quarter": "2026-03-31T00:00:00.000Z",
+        "currency": "USD",
+        "period": "-2q"
+      },
+      {
+        "maxAge": 1,
+        "epsActual": 2.02,
+        "epsEstimate": 1.89243,
+        "epsDifference": 0.13,
+        "surprisePercent": 0.0674,
+        "quarter": "2026-06-30T00:00:00.000Z",
+        "currency": "USD",
+        "period": "-1q"
+      }
+    ],
+    "defaultMethodology": "gaap",
+    "maxAge": 86400
+  }
+}

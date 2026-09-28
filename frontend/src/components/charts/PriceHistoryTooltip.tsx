@@ -1,3 +1,4 @@
+import type { ChartOverlayKey } from "@pea/shared";
 import { money } from "../../lib/format";
 import { masquerValeur } from "../../lib/privacy";
 import { tooltipLabel, tooltipNumberValue, type ChartTooltipPayload } from "./rechartsTypes";
@@ -10,7 +11,8 @@ export function HistoryTooltip({
   label,
   currency,
   labelFormatter,
-  maskValues = false
+  maskValues = false,
+  movingAverages = []
 }: {
   active?: boolean;
   payload?: ChartTooltipPayload;
@@ -18,6 +20,7 @@ export function HistoryTooltip({
   currency: string;
   labelFormatter: (value: string | number) => string;
   maskValues?: boolean;
+  movingAverages?: readonly { key: ChartOverlayKey; label: string }[];
 }) {
   if (!active) return null;
   const valuePayload = payload?.find((item) => item.dataKey === "value");
@@ -29,6 +32,12 @@ export function HistoryTooltip({
       {valueNumber !== undefined && (
         <p className="mb-2 text-slate-100">{masquerValeur(money(valueNumber, currency), maskValues)}</p>
       )}
+      {movingAverages.map((average) => {
+        const averageValue = tooltipNumberValue(payload?.find((item) => item.dataKey === average.key)?.value);
+        return averageValue === undefined ? null : (
+          <p className="text-slate-300" key={average.key}>{average.label} : {money(averageValue, currency)}</p>
+        );
+      })}
     </div>
   );
 }

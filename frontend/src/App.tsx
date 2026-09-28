@@ -13,6 +13,8 @@ import { i18n } from "./i18n";
 import { lazyWithReload } from "./lib/app-loading/lazy-with-reload";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
+import { FeatureFlagsContext } from "./contexts/feature-flags-context";
+import { AdvancedModeContext } from "./components/common/disclosure/advanced-mode";
 import { AuthPage } from "./pages/auth/AuthPage";
 
 const AssetDetailPage = lazyWithReload(() => import("./pages/asset-detail/AssetDetailPage").then((module) => ({ default: module.AssetDetailPage })));
@@ -138,27 +140,32 @@ function AuthenticatedApp() {
   const appTimezone = me.data.appTimezone;
 
   return (
-    <PrivacyProvider privacyEnabled={me.data.user.privacyModeEnabled}>
-      <NavigationEffects />
-      <AppErrorBoundary resetKey={location.pathname}>
-        <Suspense fallback={<LoadingPage />}>
-          <Routes>
-            <Route element={<Shell user={me.data.user} />}>
-              <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
-              <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
-              <Route path="/portfolio" element={<Navigate replace to="/news" />} />
-              <Route path="/analysis" element={<AnalysisPage />} />
-              <Route path="/search" element={<SearchPage user={me.data.user} />} />
-              <Route path="/dividends" element={<DividendsPage />} />
-              <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
-              <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
-              <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
-              <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage /> : <Navigate replace to="/" />} />
-              <Route path="*" element={<Navigate replace to="/" />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </AppErrorBoundary>
-    </PrivacyProvider>
+    <FeatureFlagsContext value={me.data.features}>
+      {/* Mode avancé : les détails repliables de toutes les pages sont dépliés d'office. */}
+      <AdvancedModeContext value={me.data.user.advancedModeEnabled}>
+        <PrivacyProvider privacyEnabled={me.data.user.privacyModeEnabled}>
+          <NavigationEffects />
+          <AppErrorBoundary resetKey={location.pathname}>
+            <Suspense fallback={<LoadingPage />}>
+              <Routes>
+                <Route element={<Shell user={me.data.user} />}>
+                  <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
+                  <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
+                  <Route path="/portfolio" element={<Navigate replace to="/news" />} />
+                  <Route path="/analysis" element={<AnalysisPage />} />
+                  <Route path="/search" element={<SearchPage user={me.data.user} />} />
+                  <Route path="/dividends" element={<DividendsPage />} />
+                  <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
+                  <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
+                  <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
+                  <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage onFeaturesChanged={me.reload} /> : <Navigate replace to="/" />} />
+                  <Route path="*" element={<Navigate replace to="/" />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </AppErrorBoundary>
+        </PrivacyProvider>
+      </AdvancedModeContext>
+    </FeatureFlagsContext>
   );
 }

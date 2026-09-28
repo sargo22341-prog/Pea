@@ -75,6 +75,8 @@ export interface AssetMarketInfo {
   totalAssets?: number | undefined;
   dividendRate?: number | undefined;
   dividendYield?: number | undefined;
+  /** Part du bénéfice distribuée en dividendes (fraction), `summaryDetail.payoutRatio`. */
+  payoutRatio?: number | undefined;
   exDividendDate?: string | undefined;
 }
 
@@ -98,7 +100,12 @@ export interface AssetChartDto {
   missingRanges?: RangeKey[] | undefined;
   missingAssets?: string[] | undefined;
   jobId?: string | undefined;
+  /** Moyennes mobiles demandées (`?overlays=ma50,ma200`), alignées sur `timestamps`. */
+  movingAverages?: Partial<Record<ChartOverlayKey, (number | null)[]>> | undefined;
 }
+
+/** Calques optionnels du graphique de cours : moyennes mobiles 50 et 200 séances. */
+export type ChartOverlayKey = "ma50" | "ma200";
 
 export interface MarketSessionDto {
   timezone: string;
@@ -233,6 +240,8 @@ export interface YahooUsageStatsDto {
   bySource: YahooUsageBucketDto[];
   topTickers: YahooUsageBucketDto[];
   topModules: YahooUsageBucketDto[];
+  /** Appels des dernières 24 heures par fonctionnalité (hors filtres de période). */
+  byFeature24h: YahooUsageBucketDto[];
   recentErrors: YahooUsageRecentErrorDto[];
 }
 

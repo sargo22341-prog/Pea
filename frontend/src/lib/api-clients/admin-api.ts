@@ -1,4 +1,4 @@
-import type { AdminManagedUser, DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
+import type { AdminManagedUser, AppFeatureFlag, AppFeatureKey, DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageFeature, YahooUsageStatsDto } from "@pea/shared";
 import { request } from "../api-core";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
@@ -10,6 +10,7 @@ export interface YahooUsageStatsFilters {
   module?: string | undefined;
   ticker?: string | undefined;
   source?: string | undefined;
+  feature?: YahooUsageFeature | undefined;
   success?: boolean | undefined;
   groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
   id?: number | undefined;
@@ -25,6 +26,7 @@ function yahooUsageQuery(filters: YahooUsageStatsFilters) {
   if (filters.module) params.set("module", filters.module);
   if (filters.ticker) params.set("ticker", filters.ticker);
   if (filters.source) params.set("source", filters.source);
+  if (filters.feature) params.set("feature", filters.feature);
   if (filters.success !== undefined) params.set("success", String(filters.success));
   if (filters.groupBy) params.set("groupBy", filters.groupBy);
   if (filters.limit !== undefined) params.set("limit", String(filters.limit));
@@ -54,5 +56,8 @@ export const adminApi = {
   rebuildAllMarketData: () =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
   cleanupUnlinkedMarketAssets: () => request<DataConstructionJobDto>("/api/admin/market-data/cleanup-unlinked-assets", { method: "POST" }),
-  refreshAnnexData: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-annex", { method: "POST" })
+  refreshAnnexData: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-annex", { method: "POST" }),
+  featureFlags: () => request<AppFeatureFlag[]>("/api/admin/features"),
+  updateFeatureFlags: (features: Partial<Record<AppFeatureKey, boolean>>) =>
+    request<AppFeatureFlag[]>("/api/admin/features", { method: "PUT", body: JSON.stringify({ features }) })
 };

@@ -16,3 +16,5 @@ Dockerfile.tmp
 *.keystore
 frontend/android/keystore.base64
 AGENTS.md
+proposition.md
+plan.md

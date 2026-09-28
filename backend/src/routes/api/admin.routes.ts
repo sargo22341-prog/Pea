@@ -1,3 +1,4 @@
+import { YAHOO_USAGE_FEATURES } from "@pea/shared";
 import express from "express";
 import { z } from "zod";
 import { db } from "../../db.js";
@@ -34,6 +35,7 @@ const yahooUsageQuerySchema = z.object({
   module: z.string().trim().min(1).optional(),
   ticker: z.string().trim().min(1).optional(),
   source: z.string().trim().min(1).optional(),
+  feature: z.enum(YAHOO_USAGE_FEATURES).optional(),
   success: z
     .enum(["true", "false", "1", "0"])
     .transform((value) => value === "true" || value === "1")

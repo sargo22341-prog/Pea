@@ -26,3 +26,9 @@ export function compactMoney(value: number) {
   }).format(Number.isFinite(value) ? value : 0);
 }
 
+
+/** Durée des animations natives Recharts, commune à tous les graphiques de l'application. */
+export const CHART_ANIMATION_MS = 600;
+
+/** Couleurs des moyennes mobiles du graphique de cours, distinctes de la courbe principale. */
+export const MOVING_AVERAGE_COLORS = { ma50: "#fbbf24", ma200: "#a78bfa" } as const;

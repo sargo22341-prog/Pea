@@ -17,6 +17,9 @@ import { searchRouter } from "./api/search.routes.js";
 import { topAndLosersRouter } from "./api/top-and-losers.routes.js";
 import { watchlistRouter } from "./api/watchlist.routes.js";
 import { calendarEventsRouter } from "./api/calendar-events.routes.js";
+import { splitsRouter } from "./api/splits/splits.routes.js";
+import { assetExtrasRouter } from "./api/market-data/asset-extras.routes.js";
+import { featureFlagsRouter } from "./api/admin/feature-flags.routes.js";
 
 export const apiRouter = express.Router();
 
@@ -34,13 +37,16 @@ apiRouter.use(marketRouter);
 apiRouter.use(newsRouter);
 apiRouter.use(objectivesRouter);
 apiRouter.use(assetIconsRouter);
+apiRouter.use(assetExtrasRouter);
 apiRouter.use(assetsRouter);
 apiRouter.use(topAndLosersRouter);
 apiRouter.use(portfolioRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
 apiRouter.use(calendarEventsRouter);
+apiRouter.use(splitsRouter);
 apiRouter.use(requireAdmin, adminRouter);
+apiRouter.use(requireAdmin, featureFlagsRouter);
 
 apiRouter.use((req) => {
   throw new HttpError(404, `Route API introuvable: ${req.method} ${req.path}`);

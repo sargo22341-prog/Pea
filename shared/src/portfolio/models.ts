@@ -1,5 +1,5 @@
 import type { CurrencyCode, DisplayRangeKey, MarketSessionDto, MarketState, Quote, RangeKey } from "../market.js";
-import type { FinancialYearItem } from "../assets.js";
+import type { FinancialYearItem } from "../fundamentals.js";
 
 export interface UserAssetPositionDto {
   userId: string;
@@ -67,6 +67,18 @@ export interface PositionWithMarket extends Position {
   performancePercent: number;
   estimatedAnnualDividend?: number | undefined;
   marketDataUnavailable?: boolean | undefined;
+  /** Dividende annuel rapporté au prix de revient unitaire (fraction). */
+  yieldOnCost?: number | undefined;
+  fiftyTwoWeekLow?: number | undefined;
+  fiftyTwoWeekHigh?: number | undefined;
+  /** Changement récent de la recommandation consensuelle des analystes. */
+  consensusChange?: PositionConsensusChange | undefined;
+}
+
+export interface PositionConsensusChange {
+  from: string;
+  to: string;
+  changedAt: string;
 }
 
 export interface PositionTransactionStats {
@@ -113,6 +125,8 @@ export interface PortfolioSummary {
   assetsCount: number;
   currency: CurrencyCode;
   positions: PositionWithMarket[];
+  /** Dividendes annuels attendus rapportés au coût total du portefeuille (fraction). */
+  yieldOnCost?: number | undefined;
 }
 
 export interface PortfolioFullDto {
@@ -126,36 +140,6 @@ export interface PortfolioPerformancePoint {
   invested?: number;
   gain?: number;
   gainPercent?: number;
-  stale?: boolean;
-}
-
-export interface PortfolioDividendMonth {
-  month: string;
-  amount: number;
-}
-
-export interface PortfolioDividendEvent {
-  symbol: string;
-  name: string;
-  date: string;
-  year: number;
-  amountPerShare: number;
-  quantity: number;
-  totalAmount: number;
-  currency: CurrencyCode;
-  status: "real" | "estimated";
-  annualDividendRate?: number | undefined;
-  dividendPercent?: number | undefined;
-  yieldOnCostPercent?: number | undefined;
-  stale?: boolean | undefined;
-}
-
-export interface PortfolioDividends {
-  annualEstimatedTotal: number;
-  currency: CurrencyCode;
-  months: PortfolioDividendMonth[];
-  upcoming: PortfolioDividendEvent[];
-  past: PortfolioDividendEvent[];
   stale?: boolean;
 }
 

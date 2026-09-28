@@ -14,6 +14,7 @@ import { replayTransactions, transactionTimeMs } from "./portfolio-calculations.
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { TransactionMutationInput, TransactionSequenceRow } from "./portfolio.types.js";
 import { requirePresent } from "../../utils/invariant.js";
+import { splitAdjustedTransactions } from "./splits/applied-splits.js";
 
 const createPositionSchema = z.object({
   symbol: z.string().trim().min(1).max(24),
@@ -175,7 +176,7 @@ export class PortfolioWriteService {
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     // Supprimer un achat dont dépend une vente ultérieure rendrait l'historique incohérent.
     const remainingRows = (portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[]).filter((row) => Number(row.id) !== transactionId);
-    this.assertTransactionSequenceDoesNotGoNegative(remainingRows, negativeDeletionMessage);
+    this.assertTransactionSequenceDoesNotGoNegative(positionId, remainingRows, negativeDeletionMessage);
     db.transaction(() => {
       portfolioRepository.deleteTransaction(positionId, transactionId);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
@@ -192,7 +193,7 @@ export class PortfolioWriteService {
       portfolioRepository.deletePosition(positionId, resolvedUserId);
       return;
     }
-    const { quantity, costBasis } = replayTransactions(rows);
+    const { quantity, costBasis } = replayTransactions(splitAdjustedTransactions(positionId, rows));
     portfolioRepository.updatePositionValuation(positionId, quantity, quantity > 0 ? costBasis / quantity : 0);
     portfolioReadService.persistUserAssetPosition(resolvedUserId, positionId);
   }
@@ -215,7 +216,7 @@ export class PortfolioWriteService {
     const nextRows = transactionIdToReplace
       ? rows.map((row) => (Number(row.id) === transactionIdToReplace ? mutation : row))
       : [...rows, mutation];
-    this.assertTransactionSequenceDoesNotGoNegative(nextRows, negativeSaleMessage);
+    this.assertTransactionSequenceDoesNotGoNegative(positionId, nextRows, negativeSaleMessage);
   }
   deletePosition(id: number, userId?: number | string): boolean {
     const resolvedUserId = requireUserId(userId);
@@ -260,9 +261,10 @@ export class PortfolioWriteService {
     invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
     objectiveProjectionInvalidationService.invalidateUser(userId, "portfolio position changed");
   }
-  private assertTransactionSequenceDoesNotGoNegative(rows: TransactionSequenceRow[], message: string) {
+  private assertTransactionSequenceDoesNotGoNegative(positionId: number, rows: TransactionSequenceRow[], message: string) {
     let quantity = 0;
-    const sortedRows = [...rows].sort((a, b) => {
+    // Quantités lues après les divisions validées : une vente postérieure porte sur des titres divisés.
+    const sortedRows = [...splitAdjustedTransactions(positionId, rows)].sort((a, b) => {
       const dateOrder = transactionTimeMs(a.traded_at) - transactionTimeMs(b.traded_at);
       if (dateOrder !== 0) return dateOrder;
       return (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER);

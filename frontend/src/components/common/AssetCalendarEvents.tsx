@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { useAsync } from "../../hooks/useAsync";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { api } from "../../lib/api";
+import { money } from "../../lib/format";
+import { formatCompactMoney } from "../../lib/format-metrics";
 
 type VisualTone = "green" | "blue" | "purple";
 type CalendarT = TFunction;
@@ -20,6 +22,8 @@ interface VisualEvent {
   time?: string | undefined;
   tone: VisualTone;
   symbol: string;
+  /** Consensus BPA / chiffre d'affaires d'une publication à venir. */
+  estimates?: string | undefined;
 }
 
 function eventMeta(eventType: string, t: CalendarT): { title: string; tone: VisualTone; session?: string } {
@@ -30,6 +34,17 @@ function eventMeta(eventType: string, t: CalendarT): { title: string; tone: Visu
     dividend: { title: t("calendar.dividend", { ns: "common" }), tone: "purple", session: t("calendar.day", { ns: "common" }) }
   };
   return metas[eventType] ?? { title: eventType, tone: "blue" };
+}
+
+/** Consensus d'une publication à venir ; une publication passée n'affiche plus d'attentes. */
+function estimatesLine(ev: CalendarEvent, isPast: boolean, t: CalendarT): string | undefined {
+  if (isPast || ev.eventType !== "earnings") return undefined;
+  const currency = ev.currency ?? "EUR";
+  const parts = [
+    ev.epsAverage === undefined ? undefined : t("calendar.epsEstimate", { ns: "common", value: money(ev.epsAverage, currency) }),
+    ev.revenueAverage === undefined ? undefined : t("calendar.revenueEstimate", { ns: "common", value: formatCompactMoney(ev.revenueAverage, currency) })
+  ].filter((part): part is string => part !== undefined);
+  return parts.length ? parts.join(" · ") : undefined;
 }
 
 function toVisual(ev: CalendarEvent, now: Date, t: CalendarT): VisualEvent {
@@ -54,7 +69,8 @@ function toVisual(ev: CalendarEvent, now: Date, t: CalendarT): VisualEvent {
     session: meta.session,
     time,
     tone: meta.tone,
-    symbol: ev.symbol
+    symbol: ev.symbol,
+    estimates: estimatesLine(ev, isPast, t)
   };
 }
 
@@ -159,6 +175,7 @@ function CalendarEventCard({ event, isPast, isNext }: { event: VisualEvent; isPa
           <p className="truncate text-sm font-semibold text-white">{event.title}</p>
         </div>
         <p className="mt-1 truncate text-xs text-slate-400">{event.subtitle}</p>
+        {event.estimates ? <p className="mt-0.5 truncate text-xs text-slate-500">{event.estimates}</p> : null}
       </div>
 
       {event.time && (

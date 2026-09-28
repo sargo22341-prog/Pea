@@ -1,4 +1,4 @@
-import type { YahooUsageCallDto, YahooUsageStatsDto } from "@pea/shared";
+import { YAHOO_USAGE_FEATURES, type YahooUsageCallDto, type YahooUsageFeature, type YahooUsageStatsDto } from "@pea/shared";
 import { RefreshCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -140,6 +140,16 @@ export function YahooUsageSection({ open, onToggle }: { open?: boolean; onToggle
               title={t("admin.yahooUsage.byMethod", { ns: "common" })}
             />
           </div>
+          <YahooUsageTopTable
+            emptyLabel={t("admin.yahooUsage.noFeature", { ns: "common" })}
+            formatKey={(key) => t(`admin.yahooUsage.features.${key}`, { ns: "common", defaultValue: key })}
+            onSelect={(row) => {
+              const feature = YAHOO_USAGE_FEATURES.find((item): item is YahooUsageFeature => item === row.key);
+              setSelection({ label: t(`admin.yahooUsage.features.${row.key}`, { ns: "common", defaultValue: row.key }), filters: { feature } });
+            }}
+            rows={data.byFeature24h}
+            title={t("admin.yahooUsage.byFeature24h", { ns: "common" })}
+          />
           <div className="grid gap-4 xl:grid-cols-4">
             <YahooUsageTopTable emptyLabel={t("admin.yahooUsage.noSource", { ns: "common" })} onSelect={(row) => { setSelection({ label: `Source ${row.key}`, filters: { source: row.key } }); }} rows={data.bySource} title={t("admin.yahooUsage.sources", { ns: "common" })} />
             <YahooUsageTopTable emptyLabel={t("admin.yahooUsage.noTicker", { ns: "common" })} onSelect={(row) => { setSelection({ label: `Ticker ${row.key}`, filters: { ticker: row.key } }); }} rows={data.topTickers} title="Top tickers" />

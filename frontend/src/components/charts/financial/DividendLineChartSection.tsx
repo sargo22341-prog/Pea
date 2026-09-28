@@ -4,7 +4,7 @@ import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts"
 import type { Props as LabelProps } from "recharts/types/component/Label";
 import { formatMaybeDate, formatMonthYear, formatPlainPercent, money } from "../../../lib/format";
 import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
-import { labelText } from "../chartFormat";
+import { CHART_ANIMATION_MS, labelText } from "../chartFormat";
 
 interface DividendChartPoint {
   date: string;
@@ -118,6 +118,7 @@ export const DividendLineChartSection = memo(function DividendLineChartSection({
               />
 
               <Line
+                animationDuration={CHART_ANIMATION_MS}
                 activeDot={false}
                 dataKey="amount"
                 dot={false}

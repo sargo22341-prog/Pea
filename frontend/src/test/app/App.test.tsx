@@ -56,7 +56,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ setupRequired: true, user: null, appTimezone: "Europe/Paris" })
+        json: () => Promise.resolve({ setupRequired: true, user: null, appTimezone: "Europe/Paris", features: [] })
       })
     );
     renderApp();
@@ -71,7 +71,7 @@ describe("App – auth gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ setupRequired: false, user: null, appTimezone: "Europe/Paris" })
+        json: () => Promise.resolve({ setupRequired: false, user: null, appTimezone: "Europe/Paris", features: [] })
       })
     );
     renderApp();
@@ -102,6 +102,7 @@ describe("App – auth gate", () => {
         status: 200,
         json: () => Promise.resolve({
           setupRequired: false,
+          features: [],
           user: {
             id: 1,
             username: "alice",

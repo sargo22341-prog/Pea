@@ -1,0 +1,78 @@
+{
+  "symbol": "AAPL",
+  "instrumentInfo": {
+    "technicalEvents": {
+      "provider": "Trading Central",
+      "sector": "Technology",
+      "shortTermOutlook": {
+        "stateDescription": "Recent bearish events outweigh bullish events.",
+        "direction": "Bearish",
+        "score": 2,
+        "scoreDescription": "Bearish Evidence",
+        "sectorDirection": "Bullish",
+        "sectorScore": 4,
+        "sectorScoreDescription": "Very Strong Bullish Evidence",
+        "indexDirection": "Bullish",
+        "indexScore": 2,
+        "indexScoreDescription": "Bullish Evidence"
+      },
+      "intermediateTermOutlook": {
+        "stateDescription": "All events are bullish.",
+        "direction": "Bullish",
+        "score": 2,
+        "scoreDescription": "Bullish Evidence",
+        "sectorDirection": "Bullish",
+        "sectorScore": 3,
+        "sectorScoreDescription": "Strong Bullish Evidence",
+        "indexDirection": "Bearish",
+        "indexScore": 2,
+        "indexScoreDescription": "Bearish Evidence"
+      },
+      "longTermOutlook": {
+        "stateDescription": "There are no events.",
+        "direction": "Neutral",
+        "score": 0,
+        "scoreDescription": "No Evidence",
+        "sectorDirection": "Bullish",
+        "sectorScore": 2,
+        "sectorScoreDescription": "Bullish Evidence",
+        "indexDirection": "Bullish",
+        "indexScore": 1,
+        "indexScoreDescription": "Weak Bullish Evidence"
+      }
+    },
+    "keyTechnicals": {
+      "provider": "Trading Central",
+      "support": 255.65,
+      "resistance": 344.5699,
+      "stopLoss": 307.538705
+    },
+    "valuation": {
+      "color": 0,
+      "description": "Overvalued",
+      "discount": "-8%",
+      "relativeValue": "Premium",
+      "provider": "Trading Central"
+    }
+  },
+  "recommendation": {
+    "targetPrice": 375,
+    "provider": "Argus Research",
+    "rating": "BUY"
+  },
+  "upsell": {
+    "msBullishSummary": [
+      "Apple offers an expansive ecosystem of tightly integrated hardware, software, and services that locks in customers and drives strong profitability.",
+      "We like Apple’s move to in-house chip development, which we think has accelerated its product development and increased its differentiation.",
+      "Apple has a stellar balance sheet and returns substantial cash flow to shareholders."
+    ],
+    "msBearishSummary": [
+      "Apple is prone to consumer spending and preferences, which creates cyclicality and opens the firm up to disruption.",
+      "Apple’s supply chain is highly concentrated in China and Taiwan, which opens up the firm to geopolitical risk. Attempts to diversify into other regions may pressure profitability or efficiency.",
+      "Regulators have a keen eye on Apple, and recent regulations have chipped away at parts of Apple’s sticky ecosystem. "
+    ],
+    "companyName": "Apple Inc.",
+    "msBullishBearishSummariesPublishDate": "2026-09-11T23:27:26.000Z",
+    "upsellReportType": "MORNINGSTAR_ANALYST"
+  }
+}

@@ -5,6 +5,7 @@ import { usePullToRefreshSuspended } from "../../hooks/usePullToRefreshSuspended
 import { MOTION } from "./motion";
 import { paletteColor } from "../charts/chartFormat";
 import { COMPARE_COLORS } from "../charts/comparison/compareColors";
+import { MAX_COMPARE } from "../charts/comparison/compare-limits";
 
 interface SelectedAsset {
   symbol: string;
@@ -19,8 +20,6 @@ interface CompareModalProps {
   onClose: () => void;
   localPeaSearchEnabled?: boolean;
 }
-
-const MAX_COMPARE = 4;
 
 export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose, localPeaSearchEnabled }: CompareModalProps) {
   const { t } = useTranslation(["common", "portfolio"]);

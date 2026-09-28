@@ -60,6 +60,29 @@ describe("PortfolioComparisonChart data", () => {
     expect(rows.map((row) => row["comparison_0"])).toEqual([100, 120]);
   });
 
+  it("aligns an index quoted at market close and missing a holiday on the portfolio dates", () => {
+    const portfolio = {
+      ...chart(),
+      timestamps: ["2026-01-01", "2026-01-02", "2026-01-05", "2026-01-20"].map((day) => Date.parse(`${day}T00:00:00.000Z`)),
+      value: [1000, 1010, 1020, 1030],
+      invested: [1000, 1000, 1000, 1000]
+    };
+    const rows = buildComparisonData(
+      portfolio,
+      [{
+        key: "^FCHI",
+        label: "CAC 40",
+        dashed: true,
+        // Clôtures à 16h30 UTC, pas de cotation le 2 janvier, puis plus rien pendant plus d'une semaine.
+        timestamps: [Date.parse("2026-01-01T16:30:00.000Z"), Date.parse("2026-01-05T16:30:00.000Z")],
+        prices: [8000, 8400]
+      }],
+      "1y"
+    );
+
+    expect(rows.map((row) => row["comparison_0"])).toEqual([100, 100, expect.closeTo(105), null]);
+  });
+
   it("finds the closest price from sorted timestamp/price pairs", () => {
     expect(findClosestPrice([
       { timestamp: 10, price: 100 },

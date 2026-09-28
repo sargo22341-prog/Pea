@@ -5,7 +5,9 @@ import { usePrivacy } from "../../../contexts/privacy-context";
 import { formatNumber, formatRangeLabel, formatSignedMoney, money, percent } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { toneClass, toneFromNumber } from "../../../utils/assetTone";
-import { AssetInfoTile } from "./AssetInfoTile";
+import { AssetInfoTile } from "../../../components/common/metrics/AssetInfoTile";
+import { flashClass } from "../../../components/common/motion";
+import { useNumberPulse } from "../hooks/useValuePulse";
 
 export function AssetPositionSummary({
   position,
@@ -24,6 +26,7 @@ export function AssetPositionSummary({
 }) {
   const { t } = useTranslation(["common", "asset", "dashboard"]);
   const prive = usePrivacy();
+  const quantityPulse = useNumberPulse(position.quantity);
   const safeCurrentPrice = Number.isFinite(currentPrice) && currentPrice > 0 ? currentPrice : position.currentPrice;
   const currentValue = position.quantity * safeCurrentPrice;
   const totalPerformanceValue = currentValue - position.costBasis;
@@ -57,7 +60,8 @@ export function AssetPositionSummary({
         </div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t("asset:currentValue")}</p>
         <div className="mt-3 pr-14">
-          <p className="text-[32px] font-bold leading-tight text-white sm:text-4xl">{masquerValeur(money(currentValue, position.currency), prive)}</p>
+          {/* Une quantité recalculée (division d'action appliquée, transaction ajoutée) fait briller la valeur. */}
+          <p className={`rounded-md text-[32px] font-bold leading-tight text-white sm:text-4xl ${flashClass(quantityPulse.trend)}`} key={quantityPulse.pulseKey}>{masquerValeur(money(currentValue, position.currency), prive)}</p>
           <p className={`mt-2 text-base font-semibold ${toneClass(totalTone)}`}>
             {masquerValeur(formatSignedMoney(totalPerformanceValue, position.currency), prive)}
             <span className="ml-2 text-sm">{totalPerformancePercent == null ? "(n/a)" : masquerValeur(`(${percent(totalPerformancePercent)})`, prive)}</span>

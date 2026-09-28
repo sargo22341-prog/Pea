@@ -4,10 +4,12 @@ import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { SafeResponsiveContainer } from "../../../components/charts/SafeResponsiveContainer";
+import { CHART_ANIMATION_MS } from "../../../components/charts/chartFormat";
 import { MOTION } from "../../../components/common/motion";
 import { money } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { projectionBasisYears } from "../utils/projectDividendYear";
+import type { DividendStatusTotals } from "../utils/dividendInsights";
 
 /** Barres pleines pour les montants connus ou estimes, attenuees pour une annee projetee. */
 const BAR_COLOR = "#22c55e";
@@ -33,12 +35,14 @@ interface DividendAnnualEstimateProps {
   monthlyDividends: MonthlyDividend[];
   onYearChange: (year: string) => void;
   projectedYear?: string | undefined;
+  /** Part du total déjà détachée, annoncée par les sociétés ou estimée. */
+  statusTotals: DividendStatusTotals;
   total: number;
   year: string;
   years: string[];
 }
 
-export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChange, projectedYear, total, year, years }: DividendAnnualEstimateProps) {
+export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChange, projectedYear, statusTotals, total, year, years }: DividendAnnualEstimateProps) {
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
   const showingProjection = projectedYear !== undefined && year === projectedYear;
@@ -54,6 +58,7 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
               : t("dividendsPage.annualEstimate", { ns: "dashboard" })}
           </p>
           <p className="mt-1 text-3xl font-bold text-mint">{masquerValeur(money(total, currency), prive)}</p>
+          {!showingProjection ? <StatusBreakdown currency={currency} prive={prive} totals={statusTotals} /> : null}
           {projectionBasis && (
             <p className={`mt-1 text-xs text-slate-500 ${MOTION.fadeIn}`}>
               {t("dividendsPage.projectionBasis", { ns: "dashboard", base: projectionBasis.base, reference: projectionBasis.reference })}
@@ -85,11 +90,27 @@ export function DividendAnnualEstimate({ currency, monthlyDividends, onYearChang
               cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
               wrapperStyle={{ outline: "none" }}
             />
-            <Bar dataKey="total" fill={showingProjection ? PROJECTED_BAR_COLOR : BAR_COLOR} radius={[6, 6, 0, 0]} />
+            <Bar animationDuration={CHART_ANIMATION_MS} dataKey="total" fill={showingProjection ? PROJECTED_BAR_COLOR : BAR_COLOR} radius={[6, 6, 0, 0]} />
           </BarChart>
         </SafeResponsiveContainer>
       </div>
     </section>
+  );
+}
+
+/** Origine des montants de l'année : détachés, annoncés par les sociétés, estimés. */
+function StatusBreakdown({ totals, currency, prive }: { totals: DividendStatusTotals; currency: CurrencyCode; prive: boolean }) {
+  const { t } = useTranslation(["dashboard"]);
+  const parts = (["real", "announced", "estimated"] as const).filter((status) => totals[status] > 0);
+  if (parts.length < 2 && !parts.includes("announced")) return null;
+  return (
+    <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
+      {parts.map((status) => (
+        <span key={status}>
+          {t(`dividendsPage.status.${status}`, { ns: "dashboard", value: masquerValeur(money(totals[status], currency), prive) })}
+        </span>
+      ))}
+    </p>
   );
 }
 

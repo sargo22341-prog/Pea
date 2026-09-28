@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { PositionWithMarket } from "@pea/shared";
 import { getPositionSectorExposure } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
+import type { Fundamentals } from "../../services/portfolio/analysis/portfolio-analysis.helpers.js";
 
 function position(symbol: string, quoteType = "EQUITY"): PositionWithMarket {
   return {
@@ -76,11 +77,9 @@ test("ETF without sector data falls back to ETF diversified bucket", () => {
 });
 
 test("invalid ETF sector values are ignored without producing NaN", () => {
-  const exposure = getPositionSectorExposure(
-    position("BROKEN.PA", "ETF"),
-    { topHoldings: { sectorWeightings: [{ technology: "bad", healthcare: undefined, energy: 0 }] } },
-    30
-  );
+  // Réponse Yahoo corrompue volontairement : les pondérations ne respectent pas le type attendu.
+  const corrupted: unknown = { topHoldings: { sectorWeightings: [{ technology: "bad", healthcare: undefined, energy: 0 }] } };
+  const exposure = getPositionSectorExposure(position("BROKEN.PA", "ETF"), corrupted as Fundamentals, 30);
 
   assert.deepEqual(exposure, [{ sector: "ETF / Diversified", weight: 30 }]);
 });

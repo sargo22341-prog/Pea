@@ -20,6 +20,7 @@ export interface AuthUser {
   newsLanguages: NewsLanguage[];
   language: AppLanguage;
   privacyModeEnabled: boolean;
+  advancedModeEnabled: boolean;
   createdAt: string;
 }
 
@@ -48,6 +49,7 @@ export interface UserRow extends AuthUserRow {
   news_language_en_enabled: number | null;
   language: string | null;
   privacy_mode_enabled: number | null;
+  advanced_mode_enabled: number | null;
   created_at: string;
 }
 
@@ -104,6 +106,7 @@ export function rowToAuthUser(row: UserRow): AuthUser {
     newsLanguages: languages.length ? languages : ["fr"],
     language: isAppLanguage(row.language) ? row.language : "fr",
     privacyModeEnabled: Boolean(row.privacy_mode_enabled),
+    advancedModeEnabled: Boolean(row.advanced_mode_enabled),
     createdAt: row.created_at
   };
 }

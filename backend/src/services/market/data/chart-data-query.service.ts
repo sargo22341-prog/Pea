@@ -32,7 +32,16 @@ export class ChartDataQueryService {
   async getChartData(symbol: string, range: RangeKey, options: ChartDataOptions = {}, ensureAssetInitialized?: EnsureAssetInitialized): Promise<AssetChartDto> {
     const existingAsset = assetRepository.findBySymbol(symbol);
     if (!existingAsset && config.enableMarketLiveRefresh) {
-      return compactHistory(symbol.toUpperCase(), range, range === "1d" ? chartConfigService.getIntervalForRange("1d") : chartConfigService.getIntervalForRange(normalizeStoredRange(range)), [], undefined);
+      // Symbole jamais suivi (indice de comparaison, actif similaire...) : seules les bougies de la
+      // plage demandée sont construites en arrière-plan, plutôt qu'une courbe vide sans fin.
+      const storedRange = normalizeStoredRange(range);
+      const job = dataConstructionQueue.enqueueCandles(symbol, storedRange);
+      return {
+        ...compactHistory(symbol.toUpperCase(), range, range === "1d" ? chartConfigService.getIntervalForRange("1d") : chartConfigService.getIntervalForRange(storedRange), [], undefined),
+        isPreparing: true,
+        missingRanges: [storedRange],
+        jobId: job.id
+      };
     }
     const asset = existingAsset ?? (await ensureAssetInitialized?.(symbol));
     if (!asset) throw new Error(`Asset ${symbol} is not initialized`);

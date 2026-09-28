@@ -4,6 +4,7 @@ import type {
   AssetDividendsDto,
   AssetMarketDto,
   AssetStaticDto,
+  ChartOverlayKey,
   NewsLanguage,
   RangeKey,
   UserAssetPositionDto
@@ -11,6 +12,7 @@ import type {
 import { config } from "../../config.js";
 import { assetRepository } from "../../repositories/market/asset.repository.js";
 import { downsampleChartForDisplay } from "../market/charts/chart-display-downsample.js";
+import { withMovingAverages } from "../market/charts/chart-overlays.service.js";
 import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { marketDataService, type ChartDataOptions } from "../market/data/market-data.service.js";
@@ -51,9 +53,13 @@ export class AssetDataService {
     };
   }
 
-  /** Graphique d'affichage : les longues periodes sont reduites (voir `downsampleChartForDisplay`). */
-  async chart(symbol: string, range: RangeKey, options: ChartDataOptions = {}): Promise<AssetChartDto> {
-    return downsampleChartForDisplay(await marketDataService.getChartData(symbol.toUpperCase(), range, options), range);
+  /**
+   * Graphique d'affichage : les longues periodes sont reduites (voir `downsampleChartForDisplay`),
+   * puis enrichies des moyennes mobiles demandees, alignees sur les points affiches.
+   */
+  async chart(symbol: string, range: RangeKey, options: ChartDataOptions = {}, overlays: readonly ChartOverlayKey[] = []): Promise<AssetChartDto> {
+    const displayed = downsampleChartForDisplay(await marketDataService.getChartData(symbol.toUpperCase(), range, options), range);
+    return withMovingAverages(displayed, overlays);
   }
 
   async market(symbol: string): Promise<AssetMarketDto> {

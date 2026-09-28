@@ -1,0 +1,133 @@
+{
+  "recommendationTrend": {
+    "trend": [
+      {
+        "period": "0m",
+        "strongBuy": 4,
+        "buy": 12,
+        "hold": 10,
+        "sell": 0,
+        "strongSell": 0
+      },
+      {
+        "period": "-1m",
+        "strongBuy": 5,
+        "buy": 12,
+        "hold": 9,
+        "sell": 0,
+        "strongSell": 0
+      },
+      {
+        "period": "-2m",
+        "strongBuy": 5,
+        "buy": 11,
+        "hold": 9,
+        "sell": 0,
+        "strongSell": 0
+      },
+      {
+        "period": "-3m",
+        "strongBuy": 5,
+        "buy": 12,
+        "hold": 9,
+        "sell": 0,
+        "strongSell": 0
+      }
+    ],
+    "maxAge": 86400
+  },
+  "earnings": {
+    "maxAge": 86400,
+    "earningsChart": {
+      "quarterly": [],
+      "currentQuarterEstimateDate": "3Q",
+      "currentCalendarQuarter": "3Q2026",
+      "currentQuarterEstimateYear": 2026,
+      "currentFiscalQuarter": "3Q2026",
+      "currentPeriodEndDate": "2026-09-30T00:00:00.000Z",
+      "earningsDate": [],
+      "isEarningsDateEstimate": false
+    },
+    "financialsChart": {
+      "yearly": [
+        {
+          "date": 2022,
+          "revenue": 79184000000,
+          "earnings": 14084000000,
+          "profitMargin": 0.17786421
+        },
+        {
+          "date": 2023,
+          "revenue": 86153000000,
+          "earnings": 15174000000,
+          "profitMargin": 0.1761285
+        },
+        {
+          "date": 2024,
+          "revenue": 84683000000,
+          "earnings": 12550000000,
+          "profitMargin": 0.14819975
+        },
+        {
+          "date": 2025,
+          "revenue": 80807000000,
+          "earnings": 10878000000,
+          "profitMargin": 0.13461705
+        }
+      ],
+      "quarterly": [
+        {
+          "date": "3Q2025",
+          "fiscalQuarter": "3Q2025",
+          "revenue": 18280000000,
+          "earnings": 0,
+          "profitMargin": 0
+        },
+        {
+          "date": "4Q2025",
+          "fiscalQuarter": "4Q2025",
+          "revenue": 22717000000,
+          "earnings": 0,
+          "profitMargin": 0
+        },
+        {
+          "date": "1Q2026",
+          "fiscalQuarter": "1Q2026",
+          "revenue": 19121000000,
+          "earnings": 0,
+          "profitMargin": 0
+        },
+        {
+          "date": "2Q2026",
+          "fiscalQuarter": "2Q2026",
+          "revenue": 19524000000,
+          "earnings": 0,
+          "profitMargin": 0
+        }
+      ]
+    },
+    "financialCurrency": "EUR",
+    "defaultMethodology": "nongaap"
+  },
+  "calendarEvents": {
+    "maxAge": 1,
+    "earnings": {
+      "earningsDate": [
+        "2026-07-27T15:30:00.000Z"
+      ],
+      "earningsCallDate": [
+        "2026-07-27T15:30:00.000Z"
+      ],
+      "isEarningsDateEstimate": false,
+      "revenueAverage": 18524333330,
+      "revenueLow": 18301000000,
+      "revenueHigh": 18897000000
+    },
+    "exDividendDate": "2026-12-01T00:00:00.000Z"
+  },
+  "earningsHistory": {
+    "history": [],
+    "defaultMethodology": "nongaap",
+    "maxAge": 86400
+  }
+}

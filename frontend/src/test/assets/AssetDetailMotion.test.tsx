@@ -32,7 +32,8 @@ vi.mock("../../lib/api", () => ({
     addWatchlist: vi.fn(),
     asset: vi.fn(),
     removeWatchlist: vi.fn(),
-    requestChartRefresh: vi.fn()
+    requestChartRefresh: vi.fn(),
+    splits: vi.fn().mockResolvedValue([])
   }
 }));
 

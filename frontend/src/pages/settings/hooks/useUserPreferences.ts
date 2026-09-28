@@ -18,6 +18,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
   const [newsLanguages, setNewsLanguages] = useState<NewsLanguage[]>(["fr"]);
   const [language, setLanguage] = useState<AppLanguage>("fr");
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
+  const [advancedModeEnabled, setAdvancedModeEnabled] = useState(false);
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
   // Profil charge ou recharge : les champs du formulaire sont recopies pendant le rendu.
@@ -35,6 +36,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
     setNewsLanguages(user.newsLanguages.length ? user.newsLanguages : ["fr"]);
     setLanguage(user.language);
     setPrivacyModeEnabled(user.privacyModeEnabled);
+    setAdvancedModeEnabled(user.advancedModeEnabled);
   }
 
   function toggleNewsLanguage(language: NewsLanguage) {
@@ -51,7 +53,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
     const [watchlistDefaultSortKey, watchlistDefaultSortDirection] = watchlistSortValue.split(":") as [WatchlistSortKey, SortDirection];
     setToast(null);
     try {
-      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, projectionEndAge, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled });
+      await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, projectionEndAge, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled, advancedModeEnabled });
       await i18n.changeLanguage(language);
       setToast({ tone: "success", text: t("settings:preferences.saved") });
       await me.reload();
@@ -62,6 +64,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
   }
 
   return {
+    advancedModeEnabled,
     assetNewsEnabled,
     localPeaSearchEnabled,
     language,
@@ -71,6 +74,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
     projectionEndAge,
     range,
     save,
+    setAdvancedModeEnabled,
     setAssetNewsEnabled,
     setLanguage,
     setLocalPeaSearchEnabled,

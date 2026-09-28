@@ -121,6 +121,7 @@ export class AuthService {
       newsLanguages?: NewsLanguage[] | undefined;
       language?: AppLanguage | undefined;
       privacyModeEnabled?: boolean | undefined;
+      advancedModeEnabled?: boolean | undefined;
     }
   ) {
     const current = authRepository.findUserById(userId) as UserRow | undefined;
@@ -151,6 +152,7 @@ export class AuthService {
     if (!newsLanguageFrEnabled && !newsLanguageEnEnabled) throw new HttpError(400, "Au moins une langue d'actualites doit etre activee.");
     const language = input.language ?? (isAppLanguage(current.language) ? current.language : "fr");
     const privacyModeEnabled = input.privacyModeEnabled === undefined ? (current.privacy_mode_enabled ?? 0) : input.privacyModeEnabled ? 1 : 0;
+    const advancedModeEnabled = input.advancedModeEnabled === undefined ? (current.advanced_mode_enabled ?? 0) : input.advancedModeEnabled ? 1 : 0;
 
     try {
       authRepository.updateUser(userId, {
@@ -168,7 +170,8 @@ export class AuthService {
         newsLanguageFrEnabled,
         newsLanguageEnEnabled,
         language,
-        privacyModeEnabled
+        privacyModeEnabled,
+        advancedModeEnabled
       });
     } catch (error) {
       if (isUsernameUniqueConstraintError(error)) {

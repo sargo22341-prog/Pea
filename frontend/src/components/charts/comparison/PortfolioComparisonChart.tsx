@@ -24,7 +24,11 @@ interface ComparisonEntry {
   key: string;
   label: string;
   color: string;
+  dashed: boolean;
 }
+
+/** Pointillé des indices de référence (courbe et pastille de légende). */
+const BENCHMARK_DASH = "5 4";
 
 export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
   chart,
@@ -47,7 +51,8 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
       comparisons.map((comparison, index) => ({
         key: comparisonDataKey(index),
         label: comparison.label,
-        color: paletteColor(COMPARE_COLORS, index)
+        color: paletteColor(COMPARE_COLORS, index),
+        dashed: comparison.dashed ?? false
       })),
     [comparisons]
   );
@@ -125,7 +130,10 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
                 </span>
                 {comparisonEntries.map((entry) => (
                   <span className="flex items-center gap-1.5" key={entry.key}>
-                    <span className="inline-block h-0.5 w-5 rounded" style={{ backgroundColor: entry.color }} />
+                    <span
+                      className="inline-block h-0.5 w-5 rounded"
+                      style={entry.dashed ? { backgroundImage: `repeating-linear-gradient(90deg, ${entry.color} 0 5px, transparent 5px 9px)` } : { backgroundColor: entry.color }}
+                    />
                     {entry.label}
                   </span>
                 ))}
@@ -153,6 +161,7 @@ export const PortfolioComparisonChart = memo(function PortfolioComparisonChart({
               isAnimationActive={false}
               key={entry.key}
               stroke={entry.color}
+              {...(entry.dashed ? { strokeDasharray: BENCHMARK_DASH } : {})}
               strokeWidth={2}
               type="monotone"
             />

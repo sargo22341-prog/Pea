@@ -33,6 +33,13 @@ import { userPreferencesColumnsMigration } from "./accounts/032-user-preferences
 import { transactionTradedAtIsoMigration } from "./portfolio/033-transaction-traded-at-iso.js";
 import { dropRedundantChartCandleIndexesMigration } from "./storage/034-drop-redundant-chart-candle-indexes.js";
 import { incrementalAutoVacuumMigration } from "./storage/035-incremental-auto-vacuum.js";
+import { userAdvancedModeMigration } from "./accounts/036-user-advanced-mode.js";
+import { assetSplitsMigration } from "./portfolio/037-asset-splits.js";
+import { expireFundamentalsMissingModulesMigration } from "./cache/038-expire-fundamentals-missing-modules.js";
+import { appFeatureFlagsMigration } from "./admin/039-app-feature-flags.js";
+import { yahooUsageFeatureMigration } from "./admin/040-yahoo-usage-feature.js";
+import { calendarEarningsEstimatesMigration } from "./market/041-calendar-earnings-estimates.js";
+import { assetRecommendationHistoryMigration } from "./market/042-asset-recommendation-history.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -70,5 +77,12 @@ export const migrations: Migration[] = [
   userPreferencesColumnsMigration,
   transactionTradedAtIsoMigration,
   dropRedundantChartCandleIndexesMigration,
-  incrementalAutoVacuumMigration
+  incrementalAutoVacuumMigration,
+  userAdvancedModeMigration,
+  assetSplitsMigration,
+  expireFundamentalsMissingModulesMigration,
+  appFeatureFlagsMigration,
+  yahooUsageFeatureMigration,
+  calendarEarningsEstimatesMigration,
+  assetRecommendationHistoryMigration
 ];

@@ -34,6 +34,18 @@
     "miniGraph": "Mini chart {{range}}",
     "partial": "partial"
   },
+  "positionSignals": {
+    "yieldOnCost": "YoC {{value}}",
+    "yieldOnCostHint": "Yield on cost: expected annual dividend divided by your average buy price.",
+    "range52": "52-week range: {{low}} - {{high}} ({{distance}})",
+    "atHigh": "at the high",
+    "belowHigh": "{{value}} below the high",
+    "consensusChanged": "Analyst consensus changed from {{from}} to {{to}} on {{date}}"
+  },
+  "benchmarks": {
+    "label": "Compare with an index",
+    "hint": "Base 100 dashed curve"
+  },
   "chart": {
     "portfolio": "Portfolio",
     "subtitle": "Aggregated valuation from Yahoo Finance history.",
@@ -41,6 +53,8 @@
     "emptyFinancialAnnual": "No annual financial data available.",
     "emptyNetMargin": "No net margin available.",
     "netMargin": "Net margin",
+    "revenue": "Revenue",
+    "netIncome": "Net income",
     "atPrice": "at {{price}}",
     "preparing": "Data is being prepared...",
     "loadingComparisons": "Loading comparisons...",
@@ -51,6 +65,7 @@
     "invested": "Total invested",
     "dividends": "Total dividends",
     "fees": "Total fees",
+    "yieldOnCost": "Yield on cost",
     "rangePerformance": "Performance over {{range}}"
   },
   "dividendsPage": {
@@ -71,6 +86,30 @@
     "projectedOption": "{{year}} (projection)",
     "projectionTitle": "{{year}} projection",
     "projectionBasis": "Projection estimated from {{base}} and {{reference}}",
-    "projected": "Projected year"
+    "projected": "Projected year",
+    "announced": "Includes announced",
+    "announcedAndEstimated": "Includes announced and estimates",
+    "status": {
+      "real": "Paid {{value}}",
+      "announced": "Announced {{value}}",
+      "estimated": "Estimated {{value}}"
+    },
+    "growth5y": "5-year growth",
+    "perYear": "{{value}}/yr",
+    "payout": "Payout",
+    "annualHistory": "Annual history",
+    "simulation": {
+      "title": "Simulate reinvestment",
+      "horizon": "Horizon",
+      "years_one": "{{count}} year",
+      "years_other": "{{count}} years",
+      "growth": "Dividend growth",
+      "summary": "In {{years}} years: {{with}} of dividends per year when reinvesting, versus {{without}} without reinvesting.",
+      "yearTick": "+{{year}} yr",
+      "incomeWith": "With reinvestment",
+      "incomeWithout": "Without reinvestment",
+      "cumulative": "Cumulative: {{with}} versus {{without}}",
+      "assumption": "Assumption: price and dividend grow at the same pace (constant yield); inside a PEA, reinvested dividends are not taxed. Indicative simulation, not investment advice."
+    }
   }
 }

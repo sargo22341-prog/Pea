@@ -76,6 +76,8 @@ export interface EditablePortfolioTransaction extends PortfolioTransaction {
   positionId: number;
   price: number;
   tradedAt: string;
+  /** Facteur des divisions d'actions appliquées à cette transaction (quantité × facteur, prix ÷ facteur). */
+  splitFactor?: number | undefined;
 }
 
 export interface ParsedAvisOperation {

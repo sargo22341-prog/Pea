@@ -87,6 +87,13 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesUsers.includes("has_profile_icon"), "colonne has_profile_icon absente");
   assert.ok(resultat.colonnesUsers.includes("bootstrap_admin"), "colonne bootstrap_admin absente");
   assert.ok(resultat.colonnesUsers.includes("language"), "colonne language absente");
+  assert.ok(resultat.colonnesUsers.includes("advanced_mode_enabled"), "colonne advanced_mode_enabled absente");
+  assert.ok(resultat.tablesExistantes.includes("asset_splits"), "table asset_splits absente");
+  assert.ok(resultat.tablesExistantes.includes("user_split_decisions"), "table user_split_decisions absente");
+  assert.ok(resultat.indexExistants.includes("idx_user_split_decisions_split"), "index decisions de division absent");
+  assert.ok(resultat.tablesExistantes.includes("app_feature_flags"), "table app_feature_flags absente");
+  assert.ok(resultat.tablesExistantes.includes("asset_recommendation_history"), "table asset_recommendation_history absente");
+  assert.ok(resultat.indexExistants.includes("idx_yahoo_usage_logs_feature_created_at"), "index yahoo usage feature absent");
   assert.equal(resultat.typeUserIdUserAssets.toUpperCase(), "INTEGER", "user_assets.user_id doit être INTEGER");
   // Couverts par l'index de la contrainte UNIQUE de chart_candles (migration 34).
   assert.ok(!resultat.indexExistants.includes("idx_chart_candles_asset_range_interval"), "index chart_candles redondant toujours present");
@@ -120,8 +127,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    Array.from({ length: 35 }, (_value, index) => index + 1),
-    "les 35 migrations doivent etre enregistrees"
+    Array.from({ length: 42 }, (_value, index) => index + 1),
+    "les 42 migrations doivent etre enregistrees"
   );
 });
 

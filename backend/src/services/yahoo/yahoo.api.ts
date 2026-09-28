@@ -2,6 +2,8 @@ import { retryTemporary } from "./yahoo.client.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { mapChartRows, mapQuote, mapSnapshotQuote, nullableNumber, nullableString, type YahooSnapshotPayload } from "./yahoo.mapper.js";
 import type { HistoryPoint, Quote } from "@pea/shared";
+import { rawDate, rawNumber } from "./utils/raw-values.js";
+import { normalizeDetectedSplit, type DetectedSplit } from "../market/splits/asset-splits.service.js";
 import { rawRecord, yahooChart, yahooFundamentalsTimeSeries, yahooQuote, yahooQuoteBatch, yahooQuoteSummary, type YahooFinancialTimeSeriesRaw, type YahooQuoteRaw, type YahooSummaryRaw } from "./yahoo.raw.js";
 
 function limited<T>(key: string, task: () => Promise<T>) {
@@ -72,18 +74,23 @@ export class YahooApi {
     };
   }
 
-  async chart(symbol: string, options: { period1: Date; period2?: Date; interval: string; events?: "div|split" | "div" }): Promise<{ quotes: HistoryPoint[]; dividends: { date: string; amount: number }[]; splits: unknown[] }> {
+  async chart(symbol: string, options: { period1: Date; period2?: Date; interval: string; events?: "div|split" | "div" }): Promise<{ quotes: HistoryPoint[]; dividends: { date: string; amount: number }[]; splits: DetectedSplit[] }> {
     const key = symbol.toUpperCase();
     const chart = await limited(`chart:${key}:${options.period1.toISOString()}:${options.period2?.toISOString() ?? "now"}:${options.interval}:${options.events ?? "history"}`, () =>
       yahooChart(key, options)
     );
-    const dividends = Object.values(chart.events?.dividends ?? {})
-      .map((row) => ({ date: new Date(row.date ?? "").toISOString(), amount: Number(row.amount) }))
-      .filter((row) => Number.isFinite(new Date(row.date).getTime()) && Number.isFinite(row.amount));
+    const dividends = Object.values(chart.events?.dividends ?? {}).flatMap((row) => {
+      const date = rawDate(row.date);
+      const amount = rawNumber(row.amount);
+      return date && amount !== undefined ? [{ date, amount }] : [];
+    });
     return {
       quotes: mapChartRows(chart.quotes ?? []),
       dividends,
-      splits: Object.values(chart.events?.splits ?? {})
+      splits: Object.values(chart.events?.splits ?? {}).flatMap((row) => {
+        const split = normalizeDetectedSplit({ date: row.date, numerator: row.numerator, denominator: row.denominator });
+        return split ? [split] : [];
+      })
     };
   }
 

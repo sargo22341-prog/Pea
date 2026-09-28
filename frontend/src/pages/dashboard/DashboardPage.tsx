@@ -1,7 +1,7 @@
 import type { MarketEventType, RangeKey, User } from "@pea/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../../components/common/EmptyState";
-import { PortfolioEvolutionSection } from "./components/PortfolioEvolutionSection";
+import { PortfolioEvolutionSection } from "./components/evolution/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "./components/DashboardSkeletons";
 import { TopMetrics } from "./components/TopMetrics";
 import type { DashboardRangeSetter } from "./components/types";

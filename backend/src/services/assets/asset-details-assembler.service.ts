@@ -1,6 +1,7 @@
 import type {
   AssetDetails,
   AssetMarketInfo,
+  ChartOverlayKey,
   DividendEvent,
   NewsLanguage,
   RangeKey
@@ -16,6 +17,7 @@ import type { AuthUser } from "../auth/auth.service.js";
 interface AssembleInput {
   symbol: string;
   range: RangeKey;
+  overlays?: readonly ChartOverlayKey[];
   user: AuthUser;
   newsLanguages: NewsLanguage[];
 }
@@ -30,7 +32,7 @@ export class AssetDetailsAssembler {
 
   async assemble(input: AssembleInput): Promise<AssetDetails> {
     const symbol = input.symbol.toUpperCase();
-    const market = await this.market.load(symbol, input.range, await this.portfolio.fallbackQuote(symbol));
+    const market = await this.market.load(symbol, input.range, await this.portfolio.fallbackQuote(symbol), input.overlays);
     const fundamentals = await this.fundamentals.load(symbol, market.data.quote);
     const [portfolio, news] = await Promise.all([
       this.portfolio.load(symbol, input.range, input.user, fundamentals.dividends),
@@ -94,7 +96,11 @@ export class AssetDetailsAssembler {
       isEtf,
       calendarEventsData: fundamentals.extraData.calendarEventsData,
       analystConsensus,
-      fundDetails: fundamentals.extraData.fundDetails
+      fundDetails: fundamentals.extraData.fundDetails,
+      valuation: fundamentals.extraData.valuation,
+      financialHealth: fundamentals.extraData.financialHealth,
+      analystTrend: fundamentals.extraData.analystTrend,
+      earnings: fundamentals.extraData.earnings
     };
   }
 }
