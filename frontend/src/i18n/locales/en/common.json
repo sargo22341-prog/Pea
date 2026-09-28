@@ -77,7 +77,78 @@
       "sector": "Allocation by sector",
       "treemap": "Portfolio treemap",
       "netMargin": "Net margins by company",
-      "financials": "Revenue / Net Income / Margin"
+      "financials": "Revenue / Net Income / Margin",
+      "capitalization": "Market cap and currency",
+      "lookThrough": "ETF look-through",
+      "valuation": "Portfolio valuation",
+      "dividendSustainability": "Sustainable dividends",
+      "correlation": "Correlation between holdings"
+    },
+    "families": {
+      "allocation": "Allocation",
+      "quality": "Quality"
+    },
+    "valuation": {
+      "trailingPE": "Weighted P/E",
+      "trailingPEHint": "Price divided by trailing 12-month earnings for the whole portfolio (value-weighted harmonic mean). Loss-making holdings are excluded.",
+      "dividendYield": "Weighted yield",
+      "dividendYieldHint": "Annual dividend divided by price, weighted by each holding. A stock paying no dividend counts as 0%.",
+      "beta": "Weighted beta",
+      "betaHint": "Portfolio sensitivity to the market: 1 = moves with the market, above = more volatile. For an ETF, 3-year beta against its index.",
+      "coverage": "Computed on {{value}} of the portfolio",
+      "exclusionNote": "Holdings without data are excluded from each average; the covered share is shown under each metric.",
+      "byAsset": "Show by asset",
+      "asset": "Asset",
+      "weight": "Weight",
+      "notMeaningful": "n.m."
+    },
+    "lookThrough": {
+      "mode": "ETF look-through display",
+      "direct": "Direct",
+      "withEtf": "Direct + via ETFs",
+      "highlight": "Through your ETFs, you hold {{via}} of {{name}}.",
+      "highlightWithDirect": "Through your ETFs, you hold an extra {{via}} of {{name}}, {{total}} in total.",
+      "viaEtf": "including {{weight}} via {{etf}}",
+      "undisclosed": "{{weight}} of the portfolio is not detailed: Yahoo only publishes the top 10 holdings of each ETF."
+    },
+    "dividends": {
+      "payoutRatio": "Payout ratio",
+      "payoutRatioHint": "Share of earnings paid as dividends. Up to 60%: comfortable; above 90% or with a loss: fragile.",
+      "fcfCoverage": "FCF coverage",
+      "fcfCoverageHint": "Free cash flow divided by dividends paid (latest fiscal year viewed on the asset page). Below 1, the dividend is not funded by cash flow.",
+      "coverageValue": "x{{value}}",
+      "count": {
+        "good_one": "{{count}} comfortable dividend",
+        "good_other": "{{count}} comfortable dividends",
+        "fair_one": "{{count}} to watch",
+        "fair_other": "{{count}} to watch",
+        "weak_one": "{{count}} fragile",
+        "weak_other": "{{count}} fragile"
+      }
+    },
+    "capitalization": {
+      "title": "Market cap",
+      "hint": "Large caps above EUR 10bn, mid caps from EUR 2bn to 10bn, small caps below. ETFs form a separate bucket.",
+      "currencyTitle": "Trading currency",
+      "currencyHint": "Currency the holding trades in. For an ETF, it may differ from the currency of the securities it holds.",
+      "buckets": {
+        "large": "Large caps",
+        "mid": "Mid caps",
+        "small": "Small caps",
+        "etf": "ETFs",
+        "unknown": "Unclassified"
+      }
+    },
+    "correlation": {
+      "summary_one": "{{count}} highly correlated pair (above {{threshold}}):",
+      "summary_other": "{{count}} highly correlated pairs (above {{threshold}}):",
+      "none": "No highly correlated pair (above {{threshold}}): your holdings move independently.",
+      "hint": "Correlation coefficient of daily moves over one year: 1 = both holdings move together, 0 = no link, -1 = opposite. Two highly correlated holdings add little diversification.",
+      "pair": "{{a}} and {{b}}",
+      "observations_one": "Computed on {{count}} common trading day.",
+      "observations_other": "Computed on {{count}} common trading days.",
+      "showMatrix": "Show the matrix",
+      "cell": "{{a}} / {{b}}: {{value}}"
     }
   },
   "admin": {

@@ -1,41 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AssetIcon } from "../../components/common/AssetIcon";
-import { CountryAllocationChart } from "../../components/charts/allocation/CountryAllocationChart";
-import { FinancialComboChart } from "../../components/charts/financial/FinancialComboChart";
-import { NetMarginBarChart } from "../../components/charts/financial/NetMarginBarChart";
-import { PortfolioTreemap } from "../../components/charts/allocation/PortfolioTreemap";
-import { SectorAllocationChart } from "../../components/charts/allocation/SectorAllocationChart";
 import { EmptyState } from "../../components/common/EmptyState";
+import { MOTION } from "../../components/common/motion";
 import { useAsync } from "../../hooks/useAsync";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";
 import { api } from "../../lib/api";
-
-type ChartKey = "country" | "sector" | "treemap" | "netMargin" | "financials";
-
-interface ChartOption { key: ChartKey; labelKey: string }
-
-const chartOptions: [ChartOption, ...ChartOption[]] = [
-  { key: "country", labelKey: "analysis.charts.country" },
-  { key: "sector", labelKey: "analysis.charts.sector" },
-  { key: "treemap", labelKey: "analysis.charts.treemap" },
-  { key: "netMargin", labelKey: "analysis.charts.netMargin" },
-  { key: "financials", labelKey: "analysis.charts.financials" }
-];
+import { availableCharts, type ChartKey } from "./analysis-charts";
+import { AnalysisChart } from "./components/AnalysisChart";
+import { AnalysisChartSelect } from "./components/AnalysisChartSelect";
 
 export function AnalysisPage() {
   const { t } = useTranslation("common");
   const [selectedChart, setSelectedChart] = useState<ChartKey>("country");
-  const [selectedFinancialSymbol, setSelectedFinancialSymbol] = useState("");
   const analysis = useAsync((signal) => api.portfolioAnalysis(signal));
   const analysisReload = analysis.reload;
-  const activeOption = useMemo(() => chartOptions.find((option) => option.key === selectedChart) ?? chartOptions[0], [selectedChart]);
-  const selectedFinancialAsset = useMemo(
-    () =>
-      analysis.data?.financialsByAsset.find((asset) => asset.symbol === selectedFinancialSymbol) ??
-      analysis.data?.financialsByAsset[0],
-    [analysis.data, selectedFinancialSymbol]
-  );
+  const charts = availableCharts(analysis.data);
+  // Un onglet devenu vide (données rechargées) laisse la place au premier onglet disponible.
+  const activeChart = charts.includes(selectedChart) ? selectedChart : charts[0];
 
   useEffect(() => {
     document.title = `${t("analysis.title")} | PEA Portfolio`;
@@ -49,27 +30,6 @@ export function AnalysisPage() {
     reload: analysisReload
   });
 
-
-
-  const hasAnyData = Boolean(
-    analysis.data &&
-    (analysis.data.countryAllocation.length ||
-      analysis.data.sectorAllocation.length ||
-      analysis.data.treemap.length ||
-      analysis.data.netMargins.length ||
-      analysis.data.financialsByAsset.length ||
-      analysis.data.financials.length)
-  );
-
-  function renderChart() {
-    if (!analysis.data) return null;
-    if (selectedChart === "sector") return <SectorAllocationChart data={analysis.data.sectorAllocation} />;
-    if (selectedChart === "treemap") return <PortfolioTreemap data={analysis.data.treemap} />;
-    if (selectedChart === "netMargin") return <NetMarginBarChart data={analysis.data.netMargins} />;
-    if (selectedChart === "financials") return <FinancialComboChart data={selectedFinancialAsset?.financials ?? []} />;
-    return <CountryAllocationChart data={analysis.data.countryAllocation} />;
-  }
-
   return (
     <div className="min-w-0 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -77,16 +37,7 @@ export function AnalysisPage() {
           <h1 className="text-2xl font-bold">{t("analysis.title")}</h1>
           <p className="muted">{t("analysis.subtitle")}</p>
         </div>
-        <label className="grid gap-1 text-sm text-slate-300 sm:w-80">
-          <span>{t("analysis.chart")}</span>
-          <select className="input" onChange={(event) => { setSelectedChart(event.target.value as ChartKey); }} value={selectedChart}>
-            {chartOptions.map((option) => (
-              <option key={option.key} value={option.key}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
-        </label>
+        {activeChart ? <AnalysisChartSelect charts={charts} onChange={setSelectedChart} value={activeChart} /> : null}
       </div>
 
       {analysis.loading ? (
@@ -95,33 +46,17 @@ export function AnalysisPage() {
         <div className="rounded-lg border border-coral/40 bg-coral/10 p-4 text-sm text-rose-100">
           {analysis.error || t("analysis.loadError")}
         </div>
-      ) : !hasAnyData ? (
+      ) : !analysis.data || !activeChart ? (
         <EmptyState />
       ) : (
         <section className="card min-w-0 p-3 sm:p-5">
           <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">{t(activeOption.labelKey)}</h2>
-            {analysis.data?.stale ? <span className="text-xs text-amber">{t("analysis.stale")}</span> : null}
+            <h2 className="text-lg font-semibold">{t(`analysis.charts.${activeChart}`)}</h2>
+            {analysis.data.stale ? <span className="text-xs text-amber">{t("analysis.stale")}</span> : null}
           </div>
-          {selectedChart === "financials" && analysis.data?.financialsByAsset.length ? (
-            <label className="mb-4 grid gap-1 text-sm text-slate-300 sm:max-w-sm">
-              <span>{t("analysis.stock")}</span>
-              <select className="input" onChange={(event) => { setSelectedFinancialSymbol(event.target.value); }} value={selectedFinancialAsset?.symbol ?? ""}>
-                {analysis.data.financialsByAsset.map((asset) => (
-                  <option key={asset.symbol} value={asset.symbol}>
-                    {asset.name}
-                  </option>
-                ))}
-              </select>
-              {selectedFinancialAsset ? (
-                <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-400">
-                  <AssetIcon className="h-7 w-7" symbol={selectedFinancialAsset.symbol} />
-                  <span className="truncate">{selectedFinancialAsset.name}</span>
-                </span>
-              ) : null}
-            </label>
-          ) : null}
-          {renderChart()}
+          <div className={MOTION.rise} key={activeChart}>
+            <AnalysisChart analysis={analysis.data} chart={activeChart} />
+          </div>
         </section>
       )}
     </div>

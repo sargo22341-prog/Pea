@@ -18,7 +18,8 @@ interface FinancialStatementRow {
 
 const UNKNOWN = "Unknown";
 const ETF_DIVERSIFIED = "ETF / Diversified";
-export const SECTOR_EXPOSURE_VERSION = 2;
+/** Version du calcul de l'analyse : l'incrémenter invalide les résultats mis en cache par une version antérieure. */
+export const ANALYSIS_PAYLOAD_VERSION = 3;
 const ETF_SECTOR_LABELS: Record<string, string> = {
   realestate: "Immobilier",
   consumer_cyclical: "Consommation cyclique",

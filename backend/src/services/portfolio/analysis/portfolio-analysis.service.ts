@@ -7,7 +7,8 @@ import { frontendBlockCache } from "../../shared/frontend-block-cache.service.js
 import { logger } from "../../shared/logger.service.js";
 import { isMarketDataUnavailable } from "../../yahoo/index.js";
 import { portfolioService } from "../portfolio.service.js";
-import { SECTOR_EXPOSURE_VERSION, addAllocation, aggregateFinancials, annualFinancialRows, finalizeAllocation, getCountry, getLogo, getPositionSectorExposure, getSector, isEtf, latestNetMargin, persistedFundamentals, safeText, type Fundamentals } from "./portfolio-analysis.helpers.js";
+import { buildQualityAnalysis, type AnalyzedPosition } from "./analysis-quality.js";
+import { ANALYSIS_PAYLOAD_VERSION, addAllocation, aggregateFinancials, annualFinancialRows, finalizeAllocation, getCountry, getLogo, getPositionSectorExposure, getSector, isEtf, latestNetMargin, persistedFundamentals, safeText, type Fundamentals } from "./portfolio-analysis.helpers.js";
 
 export { getPositionSectorExposure } from "./portfolio-analysis.helpers.js";
 
@@ -47,12 +48,12 @@ export class PortfolioAnalysisService {
     const cacheUserId = String(resolvedUserId);
     if (config.enableMarketLiveRefresh) {
       const cached = frontendBlockCache.read(cacheUserId, "analysis") as PortfolioAnalysis | undefined;
-      if (cached?.sectorExposureVersion === SECTOR_EXPOSURE_VERSION) return cached;
+      if (cached?.payloadVersion === ANALYSIS_PAYLOAD_VERSION) return cached;
     }
     const portfolio = await portfolioService.summary("1d", resolvedUserId);
     const totalValue = portfolio.totalValue || portfolio.positions.reduce((sum, position) => sum + position.marketValue, 0);
     if (!portfolio.positions.length || !totalValue) {
-      const empty = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [], sectorExposureVersion: SECTOR_EXPOSURE_VERSION };
+      const empty: PortfolioAnalysis = { countryAllocation: [], sectorAllocation: [], treemap: [], netMargins: [], financials: [], financialsByAsset: [], ...buildQualityAnalysis([]), payloadVersion: ANALYSIS_PAYLOAD_VERSION };
       if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", empty, chartConfigService.getSnapshotRefreshIntervalMs());
       return empty;
     }
@@ -82,6 +83,7 @@ export class PortfolioAnalysisService {
     const netMargins: NetMarginItem[] = [];
     const financialsByAsset: AssetFinancials[] = [];
     const financialInputs: { weight: number; fundamentals?: Fundamentals | undefined; etf: boolean }[] = [];
+    const analyzedPositions: AnalyzedPosition[] = [];
     let stale = portfolio.positions.some((position) => position.marketDataUnavailable || position.quote?.stale);
 
     for (const { position, result } of fundamentalResults) {
@@ -99,6 +101,7 @@ export class PortfolioAnalysisService {
       }
       treemap.push({ symbol: position.symbol, name: position.name, value: weight, percentage: weight, logoUrl, country, sector });
       financialInputs.push({ weight: weight / 100, fundamentals, etf });
+      analyzedPositions.push({ position, fundamentals, weight, etf, logoUrl });
 
       if (!etf) {
         const rows = annualFinancialRows(fundamentals);
@@ -117,15 +120,16 @@ export class PortfolioAnalysisService {
       }
     }
 
-    const payload = {
+    const payload: PortfolioAnalysis = {
       countryAllocation: finalizeAllocation(countryAllocation),
       sectorAllocation: finalizeAllocation(sectorAllocation),
       treemap: treemap.sort((a, b) => b.value - a.value),
       netMargins: netMargins.sort((a, b) => b.netMargin - a.netMargin),
       financialsByAsset: financialsByAsset.sort((a, b) => a.name.localeCompare(b.name)),
       financials: aggregateFinancials(financialInputs),
+      ...buildQualityAnalysis(analyzedPositions),
       stale,
-      sectorExposureVersion: SECTOR_EXPOSURE_VERSION
+      payloadVersion: ANALYSIS_PAYLOAD_VERSION
     };
     if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "analysis", payload, chartConfigService.getSnapshotRefreshIntervalMs());
     return payload;

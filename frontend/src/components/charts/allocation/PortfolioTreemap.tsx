@@ -1,5 +1,6 @@
 import type { PortfolioTreemapItem } from "@pea/shared";
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { Tooltip, Treemap } from "recharts";
 import { useAuthenticatedImageUrl } from "../../../hooks/useAuthenticatedImageUrl";
 import { AssetIcon } from "../../common/AssetIcon";
@@ -45,6 +46,7 @@ function TreemapContent(props: TreemapContentProps) {
 }
 
 function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
+  const { t } = useTranslation("common");
   const item = payload?.[0]?.payload;
   if (!active || !item) return null;
 
@@ -55,7 +57,13 @@ function TreemapTooltip({ active, payload }: TreemapTooltipProps) {
         <p className="max-w-[240px] truncate font-semibold text-white">{item.name}</p>
       </div>
       <p className="mt-1 text-slate-200">{formatPercent(item.percentage)} du portefeuille</p>
-      <p className="mt-1 text-xs text-slate-400">{item.country ?? "N/A"} · {item.sector ?? "N/A"}</p>
+      {item.viaEtf ? (
+        item.viaEtf.map((source) => (
+          <p className="mt-1 text-xs text-slate-400" key={source.symbol}>{t("analysis.lookThrough.viaEtf", { weight: formatPercent(source.weight), etf: source.name })}</p>
+        ))
+      ) : (
+        <p className="mt-1 text-xs text-slate-400">{item.country ?? "N/A"} · {item.sector ?? "N/A"}</p>
+      )}
     </div>
   );
 }

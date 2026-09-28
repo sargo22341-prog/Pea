@@ -34,6 +34,7 @@ export {
   ratePayoutRatio,
   summarizeDividendGrowth
 } from "./dividends.js";
+export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
 export { parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {
   OBJECTIVE_SIMULATION_DEFAULTS,

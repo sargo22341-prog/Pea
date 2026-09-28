@@ -77,7 +77,78 @@
       "sector": "Repartition par secteur",
       "treemap": "Treemap du portefeuille",
       "netMargin": "Marges nettes par entreprise",
-      "financials": "Revenue / Net Income / Marge"
+      "financials": "Revenue / Net Income / Marge",
+      "capitalization": "Capitalisation et devise",
+      "lookThrough": "Transparence ETF",
+      "valuation": "Valorisation du portefeuille",
+      "dividendSustainability": "Dividendes durables",
+      "correlation": "Correlation entre les lignes"
+    },
+    "families": {
+      "allocation": "Repartition",
+      "quality": "Qualite"
+    },
+    "valuation": {
+      "trailingPE": "PER pondere",
+      "trailingPEHint": "Cours divise par le benefice des 12 derniers mois, calcule pour l'ensemble du portefeuille (moyenne harmonique ponderee par la valeur). Les lignes en perte sont exclues.",
+      "dividendYield": "Rendement pondere",
+      "dividendYieldHint": "Dividende annuel divise par le cours, pondere par le poids de chaque ligne. Une action qui ne verse pas de dividende compte pour 0 %.",
+      "beta": "Beta pondere",
+      "betaHint": "Sensibilite du portefeuille au marche : 1 = bouge comme le marche, au-dessus = plus volatil. Pour un ETF, beta sur 3 ans par rapport a son indice.",
+      "coverage": "Calcule sur {{value}} du portefeuille",
+      "exclusionNote": "Les lignes sans donnee sont exclues de chaque moyenne ; la part couverte est indiquee sous chaque indicateur.",
+      "byAsset": "Voir par actif",
+      "asset": "Actif",
+      "weight": "Poids",
+      "notMeaningful": "n.s."
+    },
+    "lookThrough": {
+      "mode": "Affichage de la transparence ETF",
+      "direct": "Direct",
+      "withEtf": "Direct + via ETF",
+      "highlight": "Via vos ETF, vous detenez {{via}} de {{name}}.",
+      "highlightWithDirect": "Via vos ETF, vous detenez {{via}} de plus en {{name}}, soit {{total}} au total.",
+      "viaEtf": "dont {{weight}} via {{etf}}",
+      "undisclosed": "{{weight}} du portefeuille n'est pas detaille : Yahoo ne publie que les 10 premieres lignes de chaque ETF."
+    },
+    "dividends": {
+      "payoutRatio": "Taux de distribution",
+      "payoutRatioHint": "Part du benefice versee en dividende. Jusqu'a 60 % : confortable ; au-dela de 90 % ou en cas de perte : fragile.",
+      "fcfCoverage": "Couverture FCF",
+      "fcfCoverageHint": "Flux de tresorerie disponible divise par les dividendes verses (dernier exercice consulte sur la fiche actif). En dessous de 1, le dividende n'est pas finance par la tresorerie.",
+      "coverageValue": "x{{value}}",
+      "count": {
+        "good_one": "{{count}} dividende confortable",
+        "good_other": "{{count}} dividendes confortables",
+        "fair_one": "{{count}} a surveiller",
+        "fair_other": "{{count}} a surveiller",
+        "weak_one": "{{count}} fragile",
+        "weak_other": "{{count}} fragiles"
+      }
+    },
+    "capitalization": {
+      "title": "Capitalisation",
+      "hint": "Grandes capitalisations au-dela de 10 Md EUR, moyennes de 2 a 10 Md EUR, petites en dessous. Les ETF forment une tranche a part.",
+      "currencyTitle": "Devise de cotation",
+      "currencyHint": "Devise dans laquelle la ligne est cotee. Pour un ETF, elle peut differer de la devise des titres qu'il detient.",
+      "buckets": {
+        "large": "Grandes capitalisations",
+        "mid": "Moyennes capitalisations",
+        "small": "Petites capitalisations",
+        "etf": "ETF",
+        "unknown": "Non classees"
+      }
+    },
+    "correlation": {
+      "summary_one": "{{count}} paire tres correlee (au-dela de {{threshold}}) :",
+      "summary_other": "{{count}} paires tres correlees (au-dela de {{threshold}}) :",
+      "none": "Aucune paire tres correlee (au-dela de {{threshold}}) : vos lignes evoluent de facon distincte.",
+      "hint": "Coefficient de correlation des variations journalieres sur un an : 1 = les deux lignes bougent ensemble, 0 = aucun lien, -1 = en sens oppose. Deux lignes tres correlees diversifient peu.",
+      "pair": "{{a}} et {{b}}",
+      "observations_one": "Calculee sur {{count}} seance commune.",
+      "observations_other": "Calculee sur {{count}} seances communes.",
+      "showMatrix": "Voir la matrice",
+      "cell": "{{a}} / {{b}} : {{value}}"
     }
   },
   "admin": {

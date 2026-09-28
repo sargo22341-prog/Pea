@@ -1,5 +1,6 @@
 import type { CurrencyCode, DisplayRangeKey, MarketSessionDto, MarketState, Quote, RangeKey } from "../market.js";
 import type { FinancialYearItem } from "../fundamentals.js";
+import type { DividendSustainabilityItem, LookThroughSource, PortfolioCorrelation, PortfolioLookThrough, PortfolioValuation } from "./analysis.js";
 
 export interface UserAssetPositionDto {
   userId: string;
@@ -163,6 +164,8 @@ export interface PortfolioTreemapItem {
   logoUrl?: string | undefined;
   country?: string;
   sector?: string;
+  /** Vue « Direct + via ETF » : part de la ligne détenue à travers chaque ETF. */
+  viaEtf?: LookThroughSource[] | undefined;
 }
 
 export interface NetMarginItem {
@@ -188,7 +191,16 @@ export interface PortfolioAnalysis {
   netMargins: NetMarginItem[];
   financials: FinancialYearItem[];
   financialsByAsset: AssetFinancials[];
+  /** Tranches `CapitalizationBucket` (large, mid, small, etf, unknown) en guise de `name`. */
+  capitalizationAllocation: AllocationChartItem[];
+  /** Devise de cotation de chaque ligne. */
+  currencyAllocation: AllocationChartItem[];
+  valuation: PortfolioValuation;
+  lookThrough: PortfolioLookThrough;
+  dividendSustainability: DividendSustainabilityItem[];
+  correlation?: PortfolioCorrelation | undefined;
   stale?: boolean;
-  sectorExposureVersion?: number;
+  /** Version du calcul : un résultat mis en cache par une version antérieure est recalculé. */
+  payloadVersion?: number;
 }
 

@@ -29,3 +29,7 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Fiche actif : bloc « Croissance et soutenabilité » dans l’onglet Dividendes (taux de distribution, couverture par le flux de trésorerie disponible, croissance, hausses consécutives).
 - Correction : les versements trimestriels décalés d’une année sur l’autre ne sont plus comptés deux fois dans les estimations, et une estimation dépassée sans versement n’est plus présentée comme à venir.
 - Fiche actif : les séries « Chiffre d’affaires » et « Résultat net » du graphique des résultats sont désormais traduites.
+- Analyse : onglets regroupés en « Répartition » et « Qualité », seuls les onglets disposant de données sont proposés.
+- Analyse : valorisation du portefeuille (PER, rendement et bêta pondérés, avec la part du portefeuille couverte et le détail par actif).
+- Analyse : transparence ETF, qui répartit vos ETF selon leurs principales lignes (« via vos ETF, vous détenez 3 % d’ASML »), en vue directe ou éclatée.
+- Analyse : dividendes durables (taux de distribution et couverture par le flux de trésorerie, du plus sûr au plus fragile), répartition par capitalisation et par devise, et corrélation entre les lignes sur un an.

@@ -1,4 +1,4 @@
-import type { AssetFinancialStatements, StatementsPeriod } from "@pea/shared";
+import type { AssetFinancialStatements, FinancialStatementRow, StatementsPeriod } from "@pea/shared";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { featureFlagsService } from "../../admin/feature-flags.service.js";
 import { STATEMENTS_FRESH_TTL_S, STATEMENTS_STALE_REJECT_S } from "../cache/cache.constants.js";
@@ -41,6 +41,18 @@ function fetchSeries(symbol: string, period: StatementsPeriod, module: Statement
 function statementsCurrency(symbol: string) {
   const summary = readCachedFundamentalsSummary(symbol)?.data;
   return rawString(summary?.financialData?.financialCurrency) ?? rawString(summary?.price?.currency);
+}
+
+/**
+ * Exercices annuels déjà en cache (ouverts depuis une fiche actif), sans jamais appeler Yahoo.
+ * Vide quand l'administrateur a coupé les fondamentaux étendus.
+ */
+export function readCachedAnnualStatementRows(symbol: string): FinancialStatementRow[] {
+  if (!featureFlagsService.isEnabled("extended_fundamentals")) return [];
+  const key = symbol.toUpperCase();
+  const cashFlow = readSeriesCache(key, "annual", "cash-flow");
+  if (!cashFlow) return [];
+  return statementRowsFromTimeSeries(readSeriesCache(key, "annual", "balance-sheet")?.data, cashFlow.data);
 }
 
 /**
