@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { getMobileNavItems } from "../../components/common/mobileNavItems";
 
 describe("navigation items", () => {
-  it("adds the calendar and shows the markets page only when the administrator enables it", () => {
-    const paths = (marketsEnabled: boolean) => getMobileNavItems({ assetNewsEnabled: false }, { marketsEnabled }).map((item) => item.path);
-    expect(paths(true)).toEqual(["/", "/markets", "/search", "/analysis", "/calendar", "/dividends"]);
-    expect(paths(false)).not.toContain("/markets");
+  it("keeps search and calendar out of the menu: search opens from Markets, the calendar from the dashboard", () => {
+    const paths = (marketsEnabled: boolean) => getMobileNavItems({ assetNewsEnabled: true }, { marketsEnabled }).map((item) => item.path);
+    expect(paths(true)).toEqual(["/", "/news", "/markets", "/analysis", "/dividends"]);
+  });
+
+  it("puts search back in the menu when the administrator switches the markets page off", () => {
+    const paths = getMobileNavItems({ assetNewsEnabled: false }, { marketsEnabled: false }).map((item) => item.path);
+    expect(paths).toEqual(["/", "/search", "/analysis", "/dividends"]);
   });
 });

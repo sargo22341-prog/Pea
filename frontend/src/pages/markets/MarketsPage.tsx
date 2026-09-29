@@ -1,4 +1,4 @@
-import { SlidersHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -37,8 +37,9 @@ export function MarketsPage() {
           </div>
           <p className="muted">{t("markets:subtitle")}</p>
         </div>
-        <Link className="btn-ghost h-9 px-3 text-xs" to="/search">
-          <SlidersHorizontal size={15} />
+        {/* Seul accès à la Recherche : elle n'a plus d'entrée dans le menu (voir plan.md, Navigation). */}
+        <Link className="btn-primary" to="/search">
+          <Search size={16} />
           {t("markets:searchAsset")}
         </Link>
       </div>

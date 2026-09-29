@@ -37,4 +37,4 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Dashboard : lien « Voir le calendrier » au-dessus des prochains évènements.
 - Nouvelle page « Marchés » : indices, euro/dollar, or, Brent et taux américain à 10 ans avec leur courbe du mois, actualisés chaque minute ; désactivable par l'administrateur.
 - Les listes Yahoo Finance quittent la page Recherche pour la page Marchés : six nouvelles listes (croissance technologique, petites capitalisations, fonds, obligations à haut rendement…), filtre « PEA uniquement » et PER, rendement et capitalisation sous chaque titre.
-- Menu : entrées « Marchés » et « Calendrier » ; Dividendes prend une icône de pièces.
+- Menu allégé : nouvelle entrée « Marchés », d’où l’on ouvre la recherche (« Rechercher un actif ») ; le calendrier s’ouvre depuis le dashboard ; Dividendes prend une icône de pièces.

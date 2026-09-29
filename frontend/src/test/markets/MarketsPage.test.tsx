@@ -56,6 +56,8 @@ describe("MarketsPage", () => {
     expect(screen.getByText("7 500,00")).toBeInTheDocument();
     expect(screen.queryByText("Or")).not.toBeInTheDocument();
 
+    expect(screen.getByRole("link", { name: "Rechercher un actif" })).toHaveAttribute("href", "/search");
+
     fireEvent.click(screen.getByRole("button", { name: /Matieres premieres/ }));
     expect(screen.getByText("Or")).toBeInTheDocument();
   });
