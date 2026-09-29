@@ -408,7 +408,9 @@
         "similar_assets": "Similar assets",
         "similar_assetsHelp": "Suggestions of related assets on the asset page (1 call per asset per week).",
         "markets_page": "Markets page",
-        "markets_pageHelp": "Indices, currencies and commodities (1 quote batch per minute, only while the page is open)."
+        "markets_pageHelp": "Indices, currencies and commodities (1 quote batch per minute, only while the page is open).",
+        "alerts": "Alerts",
+        "alertsHelp": "Price, moving average, high / low, consensus and ex-dividend alerts (no Yahoo call: evaluated on the quotes already refreshed)."
       }
     }
   },
@@ -420,7 +422,16 @@
     "myAssets": "My assets",
     "french": "French",
     "english": "English",
-    "and": " and "
+    "and": " and ",
+    "viewLabel": "News layout",
+    "viewChronological": "Chronological",
+    "viewByAsset": "By asset",
+    "articleCount_one": "{{count}} article",
+    "articleCount_other": "{{count}} articles",
+    "earningsCount_one": "{{count}} about earnings",
+    "earningsCount_other": "{{count}} about earnings",
+    "earningsBadge": "Earnings",
+    "earningsHint": "Published within a day of the asset's earnings release."
   },
   "calendar": {
     "title": "Calendar events",

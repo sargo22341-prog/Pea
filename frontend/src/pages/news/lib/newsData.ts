@@ -5,7 +5,6 @@ import { api } from "../../../lib/api";
 import type { AssetNewsCacheEntry, AsyncNewsState, NewsMode } from "./newsTypes";
 
 export const newsPageSize = 20;
-export const portfolioOnlyStorageKey = "pea.news.portfolioOnly";
 
 const assetNewsBatchSize = 8;
 const assetNewsCache = new Map<string, AssetNewsCacheEntry>();
@@ -17,11 +16,6 @@ const newsDebugEnabled = __APP_DEBUG__;
 const maxAssetNewsCacheEntries = 10;
 const maxGlobalNewsCacheEntries = 50;
 const maxNewsInFlightRequests = 50;
-
-export function readInitialPortfolioMode() {
-  const stored = window.localStorage.getItem(portfolioOnlyStorageKey);
-  return stored === null ? true : stored === "true";
-}
 
 export function getCachedAssetArticles(user: User) {
   return assetNewsCache.get(assetCacheKey(user))?.articles ?? null;

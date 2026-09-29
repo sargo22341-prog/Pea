@@ -1,0 +1,42 @@
+{
+  "title": "Compare",
+  "subtitle": "Compare {{min}} to {{max}} assets: performance, valuation, financial health, dividend, analysts and ETF fees.",
+  "open": "Compare",
+  "pickAtLeast": "Add at least {{min}} assets to start the comparison.",
+  "openDetailed": "Detailed comparison",
+  "issues": {
+    "tooMany": "{{max}} assets at most: the following ones were ignored.",
+    "invalid": "Some symbols in the link are invalid and were ignored."
+  },
+  "selection": {
+    "add": "Add an asset",
+    "remove": "Remove {{symbol}}"
+  },
+  "chart": {
+    "title": "Performance",
+    "empty": "History unavailable for these assets.",
+    "preparing": "History being prepared: {{symbols}}"
+  },
+  "families": {
+    "valuation": "Valuation",
+    "health": "Financial health",
+    "dividend": "Dividend",
+    "analysts": "Analysts",
+    "fund": "ETF fees and performance"
+  },
+  "metrics": {
+    "forwardPE": "Forward P/E",
+    "fiftyTwoWeekChange": "52-week change",
+    "dividendYield": "Yield",
+    "dividendRate": "Annual dividend",
+    "payoutRatio": "Payout ratio",
+    "recommendationMean": "Consensus score (1 = strong buy)",
+    "oneYearReturn": "1-year return",
+    "threeYearReturn": "3-year return (annualised)",
+    "sharpe": "Sharpe ratio"
+  },
+  "table": {
+    "empty": "No indicator available for these assets.",
+    "disclaimer": "Yahoo Finance data, for information only. The best value of each row is in green; n/a = not applicable or not published."
+  }
+}

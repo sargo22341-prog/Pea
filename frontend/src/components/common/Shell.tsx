@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useFeatureEnabled } from "../../contexts/feature-flags-context";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
+import { AlertsBell } from "./alerts/AlertsBell";
 import { getMobileNavItems } from "./mobileNavItems";
 import { MOTION } from "./motion";
 import { UserMenu } from "./UserMenu";
@@ -26,6 +27,7 @@ export function Shell({ user }: { user: User }) {
   const shouldLoadProfileIcon = hasProfileIcon && !profileFailed;
   const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
   const marketsEnabled = useFeatureEnabled("markets_page");
+  const alertsEnabled = useFeatureEnabled("alerts");
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }, { marketsEnabled }), [user.assetNewsEnabled, marketsEnabled]);
 
   useEffect(() => {
@@ -58,7 +60,8 @@ export function Shell({ user }: { user: User }) {
               <p className="text-xs text-slate-400">{t("common:app.subtitle")}</p>
             </div>
           </div>
-          <div className="lg:hidden">
+          <div className="flex items-center gap-1 lg:hidden">
+            {alertsEnabled && <AlertsBell />}
             <UserMenu
               compact
               onProfileIconError={() => { setProfileFailed(true); }}
@@ -78,6 +81,7 @@ export function Shell({ user }: { user: User }) {
                 {t(link.labelKey)}
               </NavLink>
             ))}
+            {alertsEnabled && <AlertsBell />}
             <UserMenu
               onProfileIconError={() => { setProfileFailed(true); }}
               profileIconUrl={profileIconUrl}

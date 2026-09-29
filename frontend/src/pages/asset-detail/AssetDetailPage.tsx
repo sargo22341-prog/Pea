@@ -1,14 +1,17 @@
-import type { RangeKey, User } from "@pea/shared";
+import { COMPARE_MAX_SYMBOLS, type RangeKey, type User } from "@pea/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { CompareModal } from "../../components/common/CompareModal";
 import { MOTION } from "../../components/common/motion";
+import { useFeatureEnabled } from "../../contexts/feature-flags-context";
 import { useAssetComparisonSeries } from "../../hooks/useAssetComparisonSeries";
 import { useMarketEventReload } from "../../hooks/useMarketEventReload";
 import { normalizeTimeZone } from "../../lib/timezone";
+import { compareLink } from "../compare/compare-symbols";
 import { AssetDetailHeader } from "./components/AssetDetailHeader";
 import { AssetHistorySection } from "./components/AssetHistorySection";
+import { CreateAlertModal } from "./components/alerts/CreateAlertModal";
 import { EditPositionModal } from "./components/EditPositionModal";
 import { chartReferenceLevels, hasChartLevels } from "./components/insights/insight-levels";
 import { SplitBanner } from "./components/splits/SplitBanner";
@@ -34,6 +37,8 @@ export function AssetDetailPage({ user }: { user: User }) {
   const { symbol = "" } = useParams();
   const [range, setRange] = useState<RangeKey>(() => user.defaultChartRange);
   const [comparing, setComparing] = useState(false);
+  const [creatingAlert, setCreatingAlert] = useState(false);
+  const alertsEnabled = useFeatureEnabled("alerts");
   const [compareTargets, setCompareTargets] = useState<{ symbol: string; name: string }[]>([]);
   const { series: comparisonSeries, error: comparisonError, preparingSymbols } = useAssetComparisonSeries(compareTargets, range);
   const { levels: levelsSelected, overlays, toggleLevels, toggleOverlay } = useChartOverlays();
@@ -95,6 +100,7 @@ export function AssetDetailPage({ user }: { user: User }) {
           displayPrice={displayPrice}
           marketUnavailable={marketUnavailable}
           onAdd={() => void editor.openPositionEditor()}
+          onCreateAlert={alertsEnabled ? () => { setCreatingAlert(true); } : undefined}
           onEdit={() => { editor.setEditing(true); }}
           onToggleWatchlist={() => void toggleWatchlist()}
           peaEligibilityStatus={asset.data.peaEligibility.status}
@@ -158,6 +164,9 @@ export function AssetDetailPage({ user }: { user: User }) {
           startWithDraft={editor.startWithDraft}
         />
       )}
+      {creatingAlert && (
+        <CreateAlertModal currency={quote.currency} currentPrice={displayPrice} name={quote.name} onClose={() => { setCreatingAlert(false); }} symbol={quote.symbol} />
+      )}
       {comparing && (
         <CompareModal
           currentSymbol={symbol}
@@ -165,6 +174,7 @@ export function AssetDetailPage({ user }: { user: User }) {
           onAdd={addCompareTarget}
           onClose={() => { setComparing(false); }}
           onRemove={(targetSymbol) => { setCompareTargets((prev) => prev.filter((item) => item.symbol !== targetSymbol)); }}
+          detailedCompareHref={compareLink([symbol, ...compareTargets.map((target) => target.symbol)].slice(0, COMPARE_MAX_SYMBOLS))}
           selected={compareTargets}
         />
       )}

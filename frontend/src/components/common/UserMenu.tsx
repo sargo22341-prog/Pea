@@ -1,8 +1,9 @@
 import type { User } from "@pea/shared";
 import { ChevronDown, Settings, Shield, Target } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
+import { useDismiss } from "../../hooks/useDismiss";
 import { MOTION } from "./motion";
 
 interface UserMenuProps {
@@ -21,22 +22,8 @@ export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const initial = user.username.slice(0, 1).toUpperCase();
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeOnPointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnPointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
+  const close = useCallback(() => { setOpen(false); }, []);
+  useDismiss(open, rootRef, close);
 
   const avatar = !shouldLoadProfileIcon || !profileIconUrl ? (
     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-sky">

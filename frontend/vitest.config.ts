@@ -5,6 +5,10 @@ import { defineConfig } from "vitest/config";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export default defineConfig({
+  // Constante injectée par Vite au build (`vite.config.ts`) : journaux de debug coupés en test.
+  define: {
+    __APP_DEBUG__: "false"
+  },
   resolve: {
     alias: {
       "@pea/shared": path.resolve(projectRoot, "shared/src/index.ts")

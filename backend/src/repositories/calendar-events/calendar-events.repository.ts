@@ -97,6 +97,16 @@ export function readCalendarEventsInRange(userId: number, scope: CalendarScope, 
   `).all({ userId, fromDate, toDateExclusive }) as RawEventRow[];
 }
 
+/** Dates des publications de résultats de plusieurs actifs entre deux instants ISO (bornes incluses). */
+export function readEarningsDatesForSymbols(symbols: string[], fromIso: string, toIso: string) {
+  if (!symbols.length) return [];
+  const placeholders = symbols.map(() => "?").join(", ");
+  return db.prepare(`
+    SELECT symbol, event_date FROM asset_calendar_events
+    WHERE event_type = 'earnings' AND symbol IN (${placeholders}) AND event_date >= ? AND event_date <= ?
+  `).all(...symbols.map((symbol) => symbol.toUpperCase()), fromIso, toIso) as { symbol: string; event_date: string }[];
+}
+
 /** Première date d'un type d'évènement à partir de `fromIso` (par exemple le prochain détachement annoncé). */
 export function readNextEventDate(symbol: string, eventType: CalendarEventType, fromIso: string): string | undefined {
   const row = db.prepare(

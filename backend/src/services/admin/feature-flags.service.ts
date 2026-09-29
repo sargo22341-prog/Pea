@@ -7,14 +7,16 @@ import { logger } from "../shared/logger.service.js";
 /**
  * Valeurs par défaut : les fonctionnalités à coût Yahoo récurrent (signaux, actifs similaires,
  * comptes trimestriels) restent désactivées tant que l'administrateur n'a pas mesuré leur coût.
- * La page Marchés (un lot de cotations par minute, seulement quand elle est ouverte) est active.
+ * La page Marchés (un lot de cotations par minute, seulement quand elle est ouverte) est active,
+ * comme les alertes (évaluées sur les cotations déjà rafraîchies, sans appel Yahoo).
  */
 export const FEATURE_DEFAULTS: Record<AppFeatureKey, boolean> = {
   extended_fundamentals: true,
   quarterly_statements: false,
   insights: false,
   similar_assets: false,
-  markets_page: true
+  markets_page: true,
+  alerts: true
 };
 
 function isFeatureKey(value: string): value is AppFeatureKey {

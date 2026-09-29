@@ -1,0 +1,42 @@
+{
+  "title": "Comparateur",
+  "subtitle": "Comparez de {{min}} a {{max}} actifs : performance, valorisation, sante financiere, dividende, analystes et frais des ETF.",
+  "open": "Comparer",
+  "pickAtLeast": "Ajoutez au moins {{min}} actifs pour lancer la comparaison.",
+  "openDetailed": "Comparer en detail",
+  "issues": {
+    "tooMany": "{{max}} actifs au maximum : les suivants ont ete ignores.",
+    "invalid": "Certains symboles du lien sont invalides et ont ete ignores."
+  },
+  "selection": {
+    "add": "Ajouter un actif",
+    "remove": "Retirer {{symbol}}"
+  },
+  "chart": {
+    "title": "Performance",
+    "empty": "Historique indisponible pour ces actifs.",
+    "preparing": "Historique en preparation : {{symbols}}"
+  },
+  "families": {
+    "valuation": "Valorisation",
+    "health": "Sante financiere",
+    "dividend": "Dividende",
+    "analysts": "Analystes",
+    "fund": "Frais et performance ETF"
+  },
+  "metrics": {
+    "forwardPE": "PER estime",
+    "fiftyTwoWeekChange": "Variation 52 semaines",
+    "dividendYield": "Rendement",
+    "dividendRate": "Dividende annuel",
+    "payoutRatio": "Taux de distribution",
+    "recommendationMean": "Note du consensus (1 = achat fort)",
+    "oneYearReturn": "Rendement 1 an",
+    "threeYearReturn": "Rendement 3 ans (annualise)",
+    "sharpe": "Ratio de Sharpe"
+  },
+  "table": {
+    "empty": "Aucun indicateur disponible pour ces actifs.",
+    "disclaimer": "Donnees Yahoo Finance, a titre d'information uniquement. La meilleure valeur de chaque ligne est en vert ; n/a = non applicable ou non publie."
+  }
+}

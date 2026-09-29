@@ -40,6 +40,8 @@ import { appFeatureFlagsMigration } from "./admin/039-app-feature-flags.js";
 import { yahooUsageFeatureMigration } from "./admin/040-yahoo-usage-feature.js";
 import { calendarEarningsEstimatesMigration } from "./market/041-calendar-earnings-estimates.js";
 import { assetRecommendationHistoryMigration } from "./market/042-asset-recommendation-history.js";
+import { userScreenerPresetsMigration } from "./accounts/043-user-screener-presets.js";
+import { userAlertsMigration } from "./alerts/044-user-alerts.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -84,5 +86,7 @@ export const migrations: Migration[] = [
   appFeatureFlagsMigration,
   yahooUsageFeatureMigration,
   calendarEarningsEstimatesMigration,
-  assetRecommendationHistoryMigration
+  assetRecommendationHistoryMigration,
+  userScreenerPresetsMigration,
+  userAlertsMigration
 ];

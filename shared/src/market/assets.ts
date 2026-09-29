@@ -168,6 +168,11 @@ export interface NewsArticle {
     symbol: string;
     name: string;
   }[];
+  /**
+   * Actifs liés dont une publication de résultats tombe à un jour près de la date de l'article
+   * (jours civils du fuseau de l'application). Renseigné par le fil « Mes actifs ».
+   */
+  earningsSymbols?: string[];
 }
 
 export interface NewsFeedPage {

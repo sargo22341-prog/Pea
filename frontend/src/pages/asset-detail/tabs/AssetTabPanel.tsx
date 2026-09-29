@@ -1,6 +1,6 @@
 import type { AssetDetails, AssetInsights, RangeKey } from "@pea/shared";
 import { MOTION } from "../../../components/common/motion";
-import { NewsArticleList } from "../../../components/common/NewsArticleList";
+import { NewsArticleList } from "../../../components/common/news/NewsArticleList";
 import { EtfComposition } from "../components/etf/EtfComposition";
 import { EtfPerformance } from "../components/etf/EtfPerformance";
 import { AnalystsTab } from "./AnalystsTab";

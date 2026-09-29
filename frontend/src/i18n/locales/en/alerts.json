@@ -1,0 +1,88 @@
+{
+  "title": "Alerts",
+  "subtitle": "Price thresholds, 200-day moving average, 52-week high / low, analyst consensus and ex-dividend dates.",
+  "disclaimer": "Alerts are evaluated during trading sessions, each time the quotes of the assets in your positions and watchlist are refreshed, without any extra Yahoo Finance call. For information only, not investment advice.",
+  "markAllRead": "Mark all as read",
+  "tabs": {
+    "alerts_one": "My alerts ({{count}})",
+    "alerts_other": "My alerts ({{count}})",
+    "history": "History",
+    "historyUnread_one": "History ({{count}} unread)",
+    "historyUnread_other": "History ({{count}} unread)"
+  },
+  "bell": {
+    "label": "Alerts",
+    "labelUnread_one": "Alerts, {{count}} unread",
+    "labelUnread_other": "Alerts, {{count}} unread",
+    "title": "Latest alerts",
+    "empty": "No alert triggered yet.",
+    "seeAll": "See all alerts"
+  },
+  "types": {
+    "price_above": "Price above a threshold",
+    "price_below": "Price below a threshold",
+    "daily_change": "Daily change greater than",
+    "ma200_cross": "200-day moving average cross",
+    "new_52w_high": "New 52-week high",
+    "new_52w_low": "New 52-week low",
+    "recommendation_change": "Analyst recommendation change",
+    "ex_dividend_announced": "Ex-dividend date announced"
+  },
+  "directions": {
+    "up": "Upwards",
+    "down": "Downwards",
+    "both": "Both ways"
+  },
+  "describe": {
+    "price_above": "Price above {{value}}",
+    "price_below": "Price below {{value}}",
+    "daily_change": "Daily change of at least {{value}} % (up or down)",
+    "ma200_cross_up": "Crossing above the 200-day moving average",
+    "ma200_cross_down": "Crossing below the 200-day moving average",
+    "ma200_cross_both": "200-day moving average cross",
+    "new_52w_high": "New 52-week high",
+    "new_52w_low": "New 52-week low",
+    "recommendation_change": "Analyst recommendation change",
+    "ex_dividend_announced": "Ex-dividend date announced"
+  },
+  "events": {
+    "price_above": "Price at {{price}}, above {{threshold}}",
+    "price_below": "Price at {{price}}, below {{threshold}}",
+    "daily_change": "Daily change: {{change}} %",
+    "ma200_cross_up": "Crossed above the 200-day moving average ({{price}})",
+    "ma200_cross_down": "Crossed below the 200-day moving average ({{price}})",
+    "new_52w_high": "New 52-week high at {{price}}",
+    "new_52w_low": "New 52-week low at {{price}}",
+    "recommendation_change": "Recommendation: {{from}} → {{to}}",
+    "ex_dividend_announced": "Ex-dividend date announced: {{date}}"
+  },
+  "list": {
+    "empty": "No alert yet. Create one from an asset page with the bell button.",
+    "lastTriggered": "Triggered on {{date}}",
+    "toggle": "Enable or pause the alert on {{name}}",
+    "delete": "Delete the alert on {{name}}",
+    "deleteTitle": "Delete the alert?",
+    "deleteConfirm": "The alert \"{{condition}}\" on {{name}} and its history will be deleted."
+  },
+  "history": {
+    "empty": "No trigger yet.",
+    "unread_one": "{{count}} unread alert",
+    "unread_other": "{{count}} unread alerts",
+    "unreadItem": "unread"
+  },
+  "create": {
+    "open": "Create an alert on {{name}}",
+    "title": "Alert on {{name}}",
+    "type": "Trigger when",
+    "thresholdPrice": "Threshold ({{currency}})",
+    "thresholdPercent": "Absolute change (%)",
+    "direction": "Direction",
+    "advanced": "Advanced options",
+    "cooldown": "Cooldown (hours)",
+    "cooldownHelp": "After a trigger, the alert stays silent for this delay.",
+    "evaluationNote": "Evaluated during trading sessions if the asset is in your positions or watchlist.",
+    "submit": "Create the alert",
+    "done": "Alert created: {{condition}}.",
+    "seeAll": "My alerts"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "title": "PEA screener",
+  "subtitle": "Filter the stocks and ETFs already tracked on this instance: yield, P/E, market cap, sector, performance.",
+  "open": "Open the screener",
+  "openCompare": "Compare assets",
+  "disclaimer": "Local filtering of the assets known to this instance (positions, watchlists, viewed assets), based on the latest cached Yahoo Finance data. For information only, not investment advice.",
+  "filters": {
+    "peaOnly": "PEA eligible only",
+    "sector": "Sector",
+    "allSectors": "All sectors",
+    "country": "Country",
+    "allCountries": "All countries",
+    "minDividendYield": "Minimum yield (%)",
+    "maxTrailingPE": "Maximum P/E",
+    "minTrailingPE": "Minimum P/E",
+    "assetType": "Asset type",
+    "minMarketCap": "Minimum market cap (bn)",
+    "maxMarketCap": "Maximum market cap (bn)",
+    "minChange52w": "Minimum 52-week performance (%)",
+    "maxChange52w": "Maximum 52-week performance (%)",
+    "maxDistanceFromHigh": "At most below the 52-week high (%)",
+    "more": "More filters",
+    "moreActive_one": "More filters ({{count}} active)",
+    "moreActive_other": "More filters ({{count}} active)"
+  },
+  "assetTypes": {
+    "all": "Stocks and ETFs",
+    "stock": "Stocks",
+    "etf": "ETFs and funds"
+  },
+  "presets": {
+    "label": "Built-in and saved filters",
+    "yield": "Yield",
+    "value": "Value",
+    "growth": "Growth",
+    "nameLabel": "Name of the filter to save",
+    "namePlaceholder": "Save as...",
+    "save": "Save filters",
+    "delete": "Delete filter {{name}}"
+  },
+  "columns": {
+    "name": "Asset",
+    "trailingPE": "P/E",
+    "dividendYield": "Yield",
+    "marketCap": "Market cap",
+    "sector": "Sector",
+    "country": "Country",
+    "change52w": "52-week perf.",
+    "distanceFromHigh": "Vs high"
+  },
+  "results": {
+    "count_one": "result",
+    "count_other": "results",
+    "truncated": "first {{count}} shown",
+    "columns": "Columns",
+    "empty": "No asset matches these filters.",
+    "pea": "PEA"
+  }
+}

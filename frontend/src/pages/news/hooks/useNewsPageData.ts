@@ -8,16 +8,17 @@ import {
   loadAssetMode,
   loadGlobalMode,
   newsPageSize,
-  portfolioOnlyStorageKey,
   preloadAssetMode,
   preloadGlobalMode,
-  preloadRemainingAssetNews,
-  readInitialPortfolioMode
+  preloadRemainingAssetNews
 } from "../lib/newsData";
+import { readBooleanPreference, writeLocalPreference } from "../../../lib/local-preference";
 import type { AsyncNewsState, NewsMode } from "../lib/newsTypes";
 
+const PORTFOLIO_ONLY_KEY = "news.portfolioOnly";
+
 export function useNewsPageData(user: User) {
-  const [portfolioOnly, setPortfolioOnly] = useState(() => readInitialPortfolioMode());
+  const [portfolioOnly, setPortfolioOnly] = useState(() => readBooleanPreference(PORTFOLIO_ONLY_KEY) ?? true);
   const [assetPage, setAssetPage] = useState(1);
   const [globalPage, setGlobalPage] = useState(1);
   const [assetNews, setAssetNews] = useState<AsyncNewsState<NewsArticle[]>>(() => ({
@@ -86,7 +87,7 @@ export function useNewsPageData(user: User) {
     setPortfolioOnly((current) => {
       const next = !current;
       const nextMode: NewsMode = next ? "assets" : "global";
-      window.localStorage.setItem(portfolioOnlyStorageKey, String(next));
+      writeLocalPreference(PORTFOLIO_ONLY_KEY, String(next));
       debugNews("changement de mode", {
         mode: nextMode,
         cache: hasModeCache(user, nextMode, globalPage) ? "hit" : "miss"
@@ -99,6 +100,7 @@ export function useNewsPageData(user: User) {
 
   return {
     articles,
+    assetArticles,
     currentPage,
     error,
     loading,

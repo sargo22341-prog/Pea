@@ -1,0 +1,59 @@
+{
+  "title": "Screener PEA",
+  "subtitle": "Filtrez les actions et ETF deja suivis sur cette instance : rendement, PER, capitalisation, secteur, performance.",
+  "open": "Ouvrir le screener",
+  "openCompare": "Comparer des actifs",
+  "disclaimer": "Filtrage local des actifs connus de l'instance (positions, listes de suivi, fiches consultees), a partir des dernieres donnees Yahoo Finance en cache. Information uniquement, pas un conseil en investissement.",
+  "filters": {
+    "peaOnly": "Eligible PEA uniquement",
+    "sector": "Secteur",
+    "allSectors": "Tous les secteurs",
+    "country": "Pays",
+    "allCountries": "Tous les pays",
+    "minDividendYield": "Rendement minimum (%)",
+    "maxTrailingPE": "PER maximum",
+    "minTrailingPE": "PER minimum",
+    "assetType": "Type d'actif",
+    "minMarketCap": "Capitalisation minimum (Md)",
+    "maxMarketCap": "Capitalisation maximum (Md)",
+    "minChange52w": "Performance 52 sem. minimum (%)",
+    "maxChange52w": "Performance 52 sem. maximum (%)",
+    "maxDistanceFromHigh": "Au plus sous le plus haut 52 sem. (%)",
+    "more": "Plus de filtres",
+    "moreActive_one": "Plus de filtres ({{count}} actif)",
+    "moreActive_other": "Plus de filtres ({{count}} actifs)"
+  },
+  "assetTypes": {
+    "all": "Actions et ETF",
+    "stock": "Actions",
+    "etf": "ETF et fonds"
+  },
+  "presets": {
+    "label": "Filtres predefinis et enregistres",
+    "yield": "Rendement",
+    "value": "Value",
+    "growth": "Croissance",
+    "nameLabel": "Nom du filtre a enregistrer",
+    "namePlaceholder": "Enregistrer sous...",
+    "save": "Enregistrer les filtres",
+    "delete": "Supprimer le filtre {{name}}"
+  },
+  "columns": {
+    "name": "Actif",
+    "trailingPE": "PER",
+    "dividendYield": "Rendement",
+    "marketCap": "Capitalisation",
+    "sector": "Secteur",
+    "country": "Pays",
+    "change52w": "Perf. 52 sem.",
+    "distanceFromHigh": "Vs plus haut"
+  },
+  "results": {
+    "count_one": "resultat",
+    "count_other": "resultats",
+    "truncated": "{{count}} premiers affiches",
+    "columns": "Colonnes",
+    "empty": "Aucun actif ne correspond a ces filtres.",
+    "pea": "PEA"
+  }
+}

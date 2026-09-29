@@ -44,7 +44,7 @@ test("feature flags are admin-only, validated and exposed to users as enabled ke
         const defaults = await (await call(adminCookie, "GET")).json();
         const userList = (await call(user.cookie, "GET")).status;
         const userUpdate = (await call(user.cookie, "PUT", { features: { insights: true } })).status;
-        const unknownKey = (await call(adminCookie, "PUT", { features: { alerts: true } })).status;
+        const unknownKey = (await call(adminCookie, "PUT", { features: { unknown_feature: true } })).status;
         const emptyChanges = (await call(adminCookie, "PUT", { features: {} })).status;
         const notBoolean = (await call(adminCookie, "PUT", { features: { insights: "yes" } })).status;
         const updated = await (await call(adminCookie, "PUT", { features: { insights: true, extended_fundamentals: false } })).json();
@@ -72,7 +72,8 @@ test("feature flags are admin-only, validated and exposed to users as enabled ke
     ["quarterly_statements", false, false],
     ["insights", false, false],
     ["similar_assets", false, false],
-    ["markets_page", true, true]
+    ["markets_page", true, true],
+    ["alerts", true, true]
   ]);
   assert.equal(result.userList, 403);
   assert.equal(result.userUpdate, 403);
@@ -84,7 +85,7 @@ test("feature flags are admin-only, validated and exposed to users as enabled ke
     ["insights", true, "admin"]
   ]);
   assert.equal(result.storedRows, 2, "only changed flags are stored, others keep the code default");
-  assert.deepEqual(result.adminMe, ["insights", "markets_page"]);
-  assert.deepEqual(result.userMe, ["insights", "markets_page"]);
+  assert.deepEqual(result.adminMe, ["insights", "markets_page", "alerts"]);
+  assert.deepEqual(result.userMe, ["insights", "markets_page", "alerts"]);
   assert.deepEqual(result.anonymousMe, []);
 });

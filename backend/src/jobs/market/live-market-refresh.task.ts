@@ -10,6 +10,7 @@ import { marketDataService } from "../../services/market/data/market-data.servic
 import { marketEventsService } from "../../services/market/events/market-events.service.js";
 import { marketSnapshotService } from "../../services/market/snapshots/market-snapshot.service.js";
 import { watchlistService } from "../../services/assets/watchlist.service.js";
+import { alertsService } from "../../services/alerts/alerts.service.js";
 import { dividendService } from "../../services/portfolio/dividends/dividend.service.js";
 import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
@@ -99,6 +100,8 @@ export class LiveMarketRefreshTask {
       updatedSymbols.push(asset.symbol);
     }
 
+    this.evaluateAlerts(updatedSymbols, rowsBySymbol, now);
+
     const portfolioAssets = this.portfolioAssetsForSymbols(updatedSymbols);
     const chartResult = await marketDataService.refreshLiveIntradayForAssets(portfolioAssets, now, {
       minAgeMs: chartConfigService.getIntradayRefreshIntervalMs()
@@ -123,6 +126,25 @@ export class LiveMarketRefreshTask {
     });
     this.lastSuccessAt = now.getTime();
     return { enabled: true, updated: updatedSymbols.length, yahooCalls };
+  }
+
+  /** Alertes des utilisateurs, évaluées sur les cotations qui viennent d'être stockées (sans appel Yahoo). */
+  private evaluateAlerts(symbols: string[], rowsBySymbol: Map<string, BatchRow>, now: Date) {
+    try {
+      alertsService.evaluateQuotes(symbols.flatMap((symbol) => {
+        const row = rowsBySymbol.get(symbol.toUpperCase());
+        return row ? [{
+          symbol,
+          price: row.quote.price,
+          changePercent: row.quote.changePercent,
+          fiftyTwoWeekHigh: row.snapshot.fiftyTwoWeekHigh ?? undefined,
+          fiftyTwoWeekLow: row.snapshot.fiftyTwoWeekLow ?? undefined,
+          currency: row.quote.currency
+        }] : [];
+      }), now);
+    } catch (error) {
+      logger.warn("market-data", "live alerts evaluation failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   /**

@@ -1,39 +1,11 @@
 import type { NewsArticle } from "@pea/shared";
-import { Newspaper } from "lucide-react";
+import { CalendarCheck, Newspaper } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { AssetIcon } from "./AssetIcon";
-import { formatArticleDate } from "../../lib/format";
-
-export function NewsArticleList({
-  articles,
-  emptyLabel,
-  showRelatedAssets = false,
-  title
-}: {
-  articles: NewsArticle[];
-  emptyLabel?: string;
-  showRelatedAssets?: boolean;
-  title?: string;
-}) {
-  const { t } = useTranslation(["common"]);
-  const resolvedTitle = title ?? t("news.articlesTitle", { ns: "common" });
-  const resolvedEmptyLabel = emptyLabel ?? t("news.emptyAsset", { ns: "common" });
-
-  return (
-    <section className="card overflow-hidden">
-      <div className="border-b border-line p-4">
-        <h2 className="font-semibold">{resolvedTitle}</h2>
-      </div>
-      <div className="space-y-3 p-4">
-        {articles.length === 0 && <p className="text-slate-400">{resolvedEmptyLabel}</p>}
-        {articles.map((article) => (
-          <ArticleBlock article={article} key={article.url} showRelatedAssets={showRelatedAssets} />
-        ))}
-      </div>
-    </section>
-  );
-}
+import { AssetIcon } from "../AssetIcon";
+import { MOTION } from "../motion";
+import { formatArticleDate } from "../../../lib/format";
+import { isEarningsArticle } from "./earnings-article";
 
 const clampTwoLines: CSSProperties = {
   display: "-webkit-box",
@@ -42,10 +14,20 @@ const clampTwoLines: CSSProperties = {
   overflow: "hidden"
 };
 
-function ArticleBlock({ article, showRelatedAssets }: { article: NewsArticle; showRelatedAssets: boolean }) {
+export function NewsArticleCard({
+  article,
+  showRelatedAssets,
+  earningsSymbol
+}: {
+  article: NewsArticle;
+  showRelatedAssets: boolean;
+  earningsSymbol?: string | undefined;
+}) {
+  const { t } = useTranslation(["common"]);
   const detail = article.description || article.publisher || formatArticleDate(article.publishedAt);
   const publishedDate = formatArticleDate(article.publishedAt);
   const relatedAssets = showRelatedAssets ? article.relatedAssets ?? [] : [];
+  const earnings = isEarningsArticle(article, earningsSymbol);
 
   return (
     <a
@@ -76,8 +58,17 @@ function ArticleBlock({ article, showRelatedAssets }: { article: NewsArticle; sh
         <p className="mt-1 text-sm text-slate-400" style={clampTwoLines}>
           {detail || "Yahoo Finance"}
         </p>
-        {relatedAssets.length > 0 && (
+        {(earnings || relatedAssets.length > 0) && (
           <div className="mt-2 flex flex-wrap gap-2">
+            {earnings && (
+              <span
+                className={`inline-flex items-center gap-1 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-2 py-1 text-xs font-semibold text-cyan-200 ${MOTION.pop}`}
+                title={t("news.earningsHint", { ns: "common" })}
+              >
+                <CalendarCheck aria-hidden size={14} />
+                {t("news.earningsBadge", { ns: "common" })}
+              </span>
+            )}
             {relatedAssets.map((asset) => (
               <span className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-line bg-panel2 px-2 py-1 text-xs text-slate-300" key={asset.symbol}>
                 <AssetIcon className="h-5 w-5" symbol={asset.symbol} />

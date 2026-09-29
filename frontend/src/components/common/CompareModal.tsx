@@ -1,5 +1,6 @@
-import { Search, X } from "lucide-react";
+import { Columns3, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
 import { usePullToRefreshSuspended } from "../../hooks/usePullToRefreshSuspended";
 import { MOTION } from "./motion";
@@ -19,10 +20,12 @@ interface CompareModalProps {
   onRemove: (symbol: string) => void;
   onClose: () => void;
   localPeaSearchEnabled?: boolean;
+  /** Lien vers le comparateur détaillé (`/compare`), proposé dès qu'un actif est sélectionné. */
+  detailedCompareHref?: string | undefined;
 }
 
-export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose, localPeaSearchEnabled }: CompareModalProps) {
-  const { t } = useTranslation(["common", "portfolio"]);
+export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose, localPeaSearchEnabled, detailedCompareHref }: CompareModalProps) {
+  const { t } = useTranslation(["common", "portfolio", "compare"]);
   usePullToRefreshSuspended();
   const { query, setQuery, results, loading } = useEnrichedSearch({ localPeaSearchEnabled });
   const excluded = new Set([currentSymbol, ...selected.map((s) => s.symbol)]);
@@ -56,6 +59,13 @@ export function CompareModal({ currentSymbol, selected, onAdd, onRemove, onClose
               </span>
             ))}
           </div>
+        )}
+
+        {detailedCompareHref && selected.length > 0 && (
+          <Link className="btn-ghost w-full justify-center" to={detailedCompareHref}>
+            <Columns3 size={16} />
+            {t("compare:openDetailed")}
+          </Link>
         )}
 
         {canAdd ? (

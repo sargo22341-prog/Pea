@@ -39,3 +39,15 @@ export function withMovingAverages(chart: AssetChartDto, overlays: readonly Char
   for (const key of overlays) movingAverages[key] = movingAverageAt(chart.timestamps, closes, MOVING_AVERAGE_WINDOWS[key]);
   return { ...chart, movingAverages };
 }
+
+/** Moyenne mobile d'un actif à un instant (dernières clôtures journalières stockées), sans appel Yahoo. */
+export function movingAverageNow(symbol: string, key: ChartOverlayKey, at: Date): number | undefined {
+  const asset = assetRepository.findBySymbol(symbol);
+  if (!asset) return undefined;
+  const window = MOVING_AVERAGE_WINDOWS[key];
+  const sinceIso = new Date(at.getTime() - Math.ceil(window * CALENDAR_DAYS_PER_TRADING_DAY) * DAY_MS).toISOString();
+  const closes = candleRepository
+    .readCandles(asset.id, DAILY_RANGE, DAILY_INTERVAL, sinceIso)
+    .map((candle) => ({ time: new Date(candle.date).getTime(), close: candle.close }));
+  return movingAverageAt([at.getTime()], closes, window)[0] ?? undefined;
+}

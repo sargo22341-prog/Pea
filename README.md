@@ -30,10 +30,15 @@ Fonctionnalites principales :
 - dashboard de portefeuille avec positions, watchlist, performance et calendrier ;
 - calendrier des resultats et dividendes (vue mois ou liste, export `.ics`) ;
 - page Marches : indices, devises, matieres premieres, taux et listes Yahoo Finance filtrables PEA ;
+- screener PEA local (rendement, PER, capitalisation, secteur, performance) avec filtres enregistres,
+  et comparateur de 2 a 4 actifs (`/compare?symbols=A,B`), ouverts depuis la page Marches ;
+- alertes de cours, moyenne mobile 200 jours, plus haut / plus bas, consensus et detachement,
+  evaluees sans appel Yahoo supplementaire, avec cloche de notification dans l'en-tete ;
 - fiche detaillee par actif avec historique, informations marche et dividendes ;
 - vue annuelle des dividendes avec repartition mensuelle et trimestrielle, et projection
   de l'annee suivante estimee a partir des deux annees precedentes ;
-- actualites Yahoo Finance, filtrables sur les actifs suivis ;
+- actualites Yahoo Finance, filtrables sur les actifs suivis, regroupables par actif et
+  signalees autour des publications de resultats ;
 - imports Boursorama CSV et avis d'operes PDF ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;

@@ -1,8 +1,10 @@
 import express from "express";
 import { z } from "zod";
 import type { NewsArticle } from "@pea/shared";
+import { config } from "../../config.js";
 import { marketDataGateway } from "../../services/market/data/market-data-gateway.service.js";
 import { logger } from "../../services/shared/logger.service.js";
+import { annotateEarningsArticles } from "../../services/news/earnings-news.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { sortArticlesByDateDesc, userNewsLanguages } from "../shared/news.helpers.js";
 import { requireAuthUser } from "../../middleware/auth.js";
@@ -86,7 +88,7 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
       hasMore,
       durationMs: Math.round(performance.now() - startedAt)
     });
-    res.json({ articles: cachedArticles, limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
+    res.json({ articles: annotateEarningsArticles(cachedArticles, config.appTimezone), limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
     return;
   }
   logger.debug("news", "asset news optimized plan", {
@@ -135,7 +137,7 @@ newsRouter.get("/news-assets", asyncRoute(async (req, res) => {
     articles: articles.length,
     durationMs: Math.round(performance.now() - startedAt)
   });
-  res.json({ articles, limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
+  res.json({ articles: annotateEarningsArticles(articles, config.appTimezone), limit, offset, totalAssets: sortedCandidates.length, queriedAssets: stockPositions.length, hasMore });
 }));
 
 newsRouter.get("/news/:symbol", asyncRoute(async (req, res) => {

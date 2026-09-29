@@ -11,6 +11,9 @@ import errorsFr from "./locales/fr/errors.json";
 import objectivesFr from "./locales/fr/objectives.json";
 import calendarFr from "./locales/fr/calendar.json";
 import marketsFr from "./locales/fr/markets.json";
+import compareFr from "./locales/fr/compare.json";
+import screenerFr from "./locales/fr/screener.json";
+import alertsFr from "./locales/fr/alerts.json";
 import commonEn from "./locales/en/common.json";
 import navigationEn from "./locales/en/navigation.json";
 import dashboardEn from "./locales/en/dashboard.json";
@@ -21,8 +24,11 @@ import errorsEn from "./locales/en/errors.json";
 import objectivesEn from "./locales/en/objectives.json";
 import calendarEn from "./locales/en/calendar.json";
 import marketsEn from "./locales/en/markets.json";
+import compareEn from "./locales/en/compare.json";
+import screenerEn from "./locales/en/screener.json";
+import alertsEn from "./locales/en/alerts.json";
 
-export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets"] as const;
+export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets", "compare", "screener", "alerts"] as const;
 
 export const languageOptions: { code: AppLanguage; labelKey: string; flag: string }[] = [
   { code: "fr", labelKey: "languages.fr", flag: "🇫🇷" },
@@ -40,7 +46,10 @@ const resources = {
     errors: errorsFr,
     objectives: objectivesFr,
     calendar: calendarFr,
-    markets: marketsFr
+    markets: marketsFr,
+    compare: compareFr,
+    screener: screenerFr,
+    alerts: alertsFr
   },
   en: {
     common: commonEn,
@@ -52,7 +61,10 @@ const resources = {
     errors: errorsEn,
     objectives: objectivesEn,
     calendar: calendarEn,
-    markets: marketsEn
+    markets: marketsEn,
+    compare: compareEn,
+    screener: screenerEn,
+    alerts: alertsEn
   }
 };
 

@@ -1,0 +1,88 @@
+{
+  "title": "Alertes",
+  "subtitle": "Seuils de cours, moyenne mobile 200 jours, plus haut / plus bas 52 semaines, consensus des analystes et detachements.",
+  "disclaimer": "Les alertes sont evaluees pendant les seances, a chaque rafraichissement des cotations des actifs de vos positions et de votre liste de suivi, sans appel supplementaire a Yahoo Finance. Information uniquement, pas un conseil en investissement.",
+  "markAllRead": "Tout marquer comme lu",
+  "tabs": {
+    "alerts_one": "Mes alertes ({{count}})",
+    "alerts_other": "Mes alertes ({{count}})",
+    "history": "Historique",
+    "historyUnread_one": "Historique ({{count}} non lue)",
+    "historyUnread_other": "Historique ({{count}} non lues)"
+  },
+  "bell": {
+    "label": "Alertes",
+    "labelUnread_one": "Alertes, {{count}} non lue",
+    "labelUnread_other": "Alertes, {{count}} non lues",
+    "title": "Dernieres alertes",
+    "empty": "Aucune alerte declenchee pour le moment.",
+    "seeAll": "Voir toutes les alertes"
+  },
+  "types": {
+    "price_above": "Cours au-dessus d'un seuil",
+    "price_below": "Cours en dessous d'un seuil",
+    "daily_change": "Variation du jour superieure a",
+    "ma200_cross": "Franchissement de la moyenne mobile 200 jours",
+    "new_52w_high": "Nouveau plus haut sur 52 semaines",
+    "new_52w_low": "Nouveau plus bas sur 52 semaines",
+    "recommendation_change": "Changement de recommandation des analystes",
+    "ex_dividend_announced": "Annonce d'une date de detachement"
+  },
+  "directions": {
+    "up": "A la hausse",
+    "down": "A la baisse",
+    "both": "Dans les deux sens"
+  },
+  "describe": {
+    "price_above": "Cours au-dessus de {{value}}",
+    "price_below": "Cours en dessous de {{value}}",
+    "daily_change": "Variation du jour d'au moins {{value}} % (hausse ou baisse)",
+    "ma200_cross_up": "Passage au-dessus de la moyenne mobile 200 jours",
+    "ma200_cross_down": "Passage sous la moyenne mobile 200 jours",
+    "ma200_cross_both": "Franchissement de la moyenne mobile 200 jours",
+    "new_52w_high": "Nouveau plus haut sur 52 semaines",
+    "new_52w_low": "Nouveau plus bas sur 52 semaines",
+    "recommendation_change": "Changement de recommandation des analystes",
+    "ex_dividend_announced": "Annonce d'une date de detachement"
+  },
+  "events": {
+    "price_above": "Cours a {{price}}, au-dessus de {{threshold}}",
+    "price_below": "Cours a {{price}}, en dessous de {{threshold}}",
+    "daily_change": "Variation du jour : {{change}} %",
+    "ma200_cross_up": "Passe au-dessus de la moyenne mobile 200 jours ({{price}})",
+    "ma200_cross_down": "Passe sous la moyenne mobile 200 jours ({{price}})",
+    "new_52w_high": "Nouveau plus haut sur 52 semaines a {{price}}",
+    "new_52w_low": "Nouveau plus bas sur 52 semaines a {{price}}",
+    "recommendation_change": "Recommandation : {{from}} → {{to}}",
+    "ex_dividend_announced": "Detachement annonce le {{date}}"
+  },
+  "list": {
+    "empty": "Aucune alerte. Creez-en une depuis la fiche d'un actif avec le bouton cloche.",
+    "lastTriggered": "Declenchee le {{date}}",
+    "toggle": "Activer ou suspendre l'alerte sur {{name}}",
+    "delete": "Supprimer l'alerte sur {{name}}",
+    "deleteTitle": "Supprimer l'alerte ?",
+    "deleteConfirm": "L'alerte « {{condition}} » sur {{name}} et son historique seront supprimes."
+  },
+  "history": {
+    "empty": "Aucun declenchement pour le moment.",
+    "unread_one": "{{count}} alerte non lue",
+    "unread_other": "{{count}} alertes non lues",
+    "unreadItem": "non lue"
+  },
+  "create": {
+    "open": "Creer une alerte sur {{name}}",
+    "title": "Alerte sur {{name}}",
+    "type": "Declencher quand",
+    "thresholdPrice": "Seuil ({{currency}})",
+    "thresholdPercent": "Variation absolue (%)",
+    "direction": "Sens",
+    "advanced": "Options avancees",
+    "cooldown": "Anti-rebond (heures)",
+    "cooldownHelp": "Apres un declenchement, l'alerte se tait pendant ce delai.",
+    "evaluationNote": "Evaluee pendant les seances si l'actif est dans vos positions ou votre liste de suivi.",
+    "submit": "Creer l'alerte",
+    "done": "Alerte creee : {{condition}}.",
+    "seeAll": "Mes alertes"
+  }
+}

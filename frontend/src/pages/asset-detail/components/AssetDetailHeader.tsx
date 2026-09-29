@@ -1,5 +1,5 @@
 import type { PeaEligibilityStatus, Quote } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Star } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BellPlus, Pencil, Plus, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AssetIcon } from "../../../components/common/AssetIcon";
 import { MOTION, flashClass } from "../../../components/common/motion";
@@ -15,6 +15,7 @@ export function AssetDetailHeader({
   displayPrice,
   marketUnavailable,
   onAdd,
+  onCreateAlert,
   onEdit,
   onToggleWatchlist,
   peaEligibilityStatus,
@@ -28,6 +29,8 @@ export function AssetDetailHeader({
   displayPrice: number;
   marketUnavailable?: boolean | undefined;
   onAdd: () => void;
+  /** Absent quand l'administrateur a coupé les alertes. */
+  onCreateAlert?: (() => void) | undefined;
   onEdit: () => void;
   onToggleWatchlist: () => void;
   peaEligibilityStatus: PeaEligibilityStatus;
@@ -38,7 +41,7 @@ export function AssetDetailHeader({
   stale?: boolean | undefined;
   watchlisted: boolean;
 }) {
-  const { t } = useTranslation(["asset", "common"]);
+  const { t } = useTranslation(["asset", "common", "alerts"]);
   const positive = rangeChange >= 0;
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
   const pricePulse = useNumberPulse(displayPrice);
@@ -103,6 +106,11 @@ export function AssetDetailHeader({
                   />
                 </button>
               </>
+            )}
+            {onCreateAlert && (
+              <button aria-label={t("alerts:create.open", { name: quote.name })} className={`btn-ghost ${PRESSABLE}`} onClick={onCreateAlert} type="button">
+                <BellPlus size={17} />
+              </button>
             )}
           </div>
         </div>

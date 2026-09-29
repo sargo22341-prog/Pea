@@ -16,6 +16,7 @@ export type MarketEventType =
   | "asset-annex-updated"
   | "analysis-updated"
   | "dividends-updated"
+  | "alerts-triggered"
   | "scheduler-health-updated";
 
 export interface MarketEventPayload {
@@ -46,5 +47,6 @@ export const MARKET_EVENT_TYPES: readonly MarketEventType[] = [
   "asset-annex-updated",
   "analysis-updated",
   "dividends-updated",
+  "alerts-triggered",
   "scheduler-health-updated"
 ] as const;

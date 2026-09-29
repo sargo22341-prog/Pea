@@ -408,7 +408,9 @@
         "similar_assets": "Actifs similaires",
         "similar_assetsHelp": "Suggestions d'actifs proches sur la fiche (1 appel par actif et par semaine).",
         "markets_page": "Page Marches",
-        "markets_pageHelp": "Indices, devises et matieres premieres (1 lot de cotations par minute, uniquement quand la page est ouverte)."
+        "markets_pageHelp": "Indices, devises et matieres premieres (1 lot de cotations par minute, uniquement quand la page est ouverte).",
+        "alerts": "Alertes",
+        "alertsHelp": "Alertes de cours, moyenne mobile, plus haut / plus bas, consensus et detachement (aucun appel Yahoo : evaluees sur les cotations deja rafraichies)."
       }
     }
   },
@@ -420,7 +422,16 @@
     "myAssets": "Mes actifs",
     "french": "francais",
     "english": "anglais",
-    "and": " et "
+    "and": " et ",
+    "viewLabel": "Presentation des actualites",
+    "viewChronological": "Chronologique",
+    "viewByAsset": "Par actif",
+    "articleCount_one": "{{count}} article",
+    "articleCount_other": "{{count}} articles",
+    "earningsCount_one": "{{count}} lie aux resultats",
+    "earningsCount_other": "{{count}} lies aux resultats",
+    "earningsBadge": "Resultats",
+    "earningsHint": "Publie a un jour pres d'une publication de resultats de l'actif."
   },
   "calendar": {
     "title": "Evenements calendrier",

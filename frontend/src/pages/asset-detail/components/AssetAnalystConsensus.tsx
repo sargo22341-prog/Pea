@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Target, TrendingUp, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { money } from "../../../lib/format";
+import { analystTarget } from "../../../utils/analyst-target";
 import { CONSENSUS_SCALE, consensusStep, recommendationLabelKey } from "../../../utils/assetTone";
 
 export function AssetAnalystConsensus({
@@ -13,20 +14,12 @@ export function AssetAnalystConsensus({
   currency: string;
 }) {
   const { t } = useTranslation("asset");
-  const {
-    currentPrice,
-    targetMeanPrice,
-    targetMedianPrice,
-    recommendationMean,
-    recommendationKey,
-    numberOfAnalystOpinions
-  } = data;
+  const { recommendationMean, recommendationKey, numberOfAnalystOpinions } = data;
+  const target = analystTarget(data);
+  if (!target || !recommendationMean || !numberOfAnalystOpinions) return null;
 
-  const targetPrice = targetMedianPrice ?? targetMeanPrice;
-  if (!targetPrice || !currentPrice || !recommendationMean || !numberOfAnalystOpinions) return null;
-
-  const upside = targetPrice - currentPrice;
-  const potential = (upside / currentPrice) * 100;
+  const { targetPrice, currentPrice, upside } = target;
+  const potential = target.potential * 100;
   const score = recommendationMean;
   const scorePosition = ((score - 1) / 4) * 100;
   const recommendationLabel = recommendationKey ? t(recommendationLabelKey(recommendationKey)).toUpperCase() : "-";

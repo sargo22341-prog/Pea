@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Columns3, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -18,7 +18,7 @@ function OverviewSkeleton() {
 
 /** Contexte de marché : indices, devises, matières premières et taux, puis les listes du jour. */
 export function MarketsPage() {
-  const { t } = useTranslation(["markets", "navigation"]);
+  const { t } = useTranslation(["markets", "navigation", "screener", "compare"]);
   const overview = useMarketOverview();
   const items = overview.data?.items ?? [];
 
@@ -37,11 +37,21 @@ export function MarketsPage() {
           </div>
           <p className="muted">{t("markets:subtitle")}</p>
         </div>
-        {/* Seul accès à la Recherche : elle n'a plus d'entrée dans le menu (voir plan.md, Navigation). */}
-        <Link className="btn-primary" to="/search">
-          <Search size={16} />
-          {t("markets:searchAsset")}
-        </Link>
+        {/* Accès à la Recherche, au screener et au comparateur : aucune entrée de menu (voir plan.md, Navigation). */}
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn-ghost" to="/compare">
+            <Columns3 size={16} />
+            {t("compare:title")}
+          </Link>
+          <Link className="btn-ghost" to="/screener">
+            <SlidersHorizontal size={16} />
+            {t("screener:title")}
+          </Link>
+          <Link className="btn-primary" to="/search">
+            <Search size={16} />
+            {t("markets:searchAsset")}
+          </Link>
+        </div>
       </div>
 
       {overview.error ? <div className="card border-coral p-4 text-sm text-coral">{overview.error}</div> : null}

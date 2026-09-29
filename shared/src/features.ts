@@ -1,8 +1,9 @@
 /**
- * Fonctionnalités activables par l'administrateur. Chacune coûte des appels Yahoo : désactivée,
- * elle ne déclenche aucun appel et son bloc est masqué.
+ * Fonctionnalités activables par l'administrateur. La plupart coûtent des appels Yahoo : désactivée,
+ * une fonctionnalité ne déclenche aucun appel et son bloc est masqué. Les alertes n'en coûtent pas
+ * mais peuvent être coupées pour alléger le rafraîchissement live d'une instance chargée.
  */
-export const APP_FEATURE_KEYS = ["extended_fundamentals", "quarterly_statements", "insights", "similar_assets", "markets_page"] as const;
+export const APP_FEATURE_KEYS = ["extended_fundamentals", "quarterly_statements", "insights", "similar_assets", "markets_page", "alerts"] as const;
 export type AppFeatureKey = (typeof APP_FEATURE_KEYS)[number];
 
 export interface AppFeatureFlag {
