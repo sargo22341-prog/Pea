@@ -6,7 +6,7 @@ import { rawDate, rawString } from "../utils/raw-values.js";
 const SPLIT_FACTOR_PATTERN = /^\s*(\d+(?:\.\d+)?)\s*[:/]\s*(\d+(?:\.\d+)?)\s*$/;
 
 /** Lit `lastSplitFactor` (« 10:1 ») et `lastSplitDate` de `defaultKeyStatistics`. */
-export function splitFromKeyStatistics(summary: YahooSummaryRaw) {
+function splitFromKeyStatistics(summary: YahooSummaryRaw) {
   const stats = summary.defaultKeyStatistics;
   const match = SPLIT_FACTOR_PATTERN.exec(rawString(stats?.lastSplitFactor) ?? "");
   const date = rawDate(stats?.lastSplitDate);

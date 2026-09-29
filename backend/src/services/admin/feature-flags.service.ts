@@ -10,7 +10,7 @@ import { logger } from "../shared/logger.service.js";
  * La page Marchés (un lot de cotations par minute, seulement quand elle est ouverte) est active,
  * comme les alertes (évaluées sur les cotations déjà rafraîchies, sans appel Yahoo).
  */
-export const FEATURE_DEFAULTS: Record<AppFeatureKey, boolean> = {
+const FEATURE_DEFAULTS: Record<AppFeatureKey, boolean> = {
   extended_fundamentals: true,
   quarterly_statements: false,
   insights: false,

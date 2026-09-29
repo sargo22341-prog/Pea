@@ -1,4 +1,4 @@
-import type { CurrencyCode, DividendEvent, PortfolioDividendEvent, PortfolioDividendStatus, PositionWithMarket } from "@pea/shared";
+import { DAY_MS, type CurrencyCode, type DividendEvent, type PortfolioDividendEvent, type PortfolioDividendStatus, type PositionWithMarket } from "@pea/shared";
 import { positionYieldOnCost } from "../insights/yield-on-cost.js";
 import { isSamePayment, withAnnouncedDividend } from "./announced-dividend.js";
 
@@ -7,7 +7,6 @@ import { isSamePayment, withAnnouncedDividend } from "./announced-dividend.js";
  * enregistré qu'au rafraîchissement quotidien des dividendes.
  */
 export const ESTIMATE_PAST_GRACE_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const YEAR_MS = 365 * DAY_MS;
 
 /** Indicateurs d'une position répétés sur chacun de ses versements. */

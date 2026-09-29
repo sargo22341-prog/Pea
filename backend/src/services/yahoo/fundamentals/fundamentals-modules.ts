@@ -16,7 +16,7 @@ const BASE_FUNDAMENTALS_MODULES = [
 ];
 
 /** Tendance des analystes et résultats trimestriels, soumis à l'interrupteur `extended_fundamentals`. */
-export const EXTENDED_FUNDAMENTALS_MODULES = ["recommendationTrend", "upgradeDowngradeHistory", "earningsHistory", "earnings"];
+const EXTENDED_FUNDAMENTALS_MODULES = ["recommendationTrend", "upgradeDowngradeHistory", "earningsHistory", "earnings"];
 
 export function fundamentalsModules(extended: boolean) {
   return extended ? [...BASE_FUNDAMENTALS_MODULES, ...EXTENDED_FUNDAMENTALS_MODULES] : [...BASE_FUNDAMENTALS_MODULES];

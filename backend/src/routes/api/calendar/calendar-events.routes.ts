@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { CALENDAR_MAX_RANGE_DAYS, CALENDAR_SCOPES } from "@pea/shared";
+import { CALENDAR_MAX_RANGE_DAYS, CALENDAR_SCOPES, DAY_MS } from "@pea/shared";
 import { config } from "../../../config.js";
 import { mapEventRow, readCalendarEventsBySymbol, readCalendarEventsForPortfolio } from "../../../repositories/calendar-events/calendar-events.repository.js";
 import { buildCalendarIcs } from "../../../services/calendar/calendar-ics.js";
@@ -11,7 +11,6 @@ import { requireAuthUser } from "../../../middleware/auth.js";
 
 export const calendarEventsRouter = express.Router();
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const dayTime = (day: string) => new Date(`${day}T00:00:00.000Z`).getTime();
 /** Jour civil existant (refuse `2026-02-30`, que `Date` reporterait au 2 mars). */
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((day) => Number.isFinite(dayTime(day)) && new Date(dayTime(day)).toISOString().startsWith(day));

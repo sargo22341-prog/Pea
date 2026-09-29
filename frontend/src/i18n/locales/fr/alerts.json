@@ -48,7 +48,7 @@
   "events": {
     "price_above": "Cours a {{price}}, au-dessus de {{threshold}}",
     "price_below": "Cours a {{price}}, en dessous de {{threshold}}",
-    "daily_change": "Variation du jour : {{change}} %",
+    "daily_change": "Variation du jour : {{change}}",
     "ma200_cross_up": "Passe au-dessus de la moyenne mobile 200 jours ({{price}})",
     "ma200_cross_down": "Passe sous la moyenne mobile 200 jours ({{price}})",
     "new_52w_high": "Nouveau plus haut sur 52 semaines a {{price}}",

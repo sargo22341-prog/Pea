@@ -1,6 +1,6 @@
 import { db } from "../../db.js";
 
-export interface FeatureFlagRow {
+interface FeatureFlagRow {
   key: string;
   enabled: number;
   updated_at: string;

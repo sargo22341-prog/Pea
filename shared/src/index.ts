@@ -11,6 +11,7 @@ export type * from "./alerts.js";
 export {
   CALENDAR_MAX_RANGE_DAYS,
   CALENDAR_SCOPES,
+  CHART_OVERLAY_KEYS,
   COMPARE_MAX_SYMBOLS,
   COMPARE_MIN_SYMBOLS,
   MARKET_EVENT_TYPES,
@@ -24,6 +25,9 @@ export {
   SCREENER_PRESET_NAME_MAX_LENGTH,
   SCREENER_SORT_KEYS,
   SCREENER_TEXT_FILTER_MAX_LENGTH,
+  YAHOO_SYMBOL_PATTERN,
+  approximateEurRate,
+  approximateEurRates,
   calendarEventDay,
   nextCalendarDay
 } from "./market.js";
@@ -55,7 +59,7 @@ export {
   summarizeDividendGrowth
 } from "./dividends.js";
 export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
-export { parseIsoDateParts, parseTimeParts } from "./date-parts.js";
+export { DAY_MS, HOUR_MS, parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {
   OBJECTIVE_SIMULATION_DEFAULTS,
   OBJECTIVE_SIMULATION_LIMITS,

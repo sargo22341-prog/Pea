@@ -1,8 +1,10 @@
-import type { AlertEvent, AlertEventsPage } from "@pea/shared";
+import { ALERT_LIMITS, type AlertEvent, type AlertEventsPage } from "@pea/shared";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertsBell } from "../../components/common/alerts/AlertsBell";
+import { useAlertEvents } from "../../hooks/useAlertEvents";
+import { first } from "../utils/first";
 
 const alertEvents = vi.fn<(limit: number) => Promise<AlertEventsPage>>();
 const markAlertEventsRead = vi.fn<() => Promise<undefined>>();
@@ -28,6 +30,11 @@ function event(overrides: Partial<AlertEvent>): AlertEvent {
   };
 }
 
+/** Cloche alimentée comme dans l'en-tête (`Shell`). */
+function Bell() {
+  return <AlertsBell alerts={useAlertEvents(ALERT_LIMITS.latestEvents)} />;
+}
+
 describe("AlertsBell", () => {
   beforeEach(() => {
     alertEvents.mockResolvedValue({ events: [event({})], unread: 1 });
@@ -39,7 +46,7 @@ describe("AlertsBell", () => {
   });
 
   it("shows the unread counter and the latest triggers", async () => {
-    render(<MemoryRouter><AlertsBell /></MemoryRouter>);
+    render(<MemoryRouter><Bell /></MemoryRouter>);
     const bell = await screen.findByRole("button", { name: "Alertes, 1 non lue" });
     expect(alertEvents).toHaveBeenCalledWith(5);
     expect(bell).toHaveTextContent("1");
@@ -50,7 +57,7 @@ describe("AlertsBell", () => {
   });
 
   it("reloads when the server signals new alerts and marks them as read", async () => {
-    render(<MemoryRouter><AlertsBell /></MemoryRouter>);
+    render(<MemoryRouter><Bell /></MemoryRouter>);
     await screen.findByRole("button", { name: "Alertes, 1 non lue" });
 
     alertEvents.mockResolvedValue({ events: [event({ id: 2 }), event({})], unread: 12 });
@@ -64,5 +71,24 @@ describe("AlertsBell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tout marquer comme lu" }));
     await waitFor(() => { expect(markAlertEventsRead).toHaveBeenCalledTimes(1); });
     expect(await screen.findByRole("button", { name: "Alertes" })).not.toHaveTextContent(/\d/);
+  });
+
+  it("updates every other display once the alerts are marked as read", async () => {
+    render(<MemoryRouter><Bell /><Bell /></MemoryRouter>);
+    const bells = await screen.findAllByRole("button", { name: "Alertes, 1 non lue" });
+
+    alertEvents.mockResolvedValue({ events: [event({ read: true })], unread: 0 });
+    fireEvent.click(first(bells));
+    fireEvent.click(screen.getByRole("button", { name: "Tout marquer comme lu" }));
+    await waitFor(() => { expect(screen.getAllByRole("button", { name: "Alertes" })).toHaveLength(2); });
+  });
+
+  it("does not query the alerts when the feature is switched off", async () => {
+    function DisabledBell() {
+      return <AlertsBell alerts={useAlertEvents(ALERT_LIMITS.latestEvents, false)} />;
+    }
+    render(<MemoryRouter><DisabledBell /></MemoryRouter>);
+    expect(await screen.findByRole("button", { name: "Alertes" })).not.toHaveTextContent(/\d/);
+    expect(alertEvents).not.toHaveBeenCalled();
   });
 });

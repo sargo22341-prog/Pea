@@ -1,4 +1,4 @@
-import type { CalendarEvent } from "@pea/shared";
+import { DAY_MS, type CalendarEvent } from "@pea/shared";
 import { useTranslation } from "react-i18next";
 import { MOTION } from "../../../components/common/motion";
 import { monthGridDays } from "../calendar-grid";
@@ -8,7 +8,6 @@ import { eventStyle } from "./event-style";
 const MAX_DOTS_PER_DAY = 3;
 /** Un lundi de référence pour nommer les jours de la semaine dans la langue de l'interface. */
 const REFERENCE_MONDAY = Date.UTC(2024, 0, 1);
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function weekdayLabels(language: string) {
   const format = new Intl.DateTimeFormat(language, { weekday: "short", timeZone: "UTC" });

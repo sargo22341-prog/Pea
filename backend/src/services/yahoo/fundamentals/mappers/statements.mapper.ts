@@ -3,7 +3,7 @@ import { rawArray, rawRecord, type YahooRawRecord } from "../../yahoo.raw.js";
 import { rawDate, rawNumber } from "../../utils/raw-values.js";
 
 /** Nombre d'exercices conservés pour le graphique chiffre d'affaires / résultat. */
-export const FINANCIAL_YEARS_LIMIT = 5;
+const FINANCIAL_YEARS_LIMIT = 5;
 /** Au-dessous, un timestamp numérique est exprimé en secondes et non en millisecondes. */
 const SECONDS_TIMESTAMP_LIMIT = 10_000_000_000;
 const ANNUAL_PREFIX = "annual";

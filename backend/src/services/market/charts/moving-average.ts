@@ -1,3 +1,5 @@
+import type { ChartOverlayKey } from "@pea/shared";
+
 /**
  * Moyennes mobiles simples calculées localement sur les clôtures journalières stockées.
  * Aucun appel Yahoo : les bougies `all / 1d` sont déjà en base.
@@ -10,9 +12,7 @@ export interface DailyClose {
 }
 
 /** Fenêtres proposées sur le graphique de cours (jours de bourse). */
-export const MOVING_AVERAGE_WINDOWS = { ma50: 50, ma200: 200 } as const;
-export type MovingAverageKey = keyof typeof MOVING_AVERAGE_WINDOWS;
-export const MOVING_AVERAGE_KEYS = Object.keys(MOVING_AVERAGE_WINDOWS) as MovingAverageKey[];
+export const MOVING_AVERAGE_WINDOWS: Readonly<Record<ChartOverlayKey, number>> = { ma50: 50, ma200: 200 };
 
 /**
  * Jours calendaires à relire avant le premier point affiché pour disposer de `window` séances :

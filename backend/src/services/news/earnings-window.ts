@@ -1,10 +1,8 @@
-import type { NewsArticle } from "@pea/shared";
+import { DAY_MS, type NewsArticle } from "@pea/shared";
 import { getZonedDateParts } from "../timezone/date-time.service.js";
 
 /** Écart maximal, en jours civils, entre un article et une publication de résultats. */
 export const EARNINGS_NEWS_WINDOW_DAYS = 1;
-
-export const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dayIndex(isoDay: string) {
   return Date.parse(`${isoDay}T00:00:00.000Z`) / DAY_MS;

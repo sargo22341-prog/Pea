@@ -18,7 +18,7 @@ const flag = z.union([z.boolean(), z.enum(["true", "false"]).transform((value) =
 const text = z.string().trim().min(1).max(SCREENER_TEXT_FILTER_MAX_LENGTH).optional();
 
 /** Filtres du screener : clés inconnues refusées, chaque valeur bornée (voir `SCREENER_LIMITS`). */
-export const screenerFiltersSchema = z.strictObject({
+const screenerFiltersSchema = z.strictObject({
   peaOnly: flag,
   assetType: z.enum(SCREENER_ASSET_TYPES).optional(),
   sector: text,

@@ -4,7 +4,7 @@ import { readCache, writeCache } from "../cache/yahoo.cache.js";
 import { safeYahooCall } from "../yahoo.client.js";
 import type { MarketDataResult } from "../../market/data/market-data-provider.js";
 import { logger } from "../../shared/logger.service.js";
-import { upsertCalendarEvents } from "../../../repositories/calendar-events/calendar-events.repository.js";
+import { replaceUpcomingCalendarEvents } from "../../../repositories/calendar-events/calendar-events.repository.js";
 import { yahooFundamentalsTimeSeries, yahooQuoteSummary, type YahooFinancialTimeSeriesRaw, type YahooSummaryRaw } from "../yahoo.raw.js";
 import { analystConsensusFromSummary } from "./mappers/analysts.mapper.js";
 import { calendarEventInsertsFromSummary, calendarEventsDataFromSummary } from "./mappers/calendar.mapper.js";
@@ -64,9 +64,9 @@ async function fetchAnnualFinancials(symbol: string): Promise<MarketDataResult<Y
 /** Dérive les tables locales (calendrier, divisions d'action, consensus) d'un résumé Yahoo ; idempotent. */
 function persistSummaryDerivedData(symbol: string, summary: YahooSummaryRaw, source: "fresh" | "cache") {
   try {
-    upsertCalendarEvents(calendarEventInsertsFromSummary(symbol, summary));
+    replaceUpcomingCalendarEvents(symbol, calendarEventInsertsFromSummary(symbol, summary), new Date().toISOString());
   } catch (error) {
-    logger.warn("market-data", `upsertCalendarEvents failed (${source})`, { symbol, error: errorText(error) });
+    logger.warn("market-data", `replaceUpcomingCalendarEvents failed (${source})`, { symbol, error: errorText(error) });
   }
   try {
     recordSplitsFromKeyStatistics(symbol, summary);

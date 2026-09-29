@@ -1,9 +1,9 @@
+import { DAY_MS } from "@pea/shared";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";
 import { recommendationHistoryRepository } from "../../../repositories/market/analysts/recommendation-history.repository.js";
 
 /** Durée pendant laquelle un changement de consensus reste signalé sur le dashboard. */
 export const CONSENSUS_CHANGE_ALERT_DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface ConsensusChange {
   from: string;

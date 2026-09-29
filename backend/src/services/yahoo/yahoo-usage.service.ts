@@ -1,4 +1,5 @@
-import { yahooUsageRepository, type YahooUsageLogInput, type YahooUsageStatsQuery } from "../../repositories/yahoo/yahoo-usage.repository.js";
+import type { YahooUsageStatsQuery } from "@pea/shared";
+import { yahooUsageRepository, type YahooUsageLogInput } from "../../repositories/yahoo/yahoo-usage.repository.js";
 import { currentYahooUsageSource } from "./yahoo-usage-context.js";
 import { featureFlagsService } from "../admin/feature-flags.service.js";
 import { fundamentalsModules } from "./fundamentals/fundamentals-modules.js";

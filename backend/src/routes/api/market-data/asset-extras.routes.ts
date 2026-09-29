@@ -4,6 +4,7 @@ import { similarAssets } from "../../../services/assets/similar-assets.service.j
 import { fetchInsights } from "../../../services/yahoo/insights/insights.job.js";
 import { fetchFinancialStatements } from "../../../services/yahoo/statements/statements.job.js";
 import { asyncRoute } from "../../shared/async-route.js";
+import { yahooSymbolSchema } from "../../shared/symbol.js";
 
 /**
  * Données complémentaires de la fiche actif, chargées à l'ouverture de l'onglet qui les affiche.
@@ -11,7 +12,7 @@ import { asyncRoute } from "../../shared/async-route.js";
  */
 export const assetExtrasRouter = express.Router();
 
-const symbolSchema = z.object({ symbol: z.string().trim().min(1).max(32) });
+const symbolSchema = z.object({ symbol: yahooSymbolSchema });
 const statementsQuerySchema = z.object({ period: z.enum(["annual", "quarterly"]).default("annual") });
 
 assetExtrasRouter.get("/assets/:symbol/statements", asyncRoute(async (req, res) => {

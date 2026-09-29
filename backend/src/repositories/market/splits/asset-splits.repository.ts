@@ -1,6 +1,6 @@
 import { db } from "../../../db.js";
 
-export interface AssetSplitRow {
+interface AssetSplitRow {
   id: number;
   asset_id: number;
   split_date: string;

@@ -13,7 +13,7 @@ export interface UserPositionSplitRow {
   decision: SplitDecision | null;
 }
 
-export interface AppliedSplitRow {
+interface AppliedSplitRow {
   position_id: number;
   split_date: string;
   numerator: number;

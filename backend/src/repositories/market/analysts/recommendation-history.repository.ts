@@ -1,6 +1,6 @@
 import { db } from "../../../db.js";
 
-export interface RecommendationChangeRow {
+interface RecommendationChangeRow {
   asset_id: number;
   recommendation_key: string;
   previous_key: string;

@@ -48,7 +48,7 @@
   "events": {
     "price_above": "Price at {{price}}, above {{threshold}}",
     "price_below": "Price at {{price}}, below {{threshold}}",
-    "daily_change": "Daily change: {{change}} %",
+    "daily_change": "Daily change: {{change}}",
     "ma200_cross_up": "Crossed above the 200-day moving average ({{price}})",
     "ma200_cross_down": "Crossed below the 200-day moving average ({{price}})",
     "new_52w_high": "New 52-week high at {{price}}",

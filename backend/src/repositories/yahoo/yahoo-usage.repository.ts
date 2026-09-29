@@ -1,4 +1,4 @@
-import type { YahooUsageCallDto, YahooUsageFeature, YahooUsageStatsDto } from "@pea/shared";
+import type { YahooUsageCallDto, YahooUsageFeature, YahooUsageStatsDto, YahooUsageStatsQuery } from "@pea/shared";
 import { db } from "../../db.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { parseJsonStringArray } from "../../utils/json.js";
@@ -19,20 +19,6 @@ export interface YahooUsageLogInput {
   cacheHit?: boolean | undefined;
   requestKey?: string | undefined;
   feature?: YahooUsageFeature | undefined;
-}
-
-export interface YahooUsageStatsQuery {
-  id?: number | undefined;
-  dateFrom?: string | undefined;
-  dateTo?: string | undefined;
-  method?: string | undefined;
-  module?: string | undefined;
-  ticker?: string | undefined;
-  source?: string | undefined;
-  feature?: YahooUsageFeature | undefined;
-  success?: boolean | undefined;
-  groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
-  limit?: number | undefined;
 }
 
 export interface CountRow { key: string | null; calls: number; errors?: number; avgDurationMs?: number | null }

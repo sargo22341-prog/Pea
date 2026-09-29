@@ -1,4 +1,4 @@
-import type { CapitalizationBucket, PositionWithMarket } from "@pea/shared";
+import { approximateEurRate, type CapitalizationBucket, type PositionWithMarket } from "@pea/shared";
 import { rawNumber, rawString } from "../../yahoo/utils/raw-values.js";
 import type { Fundamentals } from "./portfolio-analysis.helpers.js";
 
@@ -8,27 +8,12 @@ export const LARGE_CAP_MIN_EUR = 10_000_000_000;
 export const MID_CAP_MIN_EUR = 2_000_000_000;
 
 /**
- * Cours approximatifs vers l'euro des devises de cotation courantes d'un PEA. Les tranches sont
- * séparées d'un facteur 5 : un ordre de grandeur suffit et évite un appel de change. Une devise
- * absente de la table laisse la ligne « non classée » plutôt que de la classer à tort.
+ * Les tranches sont séparées d'un facteur 5 : le cours de change approximatif partagé suffit. Une
+ * devise inconnue laisse la ligne « non classée » plutôt que de la classer à tort.
  */
-const APPROXIMATE_EUR_RATES: Readonly<Record<string, number>> = {
-  EUR: 1,
-  USD: 0.9,
-  GBP: 1.17,
-  GBp: 0.0117,
-  CHF: 1.05,
-  DKK: 0.134,
-  SEK: 0.09,
-  NOK: 0.085,
-  PLN: 0.23,
-  CZK: 0.04,
-  HUF: 0.0025
-};
-
 export function capitalizationBucket(marketCap: number | undefined, currency: string | undefined, etf: boolean): CapitalizationBucket {
   if (etf) return "etf";
-  const rate = currency ? APPROXIMATE_EUR_RATES[currency] : undefined;
+  const rate = approximateEurRate(currency);
   if (marketCap === undefined || !Number.isFinite(marketCap) || marketCap <= 0 || rate === undefined) return "unknown";
   const marketCapEur = marketCap * rate;
   if (marketCapEur >= LARGE_CAP_MIN_EUR) return "large";

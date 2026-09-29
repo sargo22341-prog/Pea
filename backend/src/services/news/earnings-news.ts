@@ -1,6 +1,6 @@
-import { calendarEventDay, type NewsArticle } from "@pea/shared";
+import { DAY_MS, calendarEventDay, type NewsArticle } from "@pea/shared";
 import { readEarningsDatesForSymbols } from "../../repositories/calendar-events/calendar-events.repository.js";
-import { DAY_MS, EARNINGS_NEWS_WINDOW_DAYS, markEarningsArticles } from "./earnings-window.js";
+import { EARNINGS_NEWS_WINDOW_DAYS, markEarningsArticles } from "./earnings-window.js";
 
 /** Marge de lecture des évènements autour des articles, au-delà de la fenêtre (fuseaux). */
 const EARNINGS_QUERY_MARGIN_DAYS = EARNINGS_NEWS_WINDOW_DAYS + 1;

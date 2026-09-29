@@ -1,3 +1,5 @@
+import { DAY_MS } from "@pea/shared";
+
 /**
  * Dividende annoncé : une date de détachement future publiée par la société prime sur la reprise
  * du calendrier de l'an dernier. Fonctions pures, sans accès aux données.
@@ -9,7 +11,6 @@
  * versements trimestriels, pour ne jamais confondre un versement avec son voisin.
  */
 export const PAYMENT_MATCH_WINDOW_DAYS = 45;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Deux dates (ms) désignent-elles le même versement ? */
 export function isSamePayment(firstTime: number, secondTime: number) {
@@ -34,7 +35,7 @@ export interface DividendAnnouncement {
 }
 
 /** Estimation la plus proche de la date annoncée, dans la fenêtre de rapprochement. */
-export function matchingEstimateIndex(estimates: readonly DatedAmount[], announcedDate: string): number {
+function matchingEstimateIndex(estimates: readonly DatedAmount[], announcedDate: string): number {
   const announcedTime = Date.parse(announcedDate);
   let closestIndex = -1;
   let closestGap = Number.POSITIVE_INFINITY;
@@ -55,7 +56,7 @@ export function matchingEstimateIndex(estimates: readonly DatedAmount[], announc
  * (acompte et solde inégaux conservent leur proportion) ; sinon le dividende annuel est réparti
  * sur le nombre de versements des douze derniers mois.
  */
-export function announcedAmountPerShare(announcement: DividendAnnouncement, replaced: DatedAmount | undefined): number | undefined {
+function announcedAmountPerShare(announcement: DividendAnnouncement, replaced: DatedAmount | undefined): number | undefined {
   const { annualDividendRate, trailingYearPayments } = announcement;
   if (!Number.isFinite(annualDividendRate) || annualDividendRate <= 0) return undefined;
   const trailingTotal = trailingYearPayments.reduce((sum, amount) => sum + amount, 0);

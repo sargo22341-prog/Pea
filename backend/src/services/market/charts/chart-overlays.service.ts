@@ -1,10 +1,9 @@
-import type { AssetChartDto, ChartOverlayKey } from "@pea/shared";
+import { CHART_OVERLAY_KEYS, DAY_MS, type AssetChartDto, type ChartOverlayKey } from "@pea/shared";
 import { z } from "zod";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";
 import { CALENDAR_DAYS_PER_TRADING_DAY, MOVING_AVERAGE_WINDOWS, movingAverageAt } from "./moving-average.js";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** Les moyennes mobiles se calculent sur les bougies journalières de l'historique complet. */
 const DAILY_RANGE = "all";
 const DAILY_INTERVAL = "1d";
@@ -14,7 +13,7 @@ const overlaysSchema = z
   .max(32)
   .optional()
   .transform((value) => (value ? value.split(",").map((item) => item.trim()).filter(Boolean) : []))
-  .pipe(z.array(z.enum(["ma50", "ma200"])));
+  .pipe(z.array(z.enum(CHART_OVERLAY_KEYS)));
 
 /** Lit `?overlays=ma50,ma200` ; un calque inconnu est rejeté (400) plutôt qu'ignoré. */
 export function parseChartOverlays(value: unknown): ChartOverlayKey[] {

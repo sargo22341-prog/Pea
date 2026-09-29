@@ -20,7 +20,7 @@ function finite(value: number | null) {
   return value !== null && Number.isFinite(value) ? value : undefined;
 }
 
-export function toScreenerRow(row: ScreenerDbRow): ScreenerRow {
+function toScreenerRow(row: ScreenerDbRow): ScreenerRow {
   const trailingPE = finite(row.trailing_pe);
   return {
     symbol: row.symbol,

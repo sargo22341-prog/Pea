@@ -31,3 +31,18 @@ export const YAHOO_USAGE_FEATURES = [
   "other"
 ] as const;
 export type YahooUsageFeature = (typeof YAHOO_USAGE_FEATURES)[number];
+
+/** Filtres du suivi des appels Yahoo (section administration), partagés par l'API et son client. */
+export interface YahooUsageStatsQuery {
+  id?: number | undefined;
+  dateFrom?: string | undefined;
+  dateTo?: string | undefined;
+  method?: string | undefined;
+  module?: string | undefined;
+  ticker?: string | undefined;
+  source?: string | undefined;
+  feature?: YahooUsageFeature | undefined;
+  success?: boolean | undefined;
+  groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
+  limit?: number | undefined;
+}

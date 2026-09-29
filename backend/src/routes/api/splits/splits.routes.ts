@@ -3,10 +3,11 @@ import { z } from "zod";
 import { requireAuthUser } from "../../../middleware/auth.js";
 import { splitDecisionService } from "../../../services/portfolio/splits/split-decision.service.js";
 import { asyncRoute } from "../../shared/async-route.js";
+import { yahooSymbolSchema } from "../../shared/symbol.js";
 
 export const splitsRouter = express.Router();
 
-const listQuerySchema = z.object({ symbol: z.string().trim().min(1).max(32).optional() });
+const listQuerySchema = z.object({ symbol: yahooSymbolSchema.optional() });
 const decisionParamsSchema = z.object({ id: z.coerce.number().int().positive() });
 const decisionBodySchema = z.object({ decision: z.enum(["apply", "ignore"]) });
 

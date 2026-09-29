@@ -52,7 +52,7 @@ export interface YahooSearchRaw extends YahooRawRecord {
  * valeurs européennes. Les types de yahoo-finance2 décrivent la forme ; cette enveloppe impose de
  * rester tolérant à la lecture.
  */
-export type YahooTolerant<T> = T extends Date
+type YahooTolerant<T> = T extends Date
   ? Date | string
   : T extends readonly (infer U)[]
     ? YahooTolerant<U>[]
@@ -76,7 +76,7 @@ export interface YahooDividendRaw extends YahooRawRecord {
   amount?: unknown;
 }
 
-export type YahooChartSplitRaw = YahooTolerant<ChartEventSplit>;
+type YahooChartSplitRaw = YahooTolerant<ChartEventSplit>;
 
 export interface YahooChartRaw extends YahooRawRecord {
   quotes?: YahooChartPointRaw[];

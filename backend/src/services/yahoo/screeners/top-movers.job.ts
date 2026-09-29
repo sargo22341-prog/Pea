@@ -19,18 +19,21 @@ function todayCacheDate() {
   return `${year}-${month}-${day}`;
 }
 
-/** Appelle un screener Yahoo unique, la version installee ne type pas plusieurs scrIds en un appel. */
-async function fetchScreener(scrId: ScreenerListId): Promise<TopMover[]> {
+/**
+ * Appelle un screener Yahoo unique, la version installee ne type pas plusieurs scrIds en un appel.
+ * `undefined` signale un echec, a ne pas confondre avec une liste vraiment vide.
+ */
+async function fetchScreener(scrId: ScreenerListId): Promise<TopMover[] | undefined> {
   try {
     const result = await retryTemporary(`screener:${scrId}`, () => yahooScreener(scrId, MARKET_LIST_COUNT));
     return mapScreenerQuotes(result.quotes);
   } catch (error) {
     logger.warn("market-data", "Yahoo screener fallback used", { screener: scrId, error: errorMessage(error) });
-    return [];
+    return undefined;
   }
 }
 
-async function fetchTrendingFr(): Promise<TopMover[]> {
+async function fetchTrendingFr(): Promise<TopMover[] | undefined> {
   try {
     const trending = await retryTemporary("trendingSymbols:FR", () =>
       yahooClient.trendingSymbols("FR", { count: MARKET_LIST_COUNT, lang: "fr-FR", region: "FR" }, { validateResult: false })
@@ -48,11 +51,14 @@ async function fetchTrendingFr(): Promise<TopMover[]> {
     return mapScreenerQuotes(quotes);
   } catch (error) {
     logger.warn("market-data", "Yahoo trending symbols fallback used", { region: "FR", error: errorMessage(error) });
-    return [];
+    return undefined;
   }
 }
 
-/** Une liste Yahoo Finance, en cache jusqu'à minuit (date locale serveur). */
+/**
+ * Une liste Yahoo Finance, en cache jusqu'à minuit (date locale serveur). Un échec Yahoo renvoie une
+ * liste vide sans être mis en cache : la liste est redemandée au prochain affichage.
+ */
 export async function fetchMarketList(id: MarketListId): Promise<MarketListResponse> {
   const cacheDate = todayCacheDate();
   const cached = listCache.get(id);
@@ -64,7 +70,8 @@ export async function fetchMarketList(id: MarketListId): Promise<MarketListRespo
   const items = await dedupeInFlight(`market-list:${id}:${cacheDate}`, () =>
     id === "trending_fr" ? fetchTrendingFr() : fetchScreener(id)
   );
-  const response = { id, items, cachedAt: new Date().toISOString(), cacheDate };
+  const response = { id, items: items ?? [], cachedAt: new Date().toISOString(), cacheDate };
+  if (!items) return response;
   listCache.set(id, response);
   logger.debug("market-data", "Yahoo market list fetched", { id, cacheDate, items: items.length });
   return response;

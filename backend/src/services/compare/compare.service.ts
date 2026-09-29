@@ -57,7 +57,7 @@ async function readQuotes(symbols: string[]): Promise<Map<string, Quote>> {
   }
 }
 
-export function toCompareAsset(symbol: string, quote: Quote | undefined, fundamentals: CompareFundamentals): CompareAssetDto {
+function toCompareAsset(symbol: string, quote: Quote | undefined, fundamentals: CompareFundamentals): CompareAssetDto {
   const { extraData, marketInfo } = fundamentals;
   const fund = extraData.fundDetails;
   const isEtf = Boolean(fund) || (quote?.quoteType ?? "").toUpperCase().includes("ETF");
@@ -66,7 +66,8 @@ export function toCompareAsset(symbol: string, quote: Quote | undefined, fundame
     name: quote?.name ?? symbol,
     isEtf,
     currency: quote?.currency ?? marketInfo.currency,
-    price: marketInfo.regularMarketPrice ?? quote?.price,
+    // Cotation du lot (cache d'une minute) avant le cours figé du cache fundamentals (un jour).
+    price: quote?.price ?? marketInfo.regularMarketPrice,
     valuation: extraData.valuation,
     financialHealth: isEtf ? undefined : extraData.financialHealth,
     dividend: {

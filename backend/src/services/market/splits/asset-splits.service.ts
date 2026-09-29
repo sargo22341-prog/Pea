@@ -1,3 +1,4 @@
+import { DAY_MS } from "@pea/shared";
 import { assetSplitsRepository, type AssetSplitSource } from "../../../repositories/market/splits/asset-splits.repository.js";
 import { logger } from "../../shared/logger.service.js";
 
@@ -6,8 +7,7 @@ import { logger } from "../../shared/logger.service.js";
  * `chart` date la division à l'ouverture du marché, `defaultKeyStatistics` à minuit UTC. Sans
  * cette tolérance, une même division enregistrée deux fois serait appliquée deux fois.
  */
-export const SPLIT_DATE_TOLERANCE_DAYS = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
+const SPLIT_DATE_TOLERANCE_DAYS = 3;
 /** Deux ratios plus proches que cette marge sont considérés identiques (arrondis Yahoo). */
 const RATIO_EPSILON = 1e-6;
 

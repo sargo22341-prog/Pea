@@ -28,7 +28,7 @@ const CORRELATION_MIN_ASSETS = 2;
  * Onglets de la page Analyse, regroupés en deux familles dans le sélecteur : la répartition du
  * portefeuille, puis la qualité des entreprises et du portefeuille dans son ensemble.
  */
-export const CHART_OPTIONS: readonly ChartOption[] = [
+const CHART_OPTIONS: readonly ChartOption[] = [
   { key: "country", family: "allocation", hasData: (data) => data.countryAllocation.length > 0 },
   { key: "sector", family: "allocation", hasData: (data) => data.sectorAllocation.length > 0 },
   { key: "treemap", family: "allocation", hasData: (data) => data.treemap.length > 0 },

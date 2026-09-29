@@ -5,7 +5,7 @@ import { rawDate, rawNumber, rawString } from "../../utils/raw-values.js";
 /** Nombre de changements de recommandation conservés dans la chronologie. */
 export const ANALYST_HISTORY_LIMIT = 10;
 /** Variation de note moyenne (échelle 1 à 5) sous laquelle le consensus est jugé stable. */
-export const ANALYST_TREND_STABLE_THRESHOLD = 0.1;
+const ANALYST_TREND_STABLE_THRESHOLD = 0.1;
 const GRADE_ACTIONS: readonly AnalystGradeAction[] = ["up", "down", "init", "main", "reit"];
 /** Poids de chaque avis sur l'échelle Yahoo : 1 = achat fort, 5 = vente forte. */
 const SCORE_WEIGHTS = { strongBuy: 1, buy: 2, hold: 3, sell: 4, strongSell: 5 } as const;
@@ -20,7 +20,7 @@ function periodTotal(period: AnalystRecommendationPeriod) {
 }
 
 /** Note moyenne d'un mois sur l'échelle 1 (achat fort) à 5 (vente forte). */
-export function recommendationScore(period: AnalystRecommendationPeriod) {
+function recommendationScore(period: AnalystRecommendationPeriod) {
   const total = periodTotal(period);
   if (!total) return undefined;
   const weighted = (Object.keys(SCORE_WEIGHTS) as (keyof typeof SCORE_WEIGHTS)[]).reduce((sum, key) => sum + period[key] * SCORE_WEIGHTS[key], 0);

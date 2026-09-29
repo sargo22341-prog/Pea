@@ -43,3 +43,9 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Nouveau screener PEA : filtres sur les actifs connus de l’instance (éligibilité PEA, secteur, rendement, PER, capitalisation, performance et distance au plus haut 52 semaines), préréglages « Rendement », « Value » et « Croissance », filtres enregistrables et colonnes au choix.
 - Nouvelles alertes : seuil de cours, variation du jour, franchissement de la moyenne mobile 200 jours, nouveau plus haut ou plus bas 52 semaines, changement de recommandation des analystes et annonce d’un détachement, créées depuis la fiche actif (bouton cloche), avec anti-rebond réglable.
 - En-tête : cloche avec le nombre d’alertes non lues et les derniers déclenchements ; page « Alertes » avec la liste et l’historique ; désactivable par l’administrateur.
+- Correction : le screener trie et filtre la capitalisation en euros (cours de change approximatif), une valeur cotée en wons ou en yens ne passe plus devant toutes les autres.
+- Correction : le comparateur affiche le dernier cours au lieu du cours de la veille conservé avec les fondamentaux.
+- Correction : une liste de la page Marchés qui n’a pas pu être chargée depuis Yahoo est redemandée au prochain affichage au lieu de rester vide jusqu’au lendemain.
+- Correction : une date de résultats confirmée remplace la date estimée dans le calendrier, l’export .ics et les actualités, au lieu d’afficher deux publications.
+- Correction : « Tout marquer comme lu » met aussi à jour la pastille de la cloche, et la cloche ne charge plus deux fois les alertes.
+- Alertes : la variation du jour est affichée au format français (« -5,23 % »).

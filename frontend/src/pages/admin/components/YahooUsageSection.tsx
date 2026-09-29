@@ -1,8 +1,8 @@
-import { YAHOO_USAGE_FEATURES, type YahooUsageCallDto, type YahooUsageFeature, type YahooUsageStatsDto } from "@pea/shared";
+import { DAY_MS, YAHOO_USAGE_FEATURES, type YahooUsageCallDto, type YahooUsageFeature, type YahooUsageStatsDto, type YahooUsageStatsQuery } from "@pea/shared";
 import { RefreshCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type YahooUsageStatsFilters } from "../../../lib/api";
+import { api } from "../../../lib/api";
 import { Collapsible, Toast, type SettingsToast } from "../../../components/common/feedback";
 import { YahooUsageChart } from "./yahoo-usage/YahooUsageCharts";
 import { YahooUsageFilters } from "./yahoo-usage/YahooUsageFilters";
@@ -11,7 +11,6 @@ import { YahooUsageCallsTable, YahooUsageRecentErrors, YahooUsageTopTable } from
 import type { DetailSelection, PeriodKey, SuccessFilter } from "./yahoo-usage/yahooUsageTypes";
 import { bucketRange, dateFromPeriod, isoLocalInput } from "./yahoo-usage/yahooUsageUtils";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function YahooUsageSection({ open, onToggle }: { open?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation(["common"]);
@@ -31,7 +30,7 @@ export function YahooUsageSection({ open, onToggle }: { open?: boolean; onToggle
   const [selection, setSelection] = useState<DetailSelection>({ label: t("admin.yahooUsage.lastCalls", { ns: "common" }), filters: {} });
   const [toast, setToast] = useState<SettingsToast | null>(null);
 
-  const filters = useMemo<YahooUsageStatsFilters>(() => {
+  const filters = useMemo<YahooUsageStatsQuery>(() => {
     const from = period === "custom" ? new Date(customFrom) : dateFromPeriod(period);
     const to = period === "custom" ? new Date(customTo) : undefined;
     return {
@@ -68,7 +67,7 @@ export function YahooUsageSection({ open, onToggle }: { open?: boolean; onToggle
     await fetchStats();
   }, [fetchStats]);
 
-  const detailFilters = useMemo<YahooUsageStatsFilters>(() => ({ ...filters, ...selection.filters, limit: 10 }), [filters, selection.filters]);
+  const detailFilters = useMemo<YahooUsageStatsQuery>(() => ({ ...filters, ...selection.filters, limit: 10 }), [filters, selection.filters]);
 
   const [requestedDetailFilters, setRequestedDetailFilters] = useState(detailFilters);
   if (requestedDetailFilters !== detailFilters) {

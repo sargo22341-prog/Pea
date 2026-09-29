@@ -1,9 +1,10 @@
-import type { User } from "@pea/shared";
+import { ALERT_LIMITS, type User } from "@pea/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
 import { useFeatureEnabled } from "../../contexts/feature-flags-context";
+import { useAlertEvents } from "../../hooks/useAlertEvents";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { AlertsBell } from "./alerts/AlertsBell";
 import { getMobileNavItems } from "./mobileNavItems";
@@ -28,6 +29,7 @@ export function Shell({ user }: { user: User }) {
   const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
   const marketsEnabled = useFeatureEnabled("markets_page");
   const alertsEnabled = useFeatureEnabled("alerts");
+  const alertEvents = useAlertEvents(ALERT_LIMITS.latestEvents, alertsEnabled);
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }, { marketsEnabled }), [user.assetNewsEnabled, marketsEnabled]);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function Shell({ user }: { user: User }) {
             </div>
           </div>
           <div className="flex items-center gap-1 lg:hidden">
-            {alertsEnabled && <AlertsBell />}
+            {alertsEnabled && <AlertsBell alerts={alertEvents} />}
             <UserMenu
               compact
               onProfileIconError={() => { setProfileFailed(true); }}
@@ -81,7 +83,7 @@ export function Shell({ user }: { user: User }) {
                 {t(link.labelKey)}
               </NavLink>
             ))}
-            {alertsEnabled && <AlertsBell />}
+            {alertsEnabled && <AlertsBell alerts={alertEvents} />}
             <UserMenu
               onProfileIconError={() => { setProfileFailed(true); }}
               profileIconUrl={profileIconUrl}

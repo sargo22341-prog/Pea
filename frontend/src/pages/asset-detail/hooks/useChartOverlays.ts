@@ -1,8 +1,7 @@
-import type { ChartOverlayKey } from "@pea/shared";
+import { CHART_OVERLAY_KEYS, type ChartOverlayKey } from "@pea/shared";
 import { useState } from "react";
 import { readBooleanPreference, readLocalPreference, writeLocalPreference } from "../../../lib/local-preference";
 
-export const CHART_OVERLAY_KEYS: readonly ChartOverlayKey[] = ["ma50", "ma200"];
 const STORAGE_KEY = "chart.overlays";
 const LEVELS_STORAGE_KEY = "chart.levels";
 

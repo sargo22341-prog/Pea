@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AssetDetailPage } from "../../pages/asset-detail/AssetDetailPage";
 import { LocationProbe } from "./LocationProbe";
 
-export const assetPageUser = {
+const assetPageUser = {
   id: 1,
   username: "alice",
   role: "user",

@@ -6,9 +6,11 @@ export type * from "./market/overview.js";
 export type * from "./market/compare.js";
 export type * from "./market/screener.js";
 export { MARKET_EVENT_TYPES } from "./market/events.js";
-export { MARKET_LIST_IDS } from "./market/core.js";
+export { CHART_OVERLAY_KEYS, MARKET_LIST_IDS } from "./market/core.js";
 export { CALENDAR_MAX_RANGE_DAYS, CALENDAR_SCOPES } from "./market/calendar.js";
 export { calendarEventDay, nextCalendarDay } from "./market/calendar-day.js";
+export { approximateEurRate, approximateEurRates } from "./market/fx.js";
+export { YAHOO_SYMBOL_PATTERN } from "./market/symbol.js";
 export { COMPARE_MAX_SYMBOLS, COMPARE_MIN_SYMBOLS } from "./market/compare.js";
 export {
   SCREENER_ASSET_TYPES,

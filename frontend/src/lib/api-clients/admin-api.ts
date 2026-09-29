@@ -1,23 +1,9 @@
-import type { AdminManagedUser, AppFeatureFlag, AppFeatureKey, DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageFeature, YahooUsageStatsDto } from "@pea/shared";
+import type { AdminManagedUser, AppFeatureFlag, AppFeatureKey, DataConstructionJobDto, RuntimeHealthDto, TrackedMarketsSettingsDto, YahooUsageCallDto, YahooUsageStatsDto, YahooUsageStatsQuery } from "@pea/shared";
 import { request } from "../api-core";
 
 export type MarketDataRebuildRange = "1d" | "1w" | "1m" | "all" | "all_ranges";
 
-export interface YahooUsageStatsFilters {
-  dateFrom?: string | undefined;
-  dateTo?: string | undefined;
-  method?: string | undefined;
-  module?: string | undefined;
-  ticker?: string | undefined;
-  source?: string | undefined;
-  feature?: YahooUsageFeature | undefined;
-  success?: boolean | undefined;
-  groupBy?: "hour" | "day" | "method" | "module" | "ticker" | undefined;
-  id?: number | undefined;
-  limit?: number | undefined;
-}
-
-function yahooUsageQuery(filters: YahooUsageStatsFilters) {
+function yahooUsageQuery(filters: YahooUsageStatsQuery) {
   const params = new URLSearchParams();
   if (filters.id !== undefined) params.set("id", String(filters.id));
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
@@ -40,11 +26,11 @@ export const adminApi = {
   deleteAdminUser: (userId: number) => request<undefined>(`/api/admin/users/${encodeURIComponent(String(userId))}`, { method: "DELETE" }),
   dataConstructionStatus: () => request<DataConstructionJobDto>("/api/admin/market-data/construction"),
   getRuntimeHealth: () => request<RuntimeHealthDto>("/api/admin/runtime-health"),
-  yahooUsageStats: (filters: YahooUsageStatsFilters = {}) => {
+  yahooUsageStats: (filters: YahooUsageStatsQuery = {}) => {
     const query = yahooUsageQuery(filters);
     return request<YahooUsageStatsDto>(`/api/admin/yahoo-usage/stats${query ? `?${query}` : ""}`);
   },
-  yahooUsageCalls: (filters: YahooUsageStatsFilters = {}) => {
+  yahooUsageCalls: (filters: YahooUsageStatsQuery = {}) => {
     const query = yahooUsageQuery(filters);
     return request<YahooUsageCallDto[]>(`/api/admin/yahoo-usage/calls${query ? `?${query}` : ""}`);
   },

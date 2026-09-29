@@ -118,7 +118,8 @@ export interface AssetChartDto {
 }
 
 /** Calques optionnels du graphique de cours : moyennes mobiles 50 et 200 séances. */
-export type ChartOverlayKey = "ma50" | "ma200";
+export const CHART_OVERLAY_KEYS = ["ma50", "ma200"] as const;
+export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
 
 export interface MarketSessionDto {
   timezone: string;

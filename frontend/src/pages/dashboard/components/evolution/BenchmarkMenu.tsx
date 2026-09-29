@@ -1,8 +1,9 @@
 import { Landmark } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MAX_COMPARE } from "../../../../components/charts/comparison/compare-limits";
 import { MOTION } from "../../../../components/common/motion";
+import { useDismiss } from "../../../../hooks/useDismiss";
 import type { ComparableAsset } from "../../../../hooks/useAssetComparisonSeries";
 import { DEFAULT_BENCHMARKS } from "./benchmarks";
 
@@ -14,25 +15,12 @@ export function BenchmarkMenu({ selected, onToggle }: { selected: readonly Compa
   const { t } = useTranslation("dashboard");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setOpen(false); }, []);
   const selectedSymbols = new Set(selected.map((target) => target.symbol));
   const activeCount = DEFAULT_BENCHMARKS.filter((benchmark) => selectedSymbols.has(benchmark.symbol)).length;
   const full = selected.length >= MAX_COMPARE;
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function closeOnOutside(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", closeOnOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
+  useDismiss(open, containerRef, close);
 
   return (
     <div className="relative" ref={containerRef}>

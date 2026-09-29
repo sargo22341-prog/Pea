@@ -1,6 +1,7 @@
 import type { AlertEvent, AlertParams, AlertType } from "@pea/shared";
 import type { TFunction } from "i18next";
-import { formatMaybeDate, money } from "../../../lib/format";
+import { formatMaybeDate, money, percent } from "../../../lib/format";
+import { formatRatio } from "../../../lib/format-metrics";
 import { recommendationLabelKey } from "../../../utils/assetTone";
 
 /** Condition d'une alerte, lisible : « Cours au-dessus de 60,00 € ». */
@@ -11,7 +12,7 @@ export function describeAlert(type: AlertType, params: AlertParams, currency: st
     case "price_below":
       return t(`alerts:describe.${type}`, { value: threshold === undefined ? "" : money(threshold, currency) });
     case "daily_change":
-      return t("alerts:describe.daily_change", { value: threshold ?? "" });
+      return t("alerts:describe.daily_change", { value: threshold === undefined ? "" : formatRatio(threshold) });
     case "ma200_cross":
       return t(`alerts:describe.ma200_cross_${params.direction ?? "both"}`);
     default:
@@ -29,7 +30,7 @@ export function describeEvent(event: AlertEvent, t: TFunction) {
     case "price_below":
       return t(`alerts:events.${event.type}`, { price, threshold: payload.threshold === undefined ? "" : money(payload.threshold, currency) });
     case "daily_change":
-      return t("alerts:events.daily_change", { change: payload.changePercent?.toFixed(2) ?? "" });
+      return t("alerts:events.daily_change", { change: payload.changePercent === undefined ? "" : percent(payload.changePercent) });
     case "ma200_cross":
       return t(`alerts:events.ma200_cross_${payload.crossed ?? "up"}`, { price });
     case "new_52w_high":

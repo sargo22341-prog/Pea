@@ -1,4 +1,4 @@
-import type { AllocationChartItem, DividendSustainabilityItem, PortfolioAnalysis, PortfolioValuationItem, PositionWithMarket } from "@pea/shared";
+import { DAY_MS, type AllocationChartItem, type DividendSustainabilityItem, type PortfolioAnalysis, type PortfolioValuationItem, type PositionWithMarket } from "@pea/shared";
 import { candleRepository } from "../../../repositories/candles/candle.repository.js";
 import { assetRepository } from "../../../repositories/market/asset.repository.js";
 import { CALENDAR_DAYS_PER_TRADING_DAY } from "../../market/charts/moving-average.js";
@@ -11,7 +11,6 @@ import { lookThroughExposure, type LookThroughPosition } from "./look-through.js
 import { addAllocation, finalizeAllocation, type Fundamentals } from "./portfolio-analysis.helpers.js";
 import { portfolioValuation, valuationItem } from "./valuation.js";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** Les corrélations se calculent sur les bougies journalières de l'historique complet. */
 const DAILY_RANGE = "all";
 const DAILY_INTERVAL = "1d";

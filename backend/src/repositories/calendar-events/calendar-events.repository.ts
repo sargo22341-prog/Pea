@@ -64,6 +64,27 @@ export function upsertCalendarEvents(events: CalendarEventInsert[]) {
   }
 }
 
+/**
+ * Enregistre les évènements du dernier résumé Yahoo d'un actif. Pour chaque type présent dans le
+ * résumé, une date à venir absente de la nouvelle liste a été déplacée ou annulée (date estimée
+ * remplacée par la date confirmée) : elle est supprimée pour ne pas afficher deux publications.
+ * Les évènements passés restent l'historique ; un type absent du résumé n'est pas touché.
+ */
+export function replaceUpcomingCalendarEvents(symbol: string, events: CalendarEventInsert[], nowIso: string) {
+  const key = symbol.toUpperCase();
+  const datesByType = new Map<CalendarEventType, string[]>();
+  for (const event of events) datesByType.set(event.eventType, [...(datesByType.get(event.eventType) ?? []), event.eventDate]);
+  db.transaction(() => {
+    for (const [eventType, dates] of datesByType) {
+      db.prepare(
+        `DELETE FROM asset_calendar_events
+         WHERE symbol = ? AND event_type = ? AND event_date >= ? AND event_date NOT IN (${dates.map(() => "?").join(", ")})`
+      ).run(key, eventType, nowIso, ...dates);
+    }
+    upsertCalendarEvents(events);
+  });
+}
+
 export function readCalendarEventsBySymbol(symbol: string) {
   const key = symbol.toUpperCase();
   return db.prepare(eventsQuery("ace.symbol = ?", SYMBOL_PAST_LIMIT, FUTURE_LIMIT)).all(key, key) as RawEventRow[];
@@ -75,7 +96,7 @@ export function readCalendarEventsForPortfolio(userId: number) {
 }
 
 /** Nombre maximal d'évènements renvoyés pour une plage (garde-fou, une plage est bornée à 400 jours). */
-export const CALENDAR_RANGE_MAX_EVENTS = 2000;
+const CALENDAR_RANGE_MAX_EVENTS = 2000;
 
 const SCOPE_CLAUSES: Record<CalendarScope, string> = {
   portfolio: "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId)",

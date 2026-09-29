@@ -3,7 +3,7 @@ import { rawArray, rawRecord, type YahooSummaryRaw } from "../../yahoo.raw.js";
 import { firstRawDate, rawDate, rawNonZeroNumber, rawNumber, rawString } from "../../utils/raw-values.js";
 
 /** Nombre de trimestres publiés affichés. */
-export const EARNINGS_QUARTERS_LIMIT = 4;
+const EARNINGS_QUARTERS_LIMIT = 4;
 
 function surprise(actual: number | undefined, estimate: number | undefined) {
   if (actual === undefined || estimate === undefined || estimate === 0) return undefined;

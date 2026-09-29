@@ -3,7 +3,7 @@ import type { YahooSummaryRaw } from "../../yahoo.raw.js";
 import { rawNonZeroNumber, rawNumber, rawString } from "../../utils/raw-values.js";
 
 /** Libellé Yahoo du secteur des banques, assurances et sociétés financières. */
-export const FINANCIAL_SECTOR = "Financial Services";
+const FINANCIAL_SECTOR = "Financial Services";
 
 /**
  * Santé financière d'une action à partir de `financialData`.

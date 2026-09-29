@@ -23,13 +23,13 @@ export interface SplitAdjustableTransaction {
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Début du jour de la division en UTC ; `undefined` si la date est illisible. */
-export function splitStartTime(split: Pick<AppliedSplit, "date">) {
+function splitStartTime(split: Pick<AppliedSplit, "date">) {
   if (!DAY_PATTERN.test(split.date)) return undefined;
   const time = Date.parse(`${split.date}T00:00:00.000Z`);
   return Number.isFinite(time) ? time : undefined;
 }
 
-export function splitRatio(split: Pick<AppliedSplit, "numerator" | "denominator">) {
+function splitRatio(split: Pick<AppliedSplit, "numerator" | "denominator">) {
   return split.denominator > 0 && split.numerator > 0 ? split.numerator / split.denominator : 1;
 }
 

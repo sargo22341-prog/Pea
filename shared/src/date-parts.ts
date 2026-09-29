@@ -9,3 +9,8 @@ export function parseTimeParts(time: string): [hour: number, minute: number] {
   const [hour = Number.NaN, minute = Number.NaN] = time.split(":").map(Number);
   return [hour, minute];
 }
+
+/** Durée d'une heure, en millisecondes. */
+export const HOUR_MS = 60 * 60 * 1000;
+/** Durée d'un jour de 24 h, en millisecondes (écart entre deux jours civils UTC). */
+export const DAY_MS = 24 * HOUR_MS;

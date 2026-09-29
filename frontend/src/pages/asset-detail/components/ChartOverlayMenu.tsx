@@ -1,9 +1,9 @@
-import type { ChartOverlayKey } from "@pea/shared";
+import { CHART_OVERLAY_KEYS, type ChartOverlayKey } from "@pea/shared";
 import { Layers } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MOTION } from "../../../components/common/motion";
-import { CHART_OVERLAY_KEYS } from "../hooks/useChartOverlays";
+import { useDismiss } from "../../../hooks/useDismiss";
 import { MOVING_AVERAGE_COLORS } from "../../../components/charts/chartFormat";
 
 /** Menu des calques du graphique de cours (moyennes mobiles, supports / résistances), à côté du sélecteur de période. */
@@ -20,22 +20,9 @@ export function ChartOverlayMenu({
   const { t } = useTranslation("asset");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setOpen(false); }, []);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function closeOnOutside(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("pointerdown", closeOnOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
+  useDismiss(open, containerRef, close);
 
   return (
     <div className="relative" ref={containerRef}>

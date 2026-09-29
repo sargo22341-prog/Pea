@@ -1,7 +1,6 @@
-import type { FinancialStatementRow } from "@pea/shared";
+import { DAY_MS, type FinancialStatementRow } from "@pea/shared";
 import { statementValuesByEndDate } from "./statements.mapper.js";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** Quatre trimestres consécutifs couvrent au plus ~9 mois entre la première et la dernière clôture. */
 const TTM_MAX_SPAN_DAYS = 300;
 const TTM_QUARTERS = 4;

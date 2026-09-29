@@ -1,5 +1,4 @@
-import type { YahooUsageBucketDto } from "@pea/shared";
-import type { YahooUsageStatsFilters } from "../../../../lib/api";
+import type { YahooUsageBucketDto, YahooUsageStatsQuery } from "@pea/shared";
 import type { PeriodKey } from "./yahooUsageTypes";
 
 export function startOfToday() {
@@ -40,7 +39,7 @@ export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", hour: "2-digit", minute: "2-digit", month: "2-digit" }).format(date);
 }
 
-export function bucketRange(bucket: YahooUsageBucketDto, groupBy: "hour" | "day"): Pick<YahooUsageStatsFilters, "dateFrom" | "dateTo"> {
+export function bucketRange(bucket: YahooUsageBucketDto, groupBy: "hour" | "day"): Pick<YahooUsageStatsQuery, "dateFrom" | "dateTo"> {
   const start = groupBy === "hour" ? new Date(bucket.key) : new Date(`${bucket.key}T00:00:00.000Z`);
   const end = new Date(start);
   if (groupBy === "hour") end.setUTCHours(end.getUTCHours() + 1);

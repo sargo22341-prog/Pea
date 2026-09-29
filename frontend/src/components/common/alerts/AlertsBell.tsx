@@ -1,9 +1,8 @@
-import { ALERT_LIMITS } from "@pea/shared";
 import { Bell } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useAlertEvents } from "../../../hooks/useAlertEvents";
+import type { AlertEventsState } from "../../../hooks/useAlertEvents";
 import { useDismiss } from "../../../hooks/useDismiss";
 import { formatArticleDate } from "../../../lib/format";
 import { MOTION } from "../motion";
@@ -12,13 +11,16 @@ import { describeEvent } from "./alert-labels";
 /** Compteur affiché au-delà duquel la pastille indique « 9+ ». */
 const MAX_BADGE_COUNT = 9;
 
-/** Cloche de l'en-tête : pastille des alertes non lues et menu des derniers déclenchements. */
-export function AlertsBell() {
+/**
+ * Cloche de l'en-tête : pastille des alertes non lues et menu des derniers déclenchements. Les
+ * données viennent de l'en-tête, qui affiche une cloche par mise en page (mobile, bureau) sans
+ * dupliquer les requêtes.
+ */
+export function AlertsBell({ alerts }: { alerts: AlertEventsState }) {
   const { t } = useTranslation(["alerts", "asset"]);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => { setOpen(false); }, []);
-  const alerts = useAlertEvents(ALERT_LIMITS.latestEvents);
   useDismiss(open, rootRef, close);
 
   return (

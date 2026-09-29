@@ -31,6 +31,7 @@ export interface ScreenerFilters {
   minDividendYield?: number | undefined;
   maxTrailingPE?: number | undefined;
   minTrailingPE?: number | undefined;
+  /** Capitalisations en euros (converties au cours approximatif de la devise de cotation). */
   minMarketCap?: number | undefined;
   maxMarketCap?: number | undefined;
   minChange52w?: number | undefined;

@@ -22,7 +22,7 @@ const UNRATED_METRICS: readonly HealthMetricKey[] = ["grossMargin", "returnOnAss
 /** `debtToEquity` est publié en points de pourcentage (53 = 53 %). */
 const PERCENT_POINTS_METRICS = new Set<HealthMetricKey>(["debtToEquity"]);
 
-export function formatHealthMetric(metric: HealthMetricKey, value: number, currency: string) {
+function formatHealthMetric(metric: HealthMetricKey, value: number, currency: string) {
   if (FRACTION_METRICS.has(metric)) return formatFractionPercent(value, { signed: metric.endsWith("Growth") });
   if (AMOUNT_METRICS.has(metric)) return formatCompactMoney(value, currency);
   if (PERCENT_POINTS_METRICS.has(metric)) return `${formatRatio(value, 0)} %`;
@@ -30,7 +30,7 @@ export function formatHealthMetric(metric: HealthMetricKey, value: number, curre
 }
 
 /** Texte du seuil partagé, par exemple « Vert si ≥ 15 %, rouge si < 5 % ». */
-export function thresholdText(metric: RatedHealthMetric, t: TFunction<"asset">, currency: string) {
+function thresholdText(metric: RatedHealthMetric, t: TFunction<"asset">, currency: string) {
   const threshold = HEALTH_THRESHOLDS[metric];
   const good = formatHealthMetric(metric, threshold.good, currency);
   const weak = formatHealthMetric(metric, threshold.weak, currency);

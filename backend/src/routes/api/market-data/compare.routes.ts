@@ -1,9 +1,8 @@
 import express from "express";
 import { z } from "zod";
-import { COMPARE_MAX_SYMBOLS, COMPARE_MIN_SYMBOLS } from "@pea/shared";
+import { COMPARE_MAX_SYMBOLS, COMPARE_MIN_SYMBOLS, YAHOO_SYMBOL_PATTERN } from "@pea/shared";
 import { compareAssets } from "../../../services/compare/compare.service.js";
 import { asyncRoute } from "../../shared/async-route.js";
-import { YAHOO_SYMBOL_PATTERN } from "../../shared/symbol.js";
 
 const compareQuerySchema = z.object({
   symbols: z.string()

@@ -58,6 +58,7 @@ test("compare returns the valuation, dividend and fund blocks of 2 to 4 assets a
   const [stock, etf, unknown] = result.columns;
   assert.deepEqual(result.columns.map((column) => column.symbol), ["MC.PA", "CW8.PA", "UNKNOWN.PA"], "requested order is kept");
   assert.equal(stock?.name, "MC.PA name");
+  assert.equal(stock.price, 100, "the live quote wins over the day-old fundamentals price");
   assert.equal(stock.isEtf, false);
   assert.ok(stock.valuation?.trailingPE, "stock valuation comes from the fundamentals cache");
   assert.equal(stock.dividend.payoutRatio, 0.5925);

@@ -23,7 +23,7 @@ import { screenerApi } from "./api-clients/screener-api";
 import { request } from "./api-core";
 import { clearNativeAuthToken, isNativeApp, setNativeAuthToken } from "./native-auth";
 
-export type { MarketDataRebuildRange, YahooUsageStatsFilters } from "./api-clients/admin-api";
+export type { MarketDataRebuildRange } from "./api-clients/admin-api";
 export type { MarketEventPayload } from "./api-clients/market-api";
 
 interface NativeAuthResponse {

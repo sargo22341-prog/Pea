@@ -1,7 +1,8 @@
 import type { YahooUsageCallDto } from "@pea/shared";
 import { db } from "../../db.js";
 import { parseJsonStringArray } from "../../utils/json.js";
-import type { CountRow, YahooUsageStatsQuery } from "./yahoo-usage.repository.js";
+import type { YahooUsageStatsQuery } from "@pea/shared";
+import type { CountRow } from "./yahoo-usage.repository.js";
 
 export function normalizeSymbol(value: string) {
   return value.trim().toUpperCase();

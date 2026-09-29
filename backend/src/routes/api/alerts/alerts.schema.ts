@@ -2,14 +2,14 @@ import { z } from "zod";
 import { ALERT_LIMITS, ALERT_THRESHOLD_TYPES, ALERT_TYPES, MA200_CROSS_DIRECTIONS, type AlertParams, type AlertType } from "@pea/shared";
 import { yahooSymbolSchema } from "../../shared/symbol.js";
 
-export const alertParamsSchema = z.strictObject({
+const alertParamsSchema = z.strictObject({
   threshold: z.number().positive().optional(),
   direction: z.enum(MA200_CROSS_DIRECTIONS).optional(),
   cooldownHours: z.number().int().min(ALERT_LIMITS.cooldownHours.min).max(ALERT_LIMITS.cooldownHours.max).optional()
 });
 
 /** Cohérence des paramètres avec le type : seuil obligatoire et borné, direction réservée à la MM200. */
-export function alertParamsIssue(type: AlertType, params: AlertParams): string | undefined {
+function alertParamsIssue(type: AlertType, params: AlertParams): string | undefined {
   const needsThreshold = ALERT_THRESHOLD_TYPES.includes(type);
   if (needsThreshold && params.threshold === undefined) return "Seuil obligatoire pour ce type d'alerte.";
   if (!needsThreshold && params.threshold !== undefined) return "Ce type d'alerte n'accepte pas de seuil.";

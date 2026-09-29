@@ -4,7 +4,7 @@ import { logger } from "../../shared/logger.service.js";
 import { marketDataGateway } from "../data/market-data-gateway.service.js";
 
 /** Symboles suivis par la page Marchés : indices, devise, matières premières et taux de référence. */
-export const MARKET_OVERVIEW_SYMBOLS: readonly { symbol: string; category: MarketOverviewCategory; key: string }[] = [
+const MARKET_OVERVIEW_SYMBOLS: readonly { symbol: string; category: MarketOverviewCategory; key: string }[] = [
   { symbol: "^FCHI", category: "indices", key: "cac40" },
   { symbol: "^STOXX50E", category: "indices", key: "eurostoxx50" },
   { symbol: "^GDAXI", category: "indices", key: "dax" },
@@ -40,7 +40,7 @@ async function readSparkline(symbol: string) {
   }
 }
 
-export function toOverviewItem(entry: (typeof MARKET_OVERVIEW_SYMBOLS)[number], quote: Quote | undefined, sparkline: MarketOverviewItem["sparkline"]): MarketOverviewItem {
+function toOverviewItem(entry: (typeof MARKET_OVERVIEW_SYMBOLS)[number], quote: Quote | undefined, sparkline: MarketOverviewItem["sparkline"]): MarketOverviewItem {
   const price = quote && !quote.unavailable ? finite(quote.price) : undefined;
   return {
     symbol: entry.symbol,

@@ -3,7 +3,7 @@ import { rawArray, rawRecord, type YahooSummaryRaw } from "../../yahoo.raw.js";
 import { rawDate, rawNonZeroNumber, rawNumber, rawString } from "../../utils/raw-values.js";
 
 /** Nombre de lignes détenues conservées : Yahoo n'en publie de toute façon que dix. */
-export const FUND_TOP_HOLDINGS_LIMIT = 10;
+const FUND_TOP_HOLDINGS_LIMIT = 10;
 /** Période de référence des statistiques de risque affichées. */
 const FUND_RISK_PERIOD = "3y";
 /** Au-delà de cette somme, des pondérations censées totaliser 1 sont en réalité des pourcentages. */
@@ -43,7 +43,7 @@ export function holdingsFromSummary(summary: YahooSummaryRaw): AssetFundHolding[
     .slice(0, FUND_TOP_HOLDINGS_LIMIT);
 }
 
-export function allocationFromSummary(summary: YahooSummaryRaw): AssetFundAllocation | undefined {
+function allocationFromSummary(summary: YahooSummaryRaw): AssetFundAllocation | undefined {
   const topHoldings = summary.topHoldings;
   if (!topHoldings) return undefined;
   const otherParts = [topHoldings.otherPosition, topHoldings.preferredPosition, topHoldings.convertiblePosition].map((value) => rawNumber(value) ?? 0);
@@ -59,7 +59,7 @@ export function allocationFromSummary(summary: YahooSummaryRaw): AssetFundAlloca
   return { stock: raw.stock / scale, bond: raw.bond / scale, cash: raw.cash / scale, other: raw.other / scale };
 }
 
-export function trailingReturnsFromPerformance(performance: FundPerformanceRaw): AssetFundTrailingReturns | undefined {
+function trailingReturnsFromPerformance(performance: FundPerformanceRaw): AssetFundTrailingReturns | undefined {
   const trailing = performance.trailingReturns ?? {};
   const returns = {
     ytd: rawNonZeroNumber(trailing.ytd),
@@ -74,7 +74,7 @@ export function trailingReturnsFromPerformance(performance: FundPerformanceRaw):
   return { asOfDate: validAsOfDate, ...returns };
 }
 
-export function annualReturnsFromPerformance(performance: FundPerformanceRaw): AssetFundAnnualReturn[] | undefined {
+function annualReturnsFromPerformance(performance: FundPerformanceRaw): AssetFundAnnualReturn[] | undefined {
   const rows = rawArray<unknown>(performance.annualTotalReturns?.returns).flatMap((entry): AssetFundAnnualReturn[] => {
     const row = rawRecord(entry);
     const year = rawNumber(row["year"]);

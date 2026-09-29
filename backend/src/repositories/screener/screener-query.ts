@@ -1,4 +1,12 @@
-import type { ScreenerFilters, ScreenerQuery, ScreenerSortKey } from "@pea/shared";
+import { approximateEurRates, type ScreenerFilters, type ScreenerQuery, type ScreenerSortKey } from "@pea/shared";
+
+/**
+ * Capitalisation ramenée en euros (cours approximatifs partagés) : chaque actif publie la sienne
+ * dans sa devise de cotation, qu'on ne peut ni trier ni filtrer telle quelle (un milliard de wons
+ * n'est pas un milliard d'euros). Devise inconnue : `NULL`, donc hors des filtres de capitalisation
+ * et en fin de tri. Codes et cours sont des constantes du code, jamais une saisie utilisateur.
+ */
+const MARKET_CAP_EUR = `CASE currency ${approximateEurRates().map(([currency, rate]) => `WHEN '${currency}' THEN market_cap * ${rate}`).join(" ")} END`;
 
 /**
  * Vue locale du screener : actifs connus de l'instance, enrichis par les snapshots de cotation
@@ -6,7 +14,7 @@ import type { ScreenerFilters, ScreenerQuery, ScreenerSortKey } from "@pea/share
  * passent par des paramètres nommés et le tri par une liste blanche de colonnes.
  */
 const SCREENER_VIEW = `
-  WITH screened AS (
+  WITH base AS (
     SELECT
       a.symbol,
       a.name,
@@ -27,6 +35,9 @@ const SCREENER_VIEW = `
     LEFT JOIN asset_dividend_snapshot d ON d.asset_id = a.id
     LEFT JOIN asset_profiles p ON p.asset_id = a.id
     LEFT JOIN cache_entries f ON f.scope = 'fundamentals' AND f.key = a.symbol
+  ),
+  screened AS (
+    SELECT base.*, ${MARKET_CAP_EUR} AS market_cap_eur FROM base
   )
 `;
 
@@ -38,7 +49,7 @@ const SORT_COLUMNS: Record<ScreenerSortKey, string> = {
   name: "name COLLATE NOCASE",
   trailingPE: "trailing_pe",
   dividendYield: "dividend_yield",
-  marketCap: "market_cap",
+  marketCap: "market_cap_eur",
   change52w: "change_52w",
   distanceFromHigh: "distance_from_high"
 };
@@ -50,8 +61,8 @@ const NUMERIC_BOUNDS: readonly Bound[] = [
   ["minDividendYield", "dividend_yield", ">="],
   ["minTrailingPE", "trailing_pe", ">="],
   ["maxTrailingPE", "trailing_pe", "<="],
-  ["minMarketCap", "market_cap", ">="],
-  ["maxMarketCap", "market_cap", "<="],
+  ["minMarketCap", "market_cap_eur", ">="],
+  ["maxMarketCap", "market_cap_eur", "<="],
   ["minChange52w", "change_52w", ">="],
   ["maxChange52w", "change_52w", "<="],
   ["maxDistanceFromHigh", "distance_from_high", "<="]

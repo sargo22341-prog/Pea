@@ -5,7 +5,6 @@
   "myPosition": "My position",
   "noPosition": "No position held for this symbol.",
   "marketInfo": "Market information",
-  "revenueNetIncomeMargin": "Revenue / Net Income / Margin",
   "dividend": "Dividend",
   "openingPositionEditor": "Preparing add...",
   "loadingAsset": "Loading {{symbol}}...",

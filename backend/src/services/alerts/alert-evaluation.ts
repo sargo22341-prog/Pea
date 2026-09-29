@@ -1,4 +1,4 @@
-import { ALERT_COOLDOWN_HOURS, type AlertEventPayload, type AlertParams, type AlertType } from "@pea/shared";
+import { ALERT_COOLDOWN_HOURS, HOUR_MS, type AlertEventPayload, type AlertParams, type AlertType } from "@pea/shared";
 
 /** Données de marché déjà stockées pour un actif au moment de l'évaluation. */
 export interface AlertMarketContext {
@@ -36,8 +36,6 @@ export interface AlertEvaluation {
   /** Présent quand l'alerte se déclenche (et n'est pas en période d'anti-rebond). */
   event?: AlertEventPayload | undefined;
 }
-
-const HOUR_MS = 60 * 60 * 1000;
 
 function isNumber(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value);
