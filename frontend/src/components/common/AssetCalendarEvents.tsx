@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { Clock3 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { useAsync } from "../../hooks/useAsync";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { api } from "../../lib/api";
@@ -120,7 +121,10 @@ export function PortfolioCalendarEvents() {
 
   return (
     <section className="w-full">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">{t("calendar.title", { ns: "common" })}</h2>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-300">{t("calendar.title", { ns: "common" })}</h2>
+        <Link className="text-xs font-semibold text-sky hover:text-white" to="/calendar">{t("calendar.seeCalendar", { ns: "common" })}</Link>
+      </div>
       <CalendarEventsList events={events} />
     </section>
   );

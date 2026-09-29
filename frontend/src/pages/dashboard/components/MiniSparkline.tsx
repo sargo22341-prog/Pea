@@ -1,6 +1,7 @@
 import type { PositionRangePerformance } from "@pea/shared";
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
+import { sparklinePath } from "../../../components/charts/sparklinePath";
 import { localIsoDate, normalizeTimeZone, zonedTimeToUtc } from "../../../lib/timezone";
 
 export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { miniChart?: PositionRangePerformance["miniChart"]; tone: "positive" | "negative" | "neutral" }) {
@@ -19,24 +20,8 @@ export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { 
     );
   }
 
-  const width = 112;
-  const height = 36;
-  const padding = 3;
   const sessionDomain = miniChart?.range === "1d" ? miniChartSessionDomain(firstPoint.t, miniChart.marketSession) : undefined;
-  const minT = sessionDomain?.open ?? firstPoint.t;
-  const maxT = sessionDomain?.close ?? lastPoint.t;
-  const values = points.map((point) => point.v);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const spanT = maxT - minT || 1;
-  const spanV = maxV - minV || 1;
-  const path = points
-    .map((point, index) => {
-      const x = padding + ((point.t - minT) / spanT) * (width - padding * 2);
-      const y = height - padding - ((point.v - minV) / spanV) * (height - padding * 2);
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
+  const path = sparklinePath(points, { width: 112, height: 36, padding: 3 }, sessionDomain && { min: sessionDomain.open, max: sessionDomain.close });
 
   return (
     <svg
@@ -45,7 +30,7 @@ export const MiniSparkline = memo(function MiniSparkline({ miniChart, tone }: { 
       focusable="false"
       preserveAspectRatio="none"
       role="img"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox="0 0 112 36"
     >
       <path d={path} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>

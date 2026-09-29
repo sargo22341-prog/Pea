@@ -1,0 +1,47 @@
+{
+  "subtitle": "Earnings releases, ex-dividend dates and dividend payments of your assets.",
+  "empty": "No event this month for these filters.",
+  "exportError": "Calendar export failed.",
+  "toolbar": {
+    "previous": "Previous month",
+    "next": "Next month",
+    "today": "Today",
+    "view": "View",
+    "scope": "Assets shown",
+    "export": "Export (.ics)"
+  },
+  "views": {
+    "month": "Month",
+    "list": "List"
+  },
+  "scopes": {
+    "portfolio": "Portfolio",
+    "watchlist": "Watchlist",
+    "all": "All"
+  },
+  "filters": {
+    "label": "Event types",
+    "earnings": "Earnings",
+    "ex_dividend": "Ex-dividend",
+    "dividend": "Payments"
+  },
+  "grid": {
+    "dayLabel_zero": "{{date}}, no event",
+    "dayLabel_one": "{{date}}, 1 event",
+    "dayLabel_other": "{{date}}, {{count}} events"
+  },
+  "panel": {
+    "close": "Close day details",
+    "empty": "No event on this day."
+  },
+  "expected": {
+    "real": "Amount received: {{amount}}",
+    "announced": "Expected amount (announced): {{amount}}",
+    "estimated": "Expected amount (estimated): {{amount}}"
+  },
+  "estimates": {
+    "toggle": "Show estimates",
+    "eps": "Expected EPS",
+    "revenue": "Expected revenue"
+  }
+}

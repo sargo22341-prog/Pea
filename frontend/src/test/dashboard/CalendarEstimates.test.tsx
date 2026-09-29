@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortfolioCalendarEvents } from "../../components/common/AssetCalendarEvents";
 import { api } from "../../lib/api";
@@ -25,10 +26,11 @@ describe("portfolio calendar estimates", () => {
       { id: 2, symbol: "MC.PA", eventType: "earnings", eventDate: new Date(Date.now() - 5 * DAY_MS).toISOString(), isEstimate: false, assetName: "LVMH", currency: "EUR", epsAverage: 9 }
     ]);
 
-    render(<PortfolioCalendarEvents />);
+    render(<MemoryRouter><PortfolioCalendarEvents /></MemoryRouter>);
 
     expect(await screen.findByText(/BPA attendu 1,25.*CA attendu 7/)).toBeInTheDocument();
     expect(screen.getByText("LVMH")).toBeInTheDocument();
     expect(screen.queryByText(/BPA attendu 9/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Voir le calendrier" })).toHaveAttribute("href", "/calendar");
   });
 });

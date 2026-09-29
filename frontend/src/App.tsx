@@ -23,6 +23,8 @@ const DividendsPage = lazyWithReload(() => import("./pages/dividends/DividendsPa
 const AnalysisPage = lazyWithReload(() => import("./pages/analysis/AnalysisPage").then((module) => ({ default: module.AnalysisPage })));
 const NewsPage = lazyWithReload(() => import("./pages/news/NewsPage").then((module) => ({ default: module.NewsPage })));
 const ObjectivePage = lazyWithReload(() => import("./pages/objectives/ObjectivePage").then((module) => ({ default: module.ObjectivePage })));
+const CalendarPage = lazyWithReload(() => import("./pages/calendar/CalendarPage").then((module) => ({ default: module.CalendarPage })));
+const MarketsPage = lazyWithReload(() => import("./pages/markets/MarketsPage").then((module) => ({ default: module.MarketsPage })));
 const SearchPage = lazyWithReload(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const AdminPage = lazyWithReload(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
@@ -155,6 +157,8 @@ function AuthenticatedApp() {
                   <Route path="/analysis" element={<AnalysisPage />} />
                   <Route path="/search" element={<SearchPage user={me.data.user} />} />
                   <Route path="/dividends" element={<DividendsPage />} />
+                  <Route path="/calendar" element={<CalendarPage appTimezone={appTimezone} />} />
+                  <Route path="/markets" element={me.data.features.includes("markets_page") ? <MarketsPage /> : <Navigate replace to="/" />} />
                   <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
                   <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
                   <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />

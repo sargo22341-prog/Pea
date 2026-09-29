@@ -33,3 +33,8 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Analyse : valorisation du portefeuille (PER, rendement et bêta pondérés, avec la part du portefeuille couverte et le détail par actif).
 - Analyse : transparence ETF, qui répartit vos ETF selon leurs principales lignes (« via vos ETF, vous détenez 3 % d’ASML »), en vue directe ou éclatée.
 - Analyse : dividendes durables (taux de distribution et couverture par le flux de trésorerie, du plus sûr au plus fragile), répartition par capitalisation et par devise, et corrélation entre les lignes sur un an.
+- Nouvelle page « Calendrier » : vue mois ou liste des publications de résultats, détachements et versements de dividendes, pour le portefeuille, la liste de suivi ou les deux, avec filtres par type, montant de dividende attendu (masqué en mode privé) et export vers un agenda (.ics).
+- Dashboard : lien « Voir le calendrier » au-dessus des prochains évènements.
+- Nouvelle page « Marchés » : indices, euro/dollar, or, Brent et taux américain à 10 ans avec leur courbe du mois, actualisés chaque minute ; désactivable par l'administrateur.
+- Les listes Yahoo Finance quittent la page Recherche pour la page Marchés : six nouvelles listes (croissance technologique, petites capitalisations, fonds, obligations à haut rendement…), filtre « PEA uniquement » et PER, rendement et capitalisation sous chaque titre.
+- Menu : entrées « Marchés » et « Calendrier » ; Dividendes prend une icône de pièces.

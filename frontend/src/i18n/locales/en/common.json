@@ -406,7 +406,9 @@
         "insights": "Technical signals",
         "insightsHelp": "Short, mid and long-term outlook and relative valuation (1 call per asset per day).",
         "similar_assets": "Similar assets",
-        "similar_assetsHelp": "Suggestions of related assets on the asset page (1 call per asset per week)."
+        "similar_assetsHelp": "Suggestions of related assets on the asset page (1 call per asset per week).",
+        "markets_page": "Markets page",
+        "markets_pageHelp": "Indices, currencies and commodities (1 quote batch per minute, only while the page is open)."
       }
     }
   },
@@ -432,7 +434,8 @@
     "estimate": "Estimate",
     "planned": "Planned",
     "epsEstimate": "Expected EPS {{value}}",
-    "revenueEstimate": "Expected revenue {{value}}"
+    "revenueEstimate": "Expected revenue {{value}}",
+    "seeCalendar": "See the calendar"
   },
   "files": {
     "chooseImage": "Choose an image",
@@ -445,20 +448,7 @@
     "noLocalResult": "No result in the local PEA list.",
     "noResult": "No result.",
     "inPortfolio": "In portfolio",
-    "watchlist": "Watchlist",
-    "yahooLists": "Yahoo Finance lists",
-    "yahooListsHelp": "Click a category to load only that list.",
-    "chooseList": "Choose a list to display.",
-    "emptyAssets": "No assets to display.",
-    "marketLists": {
-      "day_gainers": "Top gainers",
-      "day_losers": "Top losers",
-      "trending_fr": "Trending",
-      "high_dividend_yield": "High dividends",
-      "top_etfs_us": "ETFs",
-      "undervalued_large_caps": "Undervalued large caps",
-      "undervalued_growth_stocks": "Undervalued growth"
-    }
+    "watchlist": "Watchlist"
   },
   "avatar": {
     "adjust": "Adjust image",

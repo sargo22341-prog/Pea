@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ValueTrend } from "../../../components/common/motion";
+import type { ValueTrend } from "../components/common/motion";
 
 /**
  * Pulsations declenchees par une valeur qui change pendant que la page reste ouverte

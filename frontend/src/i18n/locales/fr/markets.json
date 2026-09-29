@@ -1,0 +1,51 @@
+{
+  "subtitle": "Indices, devises, matieres premieres et taux en un coup d'oeil, puis les listes du jour.",
+  "searchAsset": "Rechercher un actif",
+  "categories": {
+    "indices": "Indices",
+    "currencies": "Devises",
+    "commodities": "Matieres premieres",
+    "rates": "Taux"
+  },
+  "instruments": {
+    "cac40": "CAC 40",
+    "eurostoxx50": "Euro Stoxx 50",
+    "dax": "DAX",
+    "sp500": "S&P 500",
+    "nasdaq": "Nasdaq",
+    "eurusd": "Euro / Dollar",
+    "gold": "Or",
+    "brent": "Petrole Brent",
+    "us10y": "Taux US 10 ans"
+  },
+  "overview": {
+    "empty": "Aucune cotation disponible pour le moment.",
+    "sparkline": "Evolution sur un mois"
+  },
+  "lists": {
+    "title": "Top du jour",
+    "help": "Listes Yahoo Finance, chargees une par une a la demande.",
+    "more": "Plus de listes",
+    "peaOnly": "PEA uniquement",
+    "empty": "Aucun actif a afficher.",
+    "noPeaAsset": "Aucun titre eligible au PEA dans cette liste.",
+    "pe": "PER {{value}}",
+    "yield": "Rdt {{value}}",
+    "cap": "Cap. {{value}}",
+    "names": {
+      "day_gainers": "Top hausses",
+      "day_losers": "Top baisses",
+      "trending_fr": "Tendances",
+      "high_dividend_yield": "Dividendes eleves",
+      "top_etfs_us": "ETF",
+      "undervalued_large_caps": "Grandes caps sous-valorisees",
+      "undervalued_growth_stocks": "Croissance sous-valorisee",
+      "growth_technology_stocks": "Croissance technologique",
+      "aggressive_small_caps": "Petites caps dynamiques",
+      "small_cap_gainers": "Petites caps en hausse",
+      "top_mutual_funds": "Meilleurs fonds",
+      "conservative_foreign_funds": "Fonds etrangers prudents",
+      "high_yield_bond": "Obligations a haut rendement"
+    }
+  }
+}

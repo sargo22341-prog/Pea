@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useNumberPulse, useTogglePulse } from "../../pages/asset-detail/hooks/useValuePulse";
+import { useNumberPulse, useTogglePulse } from "../../hooks/useValuePulse";
 
 describe("useNumberPulse", () => {
   it("n'annonce aucune variation au premier rendu", () => {

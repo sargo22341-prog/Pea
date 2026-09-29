@@ -2,7 +2,7 @@
  * Fonctionnalités activables par l'administrateur. Chacune coûte des appels Yahoo : désactivée,
  * elle ne déclenche aucun appel et son bloc est masqué.
  */
-export const APP_FEATURE_KEYS = ["extended_fundamentals", "quarterly_statements", "insights", "similar_assets"] as const;
+export const APP_FEATURE_KEYS = ["extended_fundamentals", "quarterly_statements", "insights", "similar_assets", "markets_page"] as const;
 export type AppFeatureKey = (typeof APP_FEATURE_KEYS)[number];
 
 export interface AppFeatureFlag {

@@ -2,7 +2,6 @@ import type { User } from "@pea/shared";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { SearchPanel } from "./components/SearchPanel";
-import { TopMoversSection } from "./components/TopMoversSection";
 import { useEnrichedSearch } from "../../hooks/useEnrichedSearch";
 
 /** Page de recherche principale, protegee par les appels API authentifies. */
@@ -30,7 +29,6 @@ export function SearchPage({ user }: { user: User }) {
         query={search.query}
         results={search.results}
       />
-      <TopMoversSection />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type {
   InstrumentKind,
   PeaEligibilityResult,
+  PeaEligibilityStatus,
   PeaRankingResult,
   Quote,
   SearchResult
@@ -265,4 +266,11 @@ function hasBlacklistedUnderlyingOnEuropeanVenue(asset: SearchAsset | QuoteAsset
   if (!suffix) return false;
   const baseSymbol = symbol.slice(0, -suffix.length).replace(/^\d+/, "");
   return PEA_BLACKLIST.has(baseSymbol);
+}
+
+/** Statuts retenus pour le filtre « PEA uniquement » et les badges : source de vérité unique. */
+const PEA_ELIGIBLE_STATUSES = new Set<PeaEligibilityStatus>(["eligible", "likely_eligible"]);
+
+export function isProbablyPeaEligible(asset: SearchAsset | QuoteAsset): boolean {
+  return PEA_ELIGIBLE_STATUSES.has(evaluatePeaEligibility(asset).status);
 }

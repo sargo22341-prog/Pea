@@ -7,7 +7,16 @@ export type * from "./portfolio.js";
 export type * from "./user.js";
 export type * from "./objectives.js";
 export type * from "./objective-simulation.js";
-export { MARKET_EVENT_TYPES } from "./market.js";
+export {
+  CALENDAR_MAX_RANGE_DAYS,
+  CALENDAR_SCOPES,
+  MARKET_EVENT_TYPES,
+  MARKET_LIST_IDS,
+  MARKET_OVERVIEW_CATEGORIES,
+  MARKETS_REFRESH_INTERVAL_MS,
+  calendarEventDay,
+  nextCalendarDay
+} from "./market.js";
 export { APP_FEATURE_KEYS, YAHOO_USAGE_FEATURES } from "./features.js";
 export {
   HEALTH_THRESHOLDS,

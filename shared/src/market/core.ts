@@ -11,29 +11,42 @@ export interface TopMover {
   changePercent: number;
   change: number;
   currency?: CurrencyCode | undefined;
+  exchange?: string | undefined;
+  quoteType?: string | undefined;
+  /** PER sur 12 mois glissants. */
+  trailingPE?: number | undefined;
+  /** Rendement du dividende sur 12 mois glissants (fraction). */
+  dividendYield?: number | undefined;
+  marketCap?: number | undefined;
+  /** Éligibilité PEA probable selon les règles locales (`peaEligibility.ts`). */
+  peaEligible?: boolean | undefined;
 }
 
-export interface TopAndLosersResponse {
-  gainers: TopMover[];
-  losers: TopMover[];
-  cachedAt: string;
-  cacheDate: string;
-}
-
-export type MarketListId =
-  | "day_gainers"
-  | "day_losers"
-  | "trending_fr"
-  | "high_dividend_yield"
-  | "top_etfs_us"
-  | "undervalued_large_caps"
-  | "undervalued_growth_stocks";
+/** Listes Yahoo Finance proposées ; les trois premières sont visibles d'emblée sur la page Marchés. */
+export const MARKET_LIST_IDS = [
+  "day_gainers",
+  "day_losers",
+  "trending_fr",
+  "high_dividend_yield",
+  "top_etfs_us",
+  "undervalued_large_caps",
+  "undervalued_growth_stocks",
+  "growth_technology_stocks",
+  "aggressive_small_caps",
+  "small_cap_gainers",
+  "top_mutual_funds",
+  "conservative_foreign_funds",
+  "high_yield_bond"
+] as const;
+export type MarketListId = (typeof MARKET_LIST_IDS)[number];
 
 export interface MarketListResponse {
   id: MarketListId;
   items: TopMover[];
   cachedAt: string;
   cacheDate: string;
+  /** Vrai quand seuls les titres probablement éligibles au PEA sont conservés. */
+  peaOnly?: boolean | undefined;
 }
 
 export interface Quote {

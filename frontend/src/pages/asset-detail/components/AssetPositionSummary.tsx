@@ -7,7 +7,7 @@ import { masquerValeur } from "../../../lib/privacy";
 import { toneClass, toneFromNumber } from "../../../utils/assetTone";
 import { AssetInfoTile } from "../../../components/common/metrics/AssetInfoTile";
 import { flashClass } from "../../../components/common/motion";
-import { useNumberPulse } from "../hooks/useValuePulse";
+import { useNumberPulse } from "../../../hooks/useValuePulse";
 
 export function AssetPositionSummary({
   position,

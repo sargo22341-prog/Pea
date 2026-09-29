@@ -1,0 +1,47 @@
+{
+  "subtitle": "Publications de resultats, detachements et versements de dividendes de vos actifs.",
+  "empty": "Aucun evenement ce mois-ci pour ces filtres.",
+  "exportError": "Export du calendrier impossible.",
+  "toolbar": {
+    "previous": "Mois precedent",
+    "next": "Mois suivant",
+    "today": "Aujourd'hui",
+    "view": "Affichage",
+    "scope": "Actifs affiches",
+    "export": "Exporter (.ics)"
+  },
+  "views": {
+    "month": "Mois",
+    "list": "Liste"
+  },
+  "scopes": {
+    "portfolio": "Portefeuille",
+    "watchlist": "Suivi",
+    "all": "Tout"
+  },
+  "filters": {
+    "label": "Types d'evenements",
+    "earnings": "Resultats",
+    "ex_dividend": "Detachements",
+    "dividend": "Versements"
+  },
+  "grid": {
+    "dayLabel_zero": "{{date}}, aucun evenement",
+    "dayLabel_one": "{{date}}, 1 evenement",
+    "dayLabel_other": "{{date}}, {{count}} evenements"
+  },
+  "panel": {
+    "close": "Fermer le detail du jour",
+    "empty": "Aucun evenement ce jour."
+  },
+  "expected": {
+    "real": "Montant percu : {{amount}}",
+    "announced": "Montant attendu (annonce) : {{amount}}",
+    "estimated": "Montant attendu (estime) : {{amount}}"
+  },
+  "estimates": {
+    "toggle": "Afficher les estimations",
+    "eps": "BPA attendu",
+    "revenue": "CA attendu"
+  }
+}

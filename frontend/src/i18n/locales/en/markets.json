@@ -1,0 +1,51 @@
+{
+  "subtitle": "Indices, currencies, commodities and rates at a glance, then today's lists.",
+  "searchAsset": "Search an asset",
+  "categories": {
+    "indices": "Indices",
+    "currencies": "Currencies",
+    "commodities": "Commodities",
+    "rates": "Rates"
+  },
+  "instruments": {
+    "cac40": "CAC 40",
+    "eurostoxx50": "Euro Stoxx 50",
+    "dax": "DAX",
+    "sp500": "S&P 500",
+    "nasdaq": "Nasdaq",
+    "eurusd": "Euro / Dollar",
+    "gold": "Gold",
+    "brent": "Brent crude",
+    "us10y": "US 10-year yield"
+  },
+  "overview": {
+    "empty": "No quote available right now.",
+    "sparkline": "One-month trend"
+  },
+  "lists": {
+    "title": "Today's lists",
+    "help": "Yahoo Finance lists, loaded one at a time on demand.",
+    "more": "More lists",
+    "peaOnly": "PEA only",
+    "empty": "No asset to show.",
+    "noPeaAsset": "No PEA-eligible asset in this list.",
+    "pe": "P/E {{value}}",
+    "yield": "Yield {{value}}",
+    "cap": "Cap. {{value}}",
+    "names": {
+      "day_gainers": "Top gainers",
+      "day_losers": "Top losers",
+      "trending_fr": "Trending",
+      "high_dividend_yield": "High dividend yield",
+      "top_etfs_us": "ETFs",
+      "undervalued_large_caps": "Undervalued large caps",
+      "undervalued_growth_stocks": "Undervalued growth",
+      "growth_technology_stocks": "Growth technology",
+      "aggressive_small_caps": "Aggressive small caps",
+      "small_cap_gainers": "Small cap gainers",
+      "top_mutual_funds": "Top mutual funds",
+      "conservative_foreign_funds": "Conservative foreign funds",
+      "high_yield_bond": "High yield bonds"
+    }
+  }
+}

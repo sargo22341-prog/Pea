@@ -13,7 +13,9 @@ import type {
 } from "@pea/shared";
 import { adminApi } from "./api-clients/admin-api";
 import { assetApi } from "./api-clients/asset-api";
+import { calendarApi } from "./api-clients/calendar-api";
 import { marketApi } from "./api-clients/market-api";
+import { marketsApi } from "./api-clients/markets-api";
 import { objectivesApi } from "./api-clients/objectives-api";
 import { portfolioApi } from "./api-clients/portfolio-api";
 import { request } from "./api-core";
@@ -108,6 +110,8 @@ const importApi = {
 
 export const api = {
   ...marketApi,
+  ...calendarApi,
+  ...marketsApi,
   ...portfolioApi,
   ...objectivesApi,
   ...assetApi,

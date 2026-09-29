@@ -28,6 +28,8 @@ par un service tiers.
 Fonctionnalites principales :
 
 - dashboard de portefeuille avec positions, watchlist, performance et calendrier ;
+- calendrier des resultats et dividendes (vue mois ou liste, export `.ics`) ;
+- page Marches : indices, devises, matieres premieres, taux et listes Yahoo Finance filtrables PEA ;
 - fiche detaillee par actif avec historique, informations marche et dividendes ;
 - vue annuelle des dividendes avec repartition mensuelle et trimestrielle, et projection
   de l'annee suivante estimee a partir des deux annees precedentes ;

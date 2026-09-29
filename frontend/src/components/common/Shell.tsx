@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import type { NavLinkRenderProps } from "react-router-dom";
+import { useFeatureEnabled } from "../../contexts/feature-flags-context";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { getMobileNavItems } from "./mobileNavItems";
 import { MOTION } from "./motion";
@@ -24,7 +25,8 @@ export function Shell({ user }: { user: User }) {
   const [profileFailed, setProfileFailed] = useState(() => !user.hasProfileIcon);
   const shouldLoadProfileIcon = hasProfileIcon && !profileFailed;
   const profileIconUrl = useAuthenticatedImageUrl(`/api/auth/me/profile-icon?v=${profileCacheBust}`, profileCacheBust, shouldLoadProfileIcon);
-  const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }), [user.assetNewsEnabled]);
+  const marketsEnabled = useFeatureEnabled("markets_page");
+  const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }, { marketsEnabled }), [user.assetNewsEnabled, marketsEnabled]);
 
   useEffect(() => {
     const onProfileIconUpdated = (event: WindowEventMap["profile-icon-updated"]) => {

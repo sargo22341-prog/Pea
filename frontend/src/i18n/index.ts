@@ -9,6 +9,8 @@ import assetFr from "./locales/fr/asset.json";
 import settingsFr from "./locales/fr/settings.json";
 import errorsFr from "./locales/fr/errors.json";
 import objectivesFr from "./locales/fr/objectives.json";
+import calendarFr from "./locales/fr/calendar.json";
+import marketsFr from "./locales/fr/markets.json";
 import commonEn from "./locales/en/common.json";
 import navigationEn from "./locales/en/navigation.json";
 import dashboardEn from "./locales/en/dashboard.json";
@@ -17,8 +19,10 @@ import assetEn from "./locales/en/asset.json";
 import settingsEn from "./locales/en/settings.json";
 import errorsEn from "./locales/en/errors.json";
 import objectivesEn from "./locales/en/objectives.json";
+import calendarEn from "./locales/en/calendar.json";
+import marketsEn from "./locales/en/markets.json";
 
-export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives"] as const;
+export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets"] as const;
 
 export const languageOptions: { code: AppLanguage; labelKey: string; flag: string }[] = [
   { code: "fr", labelKey: "languages.fr", flag: "🇫🇷" },
@@ -34,7 +38,9 @@ const resources = {
     asset: assetFr,
     settings: settingsFr,
     errors: errorsFr,
-    objectives: objectivesFr
+    objectives: objectivesFr,
+    calendar: calendarFr,
+    markets: marketsFr
   },
   en: {
     common: commonEn,
@@ -44,7 +50,9 @@ const resources = {
     asset: assetEn,
     settings: settingsEn,
     errors: errorsEn,
-    objectives: objectivesEn
+    objectives: objectivesEn,
+    calendar: calendarEn,
+    markets: marketsEn
   }
 };
 

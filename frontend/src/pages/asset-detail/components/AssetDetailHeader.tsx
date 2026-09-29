@@ -5,7 +5,7 @@ import { AssetIcon } from "../../../components/common/AssetIcon";
 import { MOTION, flashClass } from "../../../components/common/motion";
 import { StaleBadge } from "../../../components/common/StaleBadge";
 import { money, percent } from "../../../lib/format";
-import { useNumberPulse, useTogglePulse } from "../hooks/useValuePulse";
+import { useNumberPulse, useTogglePulse } from "../../../hooks/useValuePulse";
 import { PeaBadge } from "./PeaBadge";
 
 /** Retour visuel au survol et a l'appui sur les actions de l'en-tete. */

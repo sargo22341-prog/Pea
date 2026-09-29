@@ -93,21 +93,6 @@ export interface WatchlistItem {
   marketDataUnavailable?: boolean;
 }
 
-export type CalendarEventType = "earnings" | "earnings_call" | "ex_dividend" | "dividend";
-
-export interface CalendarEvent {
-  id: number;
-  symbol: string;
-  eventType: CalendarEventType;
-  eventDate: string;
-  isEstimate: boolean;
-  assetName: string;
-  currency?: string | undefined;
-  /** Consensus de la prochaine publication de résultats. */
-  epsAverage?: number | undefined;
-  revenueAverage?: number | undefined;
-}
-
 export interface AssetDetails {
   quote: Quote;
   history: HistoryPoint[];

@@ -1,4 +1,4 @@
-import type { CalendarEvent, CalendarEventType } from "@pea/shared";
+import type { CalendarEvent, CalendarEventType, CalendarScope } from "@pea/shared";
 import { db } from "../../db.js";
 
 export interface CalendarEventInsert {
@@ -23,9 +23,11 @@ interface RawEventRow {
   revenue_average: number | null;
 }
 
+const EVENT_COLUMNS = "ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name, a.currency, ace.eps_average, ace.revenue_average";
+
 /** Évènements passés puis à venir les plus proches, d'un actif ou des positions d'un utilisateur. */
 function eventsQuery(scopeClause: string, pastLimit: number, futureLimit: number) {
-  const columns = "ace.id, ace.symbol, ace.event_type, ace.event_date, ace.is_estimate, a.name AS asset_name, a.currency, ace.eps_average, ace.revenue_average";
+  const columns = EVENT_COLUMNS;
   return `
     SELECT * FROM (
       SELECT ${columns}
@@ -70,6 +72,29 @@ export function readCalendarEventsBySymbol(symbol: string) {
 export function readCalendarEventsForPortfolio(userId: number) {
   const scope = "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)";
   return db.prepare(eventsQuery(scope, PORTFOLIO_PAST_LIMIT, FUTURE_LIMIT)).all(userId, userId) as RawEventRow[];
+}
+
+/** Nombre maximal d'évènements renvoyés pour une plage (garde-fou, une plage est bornée à 400 jours). */
+export const CALENDAR_RANGE_MAX_EVENTS = 2000;
+
+const SCOPE_CLAUSES: Record<CalendarScope, string> = {
+  portfolio: "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId)",
+  watchlist: "ace.symbol IN (SELECT symbol FROM watchlist WHERE user_id = @userId)",
+  all: "(ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId) OR ace.symbol IN (SELECT symbol FROM watchlist WHERE user_id = @userId))"
+};
+
+/**
+ * Évènements des actifs d'un utilisateur entre `fromDate` (inclus) et `toDateExclusive`, dates
+ * `YYYY-MM-DD` comparées au préfixe des dates ISO stockées.
+ */
+export function readCalendarEventsInRange(userId: number, scope: CalendarScope, fromDate: string, toDateExclusive: string) {
+  return db.prepare(`
+    SELECT ${EVENT_COLUMNS}
+    FROM asset_calendar_events ace LEFT JOIN assets a ON a.symbol = ace.symbol
+    WHERE ${SCOPE_CLAUSES[scope]} AND ace.event_date >= @fromDate AND ace.event_date < @toDateExclusive
+    ORDER BY ace.event_date ASC, ace.symbol ASC
+    LIMIT ${CALENDAR_RANGE_MAX_EVENTS}
+  `).all({ userId, fromDate, toDateExclusive }) as RawEventRow[];
 }
 
 /** Première date d'un type d'évènement à partir de `fromIso` (par exemple le prochain détachement annoncé). */

@@ -4,15 +4,12 @@ import type {
   ChartOverlayKey,
   DividendEvent,
   EnrichedSearchResult,
-  MarketListId,
-  MarketListResponse,
   NewsArticle,
   NewsAssetsPage,
   NewsFeedPage,
   Quote,
   RangeKey,
   SearchResult,
-  TopAndLosersResponse,
   WatchlistItem
 } from "@pea/shared";
 import { apiUrl, dedupedRequest, request, requestHeaders, resolveApiUrl } from "../api-core";
@@ -194,8 +191,6 @@ export const marketApi = {
     request<NewsAssetsPage>(`/api/news-assets?limit=${limit}&offset=${offset}`, { signal: signal ?? null }),
   calendarEvents: (signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>("/api/calendar-events", signal),
   calendarEventsForSymbol: (symbol: string, signal?: AbortSignal) => dedupedRequest<CalendarEvent[]>(`/api/calendar-events/${encodeURIComponent(symbol)}`, signal),
-  topAndLosers: (signal?: AbortSignal) => dedupedRequest<TopAndLosersResponse>("/api/top-and-losers", signal),
-  marketList: (id: MarketListId, signal?: AbortSignal) => dedupedRequest<MarketListResponse>(`/api/market-lists/${id}`, signal),
   watchlist: (range: RangeKey = "1d", signal?: AbortSignal) => dedupedRequest<WatchlistItem[]>(`/api/watchlist?range=${range}`, signal),
   addWatchlist: (item: Pick<SearchResult, "symbol" | "name" | "exchange" | "currency">) =>
     request<WatchlistItem>(`/api/watchlist/${encodeURIComponent(item.symbol)}`, { method: "POST", body: JSON.stringify(item) }),
