@@ -15,7 +15,7 @@ test("credential changes require the current password", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const withoutCurrent = await fetch(\`\${baseUrl}/api/auth/me\`, {

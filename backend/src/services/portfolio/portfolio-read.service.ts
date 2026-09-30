@@ -1,7 +1,7 @@
 import type { PortfolioSummary, Position, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UserAssetPositionDto } from "@pea/shared";
 import { config } from "../../config.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
-import { currentUserId, requireUserId } from "../auth/user-context.js";
+import { requireUserId } from "../auth/user-context.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -9,7 +9,7 @@ import { nowMs } from "../shared/cache.service.js";
 import { isMarketDataUnavailable } from "../yahoo/index.js";
 import { buildTransactionCache, computeTotalDividendsReceived, positionFromTransactionCache, type PositionTransactionCache } from "./portfolio-calculations.js";
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
-import { calculateTransactionStats, legacyTransactionFromPosition } from "./portfolioTransactions.service.js";
+import { calculateTransactionStats } from "./portfolioTransactions.service.js";
 import type { EditablePortfolioTransaction } from "@pea/shared";
 import { appliedSplitsByPosition } from "./splits/applied-splits.js";
 import { splitFactorAt, type AppliedSplit } from "./splits/split-adjustment.js";
@@ -34,6 +34,19 @@ export class PortfolioReadService {
     return rows.map(mapPosition);
   }
 
+  /**
+   * Positions telles qu'affichées : quantité et PRU issus du rejeu des transactions, le snapshot
+   * ne servant que pour les positions historiques qui n'en ont aucune.
+   */
+  listHoldings(userId?: number | string): Position[] {
+    const positions = this.listPositions(userId);
+    const txCache = buildTransactionCache(positions.map((position) => position.id));
+    return positions.map((position) => {
+      const entry = txCache.get(position.id);
+      return entry?.hasDated ? positionFromTransactionCache(position, entry.transactions) : position;
+    });
+  }
+
   async getPosition(symbol: string, userId?: number | string): Promise<PositionWithMarket | undefined> {
     const resolved = requireUserId(userId);
     const row = portfolioRepository.findPositionBySymbol(symbol, resolved);
@@ -46,10 +59,7 @@ export class PortfolioReadService {
     const ownedPosition = portfolioRepository.findPositionById(positionId, resolved);
     if (!ownedPosition) return [];
     const rows = portfolioRepository.listTransactions(positionId);
-    if (!rows.length) {
-      if (ownedPosition.quantity <= 0 && ownedPosition.average_buy_price <= 0) return [];
-      return [legacyTransactionFromPosition(mapPosition(ownedPosition))];
-    }
+    if (!rows.length) return [];
 
     const splits = appliedSplitsByPosition([positionId]).get(positionId) ?? [];
     return rows.map((row) => ({
@@ -88,7 +98,7 @@ export class PortfolioReadService {
       if (cached) return cached;
     }
     const basePositions = this.listPositions(resolvedUserId);
-    const quotesBySymbol = await this.quotesForPositions(basePositions);
+    const quotesBySymbol = await this.quotesForPositions(basePositions, resolvedUserId);
     const txCache = buildTransactionCache(basePositions.map((p) => p.id));
     const positions = withPositionSignals(basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache)));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
@@ -201,7 +211,7 @@ export class PortfolioReadService {
     return payload;
   }
 
-  private async quotesForPositions(positions: Position[]) {
+  private async quotesForPositions(positions: Position[], userId: number) {
     if (!positions.length) return new Map<string, Quote>();
     try {
       const quotes = await Promise.all(positions.map((position) => marketSnapshotService.getQuote(position.symbol)));
@@ -216,7 +226,7 @@ export class PortfolioReadService {
       logger.warn("portfolio", "portfolio quotes batch unavailable", {
         symbols: positions.map((position) => position.symbol).join(","),
         error: error instanceof Error ? error.message : String(error),
-        userId: currentUserId()
+        userId
       });
       return new Map<string, Quote>();
     }

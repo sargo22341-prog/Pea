@@ -8,7 +8,7 @@ import { annotateEarningsArticles } from "../../services/news/earnings-news.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { sortArticlesByDateDesc, userNewsLanguages } from "../shared/news.helpers.js";
 import { requireAuthUser } from "../../middleware/auth.js";
-import { routeParam } from "../shared/params.js";
+import { symbolParam } from "../shared/symbol.js";
 import {
   type AssetNewsCandidate,
   assetNewsAggregateCacheKey,
@@ -145,6 +145,6 @@ newsRouter.get("/news/:symbol", asyncRoute(async (req, res) => {
     res.json([]);
     return;
   }
-  const result = await marketDataGateway.readNewsWithCache(routeParam(req.params["symbol"], "symbol"), userNewsLanguages(req));
+  const result = await marketDataGateway.readNewsWithCache(symbolParam(req.params["symbol"]), userNewsLanguages(req));
   res.json(result.data);
 }));

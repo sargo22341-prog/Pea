@@ -1,5 +1,6 @@
 import type { DataConstructionJobDto } from "@pea/shared";
-import type { DataConstructionTaskRow } from "../../../repositories/market/data-construction.repository.js";
+import type { DataConstructionJobSummary, DataConstructionTaskRow } from "../../../repositories/market/data-construction.repository.js";
+import { parseJsonStringArray } from "../../../utils/json.js";
 
 export type TaskType = "candles" | "finalize" | "rebuild-stored" | "snapshot" | "financials" | "dividends" | "calendar-events";
 
@@ -74,4 +75,27 @@ export function currentMessage(status: DataConstructionJobDto["status"], message
   if (status === "success") return "Construction terminee";
   if (status === "error") return "Construction terminee avec erreurs";
   return currentTaskLabel ?? message;
+}
+
+export function jobSummaryToDto(job: DataConstructionJobSummary): DataConstructionJobDto {
+  const totalTasks = job.total_tasks;
+  const completedTasks = job.completed_tasks;
+  const failedTasks = job.failed_tasks;
+  const runningTasks = job.running_tasks;
+  const done = completedTasks + failedTasks;
+  const status = jobStatus(totalTasks, completedTasks, failedTasks, runningTasks);
+  return {
+    id: job.id,
+    totalTasks,
+    completedTasks,
+    failedTasks,
+    pendingTasks: Math.max(0, totalTasks - done - runningTasks),
+    status,
+    progressPercent: totalTasks ? Math.round((done / totalTasks) * 100) : 100,
+    currentMessage: currentMessage(status, job.message, job.current_task_label ?? undefined),
+    currentTaskLabel: job.current_task_label ?? undefined,
+    errors: parseJsonStringArray(job.errors_json),
+    createdAt: job.created_at,
+    updatedAt: job.updated_at
+  };
 }

@@ -39,8 +39,6 @@ export const adminApi = {
     request<{ marketKey: string; markets: number; runs: number; logs: number }>(`/api/admin/market-data/tracked-markets/${encodeURIComponent(marketKey)}`, { method: "DELETE" }),
   rebuildMarketData: (range: MarketDataRebuildRange) =>
     request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range }) }),
-  rebuildAllMarketData: () =>
-    request<DataConstructionJobDto>("/api/admin/market-data/rebuild", { method: "POST", body: JSON.stringify({ range: "all_ranges" }) }),
   cleanupUnlinkedMarketAssets: () => request<DataConstructionJobDto>("/api/admin/market-data/cleanup-unlinked-assets", { method: "POST" }),
   refreshAnnexData: () => request<DataConstructionJobDto>("/api/admin/market-data/refresh-annex", { method: "POST" }),
   featureFlags: () => request<AppFeatureFlag[]>("/api/admin/features"),

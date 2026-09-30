@@ -5,7 +5,7 @@ import {
   normalizeFrenchNumber,
   parseFrenchDate,
   parseFrenchMoney
-} from "../../services/boursorama/avisOperesParser.service.js";
+} from "../../../services/boursorama/avisOperesParser.service.js";
 
 test("normalizeFrenchNumber converts French decimal notation to JS numbers", () => {
   assert.equal(normalizeFrenchNumber("1 234,56"), 1234.56);

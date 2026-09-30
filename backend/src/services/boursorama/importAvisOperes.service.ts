@@ -1,32 +1,21 @@
-import { PDFParse } from "pdf-parse";
-import type { ParsedAvisOperation, PortfolioTransaction, SearchResult } from "@pea/shared";
+import type { ParsedAvisOperation, SearchResult } from "@pea/shared";
 import { z } from "zod";
+import { config } from "../../config.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId } from "../auth/user-context.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
+import { logger } from "../shared/logger.service.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
+import { extractPdfText } from "./pdf-text-extractor.js";
 
+import { isDuplicateOfExistingTransaction, markDuplicatesWithinBatch, withDuplicateWarning } from "./avis-duplicates.js";
 import { assertYahooSymbolExists, confirmOperationSchema, formatValidationError } from "./avis-import-validation.js";
 export interface PdfUpload {
   fileName: string;
   buffer: Buffer;
-}
-
-/**
- * Extrait le texte brut d’un fichier PDF.
- */
-export async function extractPdfText(buffer: Buffer) {
-  const parser = new PDFParse({ data: buffer });
-
-  try {
-    const result = await parser.getText();
-    return result.text;
-  } finally {
-    await parser.destroy();
-  }
 }
 
 /**
@@ -54,68 +43,19 @@ export async function previewAvisOperesImport(
     }
   }
 
-  return rows;
+  return markDuplicatesWithinBatch(rows);
 }
 
 /**
- * Détecte si une opération importée correspond probablement à une transaction existante.
- *
- * La comparaison se fait sur la date, la quantité et le symbole de l’actif.
- */
-export function detectPotentialDuplicateTransaction(
-  parsedTransaction: ParsedAvisOperation,
-  existingTransactions: PortfolioTransaction[]
-): boolean {
-  if (!parsedTransaction.dateExecution || !parsedTransaction.quantite) return false;
-
-  const parsedDate = parsedTransaction.dateExecution.slice(0, 10);
-  const parsedTicker = (
-    parsedTransaction.selectedSymbol ??
-    parsedTransaction.ticker ??
-    parsedTransaction.resolvedAsset?.symbol ??
-    ""
-  ).toUpperCase();
-
-  const parsedAssetId = parsedTransaction.resolvedAsset?.symbol.toUpperCase();
-
-  return existingTransactions.some((transaction) => {
-    const sameDate = transaction.dateExecution?.slice(0, 10) === parsedDate;
-    const sameQuantity =
-      Math.abs(transaction.quantity - Number(parsedTransaction.quantite)) < 0.000001;
-
-    const ticker = (transaction.ticker ?? transaction.assetId ?? "").toUpperCase();
-
-    const sameAsset =
-      Boolean(parsedTicker && ticker === parsedTicker) ||
-      Boolean(parsedAssetId && ticker === parsedAssetId);
-
-    return sameDate && sameQuantity && sameAsset;
-  });
-}
-
-/**
- * Ajoute un warning si l’opération semble déjà exister dans le portefeuille.
+ * Ajoute un avertissement si l’opération semble déjà exister sur la position de l’actif.
  */
 function markDuplicateWarning(operation: ParsedAvisOperation): ParsedAvisOperation {
   const symbol = operation.selectedSymbol ?? operation.resolvedAsset?.symbol;
   if (!symbol) return operation;
-
   const position = portfolioRepository.findPositionBySymbol(symbol.toUpperCase(), currentUserId());
-
   if (!position) return operation;
-
-  const duplicate = detectPotentialDuplicateTransaction(
-    operation,
-    portfolioService.listTransactions(position.id)
-  );
-
-  if (!duplicate) return operation;
-
-  return {
-    ...operation,
-    potentialDuplicate: true,
-    warnings: [...operation.warnings, "Doublon possible."]
-  };
+  const existing = portfolioService.listTransactions(position.id);
+  return isDuplicateOfExistingTransaction(operation, existing, config.appTimezone) ? withDuplicateWarning(operation) : operation;
 }
 
 /**
@@ -163,8 +103,9 @@ export async function resolveAssetFromOperation(
           selectedAssetName: best.name
         };
       }
-    } catch {
+    } catch (error) {
       // La prévisualisation reste utilisable avec une résolution manuelle.
+      logger.debug("import", "asset resolution failed", { query, error: error instanceof Error ? error.message : String(error) });
     }
   }
 

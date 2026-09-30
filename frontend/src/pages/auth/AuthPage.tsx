@@ -6,12 +6,13 @@ export function AuthPage({
   onLogin
 }: {
   mode: "login" | "setup";
-  onLogin: (input: { username: string; password: string; confirmPassword?: string }) => Promise<void>;
+  onLogin: (input: { username: string; password: string; confirmPassword?: string; setupCode?: string }) => Promise<void>;
 }) {
   const { t } = useTranslation(["common", "errors"]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [setupCode, setSetupCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -21,9 +22,10 @@ export function AuthPage({
     if (!username.trim()) { setError(t("errors:usernameRequired")); return; }
     if (!password) { setError(t("errors:passwordRequired")); return; }
     if (mode === "setup" && password !== confirmPassword) { setError(t("errors:passwordMismatch")); return; }
+    if (mode === "setup" && !setupCode.trim()) { setError(t("errors:setupCodeRequired")); return; }
     setSaving(true);
     try {
-      await onLogin({ username, password, confirmPassword });
+      await onLogin({ username, password, confirmPassword, ...(mode === "setup" ? { setupCode: setupCode.trim() } : {}) });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errors:authFailed"));
     } finally {
@@ -53,6 +55,13 @@ export function AuthPage({
           <label className="block">
             <span className="muted mb-1 block">{t("common:common.confirmation")}</span>
             <input className="input" autoComplete="new-password" onChange={(event) => { setConfirmPassword(event.target.value); }} required type="password" value={confirmPassword} />
+          </label>
+        )}
+        {mode === "setup" && (
+          <label className="block">
+            <span className="muted mb-1 block">{t("common:auth.setupCode")}</span>
+            <input className="input" autoComplete="off" onChange={(event) => { setSetupCode(event.target.value); }} required spellCheck={false} value={setupCode} />
+            <span className="muted mt-1 block text-xs">{t("common:auth.setupCodeHint")}</span>
           </label>
         )}
         {error && <p className="rounded-md border border-coral/40 bg-coral/10 p-3 text-sm text-coral">{error}</p>}

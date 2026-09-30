@@ -72,22 +72,31 @@ export function dedupedRequest<T>(path: string, signal?: AbortSignal): Promise<T
   return withAbort(existing, signal);
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = await requestHeaders(init);
+/** Options d'une requête API : `timeoutMs` remplace le délai par défaut (imports longs). */
+export type ApiRequestInit = RequestInit & { timeoutMs?: number };
+
+async function sendRequest(path: string, init: ApiRequestInit = {}) {
+  const { timeoutMs = defaultRequestTimeoutMs, ...fetchInit } = init;
+  const headers = await requestHeaders(fetchInit);
   const url = await resolveApiUrl(path);
   logNativeRequest(path, url);
   let response: Response;
   try {
     response = await fetchWithRetry(url, {
-      ...init,
+      ...fetchInit,
       ...(headers ? { headers } : {}),
       credentials: "include"
-    }, init?.signal ?? undefined);
+    }, timeoutMs, fetchInit.signal ?? undefined);
   } catch (error) {
     logNativeNetworkError(path, url, error);
-    throw createNetworkApiError(error, url);
+    throw createNetworkApiError(error, url, timeoutMs);
   }
   logNativeResponse(path, response);
+  return response;
+}
+
+export async function request<T>(path: string, init?: ApiRequestInit): Promise<T> {
+  const response = await sendRequest(path, init);
 
   if (!response.ok) {
     const rawText = await response.text().catch(() => "");
@@ -111,22 +120,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
-  const headers = await requestHeaders(init);
-  const url = await resolveApiUrl(path);
-  logNativeRequest(path, url);
-  let response: Response;
-  try {
-    response = await fetchWithRetry(url, {
-      ...init,
-      ...(headers ? { headers } : {}),
-      credentials: "include"
-    }, init?.signal ?? undefined);
-  } catch (error) {
-    logNativeNetworkError(path, url, error);
-    throw createNetworkApiError(error, url);
-  }
-  logNativeResponse(path, response);
+export async function requestBlob(path: string, init?: ApiRequestInit): Promise<Blob> {
+  const response = await sendRequest(path, init);
 
   if (!response.ok) {
     const message = response.status === 401 ? "Authentification requise." : `Erreur API ${response.status}`;
@@ -147,14 +142,15 @@ export async function resolveApiUrl(path: string) {
   return resolveServerPath(serverUrl, path);
 }
 
+/** Traces par requête de l'application native, réservées aux builds de debug. */
 function logNativeRequest(path: string, url: string) {
-  if (!isNativeApp()) return;
+  if (!isNativeApp() || !__APP_DEBUG__) return;
   const details = getServerUrlDetails(url);
   console.info("[pea:api] request", { path, url, protocol: details.protocol, hostname: details.hostname });
 }
 
 function logNativeResponse(path: string, response: Response) {
-  if (!isNativeApp()) return;
+  if (!isNativeApp() || !__APP_DEBUG__) return;
   console.info("[pea:api] response", { path, status: response.status, ok: response.ok, url: response.url });
 }
 
@@ -180,7 +176,7 @@ export function describeNetworkError(error: unknown) {
   };
 }
 
-function createNetworkApiError(error: unknown, url: string) {
+function createNetworkApiError(error: unknown, url: string, timeoutMs: number) {
   const details = describeNetworkError(error);
   const causeMessage = "causeMessage" in details ? details.causeMessage : "";
   const text = `${details.message} ${causeMessage}`;
@@ -189,7 +185,7 @@ function createNetworkApiError(error: unknown, url: string) {
   const parsed = getNetworkTargetDetails(url);
 
   const message = isTimeout
-    ? `Timeout reseau apres ${defaultRequestTimeoutMs / 1000}s vers ${parsed.hostname}.`
+    ? `Timeout reseau apres ${timeoutMs / 1000}s vers ${parsed.hostname}.`
     : isSsl
       ? `Erreur SSL/certificat vers ${parsed.hostname}. Verifiez que le certificat racine est installe et autorise pour les apps Android.`
       : `Serveur inaccessible depuis l'application (${parsed.protocol}//${parsed.hostname}). Detail: ${details.message || "erreur reseau inconnue"}`;
@@ -199,7 +195,7 @@ function createNetworkApiError(error: unknown, url: string) {
       url,
       protocol: parsed.protocol,
       hostname: parsed.hostname,
-      timeoutMs: defaultRequestTimeoutMs,
+      timeoutMs,
       ...details
     }
   });
@@ -233,7 +229,7 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, time
   }
 }
 
-async function fetchWithRetry(url: string, init: RequestInit = {}, externalSignal?: AbortSignal) {
+async function fetchWithRetry(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal) {
   const canRetry = isRetryableRequest(init);
   let lastError: unknown;
 
@@ -241,7 +237,7 @@ async function fetchWithRetry(url: string, init: RequestInit = {}, externalSigna
   for (const retryDelayMs of [...retryDelaysMs, undefined]) {
     if (externalSignal?.aborted) throw abortError();
     try {
-      const response = await fetchWithTimeout(url, init);
+      const response = await fetchWithTimeout(url, init, timeoutMs);
       if (!canRetry || !retryableStatusCodes.has(response.status) || retryDelayMs === undefined) {
         return response;
       }

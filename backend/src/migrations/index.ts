@@ -42,6 +42,7 @@ import { calendarEarningsEstimatesMigration } from "./market/041-calendar-earnin
 import { assetRecommendationHistoryMigration } from "./market/042-asset-recommendation-history.js";
 import { userScreenerPresetsMigration } from "./accounts/043-user-screener-presets.js";
 import { userAlertsMigration } from "./alerts/044-user-alerts.js";
+import { materializeLegacyPositionSnapshotsMigration } from "./portfolio/045-materialize-legacy-position-snapshots.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -88,5 +89,6 @@ export const migrations: Migration[] = [
   calendarEarningsEstimatesMigration,
   assetRecommendationHistoryMigration,
   userScreenerPresetsMigration,
-  userAlertsMigration
+  userAlertsMigration,
+  materializeLegacyPositionSnapshotsMigration
 ];

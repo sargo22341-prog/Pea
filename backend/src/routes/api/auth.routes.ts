@@ -3,7 +3,8 @@ import type { RequestHandler } from "express";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { createRateLimit } from "../../middleware/rate-limit.js";
-import { requireAuth, requireAuthUser, clearAuthCookie, readSessionToken, setAuthCookie } from "../../middleware/auth.js";
+import { requireAuth, requireAuthUser, clearAuthCookie, readSessionToken, sessionKeyOf, setAuthCookie } from "../../middleware/auth.js";
+import { marketEventsService } from "../../services/market/events/market-events.service.js";
 import { authService } from "../../services/auth/auth.service.js";
 import { authFailureTracker, clientIpFrom, sleep } from "../../services/auth/auth-failure-tracker.js";
 import { logger } from "../../services/shared/logger.service.js";
@@ -55,10 +56,11 @@ authRouter.post("/setup", authSensitiveRateLimit, asyncRoute(async (req, res) =>
     username: z.string().trim().min(1),
     password: passwordSchema,
     confirmPassword: passwordSchema,
+    setupCode: z.string().trim().min(1, "Code de configuration requis."),
     profileIconUrl: z.url().optional().or(z.literal(""))
   }).parse(req.body);
   if (body.password !== body.confirmPassword) throw new HttpError(400, "Les mots de passe ne correspondent pas.");
-  const result = await authService.setup(body.username, body.password, body.profileIconUrl || undefined);
+  const result = await authService.setup(body.username, body.password, body.setupCode, body.profileIconUrl || undefined);
   logger.info("auth", "setup success", { username: result.user.username, userId: result.user.id, ip: clientIpFrom(req) });
   sendSessionResult(res, req, result, 201);
 }));
@@ -86,7 +88,9 @@ authRouter.post("/login", authSensitiveRateLimit, asyncRoute(async (req, res) =>
 }));
 
 authRouter.post("/logout", asyncRoute((req, res) => {
-  authService.logout(readSessionToken(req));
+  const token = readSessionToken(req);
+  authService.logout(token);
+  if (token) marketEventsService.disconnectSession(sessionKeyOf(token));
   logger.debug("auth", "logout", { userId: req.user?.id, username: req.user?.username });
   clearAuthCookie(res);
   res.status(204).send();
@@ -123,6 +127,8 @@ authRouter.patch("/me", requireAuth, credentialChangeRateLimit, asyncRoute(async
     newsLanguages: updated.newsLanguages.join(",")
   });
   if (body.password) {
+    // Toutes les sessions viennent d'être révoquées : leurs flux temps réel sont fermés aussi.
+    marketEventsService.disconnectUser(updated.id);
     logger.info("auth", "password changed", { userId: updated.id, username: updated.username, ip: clientIpFrom(req) });
   }
   res.json(updated);

@@ -9,6 +9,7 @@ import type { Migration } from "../types.js";
 export const incrementalAutoVacuumMigration: Migration = {
   version: 35,
   description: "Active auto_vacuum incremental et compacte la base une fois",
+  transactional: false,
   appliquer: (db) => {
     db.exec("PRAGMA auto_vacuum = INCREMENTAL");
     db.exec("VACUUM");

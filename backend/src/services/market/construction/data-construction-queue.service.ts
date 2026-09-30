@@ -1,13 +1,12 @@
 import type { DataConstructionJobDto } from "@pea/shared";
-import { marketDataConstructionRepository } from "../../../repositories/market/construction.repository.js";
-import { dataConstructionRepository, type DataConstructionJobSummary, type DataConstructionTaskRow } from "../../../repositories/market/data-construction.repository.js";
+import { dataConstructionRepository, type DataConstructionTaskRow } from "../../../repositories/market/data-construction.repository.js";
 import type { StoredChartRange } from "../charts/chart-config.service.js";
 import { logger } from "../../shared/logger.service.js";
 import { runWithYahooUsageSource } from "../../yahoo/yahoo-usage-context.js";
 import { marketEventsService } from "../events/market-events.service.js";
 
-import { parseJsonStringArray } from "../../../utils/json.js";
-import { MAX_CONCURRENT_TASKS, PRIORITY_BY_TYPE, currentMessage, jobStatus, nowIso, rowToTask, taskKey, type ConstructionTask, type TaskType } from "./data-construction-task.js";
+import { executeConstructionTask } from "./data-construction-task-runner.js";
+import { MAX_CONCURRENT_TASKS, PRIORITY_BY_TYPE, jobSummaryToDto, nowIso, rowToTask, taskKey, type ConstructionTask, type TaskType } from "./data-construction-task.js";
 export class DataConstructionQueueService {
   private running = 0;
   private sequence = 0;
@@ -15,12 +14,24 @@ export class DataConstructionQueueService {
   // Symboles actuellement traités par un worker — utilisé pour empêcher deux workers de
   // claimer simultanément des tâches sur le même symbole (anti-race candles).
   private busySymbols = new Set<string>();
+  private stopping = false;
+  private idleWaiters: (() => void)[] = [];
 
   start() {
     if (this.started) return;
     this.started = true;
     dataConstructionRepository.resetInterruptedTasks();
     this.pump();
+  }
+
+  /**
+   * Cesse de réclamer des tâches et attend la fin de celles en cours. Les tâches encore en file
+   * restent en base et reprennent au prochain démarrage.
+   */
+  stop(): Promise<void> {
+    this.stopping = true;
+    if (this.running === 0) return Promise.resolve();
+    return new Promise((resolve) => { this.idleWaiters.push(resolve); });
   }
 
   enqueue(tasks: Omit<ConstructionTask, "key">[], message = "Construction des donnees en attente", options: { force?: boolean } = {}): DataConstructionJobDto {
@@ -65,7 +76,7 @@ export class DataConstructionQueueService {
 
     this.pump();
     const job = dataConstructionRepository.getJob(jobId);
-    return job ? this.toDto(job) : this.latest();
+    return job ? jobSummaryToDto(job) : this.latest();
   }
 
   enqueueAssetConstruction(symbol: string) {
@@ -149,7 +160,7 @@ export class DataConstructionQueueService {
 
   latest(): DataConstructionJobDto {
     const latest = dataConstructionRepository.latestJob();
-    if (latest) return this.toDto(latest);
+    if (latest) return jobSummaryToDto(latest);
     return {
       id: "idle",
       totalTasks: 0,
@@ -176,6 +187,10 @@ export class DataConstructionQueueService {
   }
 
   private pump() {
+    if (this.stopping) {
+      if (this.running === 0) for (const resolve of this.idleWaiters.splice(0)) resolve();
+      return;
+    }
     while (this.running < MAX_CONCURRENT_TASKS) {
       const next = dataConstructionRepository.claimNextQueuedTask([...this.busySymbols]);
       if (!next) break;
@@ -201,7 +216,7 @@ export class DataConstructionQueueService {
         symbol: task.symbol,
         range: task.range
       });
-      await runWithYahooUsageSource(`tache construction: ${task.key}`, () => this.execute(task));
+      await runWithYahooUsageSource(`tache construction: ${task.key}`, () => executeConstructionTask(task));
       dataConstructionRepository.markTaskSuccess(taskRow.id);
       this.emitTaskSuccessEvent(task);
       logger.debug("market-data", "construction task success", {
@@ -246,54 +261,6 @@ export class DataConstructionQueueService {
       updatedAt: new Date().toISOString()
     });
   }
-
-  private async execute(task: ConstructionTask) {
-    const [{ marketDataService }, { marketSnapshotService }, { financialsService }, { dividendsService }, { assetRepository }, { marketDataGateway }] = await Promise.all([
-      import("../data/market-data.service.js"),
-      import("../snapshots/market-snapshot.service.js"),
-      import("../financials/financials.service.js"),
-      import("../dividends/dividends.service.js"),
-      import("../../../repositories/market/asset.repository.js"),
-      import("../data/market-data-gateway.service.js")
-    ]);
-    if (!task.symbol) return;
-    let asset = assetRepository.findBySymbol(task.symbol);
-    asset ??= await marketDataService.ensureAssetInitialized(task.symbol);
-    if (task.type === "candles") await marketDataService.refreshCandlesForAsset(asset, task.range ? [task.range as StoredChartRange] : undefined);
-    if (task.type === "finalize") await marketDataService.finalizePostCloseForAsset(asset);
-    if (task.type === "rebuild-stored") await marketDataService.rebuildStoredRangesFromFinalData(asset, task.range ? [task.range as StoredChartRange] : undefined);
-    if (task.type === "snapshot") await marketSnapshotService.refreshMarketSnapshot(asset);
-    if (task.type === "financials") await financialsService.refreshFinancials(asset);
-    if (task.type === "dividends") await dividendsService.refreshDividends(asset);
-    if (task.type === "calendar-events") {
-      marketDataConstructionRepository.clearCachedFundamentals(asset.symbol);
-      const marketInfo = await marketDataGateway.readMarketInfoWithCache(asset.symbol);
-      marketSnapshotService.upsertMarketInfo(asset.id, marketInfo.data);
-      await marketDataGateway.readExtraDataWithCache(asset.symbol); // quoteSummary (9 modules) -> upsert calendar events
-      await financialsService.refreshFinancials(asset);  // fundamentalsTimeSeries → upsert asset_financials
-    }
-  }
-  private toDto(job: DataConstructionJobSummary): DataConstructionJobDto {
-    const totalTasks = job.total_tasks;
-    const completedTasks = job.completed_tasks;
-    const failedTasks = job.failed_tasks;
-    const runningTasks = job.running_tasks;
-    const done = completedTasks + failedTasks;
-    const status = jobStatus(totalTasks, completedTasks, failedTasks, runningTasks);
-    return {
-      id: job.id,
-      totalTasks,
-      completedTasks,
-      failedTasks,
-      pendingTasks: Math.max(0, totalTasks - done - runningTasks),
-      status,
-      progressPercent: totalTasks ? Math.round((done / totalTasks) * 100) : 100,
-      currentMessage: currentMessage(status, job.message, job.current_task_label ?? undefined),
-      currentTaskLabel: job.current_task_label ?? undefined,
-      errors: parseJsonStringArray(job.errors_json),
-      createdAt: job.created_at,
-      updatedAt: job.updated_at
-    };
-  }
 }
+
 export const dataConstructionQueue = new DataConstructionQueueService();

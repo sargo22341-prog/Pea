@@ -10,14 +10,14 @@ import { marketSnapshotService } from "../../services/market/snapshots/market-sn
 import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
-import { routeParam } from "../shared/params.js";
-import { requireAuthUser } from "../../middleware/auth.js";
+import { symbolParam, yahooSymbolSchema } from "../shared/symbol.js";
+import { requireAuthUser, requireSessionKey } from "../../middleware/auth.js";
 
 export const marketRouter = express.Router();
 
 // Compat: endpoint kept for scripts/tests and older UI paths; rich screens use /assets or dashboard DTOs.
 marketRouter.get("/quote/:symbol", asyncRoute(async (req, res) => {
-  const symbol = routeParam(req.params["symbol"], "symbol");
+  const symbol = symbolParam(req.params["symbol"]);
   if (config.enableMarketLiveRefresh) {
     const snapshot = marketSnapshotService.readSnapshotBySymbol(symbol);
     if (snapshot) {
@@ -36,12 +36,12 @@ marketRouter.get("/market/features", (_req, res) => {
 });
 
 marketRouter.get("/market/events", (req, res) => {
-  marketEventsService.connect(requireAuthUser(req).id, res);
+  marketEventsService.connect(requireAuthUser(req).id, requireSessionKey(req), res);
 });
 
 marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
   const body = z.discriminatedUnion("scope", [
-    z.object({ scope: z.literal("asset"), symbol: z.string().min(1), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
+    z.object({ scope: z.literal("asset"), symbol: yahooSymbolSchema, range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
     z.object({ scope: z.literal("portfolio"), range: z.literal("1d").default("1d"), force: z.boolean().optional() }),
     z.object({ scope: z.literal("watchlist"), range: z.literal("1d").default("1d"), force: z.boolean().optional() })
   ]).parse(req.body ?? {});
@@ -63,9 +63,9 @@ marketRouter.post("/market/chart-refresh", asyncRoute(async (req, res) => {
 marketRouter.get("/history/:symbol", asyncRoute(async (req, res) => {
   const range = parseRange(req.query["range"]);
   const overlays = parseChartOverlays(req.query["overlays"]);
-  res.json(await assetDataService.chart(routeParam(req.params["symbol"], "symbol"), range, intradayDebugClock(range), overlays));
+  res.json(await assetDataService.chart(symbolParam(req.params["symbol"]), range, intradayDebugClock(range), overlays));
 }));
 
 marketRouter.get("/dividends/:symbol", asyncRoute((req, res) => {
-  res.json(dividendsService.readDividends(routeParam(req.params["symbol"], "symbol")));
+  res.json(dividendsService.readDividends(symbolParam(req.params["symbol"])));
 }));

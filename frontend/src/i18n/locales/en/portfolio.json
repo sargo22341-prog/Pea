@@ -3,7 +3,6 @@
     "currentValue": "Current value",
     "editTransactions": "Edit the transactions that feed the quantity, average cost, and fees.",
     "existingTransactions": "Existing transactions",
-    "legacyLocked": "This legacy line comes from the CSV position. Add a dated transaction to edit it precisely.",
     "soldQuantityTooHigh": "Sold quantity cannot exceed {{quantity}}.",
     "deleteAction": "Delete the stock",
     "addTransaction": "Add a transaction",

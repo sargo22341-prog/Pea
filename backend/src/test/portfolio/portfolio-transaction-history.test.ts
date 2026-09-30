@@ -45,16 +45,14 @@ test("transaction cache orders rows by real instant even when stored date string
   assert.equal(result.quantityBetweenBuyAndSell, 5);
 });
 
-test("new buy transactions use ISO UTC dates and legacy CURRENT_TIMESTAMP dates are migrated", () => {
+test("legacy CURRENT_TIMESTAMP transaction dates are migrated to ISO UTC", () => {
   const result = runBackendScript(`
     import { db } from "./db.ts";
     import { transactionTradedAtIsoMigration } from "./migrations/portfolio/033-transaction-traded-at-iso.ts";
-    import { portfolioRepository } from "./repositories/portfolio/portfolio.repository.ts";
 
     ${seedUser}
     db.prepare("INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency) VALUES (1, 'AIR.PA', 'Air Liquide', 1, 100, 'EUR')").run();
     const positionId = db.prepare("SELECT id FROM positions").get().id;
-    portfolioRepository.insertBuyTransactionNow(positionId, { quantity: 1, price: 100, currency: "EUR" });
     const insert = db.prepare("INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at) VALUES (?, 'buy', 1, 100, 'EUR', ?)");
     insert.run(positionId, "2026-01-10 08:30:00");
     insert.run(positionId, "2026-01-11T09:00:00.000Z");
@@ -65,9 +63,7 @@ test("new buy transactions use ISO UTC dates and legacy CURRENT_TIMESTAMP dates 
     }));
   `) as { tradedAt: string[] };
 
-  const [createdNow, legacy, iso] = result.tradedAt;
-  assert.ok(createdNow);
-  assert.match(createdNow, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  const [legacy, iso] = result.tradedAt;
   assert.equal(legacy, "2026-01-10T08:30:00.000Z");
   assert.equal(iso, "2026-01-11T09:00:00.000Z");
 });

@@ -14,7 +14,7 @@ test("bootstrap admin cannot delete the current admin account", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const admin = await setup.json();
@@ -42,7 +42,7 @@ test("runtime user update cannot promote a standard user to admin", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const adminCookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         await fetch(\`\${baseUrl}/api/admin/users\`, {
@@ -92,7 +92,7 @@ test("database guard rejects non-bootstrap admin creation and bootstrap marker c
         await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('bob', 'hash', 'user')").run();
         const messages = [];
@@ -132,7 +132,7 @@ test("non-admin cannot access admin user routes", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const adminCookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         await fetch(\`\${baseUrl}/api/admin/users\`, {

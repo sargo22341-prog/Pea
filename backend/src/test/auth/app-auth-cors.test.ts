@@ -129,7 +129,7 @@ test("production login accepts Android WebView origin when configured", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "https://localhost" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
           method: "POST",
@@ -165,7 +165,7 @@ test("production mutating requests accept configured Capacitor origin", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "capacitor://localhost" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({
           status: response.status,
@@ -194,7 +194,7 @@ test("production mutating requests reject unconfigured origins", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "https://evil.example" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {
@@ -217,7 +217,7 @@ test("production mutating requests reject missing Origin", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {

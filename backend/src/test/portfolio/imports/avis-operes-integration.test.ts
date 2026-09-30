@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { parseAvisOperesText } from "../../services/boursorama/avisOperesParser.service.js";
+import { parseAvisOperesText } from "../../../services/boursorama/avisOperesParser.service.js";
 
 function readFixture(name: string) {
-  return fs.readFileSync(path.resolve(import.meta.dirname, "..", "fixtures", name), "utf8");
+  return fs.readFileSync(path.resolve(import.meta.dirname, "..", "..", "fixtures", name), "utf8");
 }
 
 test("PDF 1 – DANONE old format with TTF fees: isin, qty, price, fees, date, no warnings", () => {

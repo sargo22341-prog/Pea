@@ -52,8 +52,8 @@ test("dashboard signals and calendar estimates are served for the current user's
     const server = app.listen(0, "127.0.0.1", async () => {
       const baseUrl = "http://127.0.0.1:" + server.address().port;
       try {
-        const summary = await fetch(baseUrl + "/api/portfolio?range=1d", { headers: { Cookie: owner.cookie } });
-        const body = await summary.json();
+        const summary = await fetch(baseUrl + "/api/portfolio/full?range=1d", { headers: { Cookie: owner.cookie } });
+        const body = (await summary.json()).summary;
         const calendar = await fetch(baseUrl + "/api/calendar-events", { headers: { Cookie: owner.cookie } });
         const anonymous = await fetch(baseUrl + "/api/calendar-events");
         console.log("__RESULT__" + JSON.stringify({

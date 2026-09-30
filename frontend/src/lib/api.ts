@@ -44,7 +44,7 @@ async function persistNativeAuthResponse(response: User | NativeAuthResponse) {
 
 const authApi = {
   me: () => request<AuthMe>("/api/auth/me"),
-  setup: (input: { username: string; password: string; confirmPassword: string }) =>
+  setup: (input: { username: string; password: string; confirmPassword: string; setupCode: string }) =>
     request<User | NativeAuthResponse>("/api/auth/setup", { method: "POST", body: JSON.stringify(input) }).then(persistNativeAuthResponse),
   login: (input: { username: string; password: string }) =>
     request<User | NativeAuthResponse>("/api/auth/login", { method: "POST", body: JSON.stringify(input) }).then(persistNativeAuthResponse),
@@ -83,31 +83,35 @@ const authApi = {
   deleteProfileIcon: () => request<undefined>("/api/auth/me/profile-icon", { method: "DELETE" })
 };
 
+/**
+ * Les imports interrogent Yahoo ligne par ligne (au plus 4 appels/s) ou analysent jusqu'à 20 PDF :
+ * ils dépassent le délai par défaut des requêtes.
+ */
+const importRequestTimeoutMs = 5 * 60_000;
+
+interface ImportResult {
+  imported: string[];
+  skipped: string[];
+  errors: { line: number; message: string }[];
+  isPreparing?: boolean;
+  jobId?: string;
+}
+
+function postImport<T>(path: string, body: string | FormData) {
+  return request<T>(path, { method: "POST", body, timeoutMs: importRequestTimeoutMs });
+}
+
 const importApi = {
-  previewBoursorama: (content: string) =>
-    request<BoursoramaImportRow[]>("/api/import/boursorama/preview", { method: "POST", body: JSON.stringify({ content }) }),
-  confirmBoursorama: (rows: BoursoramaImportRow[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: { line: number; message: string }[]; isPreparing?: boolean; jobId?: string }>("/api/import/boursorama/confirm", {
-      method: "POST",
-      body: JSON.stringify({ rows })
-    }),
-  previewBoursoramaUpdate: (content: string) =>
-    request<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", { method: "POST", body: JSON.stringify({ content }) }),
-  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: { line: number; message: string }[]; isPreparing?: boolean; jobId?: string }>("/api/import/boursorama/update-confirm", {
-      method: "POST",
-      body: JSON.stringify({ rows })
-    }),
+  previewBoursorama: (content: string) => postImport<BoursoramaImportRow[]>("/api/import/boursorama/preview", JSON.stringify({ content })),
+  confirmBoursorama: (rows: BoursoramaImportRow[]) => postImport<ImportResult>("/api/import/boursorama/confirm", JSON.stringify({ rows })),
+  previewBoursoramaUpdate: (content: string) => postImport<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", JSON.stringify({ content })),
+  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) => postImport<ImportResult>("/api/import/boursorama/update-confirm", JSON.stringify({ rows })),
   previewAvisOperesPdf: (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => { formData.append("files", file); });
-    return request<ParsedAvisOperation[]>("/api/import/avis-operes/preview", { method: "POST", body: formData });
+    return postImport<ParsedAvisOperation[]>("/api/import/avis-operes/preview", formData);
   },
-  confirmAvisOperesPdf: (rows: ParsedAvisOperation[]) =>
-    request<{ imported: string[]; skipped: string[]; errors: { line: number; message: string }[]; isPreparing?: boolean; jobId?: string }>("/api/import/avis-operes/confirm", {
-      method: "POST",
-      body: JSON.stringify({ rows })
-    })
+  confirmAvisOperesPdf: (rows: ParsedAvisOperation[]) => postImport<ImportResult>("/api/import/avis-operes/confirm", JSON.stringify({ rows }))
 };
 
 export const api = {

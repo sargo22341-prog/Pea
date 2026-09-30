@@ -13,7 +13,7 @@ test("production mutating requests accept native bearer mode without Origin", ()
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const setupBody = await setup.json();
         const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
@@ -54,7 +54,7 @@ test("production authenticated bearer mutations accept missing Origin", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const setupBody = await setup.json();
         const response = await fetch(\`\${baseUrl}/api/auth/me\`, {
@@ -105,7 +105,7 @@ test("development mutating requests accept Vite localhost origin", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "http://localhost:5173" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({
           status: response.status,
@@ -134,7 +134,7 @@ test("auth setup, login and logout use secure local session flow", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         const setupCookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const me = await fetch(\`\${baseUrl}/api/auth/me\`, { headers: { Cookie: setupCookie } });

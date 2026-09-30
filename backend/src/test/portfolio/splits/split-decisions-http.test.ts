@@ -56,7 +56,7 @@ test("split decisions are limited to the current user's positions and adjust the
       const baseUrl = \`http://127.0.0.1:\${server.address().port}\`;
       const call = (path, cookie, init = {}) => fetch(baseUrl + path, { ...init, headers: { "Content-Type": "application/json", Cookie: cookie } });
       const decide = (id, cookie, body) => call(\`/api/splits/\${id}/decision\`, cookie, { method: "POST", body: JSON.stringify(body) });
-      const aaaPosition = async () => (await (await call("/api/portfolio?range=1d", alice.cookie)).json()).positions.find((row) => row.symbol === "AAA.PA");
+      const aaaPosition = async () => (await (await call("/api/portfolio/full?range=1d", alice.cookie)).json()).summary.positions.find((row) => row.symbol === "AAA.PA");
       try {
         const aliceSplits = await (await call("/api/splits", alice.cookie)).json();
         const bobSplits = await (await call("/api/splits", bob.cookie)).json();
@@ -71,7 +71,7 @@ test("split decisions are limited to the current user's positions and adjust the
         const after = await aaaPosition();
         const transactions = await (await call(\`/api/portfolio/positions/\${alicePosition}/transactions\`, alice.cookie)).json();
         const ignored = await (await decide(bbbSplit.id, alice.cookie, { decision: "ignore" })).json();
-        const bbb = (await (await call("/api/portfolio?range=1d", alice.cookie)).json()).positions.find((row) => row.symbol === "BBB.PA");
+        const bbb = (await (await call("/api/portfolio/full?range=1d", alice.cookie)).json()).summary.positions.find((row) => row.symbol === "BBB.PA");
         console.log("__RESULT__" + JSON.stringify({
           aliceSplits,
           bobSplits,
@@ -84,7 +84,7 @@ test("split decisions are limited to the current user's positions and adjust the
           storedTransactionQuantity: db.prepare("SELECT quantity FROM transactions WHERE position_id = ?").get(alicePosition).quantity,
           storedPositionQuantity: db.prepare("SELECT quantity FROM positions WHERE id = ?").get(alicePosition).quantity,
           transactionSplitFactor: transactions[0]?.splitFactor ?? null,
-          chartCacheRows: db.prepare("SELECT COUNT(*) AS count FROM portfolio_chart_cache WHERE user_id = ?").get(String(alice.id)).count,
+          chartCacheRows: db.prepare("SELECT COUNT(*) AS count FROM portfolio_chart_cache WHERE user_id = ? AND cache_key = 'probe'").get(String(alice.id)).count,
           ignored,
           ignoredQuantity: bbb.quantity
         }));

@@ -14,7 +14,7 @@ test("only administrators can mutate global asset icons", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password, confirmPassword: password })
+          body: JSON.stringify({ username: "admin", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const adminCookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         await fetch(\`\${baseUrl}/api/admin/users\`, {

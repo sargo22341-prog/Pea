@@ -103,7 +103,7 @@ test("objective endpoints store cache and recalculate", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user = await setup.json();
@@ -164,7 +164,7 @@ test("portfolio mutations recalculate only active objectives for the affected us
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const alice = await setup.json();
@@ -190,10 +190,10 @@ test("portfolio mutations recalculate only active objectives for the affected us
         const afterAdd = cacheStamp(alice.id);
 
         resetStamp(alice.id);
-        await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}\`, {
-          method: "PUT",
+        await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
+          method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ quantity: 2, averageBuyPrice: 100, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-01-02T10:00:00.000Z", type: "buy", quantity: 2, price: 100, currency: "EUR" })
         });
         await objectiveProjectionInvalidationService.flushUser(alice.id, "test update");
         const afterUpdate = cacheStamp(alice.id);

@@ -1,7 +1,8 @@
 import type { DatabaseAdapter } from "./db-adapter.js";
-import { migrations } from "./migrations/index.js";
+import { migrations as allMigrations } from "./migrations/index.js";
+import type { Migration } from "./migrations/types.js";
 
-export function applyMigrations(db: DatabaseAdapter): void {
+export function applyMigrations(db: DatabaseAdapter, migrations: Migration[] = allMigrations): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       version INTEGER PRIMARY KEY,
@@ -17,9 +18,13 @@ export function applyMigrations(db: DatabaseAdapter): void {
   for (const migration of migrations) {
     if (appliedVersions.has(migration.version)) continue;
 
-    try {
+    const apply = () => {
       migration.appliquer(db);
       db.prepare("INSERT INTO _migrations (version, description) VALUES (?, ?)").run(migration.version, migration.description);
+    };
+    try {
+      if (migration.transactional === false) apply();
+      else db.transaction(apply);
     } catch (error) {
       throw new Error(`Migration ${migration.version} échouée`, { cause: error });
     }

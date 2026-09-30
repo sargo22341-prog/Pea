@@ -14,7 +14,7 @@ test("default chart range keeps all as a valid user preference", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const update = await fetch(\`\${baseUrl}/api/auth/me\`, {
@@ -46,7 +46,7 @@ test("missing profile icon returns an empty 404 for image tags", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const icon = await fetch(\`\${baseUrl}/api/auth/me/profile-icon\`, { headers: { Cookie: cookie } });
@@ -79,7 +79,7 @@ test("JSON API responses are compressed while the market SSE stream stays uncomp
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         await fetch(\`\${baseUrl}/api/auth/me\`, {
@@ -182,11 +182,11 @@ test("portfolio transactions with fees work on a fresh database", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user = await setup.json();
-        const emptySummary = await fetch(\`\${baseUrl}/api/portfolio\`, { headers: { Cookie: cookie } });
+        const emptySummary = await fetch(\`\${baseUrl}/api/portfolio/full?range=1d\`, { headers: { Cookie: cookie } });
         const position = await runWithUser(user.id, () => portfolioService.ensurePosition("AIR.PA", "Air Liquide", "EUR"));
         const createTransaction = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
@@ -198,7 +198,7 @@ test("portfolio transactions with fees work on a fresh database", () => {
         console.log("__RESULT__" + JSON.stringify({
           createStatus: createTransaction.status,
           emptySummaryStatus: emptySummary.status,
-          emptySummaryBody: await emptySummary.json(),
+          emptySummaryBody: (await emptySummary.json()).summary,
           transactionCount: transactions.length,
           firstFee: transactions[0]?.totalFees,
           listedStatus: listed.status,

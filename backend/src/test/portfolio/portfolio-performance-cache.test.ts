@@ -19,7 +19,7 @@ test("market SSE endpoint is authenticated and always available", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const unauthorized = await fetch(\`\${baseUrl}/api/market/events\`);
@@ -77,7 +77,7 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
       const afterSecond = { chartCalls, quoteCalls };
       await Promise.all([portfolioService.positionsPerformance("1d"), portfolioService.positionsPerformance("1d")]);
       const afterConcurrent = { chartCalls, quoteCalls };
-      await portfolioService.updatePosition(position.id, { quantity: 2, averageBuyPrice: 10, currency: "EUR" });
+      portfolioService.createTransaction(position.id, { tradedAt: "2026-01-02T10:00:00.000Z", type: "buy", quantity: 1, price: 10, currency: "EUR" });
       await portfolioService.positionsPerformance("1d");
       return { first, second, afterFirst, afterSecond, afterConcurrent, afterInvalidation: { chartCalls, quoteCalls } };
     });
@@ -93,7 +93,7 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
   assert.deepEqual(result.afterSecond, result.afterFirst);
   assert.deepEqual(result.afterConcurrent, result.afterFirst);
   assert.equal(result.afterInvalidation.chartCalls, 2);
-  assert.equal(result.afterInvalidation.quoteCalls, 3);
+  assert.equal(result.afterInvalidation.quoteCalls, 2);
 });
 
 test("portfolio position range percent uses interval market value as base", () => {

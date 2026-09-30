@@ -1,4 +1,5 @@
 import type { AlertType } from "@pea/shared";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 import { db } from "../../db.js";
 
 export interface AlertRow {
@@ -69,7 +70,7 @@ export const alertsRepository = {
   /** Alertes actives des symboles rafraîchis (job live). */
   activeForSymbols(symbols: string[]) {
     if (!symbols.length) return [];
-    return db.prepare(`SELECT ${ALERT_COLUMNS} FROM user_alerts ua LEFT JOIN assets a ON a.symbol = ua.symbol WHERE ua.active = 1 AND ua.symbol IN (${symbols.map(() => "?").join(", ")})`).all(...symbols) as AlertRow[];
+    return db.prepare(`SELECT ${ALERT_COLUMNS} FROM user_alerts ua LEFT JOIN assets a ON a.symbol = ua.symbol WHERE ua.active = 1 AND ua.symbol IN ${sqlInList}`).all(sqlListParam(symbols)) as AlertRow[];
   },
 
   saveState(id: number, stateJson: string) {

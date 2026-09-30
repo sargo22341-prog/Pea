@@ -1,6 +1,7 @@
 import Bottleneck from "bottleneck";
 import YahooFinance from "yahoo-finance2";
 import type { MarketDataResult } from "../market/data/market-data-provider.js";
+import { HttpError } from "../../utils/http-error.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooCircuitBreaker } from "./circuit-breaker.js";
@@ -8,34 +9,72 @@ import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "./yahoo.e
 import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
 import { recordYahooUsage, type YahooUsageMetadata } from "./yahoo-usage.service.js";
 
-export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
+/** Durée maximale d'une requête HTTP Yahoo : au-delà, elle est abandonnée et traitée comme temporaire. */
+const yahooRequestTimeoutMs = 15_000;
+/**
+ * Durée maximale d'un appel dans la file (il peut enchaîner récupération du crumb et requête) :
+ * un appel bloqué libère sa place au lieu de geler toute la donnée de marché.
+ */
+const yahooJobExpirationMs = 45_000;
+/** Nombre d'appels en attente au-delà duquel les nouveaux sont refusés plutôt que mis en file. */
+const yahooQueueHighWater = 200;
 
-// Rate limiter qui sérialise les appels réels vers Yahoo Finance.
-// 250ms minimum entre deux appels, 1 seul appel concurrent autorisé.
-// Ce limiteur n'est pas traversé pour les hits de cache (voir safeYahooCall).
-const limiter = new Bottleneck({
-  minTime: 250,
-  maxConcurrent: 1
-});
+/** `fetch` borné par un délai, utilisé par yahoo-finance2 (le défaut d'undici est d'environ 5 min). */
+export function createTimeoutFetch(timeoutMs: number) {
+  return (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    return fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout });
+  };
+}
 
-export function scheduleYahooCall<T>(key: string, fn: () => Promise<T>, metadata?: YahooUsageMetadata) {
-  return limiter.schedule(async () => {
-    const startedAt = performance.now();
-    try {
-      const result = await yahooCircuitBreaker.execute(fn);
-      recordYahooUsage(key, { durationMs: roundMs(startedAt), success: true, metadata });
-      return result;
-    } catch (error) {
-      recordYahooUsage(key, {
-        durationMs: roundMs(startedAt),
-        success: false,
-        errorMessage: errorMessage(error),
-        metadata
-      });
-      throw error;
-    }
+export const yahooClient = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"], fetch: createTimeoutFetch(yahooRequestTimeoutMs) });
+
+/** Appel refusé (file saturée) ou expiré par le limiteur : la donnée est indisponible pour l'instant. */
+function queueUnavailableError(error: InstanceType<typeof Bottleneck.BottleneckError>) {
+  return new HttpError(503, "Yahoo Finance est temporairement indisponible (file d'appels saturee ou trop lente).", {
+    provider: "Yahoo Finance",
+    cause: error.message
   });
 }
+
+/**
+ * File qui sérialise les appels réels vers Yahoo Finance : 250ms minimum entre deux appels et un
+ * seul appel concurrent, car Yahoo bloque les rafales. Les hits de cache ne la traversent pas
+ * (voir safeYahooCall). Un appel expiré libère sa place ; une file pleine refuse les nouveaux.
+ */
+export function createYahooCallScheduler(options: { jobExpirationMs: number; queueHighWater: number }) {
+  const limiter = new Bottleneck({
+    minTime: 250,
+    maxConcurrent: 1,
+    highWater: options.queueHighWater,
+    strategy: Bottleneck.strategy.OVERFLOW
+  });
+  return async function schedule<T>(key: string, fn: () => Promise<T>, metadata?: YahooUsageMetadata): Promise<T> {
+    try {
+      return await limiter.schedule({ expiration: options.jobExpirationMs }, async () => {
+        const startedAt = performance.now();
+        try {
+          const result = await yahooCircuitBreaker.execute(fn);
+          recordYahooUsage(key, { durationMs: roundMs(startedAt), success: true, metadata });
+          return result;
+        } catch (error) {
+          recordYahooUsage(key, {
+            durationMs: roundMs(startedAt),
+            success: false,
+            errorMessage: errorMessage(error),
+            metadata
+          });
+          throw error;
+        }
+      });
+    } catch (error) {
+      if (error instanceof Bottleneck.BottleneckError) throw queueUnavailableError(error);
+      throw error;
+    }
+  };
+}
+
+export const scheduleYahooCall = createYahooCallScheduler({ jobExpirationMs: yahooJobExpirationMs, queueHighWater: yahooQueueHighWater });
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

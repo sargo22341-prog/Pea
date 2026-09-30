@@ -21,7 +21,11 @@ const en: Record<string, string> = {
   "Le prix doit etre positif ou nul.": "Price must be positive or zero.",
   "Cette vente rendrait la quantite detenue negative.": "This sale would make the held quantity negative.",
   "Cette suppression rendrait la quantite detenue negative.": "This deletion would make the held quantity negative.",
-  "Requete invalide.": "Invalid request."
+  "Requete invalide.": "Invalid request.",
+  "Code de configuration invalide.": "Invalid setup code.",
+  "Yahoo Finance est temporairement indisponible ou limite les requetes.": "Yahoo Finance is temporarily unavailable or rate limiting requests.",
+  "Yahoo Finance est temporairement indisponible (circuit breaker ouvert).": "Yahoo Finance is temporarily unavailable (circuit breaker open).",
+  "Yahoo Finance est temporairement indisponible (file d'appels saturee ou trop lente).": "Yahoo Finance is temporarily unavailable (request queue full or too slow)."
 };
 
 function languageFromRequest(req: express.Request): AppLanguage {

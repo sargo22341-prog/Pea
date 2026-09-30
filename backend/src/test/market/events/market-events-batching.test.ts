@@ -28,8 +28,8 @@ test("market refresh sends all impacted events in a single write and only to con
     const service = new MarketEventsService();
     const owner = fakeResponse();
     const stranger = fakeResponse();
-    service.connect(1, owner);
-    service.connect(2, stranger);
+    service.connect(1, "session-owner", owner);
+    service.connect(2, "session-stranger", stranger);
     owner.writes.length = 0;
     stranger.writes.length = 0;
 

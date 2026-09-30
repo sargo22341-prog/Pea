@@ -23,7 +23,7 @@ test("technical second user cannot read another user's portfolio transactions", 
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie1 = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user1 = await setup.json();
@@ -73,7 +73,7 @@ test("mutating API requests reject foreign origins", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "http://evil.example" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {
@@ -95,7 +95,7 @@ test("production mutating requests accept configured public URL", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "https://pea.nas.meme" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {
@@ -159,7 +159,7 @@ test("production mutating requests accept local host origin when public URL is e
         const response = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: baseUrl },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {

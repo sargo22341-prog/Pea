@@ -18,10 +18,7 @@ function ensureUserId(userId: number | string): number {
   return Math.floor(numeric);
 }
 
-/**
- * Repository watchlist : userId obligatoire pour toutes les opérations par utilisateur.
- * `distinctUserIdsForSymbols` reste cross-user pour les besoins du scheduler live-refresh.
- */
+/** Repository watchlist : userId obligatoire pour toutes les opérations. */
 export class WatchlistRepository {
   list(userId: number | string): WatchlistRow[] {
     return db.prepare("SELECT * FROM watchlist WHERE user_id = ? ORDER BY created_at DESC").all(ensureUserId(userId)) as WatchlistRow[];
@@ -48,13 +45,6 @@ export class WatchlistRepository {
   }
 
   /** Cross-user : utilisé par le scheduler pour identifier quels utilisateurs notifier. */
-  distinctUserIdsForSymbols(symbols: string[]): (string | number)[] {
-    if (!symbols.length) return [];
-    const placeholders = symbols.map(() => "?").join(",");
-    const rows = db.prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`).all(...symbols) as { user_id: string | number }[];
-    return rows.map((row) => row.user_id);
-  }
-
   symbols(userId: number | string): string[] {
     return this.list(userId).map((row) => row.symbol.toUpperCase());
   }

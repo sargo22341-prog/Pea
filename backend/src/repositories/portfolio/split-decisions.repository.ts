@@ -1,4 +1,5 @@
 import type { SplitDecision } from "@pea/shared";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 import { db } from "../../db.js";
 
 export interface UserPositionSplitRow {
@@ -18,10 +19,6 @@ interface AppliedSplitRow {
   split_date: string;
   numerator: number;
   denominator: number;
-}
-
-function placeholders(values: unknown[]) {
-  return values.map(() => "?").join(", ");
 }
 
 /**
@@ -52,17 +49,17 @@ export class SplitDecisionsRepository {
        JOIN assets a ON a.symbol = p.symbol
        JOIN asset_splits s ON s.asset_id = a.id
        JOIN user_split_decisions d ON d.asset_split_id = s.id AND d.user_id = p.user_id AND d.decision = 'apply'
-       WHERE p.id IN (${placeholders(positionIds)})
+       WHERE p.id IN ${sqlInList}
        ORDER BY s.split_date ASC`
-    ).all(...positionIds) as AppliedSplitRow[];
+    ).all(sqlListParam(positionIds)) as AppliedSplitRow[];
   }
 
   /** Dates d'exécution de toutes les transactions des positions demandées. */
   transactionDates(positionIds: number[]): { position_id: number; traded_at: string }[] {
     if (!positionIds.length) return [];
     return db.prepare(
-      `SELECT position_id, traded_at FROM transactions WHERE position_id IN (${placeholders(positionIds)}) AND traded_at IS NOT NULL`
-    ).all(...positionIds) as { position_id: number; traded_at: string }[];
+      `SELECT position_id, traded_at FROM transactions WHERE position_id IN ${sqlInList} AND traded_at IS NOT NULL`
+    ).all(sqlListParam(positionIds)) as { position_id: number; traded_at: string }[];
   }
 
   upsertDecision(userId: number, splitId: number, decision: SplitDecision) {

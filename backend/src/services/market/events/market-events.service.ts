@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import type { MarketEventPayload, MarketEventType } from "@pea/shared";
-import { db } from "../../../db.js";
+import { liveRefreshRepository } from "../../../repositories/market/live-refresh.repository.js";
 import { logger } from "../../shared/logger.service.js";
 
 // Types partagés via @pea/shared : `MarketEventType` et `MarketEventPayload` sont définis
@@ -10,8 +10,17 @@ export type { MarketEventPayload, MarketEventType } from "@pea/shared";
 interface Client {
   id: number;
   userId: string;
+  /** Empreinte de la session qui a ouvert le flux, pour le fermer à la déconnexion. */
+  sessionKey: string;
   res: Response;
+  heartbeat: NodeJS.Timeout;
 }
+
+/** Flux simultanés au total : protège le serveur (descripteurs, mémoire). */
+const maxClients = 100;
+/** Flux simultanés par utilisateur : un compte ou une boucle de reconnexion ne bloque pas les autres. */
+const maxClientsPerUser = 10;
+const heartbeatIntervalMs = 25_000;
 
 const portfolioRefreshEvents: MarketEventType[] = [
   "portfolio-market-updated",
@@ -31,16 +40,21 @@ function formatEvent(event: MarketEventType, payload: Omit<MarketEventPayload, "
 export class MarketEventsService {
   private clients = new Map<number, Client>();
   private nextClientId = 1;
-  private readonly maxClients = 100;
 
-  connect(userId: string | number, res: Response) {
-    if (this.clients.size >= this.maxClients) {
-      logger.warn("market-data", "market SSE rejected because client limit is reached", { userId, clients: this.clients.size, maxClients: this.maxClients });
+  connect(userId: string | number, sessionKey: string, res: Response) {
+    const key = String(userId);
+    const userClients = [...this.clients.values()].filter((client) => client.userId === key);
+    // Au-delà de la limite par utilisateur, le flux le plus ancien de ce compte laisse sa place.
+    const oldestUserClient = userClients[0];
+    if (oldestUserClient && userClients.length >= maxClientsPerUser) this.close(oldestUserClient);
+    if (this.clients.size >= maxClients) {
+      logger.warn("market-data", "market SSE rejected because client limit is reached", { userId, clients: this.clients.size, maxClients });
       res.status(503).end();
       return;
     }
     const id = this.nextClientId++;
-    const client: Client = { id, userId: String(userId), res };
+    const heartbeat = setInterval(() => { res.write(`: ping ${new Date().toISOString()}\n\n`); }, heartbeatIntervalMs);
+    const client: Client = { id, userId: key, sessionKey, res, heartbeat };
     this.clients.set(id, client);
 
     res.status(200);
@@ -57,22 +71,34 @@ export class MarketEventsService {
       updatedAt: new Date().toISOString()
     });
 
-    const heartbeat = setInterval(() => {
-      if (!this.clients.has(id)) return;
-      res.write(`: ping ${new Date().toISOString()}\n\n`);
-    }, 25_000);
+    res.on("close", () => { this.forget(client); });
+  }
 
-    res.on("close", () => {
-      clearInterval(heartbeat);
-      this.clients.delete(id);
-    });
+  /** Ferme les flux ouverts par une session (déconnexion). */
+  disconnectSession(sessionKey: string) {
+    for (const client of this.clients.values()) {
+      if (client.sessionKey === sessionKey) this.close(client);
+    }
+  }
+
+  /** Ferme tous les flux d'un utilisateur (sessions révoquées ou compte supprimé). */
+  disconnectUser(userId: string | number) {
+    const key = String(userId);
+    for (const client of this.clients.values()) {
+      if (client.userId === key) this.close(client);
+    }
+  }
+
+  /** Ferme tous les flux, pour permettre l'arrêt du serveur HTTP. */
+  closeAll() {
+    for (const client of this.clients.values()) this.close(client);
   }
 
   emitMarketRefresh(input: { markets: string[]; symbols: string[]; updatedAt?: string }) {
     if (this.clients.size === 0 || input.symbols.length === 0) return;
     const updatedAt = input.updatedAt ?? new Date().toISOString();
     const markets = [...new Set(input.markets)];
-    const users = this.usersForSymbols(input.symbols);
+    const users = liveRefreshRepository.userImpactsForSymbols(input.symbols);
     if (!users.size) return;
 
     // Les événements sont sérialisés une seule fois puis envoyés en un seul write par client,
@@ -104,32 +130,17 @@ export class MarketEventsService {
   }
 
   stats() {
-    return { clients: this.clients.size, maxClients: this.maxClients };
+    return { clients: this.clients.size, maxClients, maxClientsPerUser };
   }
 
-  private usersForSymbols(symbols: string[]) {
-    const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
-    const result = new Map<string, { portfolio: boolean; watchlist: boolean }>();
-    if (!keys.length) return result;
-    const placeholders = keys.map(() => "?").join(",");
+  private close(client: Client) {
+    this.forget(client);
+    client.res.end();
+  }
 
-    const positions = db
-      .prepare(`SELECT DISTINCT user_id FROM positions WHERE symbol IN (${placeholders})`)
-      .all(...keys) as { user_id: string | number }[];
-    for (const row of positions) {
-      const userId = String(row.user_id);
-      result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), portfolio: true });
-    }
-
-    const watchlist = db
-      .prepare(`SELECT DISTINCT user_id FROM watchlist WHERE symbol IN (${placeholders})`)
-      .all(...keys) as { user_id: string | number }[];
-    for (const row of watchlist) {
-      const userId = String(row.user_id);
-      result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), watchlist: true });
-    }
-
-    return result;
+  private forget(client: Client) {
+    clearInterval(client.heartbeat);
+    this.clients.delete(client.id);
   }
 
   private write(client: Client, event: MarketEventType, payload: MarketEventPayload) {
@@ -141,7 +152,7 @@ export class MarketEventsService {
       client.res.write(chunk);
     } catch (error) {
       logger.warn("market-data", "market SSE write failed", { userId: client.userId, error: error instanceof Error ? error.message : String(error) });
-      this.clients.delete(client.id);
+      this.forget(client);
     }
   }
 }

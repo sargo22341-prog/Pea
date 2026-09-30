@@ -89,7 +89,7 @@ test("le changement de mot de passe invalide toutes les sessions existantes", ()
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: motDePasse, confirmPassword: motDePasse })
+          body: JSON.stringify({ username: "alice", password: motDePasse, confirmPassword: motDePasse, setupCode: "test-setup-code" })
         });
         const cookieInitial = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
 
@@ -140,7 +140,7 @@ test("le changement de préférences sans nouveau mot de passe conserve la sessi
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: motDePasse, confirmPassword: motDePasse })
+          body: JSON.stringify({ username: "alice", password: motDePasse, confirmPassword: motDePasse, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
 

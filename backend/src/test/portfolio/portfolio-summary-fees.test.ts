@@ -21,7 +21,7 @@ test("portfolio summary totals transaction fees of the current user only", () =>
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "tester", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const owner = db.prepare("SELECT id FROM users WHERE username = 'tester'").get();
@@ -41,8 +41,8 @@ test("portfolio summary totals transaction fees of the current user only", () =>
         addPosition(owner.id, "BBB.PA", [2, 0]);
         addPosition(other.id, "CCC.PA", [100]);
 
-        const response = await fetch(\`\${baseUrl}/api/portfolio?range=1d\`, { headers: { Cookie: cookie } });
-        const body = await response.json();
+        const response = await fetch(\`\${baseUrl}/api/portfolio/full?range=1d\`, { headers: { Cookie: cookie } });
+        const body = (await response.json()).summary;
         console.log("__RESULT__" + JSON.stringify({ status: response.status, totalFees: body.totalFees, assetsCount: body.assetsCount }));
       } finally {
         server.close();

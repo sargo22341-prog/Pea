@@ -10,6 +10,17 @@ interface BackendScriptOptions {
   env?: Record<string, string | undefined>;
 }
 
+/**
+ * Coupe tout accès réseau sortant du script via un proxy injoignable : un test ne doit jamais
+ * appeler Yahoo ou un autre service réel. Le serveur de test local reste joignable.
+ */
+const offlineNetworkEnv = {
+  NODE_USE_ENV_PROXY: "1",
+  HTTP_PROXY: "http://127.0.0.1:9",
+  HTTPS_PROXY: "http://127.0.0.1:9",
+  NO_PROXY: "127.0.0.1,localhost"
+};
+
 /** Execute un script backend isole et renvoie le JSON imprime apres `__RESULT__` (a typer par l'appelant). */
 export function runBackendScript(script: string, options: BackendScriptOptions = {}): unknown {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), options.tempPrefix ?? "pea-test-"));
@@ -21,6 +32,8 @@ export function runBackendScript(script: string, options: BackendScriptOptions =
       ...process.env,
       NODE_ENV: options.nodeEnv ?? "development",
       PEA_TEST_SQLITE_PATH: sqlitePath,
+      ...offlineNetworkEnv,
+      SETUP_CODE: "test-setup-code",
       ...options.env
     }
   });

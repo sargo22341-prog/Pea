@@ -104,13 +104,29 @@ describe("AuthPage – setup mode", () => {
     await user.type(screen.getByLabelText(/username/i), "alice");
     await user.type(screen.getByLabelText(/^mot de passe$/i), "correctpassword");
     await user.type(screen.getByLabelText(/confirmation/i), "correctpassword");
+    await user.type(screen.getByLabelText(/code de configuration/i), " Ab3-code ");
     await user.click(screen.getByRole("button", { name: /creer le compte/i }));
     await waitFor(() => {
       expect(onLogin).toHaveBeenCalledWith({
         username: "alice",
         password: "correctpassword",
-        confirmPassword: "correctpassword"
+        confirmPassword: "correctpassword",
+        setupCode: "Ab3-code"
       });
     });
+  });
+
+  it("requires the setup code shown in the server logs", async () => {
+    const onLogin = vi.fn();
+    const user = userEvent.setup();
+    render(<AuthPage mode="setup" onLogin={onLogin} />);
+    await user.type(screen.getByLabelText(/username/i), "alice");
+    await user.type(screen.getByLabelText(/^mot de passe$/i), "correctpassword");
+    await user.type(screen.getByLabelText(/confirmation/i), "correctpassword");
+    fireEvent.submit(closestElement(screen.getByRole("button", { name: /creer le compte/i }), "form"));
+    await waitFor(() => {
+      expect(screen.getByText("Code de configuration requis.")).toBeInTheDocument();
+    });
+    expect(onLogin).not.toHaveBeenCalled();
   });
 });

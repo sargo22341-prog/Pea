@@ -2,7 +2,6 @@ import type { AssetChartDto, Quote } from "@pea/shared";
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import { config } from "../../config.js";
 import { runWithUser } from "../../services/auth/user-context.js";
-import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { assetRepository, type AssetRow } from "../../repositories/market/asset.repository.js";
 import { liveRefreshRepository } from "../../repositories/market/live-refresh.repository.js";
 import { chartConfigService } from "../../services/market/charts/chart-config.service.js";
@@ -154,7 +153,7 @@ export class LiveMarketRefreshTask {
    * positions partagent les donnees de graphique lues pendant ce seul cycle.
    */
   private async prewarmFrontendBlocks(symbols: string[]) {
-    for (const [userId, impact] of this.userImpactsForSymbols(symbols)) {
+    for (const [userId, impact] of liveRefreshRepository.userImpactsForSymbols(symbols)) {
       await runWithUser(Number(userId), async () => {
         if (impact.portfolio) {
           invalidateUserAssetCaches(userId);
@@ -178,21 +177,6 @@ export class LiveMarketRefreshTask {
         }
       });
     }
-  }
-
-  private userImpactsForSymbols(symbols: string[]) {
-    const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
-    const result = new Map<string, { portfolio: boolean; watchlist: boolean }>();
-    if (!keys.length) return result;
-    for (const rowUserId of liveRefreshRepository.portfolioUserIdsForSymbols(keys)) {
-      const userId = String(rowUserId);
-      result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), portfolio: true });
-    }
-    for (const rowUserId of watchlistRepository.distinctUserIdsForSymbols(keys)) {
-      const userId = String(rowUserId);
-      result.set(userId, { ...(result.get(userId) ?? { portfolio: false, watchlist: false }), watchlist: true });
-    }
-    return result;
   }
 
   private eligibleMarket(group: MarketAssetGroup, now: Date): EligibleMarket | undefined {
@@ -234,9 +218,7 @@ export class LiveMarketRefreshTask {
   }
 
   private portfolioAssetsForSymbols(symbols: string[]) {
-    const keys = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
-    if (!keys.length) return [];
-    return liveRefreshRepository.portfolioSymbolsForSymbols(keys).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
+    return liveRefreshRepository.portfolioSymbolsForSymbols(symbols).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
   }
 
   private chunks(symbols: string[]) {

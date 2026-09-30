@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 
 export type DataConstructionTaskStatus = "queued" | "running" | "success" | "error";
 
@@ -109,26 +110,24 @@ export const dataConstructionRepository = {
 
   activeTaskKeys(keys: string[]) {
     if (!keys.length) return new Set<string>();
-    const placeholders = keys.map(() => "?").join(",");
     const rows = db
-      .prepare(`SELECT task_key FROM data_construction_tasks WHERE status IN ('queued', 'running') AND task_key IN (${placeholders})`)
-      .all(...keys) as { task_key: string }[];
+      .prepare(`SELECT task_key FROM data_construction_tasks WHERE status IN ('queued', 'running') AND task_key IN ${sqlInList}`)
+      .all(sqlListParam(keys)) as { task_key: string }[];
     return new Set(rows.map((row) => row.task_key));
   },
 
   hasRecentSymbolTask(symbol: string, types: string[], sinceIso: string) {
     if (!types.length) return false;
-    const placeholders = types.map(() => "?").join(",");
     const row = db
       .prepare(
         `SELECT 1
          FROM data_construction_tasks
          WHERE symbol = ?
-           AND type IN (${placeholders})
+           AND type IN ${sqlInList}
            AND created_at >= ?
          LIMIT 1`
       )
-      .get(symbol.toUpperCase(), ...types, sinceIso);
+      .get(symbol.toUpperCase(), sqlListParam(types), sinceIso);
     return Boolean(row);
   },
 
@@ -163,10 +162,9 @@ export const dataConstructionRepository = {
     const orderClause = "ORDER BY priority ASC, id ASC LIMIT 1";
     let row: DataConstructionTaskRow | undefined;
     if (excludeSymbols.length) {
-      const placeholders = excludeSymbols.map(() => "?").join(",");
       row = db
-        .prepare(`${baseSql} AND (symbol IS NULL OR symbol NOT IN (${placeholders})) ${orderClause}`)
-        .get(...excludeSymbols) as DataConstructionTaskRow | undefined;
+        .prepare(`${baseSql} AND (symbol IS NULL OR symbol NOT IN ${sqlInList}) ${orderClause}`)
+        .get(sqlListParam(excludeSymbols)) as DataConstructionTaskRow | undefined;
     } else {
       row = db.prepare(`${baseSql} ${orderClause}`).get() as DataConstructionTaskRow | undefined;
     }

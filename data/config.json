@@ -6,7 +6,6 @@
   },
   "marketLiveRefresh": {
     "snapshotsIntervalMinutes": 5,
-    "portfolioChartsIntervalMinutes": 30,
-    "lazyChartRefreshThresholdRatio": 0.3
+    "portfolioChartsIntervalMinutes": 30
   }
 }

@@ -24,7 +24,9 @@
     "login": "Login",
     "loginAction": "Sign in",
     "personalAccess": "Personal access to your PEA portfolio.",
-    "validation": "Validating..."
+    "validation": "Validating...",
+    "setupCode": "Setup code",
+    "setupCodeHint": "Shown in the server logs at startup (or the SETUP_CODE value)."
   },
   "appError": {
     "title": "This page could not be displayed.",

@@ -14,11 +14,14 @@ import type { Migration } from "../types.js";
 export const positionsWatchlistNoDefaultUserIdMigration: Migration = {
   version: 24,
   description: "Retire le DEFAULT 1 sur positions.user_id et watchlist.user_id",
+  // PRAGMA foreign_keys est sans effet dans une transaction : seule la recopie en ouvre une.
+  transactional: false,
   appliquer: (db) => {
     const fkBefore = (db.prepare("PRAGMA foreign_keys").get() as { foreign_keys?: number } | undefined)?.foreign_keys ?? 1;
     db.exec("PRAGMA foreign_keys = OFF");
     try {
-      db.exec(`
+      db.transaction(() => {
+        db.exec(`
         CREATE TABLE positions__migration024 (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
@@ -44,7 +47,7 @@ export const positionsWatchlistNoDefaultUserIdMigration: Migration = {
         CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions(user_id, symbol);
       `);
 
-      db.exec(`
+        db.exec(`
         CREATE TABLE watchlist__migration024 (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
@@ -65,6 +68,7 @@ export const positionsWatchlistNoDefaultUserIdMigration: Migration = {
 
         CREATE INDEX IF NOT EXISTS idx_watchlist_user_symbol ON watchlist(user_id, symbol);
       `);
+      });
     } finally {
       if (fkBefore) db.exec("PRAGMA foreign_keys = ON");
     }

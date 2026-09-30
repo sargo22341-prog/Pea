@@ -18,7 +18,7 @@ test("runtime health endpoint requires an authenticated admin", () => {
         await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password, confirmPassword: password })
+          body: JSON.stringify({ username: "admin", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'user')")
           .run("reader", await bcrypt.hash(userPassword, 4));
@@ -63,7 +63,7 @@ test("runtime health endpoint returns metrics without triggering cleanup", () =>
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password, confirmPassword: password })
+          body: JSON.stringify({ username: "admin", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const response = await fetch(\`\${baseUrl}/api/admin/runtime-health\`, { headers: { Cookie: cookie } });

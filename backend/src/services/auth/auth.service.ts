@@ -1,17 +1,19 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import bcrypt from "bcryptjs";
 import type { AppLanguage, DashboardSortKey, NewsLanguage, RangeKey, SortDirection, WatchlistSortKey } from "@pea/shared";
 import { config } from "../../config.js";
 import { authRepository } from "../../repositories/auth/auth.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { detectSupportedImageMime, extensionForImageMime, isSupportedImageMime } from "../../utils/image-signature.js";
 import { hashToken, isAppLanguage, isUsernameUniqueConstraintError, rowToAdminManagedUser, rowToAuthUser, type AdminManagedUser, type AuthUser, type UserRow } from "./auth-user.mapper.js";
+import { hashPassword, verifyPassword } from "./password-hash.js";
+import { isValidSetupCode } from "./setup-code.js";
 export type { AdminManagedUser, AuthUser } from "./auth-user.mapper.js";
 export { authCookieName } from "./auth-user.mapper.js";
 
 const sessionDurationDays = 30;
+
 const profileIconsDirectory = path.resolve(path.dirname(config.sqlitePath), "profile-icons");
 const expiredSessionsPurgeIntervalMs = 60 * 60 * 1000;
 let lastExpiredSessionsPurgeMs = 0;
@@ -34,8 +36,9 @@ export class AuthService {
     return authRepository.userCount();
   }
 
-  async setup(username: string, password: string, profileIconUrl?: string) {
+  async setup(username: string, password: string, setupCode: string, profileIconUrl?: string) {
     if (this.hasUsers()) throw new HttpError(409, "Le premier compte existe deja.");
+    if (!isValidSetupCode(setupCode)) throw new HttpError(403, "Code de configuration invalide.");
     return this.createUser(username, password, profileIconUrl);
   }
 
@@ -84,7 +87,9 @@ export class AuthService {
 
   async login(username: string, password: string) {
     const row = authRepository.findUserByUsername(username.trim()) as UserRow | undefined;
-    if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+    // Vérifié avant de tester `row` : un identifiant inconnu coûte le même temps qu'un mauvais mot de passe.
+    const passwordMatches = await verifyPassword(password, row?.password_hash);
+    if (!row || !passwordMatches) {
       throw new HttpError(401, "Identifiants invalides.");
     }
     return { user: rowToAuthUser(row), token: this.createSession(Number(row.id)) };
@@ -129,11 +134,11 @@ export class AuthService {
 
     const username = input.username?.trim() || current.username;
     const credentialsChanged = username !== current.username || Boolean(input.password);
-    if (credentialsChanged && (!input.currentPassword || !(await bcrypt.compare(input.currentPassword, current.password_hash)))) {
+    if (credentialsChanged && (!input.currentPassword || !(await verifyPassword(input.currentPassword, current.password_hash)))) {
       throw new HttpError(401, "Mot de passe actuel invalide.");
     }
     const profileIconUrl = input.profileIconUrl === undefined ? current.profile_icon_url : input.profileIconUrl || null;
-    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : current.password_hash;
+    const passwordHash = input.password ? await hashPassword(input.password) : current.password_hash;
     const dashboardSortKey = input.dashboardDefaultSortKey ?? current.dashboard_default_sort_key;
     const dashboardSortDirection = input.dashboardDefaultSortDirection ?? current.dashboard_default_sort_direction;
     const watchlistSortKey = input.watchlistDefaultSortKey ?? current.watchlist_default_sort_key;
@@ -154,6 +159,7 @@ export class AuthService {
     const privacyModeEnabled = input.privacyModeEnabled === undefined ? (current.privacy_mode_enabled ?? 0) : input.privacyModeEnabled ? 1 : 0;
     const advancedModeEnabled = input.advancedModeEnabled === undefined ? (current.advanced_mode_enabled ?? 0) : input.advancedModeEnabled ? 1 : 0;
 
+    if (username !== current.username && authRepository.isUsernameTaken(username, userId)) throw new HttpError(409, "Ce username est deja utilise.");
     try {
       authRepository.updateUser(userId, {
         username,
@@ -240,9 +246,10 @@ export class AuthService {
     if (!trimmedUsername) throw new HttpError(400, "Username requis.");
     if (!password) throw new HttpError(400, "Mot de passe requis.");
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password);
     if (options.role === "admin" && !options.bootstrapAdmin) throw new HttpError(403, "Seul le setup initial peut creer le compte administrateur.");
     if (options.bootstrapAdmin && this.hasUsers()) throw new HttpError(409, "Le compte administrateur bootstrap existe deja.");
+    if (authRepository.isUsernameTaken(trimmedUsername)) throw new HttpError(409, "Ce username est deja utilise.");
     try {
       authRepository.insertUser({
         username: trimmedUsername,

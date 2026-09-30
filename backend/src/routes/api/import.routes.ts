@@ -1,7 +1,7 @@
-
 import express from "express";
 import { z } from "zod";
 import { confirmAvisOperesImport, previewAvisOperesImport } from "../../services/boursorama/importAvisOperes.service.js";
+import { maxImportRows } from "../../services/boursorama/boursorama-csv.parser.js";
 import { confirmBoursoramaImport, confirmBoursoramaUpdate, previewBoursoramaImport, previewBoursoramaUpdate } from "../../services/boursorama/importBoursorama.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
@@ -9,6 +9,14 @@ import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartFiles } from "../shared/multipart.js";
 
 export const importRouter = express.Router();
+
+/**
+ * Les confirmations renvoient jusqu'à `maxImportRows` lignes d'aperçu enrichies, au-delà de la
+ * limite JSON générale. Ce routeur est monté après l'authentification : seul un utilisateur
+ * connecté peut envoyer un corps de cette taille.
+ */
+const importJsonBodyLimit = "5mb";
+importRouter.use("/import", express.json({ limit: importJsonBodyLimit }));
 
 // Schéma d'une ligne Boursorama à importer (preview → confirm)
 const schemaBoursoramaLigneConfirmation = z.object({
@@ -75,7 +83,7 @@ importRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
 }));
 
 importRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
-  const corps = z.object({ rows: z.array(schemaBoursoramaLigneConfirmation).max(1000) }).parse(req.body);
+  const corps = z.object({ rows: z.array(schemaBoursoramaLigneConfirmation).max(maxImportRows) }).parse(req.body);
   const resultat = await confirmBoursoramaImport(corps.rows);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "CSV confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
@@ -97,7 +105,7 @@ importRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, re
 }));
 
 importRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) => {
-  const corps = z.object({ rows: z.array(schemaBoursoramaLigneMiseAJour).max(1000) }).parse(req.body);
+  const corps = z.object({ rows: z.array(schemaBoursoramaLigneMiseAJour).max(maxImportRows) }).parse(req.body);
   const resultat = await confirmBoursoramaUpdate(corps.rows);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "CSV mise à jour confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
@@ -116,7 +124,7 @@ importRouter.post(
 
 importRouter.post("/import/avis-operes/confirm", asyncRoute(async (req, res) => {
   // Validation explicite du schéma pour garantir l'intégrité des données envoyées en base
-  const corps = z.object({ rows: z.array(schemaAvisOpereLigne).max(1000) }).parse(req.body);
+  const corps = z.object({ rows: z.array(schemaAvisOpereLigne).max(maxImportRows) }).parse(req.body);
   const resultat = await confirmAvisOperesImport(corps.rows);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "PDF avis confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });

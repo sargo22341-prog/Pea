@@ -72,14 +72,10 @@ export function EditPositionModal({
   }
 
   function addDraftTransaction() {
-    setRows((current) => [draftTransaction(position), ...current.filter((row) => !row.id.startsWith("legacy-"))]);
+    setRows((current) => [draftTransaction(position), ...current]);
   }
 
   async function save(row: EditableTransactionFormRow) {
-    if (row.id.startsWith("legacy-")) {
-      setError(t("portfolio:position.legacyLocked"));
-      return;
-    }
     let quantity: number;
     let price: number;
     let totalFees: number;
@@ -122,7 +118,6 @@ export function EditPositionModal({
 
   async function remove(row: EditableTransactionFormRow) {
     setPendingDelete(null);
-    if (row.id.startsWith("legacy-")) return;
     if (row.id.startsWith("draft-")) {
       setRows((current) => current.filter((item) => item.id !== row.id));
       return;
@@ -203,11 +198,11 @@ export function EditPositionModal({
                         <span className="muted mb-1 block">{t("common:fields.currency")}</span>
                         <input className="input" onChange={(event) => { patchRow(index, { currency: event.target.value.toUpperCase() }); }} value={row.currency} />
                       </label>
-                      <button className="btn-primary" disabled={row.id.startsWith("legacy-")} onClick={() => void save(row)} type="button">
+                      <button className="btn-primary" onClick={() => void save(row)} type="button">
                         <Save size={16} />
                         {t("portfolio:position.save")}
                       </button>
-                      <button aria-label={t("common:actions.delete")} className="btn-ghost text-coral" disabled={row.id.startsWith("legacy-")} onClick={() => { setPendingDelete(row); }} type="button">
+                      <button aria-label={t("common:actions.delete")} className="btn-ghost text-coral" onClick={() => { setPendingDelete(row); }} type="button">
                         <Trash2 size={16} />
                       </button>
                     </div>

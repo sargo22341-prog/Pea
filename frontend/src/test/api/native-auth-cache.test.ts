@@ -70,4 +70,18 @@ describe("native auth caches", () => {
       "https://other.example"
     ]);
   });
+
+  it("trusts the saved server again after testing another server in the settings", async () => {
+    const nativeAuth = await loadNativeAuth();
+    await nativeAuth.getNativeServerUrl();
+
+    await nativeAuth.configureNativeBackendUrl("https://candidate.example/");
+    expect(await nativeAuth.getNativeServerUrl()).toBe("https://pea.example");
+
+    expect(setBackendUrl.mock.calls.map(([options]) => options.url)).toEqual([
+      "https://pea.example",
+      "https://candidate.example",
+      "https://pea.example"
+    ]);
+  });
 });

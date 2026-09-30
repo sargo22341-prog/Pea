@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config.js";
 import { authCookieName, authService, type AuthUser } from "../services/auth/auth.service.js";
+import { hashToken } from "../services/auth/auth-user.mapper.js";
 import { HttpError } from "../utils/http-error.js";
 
 declare module "express-serve-static-core" {
@@ -35,6 +36,18 @@ export function readBearerToken(req: Request) {
 
 export function readSessionToken(req: Request) {
   return readBearerToken(req) ?? readCookie(req, authCookieName);
+}
+
+/** Empreinte de la session de la requête, identique à celle stockée en base (jamais le jeton brut). */
+export function sessionKeyOf(token: string) {
+  return hashToken(token);
+}
+
+/** Empreinte de la session d'une route protégée par requireAuth. */
+export function requireSessionKey(req: Request) {
+  const token = readSessionToken(req);
+  if (!token) throw new HttpError(401, "Authentification requise.");
+  return sessionKeyOf(token);
 }
 
 function shouldUseSecureCookie() {

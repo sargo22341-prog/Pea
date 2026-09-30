@@ -24,7 +24,9 @@
     "login": "Connexion",
     "loginAction": "Se connecter",
     "personalAccess": "Acces personnel au portefeuille PEA.",
-    "validation": "Validation..."
+    "validation": "Validation...",
+    "setupCode": "Code de configuration",
+    "setupCodeHint": "Affiche dans les logs du serveur au demarrage (ou valeur de SETUP_CODE)."
   },
   "appError": {
     "title": "La page n'a pas pu s'afficher.",

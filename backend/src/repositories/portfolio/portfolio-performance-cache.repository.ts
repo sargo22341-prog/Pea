@@ -1,4 +1,5 @@
 import type { PositionRangePerformance, RangeKey } from "@pea/shared";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 import { db } from "../../db.js";
 
 export interface PortfolioPerformanceCacheRow {
@@ -13,10 +14,6 @@ export interface PortfolioVersionPositionRow {
   id: number;
   symbol: string;
   updated_at: string;
-}
-
-function placeholders(values: unknown[]) {
-  return values.map(() => "?").join(",");
 }
 
 export class PortfolioPerformanceCacheRepository {
@@ -97,28 +94,28 @@ export class PortfolioPerformanceCacheRepository {
     return db.prepare(
       `SELECT COUNT(*) AS count, COALESCE(MAX(id), 0) AS max_id, COALESCE(MAX(traded_at), '') AS max_traded_at
        FROM transactions
-       WHERE position_id IN (${placeholders(positionIds)})`
-    ).get(...positionIds) as { count: number; max_id: number; max_traded_at: string };
+       WHERE position_id IN ${sqlInList}`
+    ).get(sqlListParam(positionIds)) as { count: number; max_id: number; max_traded_at: string };
   }
 
   assetRows(symbols: string[]) {
-    return db.prepare(`SELECT id, symbol FROM assets WHERE symbol IN (${placeholders(symbols)})`).all(...symbols) as { id: number; symbol: string }[];
+    return db.prepare(`SELECT id, symbol FROM assets WHERE symbol IN ${sqlInList}`).all(sqlListParam(symbols)) as { id: number; symbol: string }[];
   }
 
   snapshotStats(assetIds: number[]) {
     return db.prepare(
       `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COALESCE(MAX(last_checked_at), '') AS last_checked_at
        FROM asset_quote_snapshot
-       WHERE asset_id IN (${placeholders(assetIds)})`
-    ).get(...assetIds) as { updated_at: string; last_checked_at: string };
+       WHERE asset_id IN ${sqlInList}`
+    ).get(sqlListParam(assetIds)) as { updated_at: string; last_checked_at: string };
   }
 
   candleStats(input: { rangeKey: string; assetIds: number[]; interval: string }) {
     return db.prepare(
       `SELECT COALESCE(MAX(updated_at), '') AS updated_at, COUNT(*) AS count
        FROM chart_candles
-       WHERE asset_id IN (${placeholders(input.assetIds)}) AND range_key = ? AND interval = ?`
-    ).get(...input.assetIds, input.rangeKey, input.interval) as { updated_at: string; count: number };
+       WHERE asset_id IN ${sqlInList} AND range_key = ? AND interval = ?`
+    ).get(sqlListParam(input.assetIds), input.rangeKey, input.interval) as { updated_at: string; count: number };
   }
 }
 

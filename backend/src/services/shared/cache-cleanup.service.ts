@@ -1,4 +1,4 @@
-import { db } from "../../db.js";
+import { cacheMaintenanceRepository, expirableCacheTables } from "../../repositories/cache/cache-maintenance.repository.js";
 import { logger } from "./logger.service.js";
 
 export interface CacheCleanupResult {
@@ -19,12 +19,6 @@ export interface CacheCleanupStats {
 
 const defaultIntervalMs = 60 * 60 * 1000;
 const defaultBatchSize = 500;
-const expirableTables = [
-  "cache_entries",
-  "portfolio_chart_cache",
-  "portfolio_positions_performance_cache",
-  "frontend_block_cache"
-] as const;
 
 export class CacheCleanupService {
   private timer?: NodeJS.Timeout | undefined;
@@ -48,24 +42,17 @@ export class CacheCleanupService {
     const startedAt = performance.now();
     const deleted: Record<string, number> = {};
 
-    for (const table of expirableTables) {
+    for (const table of expirableCacheTables) {
       let tableDeleted = 0;
       for (;;) {
-        const changes = db.prepare(
-          `DELETE FROM ${table}
-           WHERE rowid IN (
-             SELECT rowid FROM ${table}
-             WHERE expires_at IS NOT NULL AND expires_at <= ?
-             LIMIT ?
-           )`
-        ).run(nowMs, batchSize);
+        const changes = cacheMaintenanceRepository.deleteExpiredBatch(table, nowMs, batchSize);
         tableDeleted += changes;
         if (changes < batchSize) break;
       }
       deleted[table] = tableDeleted;
     }
 
-    const reclaimedPages = this.reclaimFreePages();
+    const reclaimedPages = cacheMaintenanceRepository.reclaimFreePages();
     const durationMs = Math.round(performance.now() - startedAt);
     const totalDeleted = Object.values(deleted).reduce((sum, count) => sum + count, 0);
     this.lastStats = {
@@ -76,18 +63,6 @@ export class CacheCleanupService {
     };
     logger.info("cache", "expired cache cleanup completed", { deleted, totalDeleted, reclaimedPages, durationMs });
     return { deleted, durationMs, totalDeleted, reclaimedPages };
-  }
-
-  /**
-   * Rend au disque les pages SQLite liberees (auto_vacuum incremental, migration 35).
-   * Sans effet si la base n'est pas en mode incremental.
-   */
-  private reclaimFreePages() {
-    const freePages = () => (db.prepare("PRAGMA freelist_count").get() as { freelist_count: number }).freelist_count;
-    const before = freePages();
-    if (before === 0) return 0;
-    db.exec("PRAGMA incremental_vacuum");
-    return before - freePages();
   }
 
   stats(): CacheCleanupStats {

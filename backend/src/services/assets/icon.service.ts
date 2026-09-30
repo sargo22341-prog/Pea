@@ -7,7 +7,7 @@ import { currentUserId } from "../auth/user-context.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { logger } from "../shared/logger.service.js";
 
-import { domainFromWebsite, failureCooldownMs, fetchWithTimeout, iconsDir, isEtfCandidate, mapIcon, maxAutoFetchMs, normalizeSymbol, normalizeWebsite, placeholderSvg, readCachedQuote, type AssetIcon, type LogoCandidate } from "./icon.helpers.js";
+import { domainFromWebsite, failureCooldownMs, fetchWithTimeout, iconsDir, isEtfCandidate, mapIcon, maxAutoFetchMs, maxIconBytes, normalizeSymbol, normalizeWebsite, placeholderSvg, readCachedQuote, readLimitedBody, type AssetIcon, type LogoCandidate } from "./icon.helpers.js";
 import { requirePresent } from "../../utils/invariant.js";
 export type { AssetIcon } from "./icon.helpers.js";
 
@@ -62,12 +62,15 @@ export class IconService {
     return requirePresent(this.getCached(key), `Icone ${key}`);
   }
 
+  /** Vrai si obtenir l'icône impose des appels distants (Yahoo, logo.dev, favicon). */
+  needsRemoteFetch(symbol: string) {
+    const key = normalizeSymbol(symbol);
+    return Boolean(key) && !this.getIconFile(key) && !this.isEtf(key) && !this.hasRecentFailure(key) && !this.hasRecentPending(key);
+  }
+
   async fetchAndStoreIcon(symbol: string): Promise<AssetIcon | undefined> {
     const key = normalizeSymbol(symbol);
-    if (!key) return undefined;
-    if (this.getIconFile(key)) return this.getCached(key);
-    if (this.isEtf(key)) return this.getCached(key);
-    if (this.hasRecentFailure(key) || this.hasRecentPending(key)) return this.getCached(key);
+    if (!this.needsRemoteFetch(key)) return this.getCached(key);
 
     try {
       this.markIconPending(key);
@@ -226,7 +229,11 @@ export class IconService {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, mimeType, reason: "unsupported mime type" });
         continue;
       }
-      const buffer = Buffer.from(await response.arrayBuffer());
+      const buffer = await readLimitedBody(response, maxIconBytes).catch(() => undefined);
+      if (!buffer) {
+        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "image too large or unreadable" });
+        continue;
+      }
       const detectedMimeType = detectSupportedImageMime(buffer);
       if (!detectedMimeType) {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "invalid image signature" });
@@ -234,10 +241,6 @@ export class IconService {
       }
       if (buffer.length <= 0) {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, reason: "empty image" });
-        continue;
-      }
-      if (buffer.length > 1024 * 1024) {
-        logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, size: buffer.length, reason: "image too large" });
         continue;
       }
       logger.debug("icons", "icon fetch ok", { symbol, source: candidate.source, label: candidate.label, mimeType: detectedMimeType, size: buffer.length });

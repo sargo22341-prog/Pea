@@ -132,7 +132,7 @@ function AuthenticatedApp() {
   }
   if (me.data?.setupRequired) {
     return <AuthPage mode="setup" onLogin={async (input) => {
-      await api.setup({ username: input.username, password: input.password, confirmPassword: input.confirmPassword ?? "" });
+      await api.setup({ username: input.username, password: input.password, confirmPassword: input.confirmPassword ?? "", setupCode: input.setupCode ?? "" });
       await me.reload();
     }} />;
   }
@@ -156,7 +156,6 @@ function AuthenticatedApp() {
                 <Route element={<Shell user={me.data.user} />}>
                   <Route index element={<DashboardPage appTimezone={appTimezone} user={me.data.user} />} />
                   <Route path="/news" element={me.data.user.assetNewsEnabled ? <NewsPage user={me.data.user} /> : <Navigate replace to="/" />} />
-                  <Route path="/portfolio" element={<Navigate replace to="/news" />} />
                   <Route path="/analysis" element={<AnalysisPage />} />
                   <Route path="/search" element={<SearchPage user={me.data.user} />} />
                   <Route path="/dividends" element={<DividendsPage />} />

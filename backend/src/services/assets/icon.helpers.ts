@@ -17,6 +17,8 @@ export interface AssetIcon {
 
 export const iconsDir = path.resolve(path.dirname(config.sqlitePath), "icons");
 export const maxAutoFetchMs = 3000;
+/** Taille maximale d'une icône d'actif, téléchargée ou envoyée par un administrateur. */
+export const maxIconBytes = 1024 * 1024;
 export const failureCooldownMs = 24 * 60 * 60 * 1000;
 const etfNamePattern = /\b(ETF|UCITS|MSCI|S&P|STOXX|ISHARES|AMUNDI|LYXOR|VANGUARD|XTRACKERS)\b/i;
 export interface LogoCandidate {
@@ -83,13 +85,36 @@ export function placeholderSvg(symbol: string) {
   );
 }
 
-export async function fetchWithTimeout(url: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => { controller.abort(); }, maxAutoFetchMs);
-  try {
-    return await fetch(url, { signal: controller.signal, headers: { "user-agent": "PEA Portfolio" } });
-  } finally {
-    clearTimeout(timeout);
-  }
+/**
+ * Requête d'icône bornée dans le temps, corps compris : le signal reste actif pendant la lecture
+ * (un serveur qui envoie lentement un gros fichier est interrompu).
+ */
+export function fetchWithTimeout(url: string) {
+  return fetch(url, { signal: AbortSignal.timeout(maxAutoFetchMs), headers: { "user-agent": "PEA Portfolio" } });
 }
 
+/**
+ * Lit le corps en flux et l'abandonne dès que `maxBytes` est dépassé, sans jamais le charger en
+ * entier : renvoie undefined si l'image est trop lourde.
+ */
+export async function readLimitedBody(response: Response, maxBytes: number): Promise<Buffer | undefined> {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    await response.body?.cancel();
+    return undefined;
+  }
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return Buffer.concat(chunks);
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+}

@@ -14,7 +14,7 @@ test("wrong password at login returns 401", () => {
         await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const login = await fetch(\`\${baseUrl}/api/auth/login\`, {
           method: "POST",
@@ -43,7 +43,7 @@ test("accessing protected route without session returns 401", () => {
         await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const portfolio = await fetch(\`\${baseUrl}/api/portfolio\`);
         const watchlist = await fetch(\`\${baseUrl}/api/watchlist\`);
@@ -75,7 +75,7 @@ test("sell transaction is accepted when quantity is available", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user = await setup.json();
@@ -122,7 +122,7 @@ test("sell transaction is rejected when quantity would go negative", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user = await setup.json();
@@ -164,7 +164,7 @@ test("transaction tradedAt invalide est refuse et une date valide est normalisee
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
+          body: JSON.stringify({ username: "alice", password, confirmPassword: password, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
         const user = await setup.json();
@@ -196,42 +196,3 @@ test("transaction tradedAt invalide est refuse et une date valide est normalisee
   assert.equal(result.validStatus, 201);
   assert.match(result.tradedAt, /^2026-01-10T/);
 });
-
-test("creating a position via POST /portfolio/positions returns 201 with position data", () => {
-  const result = runBackendScript(`
-    import { app } from "./app.ts";
-
-    const password = "correct horse battery staple";
-    const server = app.listen(0, "127.0.0.1", async () => {
-      const address = server.address();
-      const baseUrl = \`http://127.0.0.1:\${address.port}\`;
-      try {
-        const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password, confirmPassword: password })
-        });
-        const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
-
-        const create = await fetch(\`\${baseUrl}/api/portfolio/positions\`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ symbol: "MC.PA", name: "LVMH", quantity: 1, averageBuyPrice: 600, currency: "EUR" })
-        });
-        const body = await create.json();
-        console.log("__RESULT__" + JSON.stringify({
-          status: create.status,
-          symbol: body.symbol,
-          currency: body.currency
-        }));
-      } finally {
-        server.close();
-      }
-    });
-  `) as { status: number; symbol: string; currency: string };
-
-  assert.equal(result.status, 201);
-  assert.equal(result.symbol, "MC.PA");
-  assert.equal(result.currency, "EUR");
-});
-

@@ -28,5 +28,6 @@
   "numericInvalid": "Valeur numerique invalide.",
   "required": "{{field}} requis.",
   "invalidField": "{{field}} invalide.",
-  "serverUnreachableWithDetail": "Serveur inaccessible ou invalide. Detail : {{detail}}"
+  "serverUnreachableWithDetail": "Serveur inaccessible ou invalide. Detail : {{detail}}",
+  "setupCodeRequired": "Code de configuration requis."
 }

@@ -1,17 +1,12 @@
 import type {
-  CreatePositionInput,
   EditablePortfolioTransaction,
   PortfolioAnalysis,
-  PortfolioChartDto,
   PortfolioDividends,
   PortfolioFullDto,
-  PortfolioPerformancePoint,
-  PortfolioSummary,
   PositionWithMarket,
   PositionRangePerformance,
   RangeKey,
   SplitDecision,
-  UpdatePositionInput,
   UserAssetSplit
 } from "@pea/shared";
 import { dedupedRequest, request } from "../api-core";
@@ -26,16 +21,10 @@ interface PositionTransactionInput {
 }
 
 export const portfolioApi = {
-  portfolio: (range?: RangeKey, signal?: AbortSignal) =>
-    dedupedRequest<PortfolioSummary>(`/api/portfolio${range ? `?range=${range}` : ""}`, signal),
   portfolioFull: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PortfolioFullDto>(`/api/portfolio/full?range=${range}`, signal),
   ensurePosition: (input: { symbol: string; name?: string; currency: string }) =>
     request<PositionWithMarket>("/api/portfolio/positions/ensure", { method: "POST", body: JSON.stringify(input) }),
-  addPosition: (input: CreatePositionInput) =>
-    request("/api/portfolio/positions", { method: "POST", body: JSON.stringify(input) }),
-  updatePosition: (id: number, input: UpdatePositionInput) =>
-    request(`/api/portfolio/positions/${id}`, { method: "PUT", body: JSON.stringify(input) }),
   deletePosition: (id: number) => request<undefined>(`/api/portfolio/positions/${id}`, { method: "DELETE" }),
   positionTransactions: (id: number) => request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${id}/transactions`),
   createPositionTransaction: (positionId: number, input: PositionTransactionInput) =>
@@ -50,9 +39,6 @@ export const portfolioApi = {
     }),
   deletePositionTransaction: (positionId: number, transactionId: string) =>
     request<undefined>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, { method: "DELETE" }),
-  performance: (range: RangeKey) => request<PortfolioPerformancePoint[]>(`/api/portfolio/performance?range=${range}`),
-  portfolioChart: (range: RangeKey, signal?: AbortSignal) =>
-    dedupedRequest<PortfolioChartDto>(`/api/portfolio/chart?range=${range}`, signal),
   positionsPerformance: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`, signal),
   positionPerformance: (id: number, range: RangeKey, signal?: AbortSignal) =>

@@ -5,19 +5,20 @@ interface Bucket {
   resetAt: number;
 }
 
-const rateLimitRegistries = new Set<Map<string, Bucket>>();
-
-export function createRateLimit({
-  windowMs,
-  max,
-  cleanupIntervalMs = windowMs,
-  maxBuckets = 10_000
-}: {
+interface RateCounterOptions {
   windowMs: number;
   max: number;
   cleanupIntervalMs?: number;
   maxBuckets?: number;
-}): RequestHandler {
+}
+
+const rateLimitRegistries = new Set<Map<string, Bucket>>();
+
+/**
+ * Compteur à fenêtre fixe par clé (IP, utilisateur...). `tryConsume` renvoie false au-delà de
+ * `max` appels dans la fenêtre. Le nombre de clés suivies est borné.
+ */
+export function createRateCounter({ windowMs, max, cleanupIntervalMs = windowMs, maxBuckets = 10_000 }: RateCounterOptions) {
   const buckets = new Map<string, Bucket>();
   rateLimitRegistries.add(buckets);
   let nextCleanupAt = Date.now() + cleanupIntervalMs;
@@ -35,25 +36,29 @@ export function createRateLimit({
     }
   }
 
-  return (req, res, next) => {
-    const now = Date.now();
-    cleanup(now);
-    const key = req.ip ?? req.socket.remoteAddress ?? "unknown";
-    const bucket = buckets.get(key);
-
-    if (!bucket || bucket.resetAt <= now) {
-      buckets.set(key, { count: 1, resetAt: now + windowMs });
-      if (buckets.size > maxBuckets) cleanup(now, true);
-      next();
-      return;
+  return {
+    tryConsume(key: string) {
+      const now = Date.now();
+      cleanup(now);
+      const bucket = buckets.get(key);
+      if (!bucket || bucket.resetAt <= now) {
+        buckets.set(key, { count: 1, resetAt: now + windowMs });
+        if (buckets.size > maxBuckets) cleanup(now, true);
+        return true;
+      }
+      bucket.count += 1;
+      return bucket.count <= max;
     }
+  };
+}
 
-    bucket.count += 1;
-    if (bucket.count > max) {
+export function createRateLimit(options: RateCounterOptions): RequestHandler {
+  const counter = createRateCounter(options);
+  return (req, res, next) => {
+    if (!counter.tryConsume(req.ip ?? req.socket.remoteAddress ?? "unknown")) {
       res.status(429).json({ message: "Trop de requêtes vers l’API locale. Ralentissez quelques instants." });
       return;
     }
-
     next();
   };
 }

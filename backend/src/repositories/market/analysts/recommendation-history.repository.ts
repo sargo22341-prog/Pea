@@ -1,4 +1,5 @@
 import { db } from "../../../db.js";
+import { sqlInList, sqlListParam } from "../../sql-list.js";
 
 interface RecommendationChangeRow {
   asset_id: number;
@@ -28,10 +29,10 @@ export class RecommendationHistoryRepository {
                 LAG(recommendation_key) OVER (PARTITION BY asset_id ORDER BY recorded_at, id) AS previous_key,
                 ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY recorded_at DESC, id DESC) AS rank
          FROM asset_recommendation_history
-         WHERE asset_id IN (${assetIds.map(() => "?").join(", ")})
+         WHERE asset_id IN ${sqlInList}
        )
        WHERE rank = 1 AND previous_key IS NOT NULL AND recorded_at >= ?`
-    ).all(...assetIds, sinceIso) as RecommendationChangeRow[];
+    ).all(sqlListParam(assetIds), sinceIso) as RecommendationChangeRow[];
   }
 }
 

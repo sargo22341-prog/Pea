@@ -4,7 +4,7 @@ import { watchlistService } from "../../services/assets/watchlist.service.js";
 import { HttpError } from "../../utils/http-error.js";
 import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
-import { routeParam } from "../shared/params.js";
+import { symbolParam } from "../shared/symbol.js";
 
 export const watchlistRouter = express.Router();
 
@@ -22,11 +22,11 @@ watchlistRouter.post("/watchlist/:symbol", asyncRoute(async (req, res) => {
     .partial()
     .parse(req.body ?? {});
 
-  res.status(201).json(await watchlistService.add(routeParam(req.params["symbol"], "symbol"), body));
+  res.status(201).json(await watchlistService.add(symbolParam(req.params["symbol"]), body));
 }));
 
 watchlistRouter.delete("/watchlist/:symbol", asyncRoute((req, res) => {
-  const deleted = watchlistService.remove(routeParam(req.params["symbol"], "symbol"));
+  const deleted = watchlistService.remove(symbolParam(req.params["symbol"]));
   if (!deleted) throw new HttpError(404, "Actif absent de la liste de suivi");
   res.status(204).send();
 }));

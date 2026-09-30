@@ -11,7 +11,7 @@ test("production auth cookie is not Secure on HTTP public URL", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "http://192.168.0.44:4000" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({
           status: response.status,
@@ -37,7 +37,7 @@ test("production auth cookie is Secure on HTTPS public URL", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Origin: "https://pea.example.com" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({
           status: response.status,
@@ -63,7 +63,7 @@ test("auth setup rejects weak passwords", () => {
         const response = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: "short", confirmPassword: "short" })
+          body: JSON.stringify({ username: "alice", password: "short", confirmPassword: "short", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ status: response.status, body: await response.json() }));
       } finally {
@@ -115,7 +115,7 @@ test("auth supports bearer sessions for native mobile clients", () => {
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-PEA-Auth-Mode": "bearer" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         const setupBody = await setup.json();
         const me = await fetch(\`\${baseUrl}/api/auth/me\`, { headers: { Authorization: \`Bearer \${setupBody.token}\` } });

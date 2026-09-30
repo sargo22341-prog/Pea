@@ -1,4 +1,5 @@
 import type { DividendEvent, Position, PositionWithMarket } from "@pea/shared";
+import { sqlInList, sqlListParam } from "../../repositories/sql-list.js";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
 import { logger } from "../shared/logger.service.js";
@@ -97,15 +98,14 @@ export function buildTransactionCache(positionIds: number[]): Map<number, Positi
   }
 
   // Une seule requête pour charger toutes les transactions datées en une passe
-  const placeholders = positionIds.map(() => "?").join(", ");
   const rows = db
     .prepare(
       `SELECT id, position_id, type, quantity, price, total_fees, traded_at
        FROM transactions
-       WHERE position_id IN (${placeholders})
+       WHERE position_id IN ${sqlInList}
          AND traded_at IS NOT NULL`
     )
-    .all(...positionIds) as (TransactionRow & { id: number; position_id: number })[];
+    .all(sqlListParam(positionIds)) as (TransactionRow & { id: number; position_id: number })[];
 
   // Tri sur l'instant réel : l'ordre textuel SQL est faux dès que des dates portent des
   // fuseaux ou formats différents, et les calculs "à un instant" s'arrêtent au premier dépassement.

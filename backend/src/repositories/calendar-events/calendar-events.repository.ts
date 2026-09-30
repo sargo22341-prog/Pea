@@ -1,4 +1,5 @@
 import type { CalendarEvent, CalendarEventType, CalendarScope } from "@pea/shared";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 import { db } from "../../db.js";
 
 export interface CalendarEventInsert {
@@ -78,8 +79,8 @@ export function replaceUpcomingCalendarEvents(symbol: string, events: CalendarEv
     for (const [eventType, dates] of datesByType) {
       db.prepare(
         `DELETE FROM asset_calendar_events
-         WHERE symbol = ? AND event_type = ? AND event_date >= ? AND event_date NOT IN (${dates.map(() => "?").join(", ")})`
-      ).run(key, eventType, nowIso, ...dates);
+         WHERE symbol = ? AND event_type = ? AND event_date >= ? AND event_date NOT IN ${sqlInList}`
+      ).run(key, eventType, nowIso, sqlListParam(dates));
     }
     upsertCalendarEvents(events);
   });
@@ -121,11 +122,10 @@ export function readCalendarEventsInRange(userId: number, scope: CalendarScope, 
 /** Dates des publications de résultats de plusieurs actifs entre deux instants ISO (bornes incluses). */
 export function readEarningsDatesForSymbols(symbols: string[], fromIso: string, toIso: string) {
   if (!symbols.length) return [];
-  const placeholders = symbols.map(() => "?").join(", ");
   return db.prepare(`
     SELECT symbol, event_date FROM asset_calendar_events
-    WHERE event_type = 'earnings' AND symbol IN (${placeholders}) AND event_date >= ? AND event_date <= ?
-  `).all(...symbols.map((symbol) => symbol.toUpperCase()), fromIso, toIso) as { symbol: string; event_date: string }[];
+    WHERE event_type = 'earnings' AND symbol IN ${sqlInList} AND event_date >= ? AND event_date <= ?
+  `).all(sqlListParam(symbols.map((symbol) => symbol.toUpperCase())), fromIso, toIso) as { symbol: string; event_date: string }[];
 }
 
 /** Première date d'un type d'évènement à partir de `fromIso` (par exemple le prochain détachement annoncé). */

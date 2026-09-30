@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { ZodError, z } from "zod";
 import { config } from "./config.js";
 import "./db.js";
+import { warnOnUntrustedProxyHeaders } from "./middleware/proxy-detection.js";
 import { createRateLimit } from "./middleware/rate-limit.js";
 import { apiRouter } from "./routes/api.js";
 import { translateForRequest } from "./services/i18n/i18n.service.js";
@@ -17,6 +18,9 @@ import { HttpError } from "./utils/http-error.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const devCorsOrigins = new Set(["http://localhost", "https://localhost", "capacitor://localhost", "http://localhost:5173", "http://127.0.0.1:5173"]);
 const configuredCorsOrigins = new Set(config.corsOrigins);
+/** Limite par défaut des corps JSON : largement suffisante pour les formulaires de l'application. */
+const defaultJsonBodyLimit = "100kb";
+const defaultJsonParser = express.json({ limit: defaultJsonBodyLimit });
 
 export const app = express();
 
@@ -39,6 +43,8 @@ function shouldCompressResponse(req: express.Request, res: express.Response) {
 // utilise l'adresse client transmise par le proxy pour le rate-limit.
 if (config.trustProxy) {
   app.set("trust proxy", 1);
+} else {
+  app.use(warnOnUntrustedProxyHeaders());
 }
 app.set("etag", false);
 app.use(
@@ -78,7 +84,14 @@ if (config.nodeEnv !== "production" || configuredCorsOrigins.size > 0) {
 // Compresse les réponses JSON et les bundles statiques. Le flux SSE est exclu :
 // une réponse compressée serait bufferisée par zlib et les événements arriveraient en retard.
 app.use(compression({ filter: shouldCompressResponse }));
-app.use(express.json());
+// Les imports lisent leur corps, plus volumineux, après authentification (voir import.routes.ts).
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/import/")) {
+    next();
+    return;
+  }
+  defaultJsonParser(req, res, next);
+});
 if (config.debug) {
   app.use(
     morgan(config.nodeEnv === "production" ? "combined" : "dev", {
@@ -97,9 +110,12 @@ app.use("/api", (_req, res, next) => {
 });
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 const apiRateLimit = createRateLimit({ windowMs: 60_000, max: 120 });
+// Un écran affiche une icône par actif : ces lectures ont leur propre limite, plus large ; les
+// récupérations distantes qu'elles déclenchent sont en plus bornées par utilisateur.
+const iconRateLimit = createRateLimit({ windowMs: 60_000, max: 600 });
 app.use("/api", (req, res, next) => {
   if (req.method === "GET" && /^\/assets\/[^/]+\/icon$/.test(req.path)) {
-    next();
+    iconRateLimit(req, res, next);
     return;
   }
   apiRateLimit(req, res, next);

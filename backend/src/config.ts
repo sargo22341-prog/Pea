@@ -89,5 +89,6 @@ export const config = {
   enableMarketLiveRefresh: parseBoolean(process.env["ENABLE_MARKET_LIVE_REFRESH"], true),
   publicUrl: parsePublicUrl(process.env["PUBLIC_URL"]),
   trustProxy: parseBoolean(process.env["TRUST_PROXY"], false),
-  corsOrigins: parseOriginList(process.env["CORS_ORIGINS"])
+  corsOrigins: parseOriginList(process.env["CORS_ORIGINS"]),
+  setupCode: process.env["SETUP_CODE"]?.trim() || undefined
 };

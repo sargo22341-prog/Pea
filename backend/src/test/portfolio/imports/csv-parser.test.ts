@@ -1,4 +1,4 @@
-import { runBackendScript } from "../helpers/backend-script.js";
+import { runBackendScript } from "../../helpers/backend-script.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -80,35 +80,6 @@ test("normalizeFrenchNumber handles various French numeric formats", () => {
   assert.equal(result.withSpaces, 42);
   assert.equal(result.zero, 0);
   assert.equal(result.invalid, 0);
-});
-
-test("confirmBoursoramaImport with more than 1000 rows returns an error without hitting Yahoo", () => {
-  const result = runBackendScript(`
-    import { confirmBoursoramaImport } from "./services/boursorama/importBoursorama.service.ts";
-
-    const rows = Array.from({ length: 1001 }, (_, i) => ({
-      line: i + 1,
-      name: "Test " + i,
-      isin: "FR000000000" + i,
-      quantity: 1,
-      buyingPrice: 100,
-      lastPrice: 100,
-      intradayVariation: 0,
-      amount: 100,
-      amountVariation: 0,
-      variation: 0,
-      symbol: "TEST" + i,
-      needsReview: false,
-      errors: [],
-      action: undefined
-    }));
-
-    const result = await confirmBoursoramaImport(rows);
-    console.log("__RESULT__" + JSON.stringify({ errorCount: result.errors.length, firstErrorLine: result.errors[0]?.line }));
-  `) as { errorCount: number; firstErrorLine: number };
-
-  assert.ok(result.errorCount > 0, "Expected error for over-limit import");
-  assert.equal(result.firstErrorLine, 0);
 });
 
 test("resolveYahooSymbolFromIsin falls back to the asset name only when the ISIN finds nothing", () => {

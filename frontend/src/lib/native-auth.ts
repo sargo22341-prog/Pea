@@ -123,18 +123,25 @@ export async function clearNativeServerUrl() {
 
 /**
  * Configure le plugin natif une seule fois par URL (et non à chaque requête).
- * En cas d'échec, la configuration est retentée au prochain appel.
+ * En cas d'échec, la configuration est retentée au prochain appel. Le natif ne fait confiance
+ * qu'au dernier hôte configuré : comme chaque requête repasse ici avec l'URL enregistrée, un
+ * serveur seulement testé (réglages) est remplacé par le serveur enregistré dès la requête suivante.
  */
 function ensureNativeBackendUrl(url: string) {
   if (backendUrlConfiguration?.url === url) return backendUrlConfiguration.ready;
-  const ready = configureNativeBackendUrl(url).then((configured) => {
+  const ready = sendNativeBackendUrl(url).then((configured) => {
     if (!configured && backendUrlConfiguration?.ready === ready) backendUrlConfiguration = undefined;
   });
   backendUrlConfiguration = { url, ready };
   return ready;
 }
 
-export async function configureNativeBackendUrl(url: string) {
+/** Autorise l'hôte d'un serveur avant de le tester ou de l'enregistrer. */
+export function configureNativeBackendUrl(url: string) {
+  return ensureNativeBackendUrl(normalizeServerUrl(url));
+}
+
+async function sendNativeBackendUrl(url: string) {
   if (!isNativeApp()) return false;
   try {
     await peaNetwork.setBackendUrl({ url: normalizeServerUrl(url) });

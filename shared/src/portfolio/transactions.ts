@@ -1,21 +1,6 @@
 import type { CurrencyCode } from "../market.js";
 import type { PeaEligibilityResult } from "../assets.js";
 
-export interface CreatePositionInput {
-  symbol: string;
-  name?: string | undefined;
-  quantity: number;
-  averageBuyPrice: number;
-  currency: CurrencyCode;
-}
-
-export interface UpdatePositionInput {
-  quantity: number;
-  averageBuyPrice: number;
-  currency: CurrencyCode;
-  notes?: string | undefined;
-}
-
 export interface BoursoramaImportRow {
   line: number;
   name: string;

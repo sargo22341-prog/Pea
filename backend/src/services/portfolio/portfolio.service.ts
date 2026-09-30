@@ -1,5 +1,4 @@
 import type {
-  CreatePositionInput,
   EditablePortfolioTransaction,
   PortfolioChartDto,
   PortfolioFullDto,
@@ -10,7 +9,6 @@ import type {
   PositionTransactionStats,
   PositionWithMarket,
   RangeKey,
-  UpdatePositionInput,
   UserAssetPositionDto
 } from "@pea/shared";
 import { portfolioChartsService } from "./portfolio-charts.service.js";
@@ -33,16 +31,20 @@ export class PortfolioService {
     return portfolioReadService.listPositions(userId);
   }
 
+  listHoldings(userId?: number | string): Position[] {
+    return portfolioReadService.listHoldings(userId);
+  }
+
   getPosition(symbol: string, userId?: number | string): Promise<PositionWithMarket | undefined> {
     return portfolioReadService.getPosition(symbol, userId);
   }
 
-  createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean; userId?: number | string } = {}): Promise<PositionWithMarket> {
-    return portfolioWriteService.createPosition(input, options);
-  }
-
   ensurePosition(symbol: string, name: string, currency = "EUR", userId?: number | string): Position {
     return portfolioWriteService.ensurePosition(symbol, name, currency, userId);
+  }
+
+  applyImportedHolding(input: Parameters<typeof portfolioWriteService.applyImportedHolding>[0], userId?: number | string) {
+    return portfolioWriteService.applyImportedHolding(input, userId);
   }
 
   importAvisTransaction(input: Parameters<typeof portfolioWriteService.importAvisTransaction>[0]) {
@@ -79,14 +81,6 @@ export class PortfolioService {
 
   deletePosition(id: number, userId?: number | string): boolean {
     return portfolioWriteService.deletePosition(id, userId);
-  }
-
-  replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
-    portfolioWriteService.replaceImportedPositionSnapshot(id, input, userId);
-  }
-
-  updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {
-    return portfolioWriteService.updatePosition(id, input, userId);
   }
 
   full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {

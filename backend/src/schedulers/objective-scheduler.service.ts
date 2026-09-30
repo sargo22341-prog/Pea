@@ -5,18 +5,26 @@ const tickIntervalMs = 5 * 60 * 1000;
 
 export class ObjectiveSchedulerService {
   private timer?: NodeJS.Timeout | undefined;
+  private inFlightTick?: Promise<void> | undefined;
   private lastRunDate?: string | undefined;
 
   start() {
     if (this.timer) return;
-    this.timer = setInterval(() => void this.tick(), tickIntervalMs);
-    void this.tick();
+    this.timer = setInterval(() => void this.runTick(), tickIntervalMs);
+    void this.runTick();
     logger.info("portfolio", "objective scheduler started", { runHour: 23, intervalMs: tickIntervalMs });
   }
 
-  stop() {
+  /** Arrête le planificateur et attend la fin du tick en cours, qui libère ses ressources. */
+  async stop() {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    await this.inFlightTick;
+  }
+
+  private runTick() {
+    this.inFlightTick ??= this.tick().finally(() => { this.inFlightTick = undefined; });
+    return this.inFlightTick;
   }
 
   async tick(now = new Date()) {

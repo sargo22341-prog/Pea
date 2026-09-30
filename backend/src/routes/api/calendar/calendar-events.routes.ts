@@ -6,7 +6,7 @@ import { mapEventRow, readCalendarEventsBySymbol, readCalendarEventsForPortfolio
 import { buildCalendarIcs } from "../../../services/calendar/calendar-ics.js";
 import { calendarEventsInRange } from "../../../services/calendar/calendar.service.js";
 import { asyncRoute } from "../../shared/async-route.js";
-import { routeParam } from "../../shared/params.js";
+import { symbolParam } from "../../shared/symbol.js";
 import { requireAuthUser } from "../../../middleware/auth.js";
 
 export const calendarEventsRouter = express.Router();
@@ -49,7 +49,7 @@ calendarEventsRouter.get("/calendar-events.ics", asyncRoute(async (req, res) => 
 }));
 
 calendarEventsRouter.get("/calendar-events/:symbol", asyncRoute((req, res) => {
-  const symbol = routeParam(req.params["symbol"], "symbol").toUpperCase();
+  const symbol = symbolParam(req.params["symbol"]);
   const rows = readCalendarEventsBySymbol(symbol);
   res.json(rows.map(mapEventRow));
 }));

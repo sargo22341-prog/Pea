@@ -15,7 +15,7 @@ test("la reconnexion avec le nouveau mot de passe fonctionne après invalidation
         const setup = await fetch(\`\${baseUrl}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: motDePasseInitial, confirmPassword: motDePasseInitial })
+          body: JSON.stringify({ username: "alice", password: motDePasseInitial, confirmPassword: motDePasseInitial, setupCode: "test-setup-code" })
         });
         const cookie = setup.headers.get("set-cookie")?.split(";")[0] ?? "";
 
@@ -127,8 +127,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    Array.from({ length: 44 }, (_value, index) => index + 1),
-    "les 44 migrations doivent etre enregistrees"
+    Array.from({ length: 45 }, (_value, index) => index + 1),
+    "les 45 migrations doivent etre enregistrees"
   );
 });
 
@@ -185,7 +185,7 @@ test("les mutations en production sans header Origin sont bloquées", () => {
         const reponse = await fetch(\`http://127.0.0.1:\${address.port}/api/auth/setup\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple" })
+          body: JSON.stringify({ username: "alice", password: "correct horse battery staple", confirmPassword: "correct horse battery staple", setupCode: "test-setup-code" })
         });
         console.log("__RESULT__" + JSON.stringify({ statut: reponse.status }));
       } finally {

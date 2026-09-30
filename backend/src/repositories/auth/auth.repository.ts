@@ -45,8 +45,17 @@ export class AuthRepository {
     return db.prepare("SELECT * FROM users ORDER BY id ASC").all() as AuthUserRow[];
   }
 
+  /**
+   * Recherche insensible à la casse ; si d'anciens comptes ne diffèrent que par la casse, la
+   * correspondance exacte est prioritaire.
+   */
   findUserByUsername(username: string): AuthUserRow | undefined {
-    return db.prepare("SELECT * FROM users WHERE username = ?").get(username) as AuthUserRow | undefined;
+    return db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE ORDER BY username = ? DESC, id ASC LIMIT 1").get(username, username) as AuthUserRow | undefined;
+  }
+
+  /** Vrai si un autre compte porte déjà ce nom, sans tenir compte de la casse. */
+  isUsernameTaken(username: string, exceptUserId = 0) {
+    return Boolean(db.prepare("SELECT 1 FROM users WHERE username = ? COLLATE NOCASE AND id <> ?").get(username, exceptUserId));
   }
 
   findUserById(userId: number): AuthUserRow | undefined {
@@ -169,13 +178,13 @@ export class AuthRepository {
     );
   }
 
-  deleteUser(userId: number) {
-    return db.prepare("DELETE FROM users WHERE id = ?").run(userId);
-  }
-
+  /**
+   * Supprime un utilisateur et ses données. Les tables liées par clé étrangère (sessions,
+   * positions et transactions, watchlist, objectifs, alertes, filtres...) suivent par
+   * `ON DELETE CASCADE` ; seuls les caches sans clé étrangère sont purgés explicitement.
+   */
   deleteUserAndOwnedData(userId: number) {
     return db.transaction(() => {
-      const normalizedUserId = String(userId);
       const user = this.findUserById(userId);
       if (!user) return undefined;
 
@@ -187,22 +196,17 @@ export class AuthRepository {
         )
         .all(userId, userId) as { symbol: string }[];
 
-      const deleted = {
-        userSessions: db.prepare("DELETE FROM user_sessions WHERE user_id = ?").run(userId),
-        userAssets: db.prepare("DELETE FROM user_assets WHERE user_id = ?").run(userId),
-        portfolioChartCache: db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(normalizedUserId),
-        portfolioPositionsPerformanceCache: db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(normalizedUserId),
-        frontendBlockCache: db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(normalizedUserId),
-        watchlist: db.prepare("DELETE FROM watchlist WHERE user_id = ?").run(userId),
-        positions: db.prepare("DELETE FROM positions WHERE user_id = ?").run(userId),
-        users: db.prepare("DELETE FROM users WHERE id = ?").run(userId)
-      };
+      const cacheUserId = String(userId);
+      db.prepare("DELETE FROM user_assets WHERE user_id = ?").run(userId);
+      db.prepare("DELETE FROM portfolio_chart_cache WHERE user_id = ?").run(cacheUserId);
+      db.prepare("DELETE FROM portfolio_positions_performance_cache WHERE user_id = ?").run(cacheUserId);
+      db.prepare("DELETE FROM frontend_block_cache WHERE user_id = ?").run(cacheUserId);
+      db.prepare("DELETE FROM users WHERE id = ?").run(userId);
 
-      const orphanAssets = marketDataConstructionRepository.unlinkedAssets()
-        .filter((row) => symbolsBeforeDelete.some((symbolRow) => symbolRow.symbol.toUpperCase() === row.symbol.toUpperCase()));
-      const orphanAssetCleanup = marketDataConstructionRepository.cleanupUnlinkedAssets(orphanAssets);
-
-      return { user, deleted, orphanAssetCleanup };
+      const deletedSymbols = new Set(symbolsBeforeDelete.map((row) => row.symbol.toUpperCase()));
+      const orphanAssets = marketDataConstructionRepository.unlinkedAssets().filter((row) => deletedSymbols.has(row.symbol.toUpperCase()));
+      marketDataConstructionRepository.cleanupUnlinkedAssets(orphanAssets);
+      return user;
     });
   }
 

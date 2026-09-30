@@ -113,13 +113,6 @@ export class PortfolioRepository {
     return db.prepare("SELECT * FROM positions WHERE user_id = ? AND id = ?").get(ensureUserId(userId), positionId) as PositionRow | undefined;
   }
 
-  insertPosition(input: { symbol: string; name: string; quantity: number; averageBuyPrice: number; currency: string }, userId: number | string) {
-    db.prepare(
-      `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(ensureUserId(userId), input.symbol, input.name, input.quantity, input.averageBuyPrice, input.currency);
-  }
-
   insertEmptyPosition(input: { symbol: string; name: string; currency: string }, userId: number | string) {
     db.prepare(
       `INSERT INTO positions (user_id, symbol, name, quantity, average_buy_price, currency)
@@ -127,28 +120,8 @@ export class PortfolioRepository {
     ).run(ensureUserId(userId), input.symbol.toUpperCase(), input.name, input.currency);
   }
 
-  updatePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name?: string; currency: string; notes?: string | null }) {
-    db.prepare(
-      `UPDATE positions
-       SET quantity = ?, average_buy_price = ?, name = COALESCE(?, name), currency = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(input.quantity, input.averageBuyPrice, input.name ?? null, input.currency, input.notes ?? null, positionId);
-  }
-
-  mergePositionSnapshot(positionId: number, input: { quantity: number; averageBuyPrice: number; name: string; currency: string }) {
-    db.prepare(
-      `UPDATE positions
-       SET quantity = ?, average_buy_price = ?, name = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(input.quantity, input.averageBuyPrice, input.name, input.currency, positionId);
-  }
-
-  replaceImportedPositionSnapshot(positionId: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }) {
-    db.prepare(
-      `UPDATE positions
-       SET name = ?, quantity = ?, average_buy_price = ?, currency = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(input.name, input.quantity, input.averageBuyPrice, input.currency, positionId);
+  renamePosition(positionId: number, name: string) {
+    db.prepare("UPDATE positions SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND name <> ?").run(name, positionId, name);
   }
 
   deletePosition(positionId: number, userId: number | string) {
@@ -204,12 +177,12 @@ export class PortfolioRepository {
     );
   }
 
-  insertBuyTransactionNow(positionId: number, input: { quantity: number; price: number; currency: string }) {
-    // ISO UTC explicite, comme les saisies manuelles : CURRENT_TIMESTAMP n'a pas de fuseau.
+  /** Mouvement d'ajustement issu d'un import de détention CSV (voir `holdingAdjustments`). */
+  insertImportedHoldingTransaction(positionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; currency: string; tradedAt: string }) {
     db.prepare(
-      `INSERT INTO transactions (position_id, type, quantity, price, currency, traded_at)
-       VALUES (?, 'buy', ?, ?, ?, ?)`
-    ).run(positionId, input.quantity, input.price, input.currency, new Date().toISOString());
+      `INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source)
+       VALUES (?, ?, ?, ?, 0, ?, ?, 'csv')`
+    ).run(positionId, input.type, input.quantity, input.price, input.currency, input.tradedAt);
   }
 
   updateManualTransaction(positionId: number, transactionId: number, input: { type: "buy" | "sell"; quantity: number; price: number; totalFees?: number | undefined; currency: string; tradedAt: string }) {

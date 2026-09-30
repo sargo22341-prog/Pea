@@ -1,7 +1,7 @@
-import fs from "node:fs";
 import path from "node:path";
 import util from "node:util";
 import { config } from "../../config.js";
+import { LogFileWriter } from "./log-file-writer.js";
 
 export type LogCategory =
   | "cache"
@@ -64,17 +64,18 @@ function formatMeta(meta?: unknown) {
   }
 }
 
+/** 5 Mo par fichier et 3 archives : au plus 20 Mo par catégorie de log. */
+const logFileWriter = new LogFileWriter({
+  directory: logDirectory,
+  maxFileBytes: 5 * 1024 * 1024,
+  rotatedFiles: 3,
+  maxPendingBytes: 1024 * 1024
+});
+
 function writeJsonLine(entry: { timestamp: string; level: LogLevel; category: LogCategory; message: string; meta?: unknown }) {
-  try {
-    fs.mkdirSync(logDirectory(), { recursive: true });
-    const line = `${JSON.stringify(entry)}\n`;
-    fs.appendFileSync(path.join(logDirectory(), `${entry.category}.log`), line, "utf8");
-    if (entry.level === "error") {
-      fs.appendFileSync(path.join(logDirectory(), "error.log"), line, "utf8");
-    }
-  } catch (error) {
-    console.error(`[logger] unable to write log file: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  const line = `${JSON.stringify(entry)}\n`;
+  logFileWriter.append(`${entry.category}.log`, line);
+  if (entry.level === "error") logFileWriter.append("error.log", line);
 }
 
 function log(level: LogLevel, category: LogCategory, message: string, meta?: unknown) {
@@ -105,5 +106,7 @@ export const logger = {
   info: (category: LogCategory, message: string, meta?: unknown) => { log("info", category, message, meta); },
   warn: (category: LogCategory, message: string, meta?: unknown) => { log("warn", category, message, meta); },
   error: (category: LogCategory, message: string, meta?: unknown) => { log("error", category, message, meta); },
-  isDebugEnabled
+  isDebugEnabled,
+  /** Attend l'écriture des logs en attente, avant l'arrêt du processus. */
+  flush: () => logFileWriter.flush()
 };

@@ -27,6 +27,7 @@ function errorMessage(error: unknown) {
 
 export class MarketSchedulerService {
   private timer?: NodeJS.Timeout | undefined;
+  private inFlightTick?: Promise<void> | undefined;
   private running = false;
   private lastTickDurationMs?: number | undefined;
   private lastTickFinishedAt?: string | undefined;
@@ -34,8 +35,8 @@ export class MarketSchedulerService {
   start() {
     if (this.timer) return;
     trackedMarketRepository.syncFromTrackedAssets();
-    this.timer = setInterval(() => void this.tick(), tickIntervalMs);
-    void this.tick();
+    this.timer = setInterval(() => void this.runTick(), tickIntervalMs);
+    void this.runTick();
     logger.info("market-data", "market scheduler started", {
       intervalMs: tickIntervalMs,
       liveRefreshEnabled: config.enableMarketLiveRefresh,
@@ -44,9 +45,16 @@ export class MarketSchedulerService {
     });
   }
 
-  stop() {
+  /** Arrête le planificateur et attend la fin du tick en cours, qui libère ses ressources. */
+  async stop() {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    await this.inFlightTick;
+  }
+
+  private runTick() {
+    this.inFlightTick ??= this.tick().finally(() => { this.inFlightTick = undefined; });
+    return this.inFlightTick;
   }
 
   async tick(now = new Date()) {

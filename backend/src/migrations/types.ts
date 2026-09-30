@@ -5,6 +5,12 @@ export interface Migration {
   description: string;
   appliquer: (db: DatabaseAdapter) => void;
   /**
+   * Par défaut, la migration et son enregistrement s'exécutent dans une seule transaction : un
+   * échec ne laisse pas de schéma à moitié migré. `false` est réservé aux instructions interdites
+   * dans une transaction (VACUUM, PRAGMA foreign_keys), la migration gérant alors sa cohérence.
+   */
+  transactional?: false;
+  /**
    * Rollback optionnel.
    *
    * Convention :

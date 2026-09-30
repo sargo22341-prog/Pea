@@ -7,9 +7,6 @@ import java.net.Socket;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLEngine;
@@ -23,7 +20,8 @@ import javax.net.ssl.X509TrustManager;
 
 final class PEASelfHostedSsl {
   private static final String TAG = "PEA_SSL";
-  private static final Set<String> allowedBackendHosts = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  /** Seul l'hôte du serveur actuellement configuré est de confiance ; il remplace le précédent. */
+  private static volatile String allowedBackendHost = null;
   private static boolean installed = false;
 
   private PEASelfHostedSsl() {}
@@ -39,7 +37,7 @@ final class PEASelfHostedSsl {
       HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
       HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> verifyHostname(defaultHostnameVerifier, hostname, session));
       installed = true;
-      Log.w(TAG, "Self-hosted HTTPS trust manager installed. Invalid certificates are accepted only for configured backend hostnames.");
+      debug("Self-hosted HTTPS trust manager installed. Invalid certificates are accepted only for the configured backend hostname.");
     } catch (Exception error) {
       Log.e(TAG, "Unable to install self-hosted HTTPS trust manager.", error);
     }
@@ -48,25 +46,31 @@ final class PEASelfHostedSsl {
   static void allowBackendUrl(String value) {
     try {
       String hostname = normalizeHost(Uri.parse(value).getHost());
+      allowedBackendHost = hostname;
       if (hostname == null) {
-        Log.w(TAG, "Backend SSL hostname not configured: invalid URL " + value);
+        Log.w(TAG, "Backend SSL hostname not configured: invalid URL.");
         return;
       }
-      allowedBackendHosts.add(hostname);
-      Log.w(TAG, "Backend SSL hostname allowed: " + hostname);
+      debug("Backend SSL hostname allowed: " + hostname);
     } catch (Exception error) {
+      allowedBackendHost = null;
       Log.e(TAG, "Unable to configure backend SSL hostname from URL.", error);
     }
   }
 
   static boolean isAllowedHost(String hostname) {
     String normalized = normalizeHost(hostname);
-    return normalized != null && allowedBackendHosts.contains(normalized);
+    return normalized != null && normalized.equals(allowedBackendHost);
+  }
+
+  /** Détails par connexion (hôtes, certificats) : journalisés seulement si le tag est en DEBUG. */
+  static void debug(String message) {
+    if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, message);
   }
 
   private static boolean verifyHostname(HostnameVerifier defaultVerifier, String hostname, SSLSession session) {
     if (isAllowedHost(hostname)) {
-      Log.w(TAG, "HTTPS hostname accepted for configured self-hosted backend: " + normalizeHost(hostname));
+      debug("HTTPS hostname accepted for configured self-hosted backend: " + normalizeHost(hostname));
       return true;
     }
 
@@ -126,11 +130,11 @@ final class PEASelfHostedSsl {
     public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) throws CertificateException {
       String hostname = peerHost(socket);
       if (isAllowedHost(hostname)) {
-        Log.w(TAG, "HTTPS certificate accepted for configured backend: host=" + normalizeHost(hostname) + ", authType=" + authType + ", chainLength=" + chainLength(chain));
+        debug("HTTPS certificate accepted for configured backend: host=" + normalizeHost(hostname) + ", authType=" + authType + ", chainLength=" + chainLength(chain));
         return;
       }
 
-      Log.w(TAG, "HTTPS certificate uses default validation: host=" + hostname);
+      debug("HTTPS certificate uses default validation: host=" + hostname);
       delegate.checkServerTrusted(chain, authType);
     }
 
@@ -139,11 +143,11 @@ final class PEASelfHostedSsl {
     public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) throws CertificateException {
       String hostname = engine != null && engine.getHandshakeSession() != null ? engine.getHandshakeSession().getPeerHost() : null;
       if (isAllowedHost(hostname)) {
-        Log.w(TAG, "HTTPS certificate accepted for configured backend: host=" + normalizeHost(hostname) + ", authType=" + authType + ", chainLength=" + chainLength(chain));
+        debug("HTTPS certificate accepted for configured backend: host=" + normalizeHost(hostname) + ", authType=" + authType + ", chainLength=" + chainLength(chain));
         return;
       }
 
-      Log.w(TAG, "HTTPS certificate uses default validation: host=" + hostname);
+      debug("HTTPS certificate uses default validation: host=" + hostname);
       delegate.checkServerTrusted(chain, authType);
     }
 

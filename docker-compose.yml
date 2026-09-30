@@ -1,13 +1,22 @@
 services:
   pea-portfolio:
     image: ghcr.io/sargo22341-prog/pea-portfolio:latest
+    # Init minimal en PID 1 : relaie les signaux au serveur, qui s'arrête proprement.
+    init: true
+    # Laisse au serveur le temps de terminer les tâches en cours avant d'être tué.
+    stop_grace_period: 20s
     environment:
       TZ: ${TZ:-Europe/Paris}
       PUBLIC_URL: ${PUBLIC_URL:-}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       LOGO_DEV_API_KEY: ${LOGO_DEV_API_KEY:-}
+      SETUP_CODE: ${SETUP_CODE:-}
     volumes:
-      - /data:/app/data
+      # Volume nommé par défaut ; PEA_DATA_DIR=/chemin/hote pour utiliser un dossier de l'hôte.
+      - ${PEA_DATA_DIR:-pea-data}:/app/data
     ports:
       - "4000:4000"
     restart: unless-stopped
+
+volumes:
+  pea-data:

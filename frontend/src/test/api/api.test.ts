@@ -26,14 +26,14 @@ describe("api client", () => {
     }));
     vi.stubGlobal("fetch", fetchSpy);
 
-    const first = api.portfolio("1d");
-    const second = api.portfolio("1d");
+    const first = api.portfolioFull("1d");
+    const second = api.portfolioFull("1d");
     resolveFetch(jsonResponse({ assetsCount: 0 }));
 
     await expect(first).resolves.toEqual({ assetsCount: 0 });
     await expect(second).resolves.toEqual({ assetsCount: 0 });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).toHaveBeenCalledWith("/api/portfolio?range=1d", expect.objectContaining({ credentials: "include" }));
+    expect(fetchSpy).toHaveBeenCalledWith("/api/portfolio/full?range=1d", expect.objectContaining({ credentials: "include" }));
   });
 
   it("turns non-ok JSON responses into typed API errors", async () => {

@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 import type { StoredChartRange } from "../../services/market/charts/chart-config.service.js";
 import { unifiedCacheRepository, type CacheScope } from "../cache/unified-cache.repository.js";
 
@@ -10,10 +11,6 @@ export interface DeleteResult {
 export interface UnlinkedAssetRow {
   id: number;
   symbol: string;
-}
-
-function placeholders(values: unknown[]) {
-  return values.map(() => "?").join(",");
 }
 
 function runDelete(sql: string, ...params: unknown[]) {
@@ -46,16 +43,16 @@ export class MarketDataConstructionRepository {
     if (!rows.length) return deleted;
     const ids = rows.map((row) => row.id);
     const symbols = rows.map((row) => row.symbol.toUpperCase());
-    const idPlaceholders = placeholders(ids);
-    const symbolPlaceholders = placeholders(symbols);
+    const idList = sqlListParam(ids);
+    const symbolList = sqlListParam(symbols);
 
     for (const table of ["chart_candles", "market_data_finalizations", "asset_quote_snapshot", "asset_quote_range", "asset_dividend_snapshot", "asset_profiles", "asset_financials", "asset_dividends"]) {
-      deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN (${idPlaceholders})`, ...ids) });
+      deleted.push({ table, rows: runDelete(`DELETE FROM ${table} WHERE asset_id IN ${sqlInList}`, idList) });
     }
 
     // cached_intraday_history reste séparé (logique sliding window par trading_day).
-    deleted.push({ table: "cached_intraday_history", rows: runDelete(`DELETE FROM cached_intraday_history WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
-    deleted.push({ table: "asset_icons", rows: runDelete(`DELETE FROM asset_icons WHERE symbol IN (${symbolPlaceholders})`, ...symbols) });
+    deleted.push({ table: "cached_intraday_history", rows: runDelete(`DELETE FROM cached_intraday_history WHERE symbol IN ${sqlInList}`, symbolList) });
+    deleted.push({ table: "asset_icons", rows: runDelete(`DELETE FROM asset_icons WHERE symbol IN ${sqlInList}`, symbolList) });
 
     // cache_entries : purger toutes les clés qui matchent le symbole (quote/dividends/news/fundamentals/asset_article/insights/recommendations)
     // ainsi que les clés history qui commencent par `${symbol}:`.
@@ -69,7 +66,7 @@ export class MarketDataConstructionRepository {
     }
     deleted.push({ table: "cache_entries", rows: directlyDeleted + prefixedDeleted });
 
-    deleted.push({ table: "assets", rows: runDelete(`DELETE FROM assets WHERE id IN (${idPlaceholders})`, ...ids) });
+    deleted.push({ table: "assets", rows: runDelete(`DELETE FROM assets WHERE id IN ${sqlInList}`, idList) });
     return deleted;
   }
 
@@ -95,22 +92,21 @@ export class MarketDataConstructionRepository {
       }
       deleted.push({ table: "cache_entries:history", rows: historyDeleted });
 
-      const rangePlaceholders = placeholders(input.historicalCacheRanges);
       deleted.push({
         table: "cached_intraday_history",
-        rows: runDelete(`DELETE FROM cached_intraday_history WHERE range IN (${rangePlaceholders})`, ...input.historicalCacheRanges)
+        rows: runDelete(`DELETE FROM cached_intraday_history WHERE range IN ${sqlInList}`, sqlListParam(input.historicalCacheRanges))
       });
     }
 
     if (input.apiRanges.length) {
-      const apiPlaceholders = placeholders(input.apiRanges);
+      const apiRangeList = sqlListParam(input.apiRanges);
       deleted.push({
         table: "portfolio_chart_cache",
-        rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN (${apiPlaceholders})`, ...input.apiRanges)
+        rows: runDelete(`DELETE FROM portfolio_chart_cache WHERE range IN ${sqlInList}`, apiRangeList)
       });
       deleted.push({
         table: "portfolio_positions_performance_cache",
-        rows: runDelete(`DELETE FROM portfolio_positions_performance_cache WHERE range IN (${apiPlaceholders})`, ...input.apiRanges)
+        rows: runDelete(`DELETE FROM portfolio_positions_performance_cache WHERE range IN ${sqlInList}`, apiRangeList)
       });
     }
 

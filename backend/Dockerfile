@@ -39,13 +39,16 @@ COPY --from=production-dependencies /app/node_modules node_modules
 COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/backend/dist backend/dist
 COPY --from=build /app/frontend/dist frontend-dist
+COPY --chmod=755 backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /app/backend
 EXPOSE 4000
 
-# Vérifie que le serveur répond correctement toutes les 30 secondes.
-# Docker arrête et redémarre le conteneur si 3 contrôles consécutifs échouent.
+# Vérifie toutes les 30 secondes que le serveur répond, sur le port configuré.
+# Le conteneur est signalé « unhealthy » après 3 contrôles consécutifs en échec.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:4000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://localhost:' + (process.env.PORT || 4000) + '/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
+# L'entrypoint rend le volume de données au compte `node` puis lance le serveur sous ce compte.
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]

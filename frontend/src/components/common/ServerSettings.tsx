@@ -14,10 +14,10 @@ async function assertServerReachable(serverUrl: string) {
   const failures: string[] = [];
 
   for (const url of healthUrls) {
-    if (isNativeApp()) console.info("[pea:server] health check", { url, protocol: details.protocol, hostname: details.hostname });
+    if (isNativeApp() && __APP_DEBUG__) console.info("[pea:server] health check", { url, protocol: details.protocol, hostname: details.hostname });
     try {
       const response = await fetchWithTimeout(url, { cache: "no-store" }, 12_000);
-      if (isNativeApp()) console.info("[pea:server] health response", { status: response.status, ok: response.ok, url: response.url });
+      if (isNativeApp() && __APP_DEBUG__) console.info("[pea:server] health response", { status: response.status, ok: response.ok, url: response.url });
       if (response.ok) return;
       failures.push(`${url} -> HTTP ${response.status}`);
     } catch (error) {

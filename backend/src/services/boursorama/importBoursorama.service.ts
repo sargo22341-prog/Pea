@@ -1,102 +1,36 @@
-import type { SearchResult } from "@pea/shared";
-import type { BoursoramaUpdateRow } from "@pea/shared";
-import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
-import { currentUserId } from "../auth/user-context.js";
+import type { BoursoramaUpdateRow, SearchResult } from "@pea/shared";
+import { db } from "../../db.js";
+import { HttpError } from "../../utils/http-error.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
-import { portfolioService } from "../portfolio/portfolio.service.js";
-import { logger } from "../shared/logger.service.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
+import { holdingTolerance } from "../portfolio/holdings/holding-adjustment.js";
+import { portfolioService } from "../portfolio/portfolio.service.js";
+import { assertYahooSymbolExists } from "./avis-import-validation.js";
+import { maxImportRows, parseBoursoramaCsv, type BoursoramaRow } from "./boursorama-csv.parser.js";
 
-// Toutes les opérations d'import s'exécutent sous `runWithUser` (route protégée par requireAuth),
-// `currentUserId()` est donc fiable. Les helpers internes le récupèrent quand ils touchent
-// directement la repo portfolio (qui exige un userId explicite).
+export { normalizeFrenchNumber, parseBoursoramaCsv, type BoursoramaRow } from "./boursorama-csv.parser.js";
 
-export interface BoursoramaRow {
-  line: number;
+// Toutes les opérations d'import s'exécutent sous `runWithUser` (route protégée par requireAuth) :
+// les services portfolio résolvent l'utilisateur courant eux-mêmes.
+
+/**
+ * L'export Boursorama n'a pas de colonne devise : ses montants (PRU) sont exprimés dans la devise
+ * du compte PEA, toujours l'euro.
+ */
+const boursoramaAccountCurrency = "EUR";
+
+interface ImportResult {
+  imported: string[];
+  skipped: string[];
+  errors: { line: number; message: string }[];
+}
+
+interface PlannedHolding {
+  symbol: string;
   name: string;
-  isin: string;
   quantity: number;
-  buyingPrice: number;
-  lastPrice: number;
-  intradayVariation: number;
-  amount: number;
-  amountVariation: number;
-  variation: number;
-  symbol: string | null;
-  peaEligibility?: ReturnType<typeof evaluatePeaEligibility> | undefined;
-  detectedAsset?: {
-    symbol: string;
-    name: string;
-    confidenceScore: number;
-  } | undefined;
-  needsReview: boolean;
-  errors: string[];
-  existingPositionId?: number | undefined;
-}
-
-const headers = ["name", "isin", "quantity", "buyingPrice", "lastPrice", "intradayVariation", "amount", "amountVariation", "variation"];
-const maxImportRows = 1000;
-type CsvRowCells = Record<(typeof headers)[number], string>;
-
-export function normalizeFrenchNumber(value: string): number {
-  const normalized = value.replace(/\s/g, "").replace(",", ".");
-  const number = Number(normalized);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function splitCsvLine(line: string) {
-  const cells: string[] = [];
-  let current = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line.charAt(index);
-    if (char === '"') {
-      if (quoted && line[index + 1] === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (char === ";" && !quoted) {
-      cells.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  cells.push(current.trim());
-  return cells;
-}
-
-export function parseBoursoramaCsv(content: string): Omit<BoursoramaRow, "symbol" | "needsReview">[] {
-  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-  const start = lines[0]?.toLowerCase().includes("isin") ? 1 : 0;
-  const parsed = lines.slice(start).map((line, index) => {
-    const cells = splitCsvLine(line);
-    const errors: string[] = [];
-    if (cells.length < headers.length) errors.push("Ligne incomplete.");
-    const row = {} as CsvRowCells;
-    headers.forEach((header, cellIndex) => {
-      row[header] = cells[cellIndex] ?? "";
-    });
-    if (!row["name"]) errors.push("Nom manquant.");
-    if (!row["isin"]) errors.push("ISIN manquant.");
-    return {
-      line: index + start + 1,
-      name: String(row["name"]),
-      isin: String(row["isin"]),
-      quantity: normalizeFrenchNumber(String(row["quantity"])),
-      buyingPrice: normalizeFrenchNumber(String(row["buyingPrice"])),
-      lastPrice: normalizeFrenchNumber(String(row["lastPrice"])),
-      intradayVariation: normalizeFrenchNumber(String(row["intradayVariation"])),
-      amount: normalizeFrenchNumber(String(row["amount"])),
-      amountVariation: normalizeFrenchNumber(String(row["amountVariation"])),
-      variation: normalizeFrenchNumber(String(row["variation"])),
-      errors
-    };
-  });
-  logger.debug("import", "rows parsed", { rows: parsed.length, rowsFailed: parsed.filter((row) => row.errors.length).length });
-  return parsed;
+  averageBuyPrice: number;
+  mode: "replace" | "add";
 }
 
 export async function resolveYahooSymbolFromIsin(isin: string, name: string) {
@@ -117,16 +51,37 @@ async function findBestCandidate(query: string): Promise<{ symbol: string | null
   };
 }
 
-async function assertYahooSymbolExists(symbol: string) {
-  const key = symbol.trim().toUpperCase();
-  const result = await marketDataGateway.readQuoteWithCache(key);
-  const foundSymbol = result.data.symbol.toUpperCase();
-  if (!foundSymbol || foundSymbol !== key) {
-    throw new Error(`Ticker Yahoo introuvable: ${key}.`);
-  }
-}
-export async function previewBoursoramaImport(content: string): Promise<BoursoramaRow[]> {
+function parseWithinLimit(content: string) {
   const parsed = parseBoursoramaCsv(content);
+  if (parsed.length > maxImportRows) throw new HttpError(400, `Import limite a ${maxImportRows} lignes.`);
+  return parsed;
+}
+
+function holdingsBySymbol() {
+  return new Map(portfolioService.listHoldings().map((position) => [position.symbol.toUpperCase(), position]));
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+/**
+ * Applique en une seule transaction les détentions validées : un échec d'écriture annule tout
+ * l'import au lieu de laisser un portefeuille partiellement modifié.
+ */
+function applyPlannedHoldings(planned: PlannedHolding[], result: ImportResult) {
+  const tradedAt = new Date().toISOString();
+  db.transaction(() => {
+    for (const holding of planned) {
+      portfolioService.applyImportedHolding({ ...holding, currency: boursoramaAccountCurrency, tradedAt });
+    }
+  });
+  result.imported.push(...planned.map((holding) => holding.symbol));
+}
+
+export async function previewBoursoramaImport(content: string): Promise<BoursoramaRow[]> {
+  const parsed = parseWithinLimit(content);
+  const holdings = holdingsBySymbol();
   const rows: BoursoramaRow[] = [];
   for (const row of parsed) {
     let resolved: Awaited<ReturnType<typeof resolveYahooSymbolFromIsin>> = { symbol: null, needsReview: true };
@@ -138,7 +93,6 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
       }
     }
     const symbol = resolved.symbol?.toUpperCase() ?? null;
-    const existing = symbol ? portfolioRepository.findPositionBySymbol(symbol, currentUserId()) : undefined;
     rows.push({
       ...row,
       symbol,
@@ -147,83 +101,65 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
         : undefined,
       peaEligibility: resolved.asset?.peaEligibility ?? (symbol ? evaluatePeaEligibility({ symbol, name: row.name }) : undefined),
       needsReview: resolved.needsReview || row.errors.length > 0,
-      existingPositionId: existing?.id
+      existingPositionId: symbol ? holdings.get(symbol)?.id : undefined
     });
   }
   return rows;
 }
-export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: "replace" | "merge" | "ignore" | undefined })[]) {
-  const imported: string[] = [];
-  const skipped: string[] = [];
-  const errors: { line: number; message: string }[] = [];
-  if (rows.length > maxImportRows) {
-    return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
-  }
+
+export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: "replace" | "merge" | "ignore" | undefined })[]): Promise<ImportResult> {
+  const result: ImportResult = { imported: [], skipped: [], errors: [] };
+  const planned: PlannedHolding[] = [];
   for (const row of rows) {
+    if (row.action === "ignore" || !row.symbol) {
+      result.skipped.push(row.name);
+      continue;
+    }
     try {
-      if (row.action === "ignore" || !row.symbol) {
-        skipped.push(row.name);
-        continue;
-      }
       if (row.errors.length) throw new Error(row.errors.join(", "));
-      await assertYahooSymbolExists(row.symbol);
-      const existing = portfolioRepository.findPositionBySymbol(row.symbol, currentUserId());
-      if (existing && row.action === "replace") {
-        portfolioService.replaceImportedPositionSnapshot(existing.id, {
-          name: row.name,
-          quantity: row.quantity,
-          averageBuyPrice: row.buyingPrice,
-          currency: "EUR"
-        });
-      } else {
-        await portfolioService.createPosition({
-          symbol: row.symbol,
-          name: row.name,
-          quantity: row.quantity,
-          averageBuyPrice: row.buyingPrice,
-          currency: "EUR"
-        }, { scheduleConstruction: false });
-      }
-      imported.push(row.symbol);
+      const symbol = row.symbol.toUpperCase();
+      await assertYahooSymbolExists(symbol);
+      planned.push({
+        symbol,
+        name: row.name,
+        quantity: row.quantity,
+        averageBuyPrice: row.buyingPrice,
+        mode: row.action === "replace" ? "replace" : "add"
+      });
     } catch (error) {
-      errors.push({ line: row.line, message: error instanceof Error ? error.message : "Import impossible." });
+      result.errors.push({ line: row.line, message: errorMessage(error, "Import impossible.") });
     }
   }
-  return { imported, skipped, errors };
+  applyPlannedHoldings(planned, result);
+  return result;
 }
+
+function proposedUpdateAction(row: BoursoramaRow, existing: { quantity: number; averageBuyPrice: number } | undefined): BoursoramaUpdateRow["proposedAction"] {
+  if (!row.symbol || row.errors.length) return "ignore";
+  if (!existing) return "add";
+  const quantityDiff = row.quantity - existing.quantity;
+  if (Math.abs(quantityDiff) < holdingTolerance && Math.abs(row.buyingPrice - existing.averageBuyPrice) < holdingTolerance) return "unchanged";
+  return quantityDiff < 0 ? "reduce" : "update";
+}
+
 export async function previewBoursoramaUpdate(content: string): Promise<BoursoramaUpdateRow[]> {
   const previewRows = await previewBoursoramaImport(content);
-  const csvSymbols = new Set(previewRows.map((row) => row.symbol).filter(Boolean).map((symbol) => String(symbol).toUpperCase()));
-  const rows: BoursoramaUpdateRow[] = [];
-  for (const row of previewRows) {
-    const existing = row.symbol ? portfolioRepository.findPositionBySymbol(row.symbol, currentUserId()) : undefined;
-    const currentQuantity = existing ? existing.quantity : undefined;
-    const currentAverageBuyPrice = existing ? existing.average_buy_price : undefined;
-    const quantityDiff = row.quantity - (currentQuantity ?? 0);
-    const proposedAction =
-      !row.symbol || row.errors.length
-        ? "ignore"
-        : !existing
-          ? "add"
-          : Math.abs(quantityDiff) < 0.000001 && Math.abs(row.buyingPrice - (currentAverageBuyPrice ?? row.buyingPrice)) < 0.000001
-            ? "unchanged"
-            : quantityDiff < 0
-              ? "reduce"
-              : "update";
-    rows.push({
+  const holdings = holdingsBySymbol();
+  const csvSymbols = new Set(previewRows.flatMap((row) => (row.symbol ? [row.symbol.toUpperCase()] : [])));
+  const rows: BoursoramaUpdateRow[] = previewRows.map((row) => {
+    const existing = row.symbol ? holdings.get(row.symbol.toUpperCase()) : undefined;
+    return {
       ...row,
-      currentQuantity,
+      currentQuantity: existing?.quantity,
       csvQuantity: row.quantity,
-      quantityDiff,
-      currentAverageBuyPrice,
+      quantityDiff: row.quantity - (existing?.quantity ?? 0),
+      currentAverageBuyPrice: existing?.averageBuyPrice,
       csvAverageBuyPrice: row.buyingPrice,
-      proposedAction,
+      proposedAction: proposedUpdateAction(row, existing),
       positionId: existing?.id
-    });
-  }
-  const existingRows = portfolioRepository.listPositions(currentUserId());
-  for (const existing of existingRows) {
-    const symbol = existing.symbol.toUpperCase();
+    };
+  });
+  for (const [symbol, existing] of holdings) {
     if (csvSymbols.has(symbol)) continue;
     rows.push({
       line: 0,
@@ -243,7 +179,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
       currentQuantity: existing.quantity,
       csvQuantity: 0,
       quantityDiff: -existing.quantity,
-      currentAverageBuyPrice: existing.average_buy_price,
+      currentAverageBuyPrice: existing.averageBuyPrice,
       csvAverageBuyPrice: 0,
       proposedAction: "delete",
       positionId: existing.id
@@ -251,48 +187,36 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   }
   return rows;
 }
-export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]) {
-  const imported: string[] = [];
-  const skipped: string[] = [];
-  const errors: { line: number; message: string }[] = [];
-  if (rows.length > maxImportRows) {
-    return { imported, skipped, errors: [{ line: 0, message: `Import limite a ${maxImportRows} lignes.` }] };
-  }
+
+export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]): Promise<ImportResult> {
+  const result: ImportResult = { imported: [], skipped: [], errors: [] };
+  const planned: PlannedHolding[] = [];
+  const deletions: { line: number; symbol: string; positionId: number }[] = [];
   for (const row of rows) {
+    if (row.proposedAction === "ignore" || row.proposedAction === "unchanged" || !row.symbol) {
+      result.skipped.push(row.name);
+      continue;
+    }
     try {
-      if (row.proposedAction === "ignore" || row.proposedAction === "unchanged" || !row.symbol) {
-        skipped.push(row.name);
-        continue;
-      }
       if (row.errors.length) throw new Error(row.errors.join(", "));
+      const symbol = row.symbol.toUpperCase();
       if (row.proposedAction === "delete") {
         if (!row.positionId) throw new Error("Position introuvable pour suppression.");
-        portfolioService.deletePosition(row.positionId);
-        imported.push(row.symbol);
+        deletions.push({ line: row.line, symbol, positionId: row.positionId });
         continue;
       }
-      await assertYahooSymbolExists(row.symbol);
-      const existing = portfolioRepository.findPositionBySymbol(row.symbol, currentUserId());
-      if (existing) {
-        portfolioService.replaceImportedPositionSnapshot(existing.id, {
-          name: row.name,
-          quantity: row.csvQuantity,
-          averageBuyPrice: row.csvAverageBuyPrice,
-          currency: "EUR"
-        });
-      } else {
-        await portfolioService.createPosition({
-          symbol: row.symbol,
-          name: row.name,
-          quantity: row.csvQuantity,
-          averageBuyPrice: row.csvAverageBuyPrice,
-          currency: "EUR"
-        }, { scheduleConstruction: false });
-      }
-      imported.push(row.symbol);
+      await assertYahooSymbolExists(symbol);
+      planned.push({ symbol, name: row.name, quantity: row.csvQuantity, averageBuyPrice: row.csvAverageBuyPrice, mode: "replace" });
     } catch (error) {
-      errors.push({ line: row.line, message: error instanceof Error ? error.message : "Mise a jour impossible." });
+      result.errors.push({ line: row.line, message: errorMessage(error, "Mise a jour impossible.") });
     }
   }
-  return { imported, skipped, errors };
+  db.transaction(() => {
+    for (const deletion of deletions) {
+      if (portfolioService.deletePosition(deletion.positionId)) result.imported.push(deletion.symbol);
+      else result.errors.push({ line: deletion.line, message: "Position introuvable pour suppression." });
+    }
+    applyPlannedHoldings(planned, result);
+  });
+  return result;
 }

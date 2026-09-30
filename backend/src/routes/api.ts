@@ -51,8 +51,8 @@ apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
 apiRouter.use(calendarEventsRouter);
 apiRouter.use(splitsRouter);
-apiRouter.use(requireAdmin, adminRouter);
-apiRouter.use(requireAdmin, featureFlagsRouter);
+// Monté sous /admin : une URL inconnue hors de ce préfixe reste un 404 pour tout utilisateur.
+apiRouter.use("/admin", requireAdmin, adminRouter, featureFlagsRouter);
 
 apiRouter.use((req) => {
   throw new HttpError(404, `Route API introuvable: ${req.method} ${req.path}`);

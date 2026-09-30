@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { sqlInList, sqlListParam } from "../sql-list.js";
 
 /**
  * Scopes valides pour la table `cache_entries`. L'enum est typé pour empêcher toute clé
@@ -60,8 +61,7 @@ export class UnifiedCacheRepository {
 
   deleteScopes(scopes: CacheScope[]) {
     if (!scopes.length) return;
-    const placeholders = scopes.map(() => "?").join(",");
-    db.prepare(`DELETE FROM cache_entries WHERE scope IN (${placeholders})`).run(...scopes);
+    db.prepare(`DELETE FROM cache_entries WHERE scope IN ${sqlInList}`).run(sqlListParam(scopes));
   }
 
   /**
@@ -70,11 +70,9 @@ export class UnifiedCacheRepository {
    */
   deleteKeysInScopes(scopes: CacheScope[], keys: string[]): number {
     if (!scopes.length || !keys.length) return 0;
-    const scopePlaceholders = scopes.map(() => "?").join(",");
-    const keyPlaceholders = keys.map(() => "?").join(",");
     return db.prepare(
-      `DELETE FROM cache_entries WHERE scope IN (${scopePlaceholders}) AND key IN (${keyPlaceholders})`
-    ).run(...scopes, ...keys);
+      `DELETE FROM cache_entries WHERE scope IN ${sqlInList} AND key IN ${sqlInList}`
+    ).run(sqlListParam(scopes), sqlListParam(keys));
   }
 
   /**
@@ -86,11 +84,11 @@ export class UnifiedCacheRepository {
   }
 
   /**
-   * Purge proactive des entrées dont l'expiration est dépassée (utile pour `asset_article`
-   * qui exploite `expires_at`).
+   * Purge les fundamentals (calendrier, données financières, consensus, profil...) pour forcer un
+   * refetch, en gardant les sous-clés dérivées `:annual-financials`, moins volatiles.
    */
-  pruneExpired(nowMs: number) {
-    return db.prepare("DELETE FROM cache_entries WHERE expires_at IS NOT NULL AND expires_at <= ?").run(nowMs);
+  deleteVolatileFundamentals() {
+    return db.prepare("DELETE FROM cache_entries WHERE scope = 'fundamentals' AND key NOT LIKE '%:annual-financials'").run();
   }
 
   /** Retourne le nombre d'entrées par scope, pour observabilité/admin. */

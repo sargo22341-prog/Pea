@@ -1,31 +1,17 @@
-import type { CreatePositionInput, Position, PositionWithMarket, UpdatePositionInput } from "@pea/shared";
-import { z } from "zod";
+import type { Position } from "@pea/shared";
 import { db } from "../../db.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId, requireUserId } from "../auth/user-context.js";
-import { dataConstructionQueue } from "../market/construction/data-construction-queue.service.js";
-import { marketDataService } from "../market/data/market-data.service.js";
-import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { objectiveProjectionInvalidationService } from "../objectives/objective-projection-invalidation.service.js";
 import { invalidateUserAssetCaches } from "../shared/cache.service.js";
-import { isMarketDataUnavailable } from "../yahoo/index.js";
+import { holdingAdjustments, holdingTolerance, type HoldingTarget } from "./holdings/holding-adjustment.js";
 import { replayTransactions, transactionTimeMs } from "./portfolio-calculations.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { TransactionMutationInput, TransactionSequenceRow } from "./portfolio.types.js";
 import { requirePresent } from "../../utils/invariant.js";
 import { splitAdjustedTransactions } from "./splits/applied-splits.js";
 
-const createPositionSchema = z.object({
-  symbol: z.string().trim().min(1).max(24),
-  name: z.string().trim().optional(),
-  quantity: z.number().positive(),
-  averageBuyPrice: z.number().nonnegative(),
-  currency: z.string().trim().min(3).max(8).default("EUR"),
-  notes: z.string().trim().optional()
-});
-
-const quantityTolerance = 0.000001;
 const negativeSaleMessage = "Cette vente rendrait la quantite detenue negative.";
 const negativeDeletionMessage = "Cette suppression rendrait la quantite detenue negative.";
 
@@ -37,59 +23,12 @@ function normalizeTradedAt(value: string) {
 }
 
 /**
- * `PortfolioWriteService` : gère toutes les mutations du portefeuille (createPosition,
- * transactions CRUD, deletePosition, recompute, replace import).
+ * `PortfolioWriteService` : gère toutes les mutations du portefeuille (transactions CRUD,
+ * imports, deletePosition, recompute). Les transactions sont l'unique source de vérité : la
+ * quantité et le PRU stockés sur `positions` ne sont qu'un résultat de leur rejeu.
  * Les opérations sont sérialisées par transaction DB et invalident les caches dérivés.
  */
 export class PortfolioWriteService {
-  async createPosition(input: CreatePositionInput, options: { scheduleConstruction?: boolean; userId?: number | string } = {}): Promise<PositionWithMarket> {
-    const userId = requireUserId(options.userId);
-    const parsed = createPositionSchema.parse({
-      ...input,
-      symbol: input.symbol.toUpperCase()
-    });
-    let quoteName: string | undefined;
-    try {
-      const quote = await marketSnapshotService.getQuote(parsed.symbol, { forceRefresh: true });
-      quoteName = quote.name;
-    } catch (error) {
-      if (!isMarketDataUnavailable(error)) throw error;
-    }
-    const name = parsed.name || quoteName || parsed.symbol;
-    const existing = portfolioRepository.findPositionBySymbol(parsed.symbol, userId);
-    const position = db.transaction(() => {
-      if (existing) {
-        const oldQuantity = existing.quantity;
-        const newQuantity = oldQuantity + parsed.quantity;
-        const weightedAverage =
-          newQuantity === 0
-            ? parsed.averageBuyPrice
-            : (oldQuantity * existing.average_buy_price + parsed.quantity * parsed.averageBuyPrice) / newQuantity;
-        portfolioRepository.mergePositionSnapshot(existing.id, {
-          quantity: newQuantity,
-          averageBuyPrice: weightedAverage,
-          name,
-          currency: parsed.currency
-        });
-      } else {
-        portfolioRepository.insertPosition(
-          { symbol: parsed.symbol, name, quantity: parsed.quantity, averageBuyPrice: parsed.averageBuyPrice, currency: parsed.currency },
-          userId
-        );
-      }
-      const savedPosition = requirePresent(portfolioRepository.findPositionBySymbol(parsed.symbol, userId), "Position");
-      portfolioRepository.insertBuyTransactionNow(savedPosition.id, {
-        quantity: parsed.quantity,
-        price: parsed.averageBuyPrice,
-        currency: parsed.currency
-      });
-      this.invalidatePositionCaches(savedPosition.id, userId, parsed.symbol);
-      return savedPosition;
-    });
-    await marketDataService.ensureAssetInitialized(parsed.symbol);
-    if (options.scheduleConstruction !== false) dataConstructionQueue.enqueueAssetConstruction(parsed.symbol);
-    return portfolioReadService.enrichPosition(mapPosition(position));
-  }
   ensurePosition(symbol: string, name: string, currency = "EUR", userId?: number | string): Position {
     const resolvedUserId = requireUserId(userId);
     const normalizedSymbol = symbol.toUpperCase();
@@ -143,6 +82,37 @@ export class PortfolioWriteService {
       });
       this.recomputePositionFromAnyTransactions(position.id, userId);
       this.invalidatePositionCaches(position.id, userId, input.symbol);
+      return position;
+    });
+  }
+  /**
+   * Applique une détention importée (export CSV sans historique) sous forme de transactions datées
+   * de l'import, au lieu d'écraser la quantité et le PRU :
+   * - `replace` : la position est alignée sur la détention importée (voir `holdingAdjustments`) ;
+   * - `add` : la détention importée s'ajoute comme un achat à la position existante.
+   * Synchrone : l'appelant peut regrouper plusieurs lignes dans une même transaction DB.
+   */
+  applyImportedHolding(
+    input: HoldingTarget & { mode: "replace" | "add"; symbol: string; name: string; currency: string; tradedAt: string },
+    userId?: number | string
+  ) {
+    const resolvedUserId = requireUserId(userId);
+    const tradedAt = normalizeTradedAt(input.tradedAt);
+    return db.transaction(() => {
+      const position = this.ensurePosition(input.symbol, input.name, input.currency, resolvedUserId);
+      portfolioRepository.renamePosition(position.id, input.name);
+      const rows = portfolioRepository.listTransactionSequence(position.id);
+      const current = replayTransactions(splitAdjustedTransactions(position.id, rows));
+      const adjustments = input.mode === "replace"
+        ? holdingAdjustments(current, input)
+        : input.quantity > holdingTolerance ? [{ type: "buy" as const, quantity: input.quantity, price: input.averageBuyPrice }] : [];
+      const nextRows: TransactionSequenceRow[] = [...(rows as TransactionSequenceRow[]), ...adjustments.map((adjustment) => ({ ...adjustment, total_fees: 0, traded_at: tradedAt }))];
+      this.assertTransactionSequenceDoesNotGoNegative(position.id, nextRows, negativeSaleMessage);
+      for (const adjustment of adjustments) {
+        portfolioRepository.insertImportedHoldingTransaction(position.id, { ...adjustment, currency: input.currency, tradedAt });
+      }
+      this.recomputePositionFromAnyTransactions(position.id, resolvedUserId);
+      this.invalidatePositionCaches(position.id, resolvedUserId, input.symbol);
       return position;
     });
   }
@@ -228,34 +198,6 @@ export class PortfolioWriteService {
     });
     return true;
   }
-  replaceImportedPositionSnapshot(id: number, input: { name: string; quantity: number; averageBuyPrice: number; currency: string }, userId?: number | string) {
-    const resolvedUserId = requireUserId(userId);
-    const existing = portfolioRepository.findPositionById(id, resolvedUserId);
-    if (!existing) throw new HttpError(404, "Position introuvable");
-    db.transaction(() => {
-      portfolioRepository.replaceImportedPositionSnapshot(id, input);
-      this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
-    });
-  }
-  async updatePosition(id: number, input: UpdatePositionInput, userId?: number | string): Promise<PositionWithMarket> {
-    const resolvedUserId = requireUserId(userId);
-    const parsed = createPositionSchema
-      .omit({ symbol: true, name: true })
-      .parse(input);
-    const existing = portfolioRepository.findPositionById(id, resolvedUserId);
-    if (!existing) throw new HttpError(404, "Position introuvable");
-    db.transaction(() => {
-      portfolioRepository.updatePositionSnapshot(id, {
-        quantity: parsed.quantity,
-        averageBuyPrice: parsed.averageBuyPrice,
-        currency: parsed.currency,
-        notes: parsed.notes ?? null
-      });
-      this.invalidatePositionCaches(id, resolvedUserId);
-    });
-    const row = requirePresent(portfolioRepository.findPositionById(id, resolvedUserId), "Position");
-    return portfolioReadService.enrichPosition(mapPosition(row));
-  }
   invalidatePositionCaches(positionId: number, userId: number | string, fallbackSymbol?: string) {
     const row = portfolioRepository.findPositionById(positionId, userId);
     invalidateUserAssetCaches(String(userId), row?.symbol ?? fallbackSymbol);
@@ -273,8 +215,8 @@ export class PortfolioWriteService {
       const rowQuantity = row.quantity;
       if (row.type === "buy") quantity += rowQuantity;
       if (row.type === "sell") quantity -= rowQuantity;
-      if (quantity < -quantityTolerance) throw new HttpError(400, message);
-      if (Math.abs(quantity) < quantityTolerance) quantity = 0;
+      if (quantity < -holdingTolerance) throw new HttpError(400, message);
+      if (Math.abs(quantity) < holdingTolerance) quantity = 0;
     }
   }
 }
