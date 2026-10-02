@@ -10,6 +10,7 @@ import { cacheCleanupService } from "./services/shared/cache-cleanup.service.js"
 import { marketEventsService } from "./services/market/events/market-events.service.js";
 import { logger } from "./services/shared/logger.service.js";
 import { marketScheduler } from "./schedulers/market-scheduler.service.js";
+import { newsScheduler } from "./schedulers/news-scheduler.service.js";
 import { objectiveScheduler } from "./schedulers/objective-scheduler.service.js";
 
 function localNetworkUrls(port: number) {
@@ -32,6 +33,7 @@ const server = app.listen(config.port, "0.0.0.0", () => {
   dataConstructionQueue.start();
   marketScheduler.start();
   objectiveScheduler.start();
+  newsScheduler.start();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
@@ -52,6 +54,7 @@ const shutdown = createGracefulShutdown({
   stopBackgroundWork: [
     { name: "market scheduler", run: () => marketScheduler.stop() },
     { name: "objective scheduler", run: () => objectiveScheduler.stop() },
+    { name: "news scheduler", run: () => newsScheduler.stop() },
     { name: "cache cleanup", run: () => { cacheCleanupService.stop(); } },
     { name: "market streams", run: () => { marketEventsService.closeAll(); } },
     { name: "data construction queue", run: () => dataConstructionQueue.stop() }

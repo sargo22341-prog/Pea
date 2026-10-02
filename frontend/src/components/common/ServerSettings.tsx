@@ -1,7 +1,8 @@
 import { Save, Server, Wifi } from "lucide-react";
 import { useEffect, useState, type SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { describeNetworkError, fetchWithTimeout } from "../../lib/api-core";
+import { describeNetworkError } from "../../lib/api-core";
+import { fetchWithTimeout } from "../../lib/http/fetch-retry";
 import { clearNativeAuthToken, configureNativeBackendUrl, getNativeServerUrl, getServerUrlDetails, isInsecureServerUrl, isNativeApp, normalizeServerUrl, resolveServerPath, setNativeServerUrl } from "../../lib/native-auth";
 import { Collapsible, Toast } from "./feedback";
 

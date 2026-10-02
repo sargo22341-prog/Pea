@@ -40,6 +40,7 @@ export function NewsArticleCard({
         <img
           alt=""
           className="h-16 w-[72px] rounded-md object-cover sm:h-20 sm:w-24"
+          decoding="async"
           loading="lazy"
           src={article.imageUrl}
         />

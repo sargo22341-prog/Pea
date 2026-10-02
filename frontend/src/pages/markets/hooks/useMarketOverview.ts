@@ -8,7 +8,7 @@ import { api } from "../../../lib/api";
  * est visible : un onglet en arrière-plan ne consomme aucun appel.
  */
 export function useMarketOverview() {
-  const overview = useAsync((signal) => api.marketOverview(signal));
+  const overview = useAsync((signal) => api.marketOverview(signal), undefined, { cacheKey: "market-overview" });
   const { reload } = overview;
 
   useEffect(() => {

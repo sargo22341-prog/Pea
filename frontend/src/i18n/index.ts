@@ -1,32 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import type { AppLanguage } from "@pea/shared";
-import commonFr from "./locales/fr/common.json";
-import navigationFr from "./locales/fr/navigation.json";
-import dashboardFr from "./locales/fr/dashboard.json";
-import portfolioFr from "./locales/fr/portfolio.json";
-import assetFr from "./locales/fr/asset.json";
-import settingsFr from "./locales/fr/settings.json";
-import errorsFr from "./locales/fr/errors.json";
-import objectivesFr from "./locales/fr/objectives.json";
-import calendarFr from "./locales/fr/calendar.json";
-import marketsFr from "./locales/fr/markets.json";
-import compareFr from "./locales/fr/compare.json";
-import screenerFr from "./locales/fr/screener.json";
-import alertsFr from "./locales/fr/alerts.json";
-import commonEn from "./locales/en/common.json";
-import navigationEn from "./locales/en/navigation.json";
-import dashboardEn from "./locales/en/dashboard.json";
-import portfolioEn from "./locales/en/portfolio.json";
-import assetEn from "./locales/en/asset.json";
-import settingsEn from "./locales/en/settings.json";
-import errorsEn from "./locales/en/errors.json";
-import objectivesEn from "./locales/en/objectives.json";
-import calendarEn from "./locales/en/calendar.json";
-import marketsEn from "./locales/en/markets.json";
-import compareEn from "./locales/en/compare.json";
-import screenerEn from "./locales/en/screener.json";
-import alertsEn from "./locales/en/alerts.json";
+import { frResources } from "./resources-fr";
 
 export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets", "compare", "screener", "alerts"] as const;
 
@@ -35,37 +10,9 @@ export const languageOptions: { code: AppLanguage; labelKey: string; flag: strin
   { code: "en", labelKey: "languages.en", flag: "🇬🇧" }
 ];
 
-const resources = {
-  fr: {
-    common: commonFr,
-    navigation: navigationFr,
-    dashboard: dashboardFr,
-    portfolio: portfolioFr,
-    asset: assetFr,
-    settings: settingsFr,
-    errors: errorsFr,
-    objectives: objectivesFr,
-    calendar: calendarFr,
-    markets: marketsFr,
-    compare: compareFr,
-    screener: screenerFr,
-    alerts: alertsFr
-  },
-  en: {
-    common: commonEn,
-    navigation: navigationEn,
-    dashboard: dashboardEn,
-    portfolio: portfolioEn,
-    asset: assetEn,
-    settings: settingsEn,
-    errors: errorsEn,
-    objectives: objectivesEn,
-    calendar: calendarEn,
-    markets: marketsEn,
-    compare: compareEn,
-    screener: screenerEn,
-    alerts: alertsEn
-  }
+/** Chargeurs des langues hors repli : chaque langue forme un chunk téléchargé à la première utilisation. */
+const languageLoaders: Record<Exclude<AppLanguage, "fr">, () => Promise<Record<string, object>>> = {
+  en: () => import("./resources-en").then((module) => module.enResources)
 };
 
 const legacyErrorKeys: Record<string, string> = {
@@ -111,8 +58,35 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
   lng: initialLanguage(),
   ns: namespaces,
-  resources
+  partialBundledLanguages: true,
+  resources: { fr: frResources }
 });
+
+/** Ajoute les traductions d'une langue si elles ne sont pas encore chargées. */
+async function loadLanguageResources(language: AppLanguage) {
+  if (language === "fr" || i18n.hasResourceBundle(language, "common")) return;
+  const resources = await languageLoaders[language]();
+  for (const [namespace, bundle] of Object.entries(resources)) {
+    i18n.addResourceBundle(language, namespace, bundle, true, true);
+  }
+}
+
+/**
+ * Change la langue de l'interface après avoir chargé ses traductions. Si le chargement échoue
+ * (réseau coupé), l'interface reste dans la langue courante plutôt que d'afficher des clés.
+ */
+export async function changeAppLanguage(language: AppLanguage) {
+  try {
+    await loadLanguageResources(language);
+  } catch (error) {
+    console.error("[i18n] traductions indisponibles, langue conservee", { language, error });
+    return;
+  }
+  await i18n.changeLanguage(language);
+}
+
+/** Résolue quand la langue initiale est prête : le premier rendu attend pour éviter un flash en français. */
+export const i18nReady: Promise<void> = changeAppLanguage(initialLanguage());
 
 i18n.on("languageChanged", (language) => {
   if (language === "fr" || language === "en") {

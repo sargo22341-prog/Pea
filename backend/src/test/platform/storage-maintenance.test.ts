@@ -43,3 +43,16 @@ test("cache cleanup gives freed pages back to the disk", () => {
   assert.equal(result.freeAfter, 0);
   assert.ok(result.pagesAfter < result.pagesBefore / 2);
 });
+
+test("the database runs in WAL mode with NORMAL synchronous writes", () => {
+  const result = runBackendScript(`
+    const { db } = await import("./db.ts");
+    console.log("__RESULT__" + JSON.stringify({
+      journalMode: db.prepare("PRAGMA journal_mode").get().journal_mode,
+      synchronous: db.prepare("PRAGMA synchronous").get().synchronous
+    }));
+  `) as { journalMode: string; synchronous: number };
+
+  assert.equal(result.journalMode, "wal");
+  assert.equal(result.synchronous, 1, "NORMAL avoids one fsync per cache write and is safe in WAL mode");
+});

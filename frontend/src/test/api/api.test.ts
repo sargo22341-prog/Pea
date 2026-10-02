@@ -1,6 +1,7 @@
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { api } from "../../lib/api";
 import { ApiError, isApiError, request } from "../../lib/api-core";
+import { hasAsyncDataCache, writeAsyncDataCache } from "../../lib/cache/async-data-cache";
 import { isInsecureServerUrl, normalizeServerUrl, resolveServerPath } from "../../lib/native-auth";
 import { first } from "../utils/first";
 
@@ -79,6 +80,30 @@ describe("api client", () => {
 
     await expect(api.positionsPerformance("1d")).resolves.toEqual([{ id: 1 }]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries gateway errors but not an overloaded server answering 503", async () => {
+    vi.useFakeTimers();
+    const gatewayFetch = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 502 }))
+      .mockResolvedValueOnce(jsonResponse([{ id: 1 }]));
+    vi.stubGlobal("fetch", gatewayFetch);
+    const recovered = request("/api/gateway");
+    await vi.runAllTimersAsync();
+    await expect(recovered).resolves.toEqual([{ id: 1 }]);
+    expect(gatewayFetch).toHaveBeenCalledTimes(2);
+
+    const overloadedFetch = vi.fn().mockResolvedValue(jsonResponse({ message: "File Yahoo saturee" }, { status: 503 }));
+    vi.stubGlobal("fetch", overloadedFetch);
+    await expect(request("/api/overloaded")).rejects.toMatchObject({ status: 503 });
+    expect(overloadedFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets the pages kept in memory at logout", async () => {
+    writeAsyncDataCache("portfolio-full:1d", { assetsCount: 3 });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    await api.logout();
+    expect(hasAsyncDataCache("portfolio-full:1d")).toBe(false);
   });
 
   it("does not retry mutating requests", async () => {

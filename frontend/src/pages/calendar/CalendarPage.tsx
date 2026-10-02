@@ -28,7 +28,7 @@ export function CalendarPage({ appTimezone }: { appTimezone: string }) {
   const [month, setMonth] = useState(() => currentMonth(appTimezone));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const range = useMemo(() => ({ scope: preferences.scope, ...monthRange(month) }), [preferences.scope, month]);
-  const events = useAsync((signal) => api.calendarRange(range, signal), `${range.scope}:${range.from}:${range.to}`);
+  const events = useAsync((signal) => api.calendarRange(range, signal), `${range.scope}:${range.from}:${range.to}`, { cacheKey: `calendar:${range.scope}:${range.from}:${range.to}` });
   const calendarExport = useCalendarExport();
 
   useEffect(() => {

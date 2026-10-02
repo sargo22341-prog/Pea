@@ -17,7 +17,7 @@ function storedList(): MarketListId {
 export function useMarketList() {
   const [listId, setListId] = useState<MarketListId>(storedList);
   const [peaOnly, setPeaOnly] = useState(() => readBooleanPreference(PEA_ONLY_KEY) ?? false);
-  const result = useAsync((signal) => api.marketList(listId, peaOnly, signal), `${listId}:${String(peaOnly)}`);
+  const result = useAsync((signal) => api.marketList(listId, peaOnly, signal), `${listId}:${String(peaOnly)}`, { cacheKey: `market-list:${listId}:${String(peaOnly)}` });
 
   return {
     listId,

@@ -109,7 +109,7 @@ export interface YahooNewsRaw extends YahooRawRecord {
   thumbnail?: {
     originalUrl?: string;
     url?: string;
-    resolutions?: { url?: string }[];
+    resolutions?: { url?: string; width?: number; height?: number; tag?: string }[];
   };
   relatedTickers?: unknown[];
 }

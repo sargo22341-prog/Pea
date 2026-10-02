@@ -5,6 +5,7 @@ import { HttpError } from "../../utils/http-error.js";
 import { dedupeInFlight } from "../shared/inFlightDeduper.js";
 import { logger } from "../shared/logger.service.js";
 import { yahooCircuitBreaker } from "./circuit-breaker.js";
+import { currentYahooCallPriority } from "./yahoo-call-priority.js";
 import { errorMessage, isTemporaryYahooError, toYahooHttpError } from "./yahoo.errors.js";
 import { logMarketData, roundMs, symbolFromKey } from "./utils/logging.js";
 import { recordYahooUsage, type YahooUsageMetadata } from "./yahoo-usage.service.js";
@@ -41,6 +42,7 @@ function queueUnavailableError(error: InstanceType<typeof Bottleneck.BottleneckE
  * File qui sérialise les appels réels vers Yahoo Finance : 250ms minimum entre deux appels et un
  * seul appel concurrent, car Yahoo bloque les rafales. Les hits de cache ne la traversent pas
  * (voir safeYahooCall). Un appel expiré libère sa place ; une file pleine refuse les nouveaux.
+ * Les appels en attente partent par priorité (voir yahoo-call-priority.ts), puis dans l'ordre.
  */
 export function createYahooCallScheduler(options: { jobExpirationMs: number; queueHighWater: number }) {
   const limiter = new Bottleneck({
@@ -51,7 +53,7 @@ export function createYahooCallScheduler(options: { jobExpirationMs: number; que
   });
   return async function schedule<T>(key: string, fn: () => Promise<T>, metadata?: YahooUsageMetadata): Promise<T> {
     try {
-      return await limiter.schedule({ expiration: options.jobExpirationMs }, async () => {
+      return await limiter.schedule({ expiration: options.jobExpirationMs, priority: currentYahooCallPriority() }, async () => {
         const startedAt = performance.now();
         try {
           const result = await yahooCircuitBreaker.execute(fn);

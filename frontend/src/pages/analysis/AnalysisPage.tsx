@@ -12,7 +12,7 @@ import { AnalysisChartSelect } from "./components/AnalysisChartSelect";
 export function AnalysisPage() {
   const { t } = useTranslation("common");
   const [selectedChart, setSelectedChart] = useState<ChartKey>("country");
-  const analysis = useAsync((signal) => api.portfolioAnalysis(signal));
+  const analysis = useAsync((signal) => api.portfolioAnalysis(signal), undefined, { cacheKey: "portfolio-analysis" });
   const analysisReload = analysis.reload;
   const charts = availableCharts(analysis.data);
   // Un onglet devenu vide (données rechargées) laisse la place au premier onglet disponible.

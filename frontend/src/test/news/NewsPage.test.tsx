@@ -1,5 +1,5 @@
 import type { NewsArticle, NewsAssetsPage, User } from "@pea/shared";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NewsPage } from "../../pages/news/NewsPage";
@@ -50,6 +50,7 @@ describe("NewsPage", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("shows the earnings badge on articles published around an earnings release", async () => {
@@ -82,5 +83,37 @@ describe("NewsPage", () => {
     renderPage();
     expect(await screen.findByText("Aucun article global pour le moment.")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Par actif" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the list stable while later batches load and offers to show the new articles", async () => {
+    const newer: NewsArticle = {
+      title: "LVMH annonce une acquisition",
+      description: "",
+      url: "https://example.test/lvmh",
+      publishedAt: "2026-07-27T10:00:00.000Z",
+      relatedAssets: [{ symbol: "MC.PA", name: "LVMH" }]
+    };
+    assetNews.mockImplementation((_limit, offset) => Promise.resolve(offset === 0
+      ? { articles, limit: 8, offset: 0, totalAssets: 9, queriedAssets: 8, hasMore: true }
+      : { articles: [newer], limit: 8, offset: 8, totalAssets: 9, queriedAssets: 1, hasMore: false }));
+    renderPage();
+    await screen.findByText("Air Liquide publie ses resultats semestriels");
+
+    const showNew = await screen.findByRole("button", { name: "1 nouvel article" });
+    expect(screen.queryByText("LVMH annonce une acquisition")).not.toBeInTheDocument();
+    fireEvent.click(showNew);
+    expect(screen.getAllByRole("link")[0]).toHaveTextContent("LVMH annonce une acquisition");
+    expect(screen.queryByRole("button", { name: "1 nouvel article" })).not.toBeInTheDocument();
+  });
+
+  it("reloads news older than a minute when the tab comes back to the foreground", async () => {
+    renderPage();
+    await screen.findByText("Air Liquide publie ses resultats semestriels");
+    expect(assetNews).toHaveBeenCalledTimes(1);
+
+    const later = Date.now() + 2 * 60_000;
+    vi.spyOn(Date, "now").mockReturnValue(later);
+    act(() => { window.dispatchEvent(new Event("focus")); });
+    await waitFor(() => { expect(assetNews).toHaveBeenCalledTimes(2); });
   });
 });

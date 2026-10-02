@@ -4,7 +4,7 @@ import { api } from "../../../lib/api";
 
 /** Alertes de l'utilisateur ; chaque modification recharge la liste. */
 export function useAlerts() {
-  const alerts = useAsync((signal) => api.alerts(signal));
+  const alerts = useAsync((signal) => api.alerts(signal), undefined, { cacheKey: "alerts" });
   const [error, setError] = useState<string | null>(null);
 
   async function run(action: () => Promise<unknown>) {

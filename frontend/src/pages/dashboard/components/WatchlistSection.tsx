@@ -34,7 +34,7 @@ const watchlistReloadEvents: MarketEventType[] = [
 export function WatchlistSection({ range = "1d", defaultSortKey = "name", defaultSortDirection = "asc" }: { range?: RangeKey; defaultSortKey?: WatchlistSortKey; defaultSortDirection?: SortDirection }) {
   const { t } = useTranslation(["dashboard", "settings"]);
   const navigate = useNavigate();
-  const watchlist = useAsync((signal) => api.watchlist(range, signal), range);
+  const watchlist = useAsync((signal) => api.watchlist(range, signal), range, { cacheKey: `watchlist:${range}` });
   const [sortKey, setSortKey] = useState<WatchlistSortKey>(defaultSortKey);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
   const [chartRefreshing, setChartRefreshing] = useState(false);

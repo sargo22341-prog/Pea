@@ -43,6 +43,7 @@ import { assetRecommendationHistoryMigration } from "./market/042-asset-recommen
 import { userScreenerPresetsMigration } from "./accounts/043-user-screener-presets.js";
 import { userAlertsMigration } from "./alerts/044-user-alerts.js";
 import { materializeLegacyPositionSnapshotsMigration } from "./portfolio/045-materialize-legacy-position-snapshots.js";
+import { expireNewsCacheMigration } from "./cache/046-expire-news-cache.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -90,5 +91,6 @@ export const migrations: Migration[] = [
   assetRecommendationHistoryMigration,
   userScreenerPresetsMigration,
   userAlertsMigration,
-  materializeLegacyPositionSnapshotsMigration
+  materializeLegacyPositionSnapshotsMigration,
+  expireNewsCacheMigration
 ];

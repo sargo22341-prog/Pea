@@ -1,5 +1,5 @@
 import type express from "express";
-import type { NewsArticle, NewsLanguage } from "@pea/shared";
+import type { NewsLanguage } from "@pea/shared";
 import { primitiveText } from "../../utils/text.js";
 
 /**
@@ -16,15 +16,4 @@ export function parseNewsLanguages(value: unknown, fallback: NewsLanguage[] = ["
  */
 export function userNewsLanguages(req: express.Request): NewsLanguage[] {
   return parseNewsLanguages(req.query["languages"], req.user?.newsLanguages.length ? req.user.newsLanguages : ["fr"]);
-}
-
-/**
- * Trie les articles du plus recent au plus ancien.
- */
-export function sortArticlesByDateDesc(articles: NewsArticle[]) {
-  return [...articles].sort((a, b) => {
-    const aTime = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-    const bTime = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-    return bTime - aTime;
-  });
 }

@@ -29,6 +29,9 @@ export class DatabaseAdapter {
   constructor(filePath: string) {
     this.database = new BetterSqlite3(filePath);
     this.database.pragma("journal_mode = WAL");
+    // Sûr en WAL : un arrêt brutal peut perdre les dernières transactions, jamais corrompre la
+    // base ; évite un fsync par écriture de cache.
+    this.database.pragma("synchronous = NORMAL");
     this.database.pragma("foreign_keys = ON");
     this.database.pragma("busy_timeout = 5000");
   }

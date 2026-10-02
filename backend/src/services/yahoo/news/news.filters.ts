@@ -75,16 +75,16 @@ export function filterNewsByExactTicker(symbol: string, articles: NewsArticle[])
   return articles.filter((article) => articleHasExactRelatedTicker(article, symbol));
 }
 
-/** Fallback quand Yahoo ne lie pas le ticker : recherche le symbole court ou le nom d'entreprise dans le texte. */
-export function filterNewsByFallbackKeywords(symbol: string, companyName: string, articles: NewsArticle[]) {
-  const base = symbolBase(symbol);
-  const keywords = new Set([normalizeSearchText(base), ...meaningfulCompanyKeywords(companyName)]);
+/**
+ * Fallback quand Yahoo ne lie pas le ticker : prédicat qui accepte un article lié au ticker ou
+ * citant le symbole court ou un mot significatif du nom. L'expression est construite une seule
+ * fois par entreprise, puis réutilisée pour chaque article.
+ */
+export function companyNewsMatcher(symbol: string, companyName: string): (article: NewsArticle) => boolean {
+  const keywords = new Set([normalizeSearchText(symbolBase(symbol)), ...meaningfulCompanyKeywords(companyName)]);
   const strongKeywords = [...keywords].filter((keyword) => keyword.length >= 3);
-  if (!strongKeywords.length) return [];
+  if (!strongKeywords.length) return () => false;
 
-  return articles.filter((article) => {
-    if (articleHasExactRelatedTicker(article, symbol)) return true;
-    const text = articleText(article);
-    return strongKeywords.some((keyword) => new RegExp(`(^|[^a-z0-9])${escapeRegExp(keyword)}([^a-z0-9]|$)`, "i").test(text));
-  });
+  const keywordPattern = new RegExp(`(^|[^a-z0-9])(${strongKeywords.map(escapeRegExp).join("|")})([^a-z0-9]|$)`, "i");
+  return (article) => articleHasExactRelatedTicker(article, symbol) || keywordPattern.test(articleText(article));
 }

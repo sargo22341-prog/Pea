@@ -1,4 +1,5 @@
 import { translateApiMessage } from "../i18n";
+import { abortError, defaultRequestTimeoutMs, fetchWithRetry } from "./http/fetch-retry";
 import { getNativeAuthToken, getNativeServerUrl, getServerUrlDetails, isNativeApp, resolveServerPath } from "./native-auth";
 
 // En production web Docker, l'API doit rester relative au domaine courant.
@@ -6,9 +7,6 @@ export const baseUrl = import.meta.env.PROD ? "" : import.meta.env.VITE_API_BASE
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const maxInFlightRequests = 500;
-const defaultRequestTimeoutMs = 20_000;
-const retryableStatusCodes = new Set([502, 503, 504]);
-const retryDelaysMs = [350, 900];
 
 export class ApiError extends Error {
   readonly status: number;
@@ -26,10 +24,6 @@ export class ApiError extends Error {
 
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
-}
-
-function abortError() {
-  return new DOMException("Requete annulee", "AbortError");
 }
 
 function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -206,69 +200,6 @@ function getNetworkTargetDetails(url: string) {
     ? url
     : new URL(url, window.location.origin).toString();
   return getServerUrlDetails(absoluteUrl);
-}
-
-export async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = defaultRequestTimeoutMs) {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => { controller.abort(new DOMException("Timeout reseau", "AbortError")); }, timeoutMs);
-  const signal = init.signal;
-
-  if (signal?.aborted) {
-    window.clearTimeout(timeout);
-    throw abortError();
-  }
-
-  const abort = () => { controller.abort(signal?.reason ?? abortError()); };
-  signal?.addEventListener("abort", abort, { once: true });
-
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    window.clearTimeout(timeout);
-    signal?.removeEventListener("abort", abort);
-  }
-}
-
-async function fetchWithRetry(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal) {
-  const canRetry = isRetryableRequest(init);
-  let lastError: unknown;
-
-  // Chaque tentative porte le delai avant la suivante ; la derniere n'en a pas.
-  for (const retryDelayMs of [...retryDelaysMs, undefined]) {
-    if (externalSignal?.aborted) throw abortError();
-    try {
-      const response = await fetchWithTimeout(url, init, timeoutMs);
-      if (!canRetry || !retryableStatusCodes.has(response.status) || retryDelayMs === undefined) {
-        return response;
-      }
-    } catch (error) {
-      lastError = error;
-      if (!canRetry || externalSignal?.aborted || retryDelayMs === undefined) throw error;
-    }
-    await delay(retryDelayMs, externalSignal);
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("Requete echouee apres retry.");
-}
-
-function isRetryableRequest(init: RequestInit = {}) {
-  const method = (init.method ?? "GET").toUpperCase();
-  return method === "GET" || method === "HEAD";
-}
-
-function delay(ms: number, signal?: AbortSignal) {
-  if (signal?.aborted) return Promise.reject(abortError());
-  return new Promise<void>((resolve, reject) => {
-    const onAbort = () => {
-      window.clearTimeout(timeout);
-      reject(abortError());
-    };
-    const timeout = window.setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
 }
 
 export async function requestHeaders(init?: RequestInit): Promise<Headers | undefined> {

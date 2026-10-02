@@ -1,4 +1,4 @@
-import type { NewsArticle } from "@pea/shared";
+import type { NewsAssetsPage } from "@pea/shared";
 import { db } from "../../db.js";
 import { unifiedCacheRepository } from "../cache/unified-cache.repository.js";
 
@@ -7,6 +7,9 @@ export interface StoredAssetNewsMetadata {
   assetType?: string | undefined;
   quoteType?: string | undefined;
 }
+
+/** Page agrégée de `/news-assets` mise en cache, sans les paramètres de pagination. */
+export type AssetNewsAggregate = Omit<NewsAssetsPage, "limit" | "offset">;
 
 export class AssetNewsRepository {
   readMetadata(symbol: string): StoredAssetNewsMetadata {
@@ -28,19 +31,23 @@ export class AssetNewsRepository {
     };
   }
 
-  readAggregateCache(cacheKey: string, ttlSeconds: number): NewsArticle[] | null {
+  /** Lit une page agrégée de `/news-assets` tant qu'elle a moins de `ttlSeconds`. */
+  readAggregateCache(cacheKey: string, ttlSeconds: number): AssetNewsAggregate | null {
     const row = unifiedCacheRepository.read("news", cacheKey);
     if (!row) return null;
     if (Math.floor(Date.now() / 1000) - row.fetched_at > ttlSeconds) return null;
-    return JSON.parse(row.payload) as NewsArticle[];
+    return JSON.parse(row.payload) as AssetNewsAggregate;
   }
 
-  writeAggregateCache(cacheKey: string, articles: NewsArticle[]) {
+  /** Écrit une page agrégée qui expire (en millisecondes, comme toute la table) après `ttlSeconds`. */
+  writeAggregateCache(cacheKey: string, aggregate: AssetNewsAggregate, ttlSeconds: number) {
+    const fetchedAt = Math.floor(Date.now() / 1000);
     unifiedCacheRepository.write({
       scope: "news",
       key: cacheKey,
-      payload: articles,
-      fetchedAt: Math.floor(Date.now() / 1000)
+      payload: aggregate,
+      fetchedAt,
+      expiresAt: (fetchedAt + ttlSeconds) * 1000
     });
   }
 }

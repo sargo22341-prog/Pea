@@ -14,5 +14,10 @@
   "portfolioNews": "Actualites de mes actifs",
   "globalNews": "Actualites globales",
   "noPortfolioNews": "Aucun article lie a vos actifs pour le moment.",
-  "noGlobalNews": "Aucun article global pour le moment."
+  "noGlobalNews": "Aucun article global pour le moment.",
+  "newArticles_one": "{{count}} nouvel article",
+  "newArticles_other": "{{count}} nouveaux articles",
+  "newsPreviousPage": "Precedent",
+  "newsNextPage": "Suivant",
+  "newsPageOf": "Page {{page}} / {{total}}"
 }

@@ -98,7 +98,7 @@ export class PortfolioReadService {
       if (cached) return cached;
     }
     const basePositions = this.listPositions(resolvedUserId);
-    const quotesBySymbol = await this.quotesForPositions(basePositions, resolvedUserId);
+    const { quotes: quotesBySymbol, complete: quotesComplete } = await this.quotesForPositions(basePositions, resolvedUserId);
     const txCache = buildTransactionCache(basePositions.map((p) => p.id));
     const positions = withPositionSignals(basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache)));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
@@ -120,7 +120,9 @@ export class PortfolioReadService {
       positions,
       yieldOnCost: portfolioYieldOnCost(positions)
     };
-    if (config.enableMarketLiveRefresh) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, portfolioCacheTtlMs(range, basePositions), range);
+    // Un résumé calculé avec un cours périmé ou absent n'est pas figé : le prochain appel, déclenché
+    // par la fin du rafraîchissement en arrière-plan, le recalcule avec le cours à jour.
+    if (config.enableMarketLiveRefresh && quotesComplete) frontendBlockCache.write(cacheUserId, "portfolio-summary", payload, portfolioCacheTtlMs(range, basePositions), range);
     return payload;
   }
 
@@ -211,25 +213,29 @@ export class PortfolioReadService {
     return payload;
   }
 
+  /**
+   * Cours des positions : le dernier cours connu est servi pendant son rafraîchissement en
+   * arrière-plan, et un cours indisponible n'affecte que sa ligne (repli sur le prix de revient).
+   * Une erreur autre qu'une indisponibilité de donnée de marché reste remontée. `complete` est
+   * faux si un cours manque ou est périmé.
+   */
   private async quotesForPositions(positions: Position[], userId: number) {
-    if (!positions.length) return new Map<string, Quote>();
-    try {
-      const quotes = await Promise.all(positions.map((position) => marketSnapshotService.getQuote(position.symbol)));
-      logger.debug("portfolio", "portfolio quotes batch resolved", {
-        symbols: positions.map((position) => position.symbol).join(","),
-        requested: positions.length,
-        returned: quotes.length
-      });
-      return new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote]));
-    } catch (error) {
-      if (!isMarketDataUnavailable(error)) throw error;
-      logger.warn("portfolio", "portfolio quotes batch unavailable", {
-        symbols: positions.map((position) => position.symbol).join(","),
-        error: error instanceof Error ? error.message : String(error),
-        userId
-      });
-      return new Map<string, Quote>();
+    const results = await Promise.allSettled(positions.map((position) => marketSnapshotService.getQuote(position.symbol, { allowStaleWhileRefresh: true })));
+    const quotes = new Map<string, Quote>();
+    const unavailableSymbols: string[] = [];
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        quotes.set(result.value.symbol.toUpperCase(), result.value);
+        return;
+      }
+      if (!isMarketDataUnavailable(result.reason)) throw result.reason;
+      unavailableSymbols.push(positions[index]?.symbol ?? "");
+    });
+    if (unavailableSymbols.length) {
+      logger.warn("portfolio", "portfolio quotes unavailable", { symbols: unavailableSymbols.join(","), requested: positions.length, userId });
     }
+    const complete = !unavailableSymbols.length && [...quotes.values()].every((quote) => !quote.stale);
+    return { quotes, complete };
   }
 }
 

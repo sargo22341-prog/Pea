@@ -58,3 +58,7 @@ The source-of-truth market tables are not caches:
 They are persistent market data and are invalidated/rebuilt through dedicated repositories and construction tasks, not by deleting generic cache entries only.
 
 Expired rows are removed by the backend cache cleanup service and surfaced through `/api/admin/runtime-health`; there is no local "clear all market caches" development script.
+
+## News feeds
+
+News feeds (`scope = 'news'`) follow stale-while-revalidate: a feed younger than 6 h is served as is; an older one (up to the 7-day rejection threshold) is served immediately while a background refresh replaces it. Yahoo is awaited only when no cached feed exists. Every news row is written with `expires_at` (milliseconds) at the rejection threshold so the periodic cleanup purges it. Aggregated `/news-assets` pages (`news:assets:v6:...`) live 5 minutes and are only written when every underlying feed was fresh.

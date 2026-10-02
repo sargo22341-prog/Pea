@@ -14,5 +14,10 @@
   "portfolioNews": "News for my assets",
   "globalNews": "Global news",
   "noPortfolioNews": "No article linked to your assets yet.",
-  "noGlobalNews": "No global article yet."
+  "noGlobalNews": "No global article yet.",
+  "newArticles_one": "{{count}} new article",
+  "newArticles_other": "{{count}} new articles",
+  "newsPreviousPage": "Previous",
+  "newsNextPage": "Next",
+  "newsPageOf": "Page {{page}} / {{total}}"
 }

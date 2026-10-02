@@ -127,8 +127,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    Array.from({ length: 45 }, (_value, index) => index + 1),
-    "les 45 migrations doivent etre enregistrees"
+    Array.from({ length: 46 }, (_value, index) => index + 1),
+    "les 46 migrations doivent etre enregistrees"
   );
 });
 

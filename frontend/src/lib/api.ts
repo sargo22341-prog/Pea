@@ -21,6 +21,7 @@ import { objectivesApi } from "./api-clients/objectives-api";
 import { portfolioApi } from "./api-clients/portfolio-api";
 import { screenerApi } from "./api-clients/screener-api";
 import { request } from "./api-core";
+import { clearAsyncDataCache } from "./cache/async-data-cache";
 import { clearNativeAuthToken, isNativeApp, setNativeAuthToken } from "./native-auth";
 
 export type { MarketDataRebuildRange } from "./api-clients/admin-api";
@@ -52,6 +53,7 @@ const authApi = {
     try {
       await request<undefined>("/api/auth/logout", { method: "POST" });
     } finally {
+      clearAsyncDataCache();
       await clearNativeAuthToken();
     }
   },

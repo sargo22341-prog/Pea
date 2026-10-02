@@ -1,6 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { i18n } from "../i18n";
+import { hasAsyncDataCache, readAsyncDataCache, writeAsyncDataCache } from "../lib/cache/async-data-cache";
 import { useLatestRef } from "./useLatestRef";
+
+export interface UseAsyncOptions {
+  /**
+   * Clé du cache inter-pages, propre à cet appelant et à ses paramètres (ex. `portfolio-full:1d`).
+   * Une page revisitée affiche alors sa dernière réponse sans squelette, puis la rafraîchit.
+   */
+  cacheKey?: string | undefined;
+}
+
+type CachedValue<T> = { hit: true; value: T } | { hit: false };
+
+function cachedValue<T>(cacheKey: string | undefined): CachedValue<T> {
+  if (!cacheKey || !hasAsyncDataCache(cacheKey)) return { hit: false };
+  // Chaque clé appartient à un seul appelant, qui n'y écrit que le résultat de son loader de type T.
+  return { hit: true, value: readAsyncDataCache(cacheKey) as T };
+}
 
 /**
  * Hook async avec :
@@ -13,6 +30,8 @@ import { useLatestRef } from "./useLatestRef";
  *     données affichées et ne repasse pas `loading` à `true`. Seuls le premier chargement et un
  *     changement de `reloadKey` affichent l'état de chargement. Cela évite de démonter les
  *     sous-arbres conditionnés par `loading` (skeletons, sections enfants) à chaque rafraîchissement.
+ *   - Avec `options.cacheKey`, la dernière réponse connue est affichée immédiatement (montage ou
+ *     changement de `reloadKey`) pendant son rafraîchissement.
  *
  * Convention d'usage :
  *   - `loader` peut être inline (`() => api.foo()`), il sera lu via ref donc pas de
@@ -20,20 +39,24 @@ import { useLatestRef } from "./useLatestRef";
  *   - Pour relancer manuellement, appelez `reload()` (le requestId est incrémenté).
  *   - Pour relancer sur changement de paramètre, passez le paramètre comme `reloadKey`.
  */
-export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reloadKey?: unknown) {
-  const [data, setData] = useState<T | null>(null);
+export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reloadKey?: unknown, options: UseAsyncOptions = {}) {
+  const [initialCache] = useState(() => cachedValue<T>(options.cacheKey));
+  const [data, setData] = useState<T | null>(initialCache.hit ? initialCache.value : null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCache.hit);
   const [activeReloadKey, setActiveReloadKey] = useState(reloadKey);
   const loaderRef = useLatestRef(loader);
+  const cacheKeyRef = useLatestRef(options.cacheKey);
   const requestIdRef = useRef(0);
-  const hasDataRef = useRef(false);
+  const hasDataRef = useRef(initialCache.hit);
 
   // Changement de `reloadKey` : l'etat de chargement est ajuste pendant le rendu, pas dans l'effet,
   // pour eviter un rendu en cascade (seules des mises a jour asynchrones partent de l'effet).
   if (!Object.is(activeReloadKey, reloadKey)) {
+    const cached = cachedValue<T>(options.cacheKey);
     setActiveReloadKey(reloadKey);
-    setLoading(true);
+    if (cached.hit) setData(cached.value);
+    setLoading(!cached.hit);
     setError(null);
   }
 
@@ -41,9 +64,11 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     const isCurrent = () => !signal?.aborted && requestId === requestIdRef.current;
+    const cacheKey = cacheKeyRef.current;
     try {
       const result = await loaderRef.current(signal);
       if (isCurrent()) {
+        if (cacheKey) writeAsyncDataCache(cacheKey, result);
         hasDataRef.current = true;
         setData(result);
         setError(null);
@@ -53,7 +78,7 @@ export function useAsync<T>(loader: (signal?: AbortSignal) => Promise<T>, reload
     } finally {
       if (isCurrent()) setLoading(false);
     }
-  }, [loaderRef]);
+  }, [cacheKeyRef, loaderRef]);
 
   const reload = useCallback((signal?: AbortSignal) => {
     if (!hasDataRef.current) setLoading(true);

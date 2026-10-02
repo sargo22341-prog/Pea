@@ -9,7 +9,7 @@ import { ServerSetupPage } from "./components/common/ServerSettings";
 import { PrivacyProvider } from "./contexts/PrivacyContext";
 import { useAsync } from "./hooks/useAsync";
 import { api } from "./lib/api";
-import { i18n } from "./i18n";
+import { changeAppLanguage, i18n } from "./i18n";
 import { lazyWithReload } from "./lib/app-loading/lazy-with-reload";
 import { getNativeServerUrl, isNativeApp } from "./lib/native-auth";
 import { initSystemBars, queueSystemBarsRefresh } from "./lib/system-bars";
@@ -87,7 +87,7 @@ function AuthenticatedApp() {
   const marketEventsRef = useRef<ReturnType<typeof api.subscribeMarketEvents> | null>(null);
 
   useEffect(() => {
-    if (userLanguage && i18n.language !== userLanguage) void i18n.changeLanguage(userLanguage);
+    if (userLanguage && i18n.language !== userLanguage) void changeAppLanguage(userLanguage);
   }, [userLanguage]);
 
   useEffect(() => {

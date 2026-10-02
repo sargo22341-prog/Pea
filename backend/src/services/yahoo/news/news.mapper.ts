@@ -13,13 +13,31 @@ function newsPublishedAt(item: YahooNewsRaw) {
   return undefined;
 }
 
-function newsImageUrl(item: YahooNewsRaw) {
-  const direct = safeString(item.thumbnail?.originalUrl) || safeString(item.thumbnail?.url) || safeString(item.imageUrl);
-  if (direct) return normalizeExternalHttpsUrl(direct);
+/** Largeur visée pour une vignette affichée sur 96 px CSS en écran haute densité. */
+const thumbnailTargetWidthPx = 192;
+/** Au-delà, une résolution est jugée trop lourde pour une vignette. */
+const thumbnailMaxWidthPx = 480;
 
-  const resolutions = rawArray<unknown>(item.thumbnail?.resolutions).map(rawRecord);
-  const image = resolutions.find((resolution) => safeString(resolution["url"])) ?? resolutions[0];
-  return normalizeExternalHttpsUrl(image?.["url"]);
+/**
+ * Choisit la plus petite résolution couvrant la cible sans être surdimensionnée ; à défaut la
+ * plus grande résolution plus petite que la cible (souvent la 140x140 de Yahoo). L'original
+ * n'est retenu que si aucune résolution de taille connue ne convient.
+ */
+function thumbnailResolutionUrl(item: YahooNewsRaw) {
+  const resolutions = rawArray<unknown>(item.thumbnail?.resolutions).map(rawRecord)
+    .map((resolution) => ({ url: safeString(resolution["url"]), width: Number(resolution["width"]) }))
+    .filter((resolution) => resolution.url);
+  const sized = resolutions.filter((resolution) => Number.isFinite(resolution.width) && resolution.width > 0);
+  const fitting = sized.filter((resolution) => resolution.width >= thumbnailTargetWidthPx && resolution.width <= thumbnailMaxWidthPx);
+  if (fitting.length) return fitting.reduce((best, resolution) => (resolution.width < best.width ? resolution : best)).url;
+  const smaller = sized.filter((resolution) => resolution.width < thumbnailTargetWidthPx);
+  if (smaller.length) return smaller.reduce((best, resolution) => (resolution.width > best.width ? resolution : best)).url;
+  return resolutions[0]?.url;
+}
+
+function newsImageUrl(item: YahooNewsRaw) {
+  const image = thumbnailResolutionUrl(item) || safeString(item.thumbnail?.originalUrl) || safeString(item.thumbnail?.url) || safeString(item.imageUrl);
+  return normalizeExternalHttpsUrl(image);
 }
 
 export function normalizeExternalHttpsUrl(value: unknown) {

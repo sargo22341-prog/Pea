@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { User } from "@pea/shared";
 import { useTranslation } from "react-i18next";
 import { NewsArticleList } from "../../components/common/news/NewsArticleList";
+import { NewArticlesButton } from "./components/NewArticlesButton";
 import { NewsByAssetList } from "./components/NewsByAssetList";
 import { NewsHeader } from "./components/NewsHeader";
 import { NewsPagination } from "./components/NewsPagination";
@@ -17,9 +18,11 @@ export function NewsPage({ user }: { user: User }) {
     currentPage,
     error,
     loading,
+    newArticlesCount,
     portfolioOnly,
     totalPages,
     changePage,
+    showNewArticles,
     toggleMode
   } = useNewsPageData(user);
   const { view, changeView } = useNewsView();
@@ -40,6 +43,7 @@ export function NewsPage({ user }: { user: User }) {
       <NewsHeader onViewChange={changeView} portfolioOnly={portfolioOnly} toggleMode={toggleMode} user={user} view={view} />
 
       {error && <div className="card border-coral p-4 text-coral">{error}</div>}
+      <NewArticlesButton count={newArticlesCount} onShow={showNewArticles} />
       {loading ? (
         <NewsSkeleton title={sectionTitle} />
       ) : groupedByAsset ? (

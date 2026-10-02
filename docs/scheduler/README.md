@@ -20,6 +20,14 @@ Queue keys dedupe active work by asset/range/task type. A full rebuild expands i
 
 Tasks have priority so user-visible or post-close work can run before bulk rebuilds. Workers pull pending tasks, mark them running, execute the matching construction path, and record success or failure. Yahoo calls remain rate-limited through the Yahoo facade.
 
+## Yahoo call priorities
+
+Every real Yahoo call goes through one queue (one call at a time, 250 ms apart). Queued calls leave by priority: market data and other user-visible reads first (`standard`), then news (`news`), then background prefetches (`background`). The priority comes from an async context (`runWithLowerYahooPriority`), and a nested call can only lower it, never raise it.
+
+## News prefetch
+
+`news-scheduler` runs every 15 minutes between 07:00 and 22:00 (application timezone). At most every 90 minutes it refreshes, one feed at a time and with the `background` priority, the company news of every stock held by a user with news enabled (in the union of their news languages) and the global feed. Feeds fresher than 90 minutes are skipped. The scheduler is single-process (no lock) and stops after the current feed on shutdown.
+
 ## Symbol locks
 
 Live and lazy chart refresh paths use symbol-level locks to avoid duplicate Yahoo chart calls for the same asset/range while another refresh is already running.

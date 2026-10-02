@@ -1,61 +1,73 @@
-import type { NewsArticle, NewsFeedPage, User } from "@pea/shared";
-import { useEffect, useMemo, useState } from "react";
-import {
-  debugNews,
-  getCachedAssetArticles,
-  getCachedGlobalNews,
-  hasModeCache,
-  loadAssetMode,
-  loadGlobalMode,
-  newsPageSize,
-  preloadAssetMode,
-  preloadGlobalMode,
-  preloadRemainingAssetNews
-} from "../lib/newsData";
+import type { User } from "@pea/shared";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMarketEventReload } from "../../../hooks/useMarketEventReload";
+import { i18n } from "../../../i18n";
 import { readBooleanPreference, writeLocalPreference } from "../../../lib/local-preference";
-import type { AsyncNewsState, NewsMode } from "../lib/newsTypes";
+import { assetNewsSnapshot, ensureAssetNews, revalidateAssetNews, subscribeAssetNews } from "../lib/assetNewsStore";
+import { ensureGlobalNews, globalNewsSnapshot, revalidateGlobalNews, subscribeGlobalNews } from "../lib/globalNewsStore";
+import { debugNews, isOlderThan, newsCacheTtlMs, newsForegroundRevalidateMs } from "../lib/newsCache";
+import type { NewsMode } from "../lib/newsTypes";
+import { useBufferedNewsFeed } from "./useBufferedNewsFeed";
 
 const PORTFOLIO_ONLY_KEY = "news.portfolioOnly";
+export const newsPageSize = 20;
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : i18n.t("errors:newsUnavailable");
+}
+
+function logBackgroundFailure(action: string) {
+  return (error: unknown) => { debugNews(`${action} echoue`, { error: errorText(error) }); };
+}
 
 export function useNewsPageData(user: User) {
   const [portfolioOnly, setPortfolioOnly] = useState(() => readBooleanPreference(PORTFOLIO_ONLY_KEY) ?? true);
   const [assetPage, setAssetPage] = useState(1);
   const [globalPage, setGlobalPage] = useState(1);
-  const [assetNews, setAssetNews] = useState<AsyncNewsState<NewsArticle[]>>(() => ({
-    data: getCachedAssetArticles(user),
-    loading: false,
-    error: null
-  }));
-  const [globalNews, setGlobalNews] = useState<AsyncNewsState<NewsFeedPage>>(() => ({
-    data: getCachedGlobalNews(user, 1),
-    loading: false,
-    error: null
-  }));
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
 
   const activeMode: NewsMode = portfolioOnly ? "assets" : "global";
-  const userCachePart = user.newsLanguages.join(",");
+  const userKey = `${user.id}:${user.newsLanguages.join(",")}`;
+  const activeKey = activeMode === "assets" ? `assets:${userKey}` : `global:${userKey}:${globalPage}`;
 
+  const assetLatest = useSyncExternalStore(subscribeAssetNews, () => assetNewsSnapshot(user));
+  const globalLatest = useSyncExternalStore(subscribeGlobalNews, () => globalNewsSnapshot(user, globalPage));
+  const assets = useBufferedNewsFeed(`assets:${userKey}`, assetLatest, (snapshot) => snapshot.articles);
+  const global = useBufferedNewsFeed(`global:${userKey}:${globalPage}`, globalLatest, (snapshot) => snapshot.feed.articles);
+
+  /** Recharge en arrière-plan le mode affiché si ses données ont au moins `minAgeMs`. */
+  const revalidateActive = useCallback((minAgeMs: number) => {
+    const snapshot = activeMode === "assets" ? assetNewsSnapshot(user) : globalNewsSnapshot(user, globalPage);
+    if (!snapshot || !isOlderThan(snapshot.loadedAt, minAgeMs)) return Promise.resolve();
+    debugNews("revalidation", { mode: activeMode, ageMs: Date.now() - snapshot.loadedAt });
+    const revalidation = activeMode === "assets" ? revalidateAssetNews(user) : revalidateGlobalNews(user, globalPage);
+    return revalidation.catch(logBackgroundFailure("revalidation"));
+  }, [activeMode, globalPage, user]);
+
+  // Charge le mode affiché, puis précharge l'autre ; un cache périmé est rechargé en arrière-plan.
   useEffect(() => {
-    const controller = new AbortController();
-    if (activeMode === "assets") {
-      void loadAssetMode(user, controller.signal, setAssetNews, "initial-or-switch");
-    } else {
-      void loadGlobalMode(user, globalPage, controller.signal, setGlobalNews, "initial-or-switch");
-    }
-    return () => { controller.abort(); };
-  }, [activeMode, globalPage, user, userCachePart]);
+    let active = true;
+    const load = activeMode === "assets" ? ensureAssetNews(user) : ensureGlobalNews(user, globalPage);
+    const preloadOther = () => (activeMode === "assets" ? ensureGlobalNews(user, 1) : ensureAssetNews(user));
+    load.then(
+      () => {
+        if (active) setFailure(null);
+        void revalidateActive(newsCacheTtlMs);
+        preloadOther().catch(logBackgroundFailure("prechargement"));
+      },
+      (error: unknown) => {
+        if (active) setFailure({ key: activeKey, message: errorText(error) });
+      }
+    );
+    return () => { active = false; };
+  }, [activeKey, activeMode, globalPage, revalidateActive, user]);
 
-  useEffect(() => {
-    if (activeMode === "assets" && assetNews.data && !assetNews.loading && !assetNews.error) {
-      void preloadRemainingAssetNews(user, undefined, setAssetNews);
-      void preloadGlobalMode(user, globalPage);
-    }
-    if (activeMode === "global" && globalNews.data && !globalNews.loading && !globalNews.error) {
-      void preloadAssetMode(user);
-    }
-  }, [activeMode, assetNews.data, assetNews.error, assetNews.loading, globalNews.data, globalNews.error, globalNews.loading, globalPage, user]);
+  useMarketEventReload({
+    intervalMs: newsCacheTtlMs,
+    reload: () => revalidateActive(newsForegroundRevalidateMs)
+  });
 
-  const assetArticles = useMemo(() => assetNews.data ?? [], [assetNews.data]);
+  const assetArticles = useMemo(() => assets.shown?.articles ?? [], [assets.shown]);
   const assetTotalPages = Math.ceil(assetArticles.length / newsPageSize);
   const safeAssetPage = Math.min(assetPage, assetTotalPages || 1);
   const pagedAssetArticles = useMemo(
@@ -63,15 +75,9 @@ export function useNewsPageData(user: User) {
     [assetArticles, safeAssetPage]
   );
 
-  const articles = portfolioOnly ? pagedAssetArticles : globalNews.data?.articles ?? [];
-  const loading = portfolioOnly ? assetNews.loading : globalNews.loading;
-  const error = portfolioOnly ? assetNews.error : globalNews.error;
-  const currentPage = portfolioOnly ? safeAssetPage : globalNews.data?.page ?? globalPage;
-  const totalPages = portfolioOnly ? assetTotalPages : globalNews.data?.totalPages ?? 0;
+  const activeFeed = portfolioOnly ? assets : global;
+  const error = failure?.key === activeKey && !activeFeed.shown ? failure.message : null;
 
-  /**
-   * Change la page du mode actif sans toucher au cache de l'autre mode.
-   */
   function changePage(nextPage: number) {
     if (portfolioOnly) {
       setAssetPage(nextPage);
@@ -80,33 +86,26 @@ export function useNewsPageData(user: User) {
     setGlobalPage(nextPage);
   }
 
-  /**
-   * Bascule entre actualites d'actifs et actualites globales.
-   */
   function toggleMode() {
-    setPortfolioOnly((current) => {
-      const next = !current;
-      const nextMode: NewsMode = next ? "assets" : "global";
-      writeLocalPreference(PORTFOLIO_ONLY_KEY, String(next));
-      debugNews("changement de mode", {
-        mode: nextMode,
-        cache: hasModeCache(user, nextMode, globalPage) ? "hit" : "miss"
-      });
-      return next;
-    });
+    const next = !portfolioOnly;
+    writeLocalPreference(PORTFOLIO_ONLY_KEY, String(next));
+    debugNews("changement de mode", { mode: next ? "assets" : "global" });
+    setPortfolioOnly(next);
     setAssetPage(1);
     setGlobalPage(1);
   }
 
   return {
-    articles,
+    articles: portfolioOnly ? pagedAssetArticles : global.shown?.feed.articles ?? [],
     assetArticles,
-    currentPage,
+    currentPage: portfolioOnly ? safeAssetPage : global.shown?.feed.page ?? globalPage,
     error,
-    loading,
+    loading: !activeFeed.shown && !error,
+    newArticlesCount: activeFeed.newCount,
     portfolioOnly,
-    totalPages,
+    totalPages: portfolioOnly ? assetTotalPages : global.shown?.feed.totalPages ?? 0,
     changePage,
+    showNewArticles: activeFeed.showLatest,
     toggleMode
   };
 }

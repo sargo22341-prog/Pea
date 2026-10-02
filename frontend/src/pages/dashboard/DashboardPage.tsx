@@ -26,7 +26,7 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   });
 
   // Un seul appel réseau remplace les deux appels /portfolio et /portfolio/chart distincts.
-  const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), selectedRange);
+  const portfolioFull = useAsync((signal) => api.portfolioFull(selectedRange, signal), selectedRange, { cacheKey: `portfolio-full:${selectedRange}` });
 
   // Lance les blocs positions et watchlist en même temps que la courbe : leurs composants,
   // montés une fois le résumé reçu, rejoignent ces requêtes en vol (dédoublonnage par URL).

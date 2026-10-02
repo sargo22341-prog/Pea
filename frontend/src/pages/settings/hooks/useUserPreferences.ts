@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { SettingsToast } from "../../../components/common/feedback";
 import { api } from "../../../lib/api";
 import { useAsync } from "../../../hooks/useAsync";
-import { i18n } from "../../../i18n";
+import { changeAppLanguage } from "../../../i18n";
 
 export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => Promise<void>) | undefined }) {
   const { t } = useTranslation(["settings"]);
@@ -54,7 +54,7 @@ export function useUserPreferences({ onUserUpdated }: { onUserUpdated?: (() => P
     setToast(null);
     try {
       await api.updateMe({ dashboardDefaultSortKey, dashboardDefaultSortDirection, watchlistDefaultSortKey, watchlistDefaultSortDirection, defaultChartRange: range, projectionEndAge, localPeaSearchEnabled, assetNewsEnabled, newsLanguages, language, privacyModeEnabled, advancedModeEnabled });
-      await i18n.changeLanguage(language);
+      await changeAppLanguage(language);
       setToast({ tone: "success", text: t("settings:preferences.saved") });
       await me.reload();
       await onUserUpdated?.();
