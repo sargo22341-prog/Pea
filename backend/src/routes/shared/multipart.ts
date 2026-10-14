@@ -56,7 +56,7 @@ export function parseMultipartFiles(req: express.Request, fieldName: string, opt
         const buffer = Buffer.concat(chunks);
         if (!buffer.length) return;
         files.push({
-          fileName: info.filename,
+          fileName: info.filename ?? "",
           mimeType: info.mimeType.toLowerCase(),
           buffer
         });

@@ -6,3 +6,8 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
+
+- Met à jour les bibliothèques natives Android pour bénéficier des derniers correctifs de stabilité.
+- Fiabilise le traitement des fichiers importés sans nom de fichier.
+
+- Update npm Packages

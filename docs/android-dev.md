@@ -7,7 +7,7 @@ Ce mode sert a tester l'APK debug contre le backend lance sur Windows, sans push
 - Le backend local ecoute sur `0.0.0.0`, donc il est accessible depuis le reseau local.
 - L'APK Android autorise les URLs `http://...` pour le self-hosting local/LAN, y compris en release.
 - HTTPS avec un certificat public valide reste recommande pour un usage quotidien.
-- Si vous utilisez un certificat auto-signe, installez le certificat racine dans Android : l'APK fait confiance aux certificats systeme et utilisateur Android, sans bypass SSL natif.
+- Les certificats HTTPS invalides sont acceptes uniquement pour l'hote du backend configure ; les autres hotes restent soumis a la validation Android normale.
 
 ## Trouver l'IP Windows
 
@@ -69,6 +69,12 @@ Si cela ne repond pas :
 
 ## Builder et installer l'APK debug
 
+Utilisez Java 21 ou plus recent (le JBR fourni avec Android Studio convient), ainsi que le SDK Android 37. Si `java -version` indique Java 17, selectionnez le JBR avant le build dans PowerShell :
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+```
+
 ```powershell
 npm run build:android -w frontend
 cd frontend/android
@@ -127,4 +133,4 @@ Pour un serveur expose durablement, utilisez HTTPS avec un certificat public val
 https://pea.home
 ```
 
-Si votre serveur HTTPS utilise un certificat auto-signe ou une autorite interne, installez le certificat racine correspondant dans les certificats utilisateur Android. L'app acceptera alors ce certificat via la configuration reseau Android, sans option "desactiver SSL".
+Pour l'hote du backend configure, l'app accepte aussi les certificats auto-signes, expires ou dont le nom ne correspond pas. Cette exception native remplace l'hote precedent lorsque vous changez de serveur. Elle reduit la protection contre l'interception : privilegiez un certificat public valide. Les autres hotes conservent la validation normale des certificats.
