@@ -12,6 +12,7 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 | `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
 | `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
+| `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
 
 Le **solde espèces n'est jamais stocké**. Il est recalculé à chaque lecture en rejouant, dans
 l'ordre chronologique, les mouvements et les transactions (`cash-ledger.ts`). À date égale, l'ordre
@@ -44,7 +45,58 @@ Les montants sont arrondis au centime puis additionnés en entiers : aucune dér
   l'ouverture (sans état initial) et couvre au moins 90 jours.
 
 Les dividendes « estimés » du tableau de bord (données de marché × quantité détenue) restent
-distincts des dividendes **encaissés**, saisis dans le journal espèces.
+distincts des dividendes **encaissés**, enregistrés dans le journal espèces (saisis à la main ou
+proposés puis validés, voir ci-dessous).
+
+## Dividendes proposés à la validation
+
+Chaque dividende détaché sur une position détenue devient une **proposition** à valider. Aucun
+dividende n'est jamais crédité sans confirmation explicite. Le code vit dans
+`backend/src/services/cash/dividends/`.
+
+**Génération** (`dividend-proposals-sync.ts`) : à chaque lecture de
+`GET /api/cash/dividend-proposals` (cloche de l'en-tête, page « Mon PEA »), à partir des seules
+données stockées, sans appel Yahoo :
+
+- détachements réels de `asset_dividends` (historique Yahoo `chart`, rafraîchi chaque jour par
+  les tâches existantes) ; un détachement seulement annoncé ne crée rien ;
+- quantité détenue à la date de détachement, avec la même règle que les dividendes estimés
+  (`buildTransactionCache` + `getQuantityAtTime`, divisions validées appliquées) ;
+- date de paiement : la date `dividend` publiée dans `asset_calendar_events` si elle tombe entre
+  le jour du détachement et 60 jours après (`PAYMENT_DATE_MAX_DELAY_DAYS`), sinon détachement +
+  2 jours de bourse (`ESTIMATED_PAYMENT_DELAY_BUSINESS_DAYS`), signalée comme estimée ;
+- brut = dividende par action × quantité ; net = brut - retenue estimée, au centime.
+
+Rien n'est proposé pour un compte `pending`, une quantité nulle (ou un ETF capitalisant, sans
+dividende publié), ni pour un crédit daté avant ou à la date de l'état initial : il est déjà
+compris dans le solde déclaré. Une proposition n'apparaît qu'à sa date de paiement. La
+génération est idempotente (unicité `(user_id, symbol, ex_date)`) : une proposition en attente
+suit les données rafraîchies, une proposition ignorée ou validée n'est plus modifiée, et une
+proposition non validée devenue sans objet est retirée.
+
+**Retenue à la source** (`withholding-tax.ts`) : taux domestique du pays de la société, déduit du
+préfixe ISIN (avis d'opéré importés) ou, à défaut, de la place de cotation (toujours « à
+vérifier »). FR 0 %, DE 26,375 %, NL 15 %, IT 26 %, ES 19 %, BE 30 %, PT 25 %, AT 27,5 %, IE 25 % et
+LU 15 % (à vérifier : les fonds de ces pays sont souvent exonérés). Pays inconnu : 0 % et montant à
+vérifier ; un dividende en devise étrangère est aussi à vérifier (non converti). Dans un PEA, cette
+retenue n'est ni récupérable ni imputable ; la fiscalité française ne s'applique qu'au retrait.
+Taux vérifiés le 2026-10-20 (sources en commentaire du module).
+
+**Décision** (`dividend-proposals.service.ts`, routes `POST /api/cash/dividend-proposals/:id/…`) :
+
+- `accept` (Valider ou Corriger, avec `amount` et `effectiveAt` facultatifs) : dans une seule
+  transaction, crée un mouvement `dividend` (origine `manual`, puisque confirmé par
+  l'utilisateur, `import_ref = dividend:<SYMBOLE>:<date de détachement>`, position liée) et passe
+  la proposition en `accepted`. La date de crédit doit être postérieure à l'état initial et non
+  future ;
+- `ignore` : statut `ignored`, réversible par `restore` depuis « Mon PEA » ;
+- supprimer le mouvement d'un dividende validé remet la proposition en attente.
+
+**Rapprochement** (`isSameDividendCredit`) : deux crédits de dividende du même actif datés à moins
+de 10 jours (`DIVIDEND_RECONCILIATION_WINDOW_DAYS`) sont le même versement. Un dividende déjà saisi
+à la main n'est donc pas proposé, une proposition validée ne peut pas être ressaisie à la main
+(`409`), et la référence d'import unique interdit un second enregistrement. Un dividende saisi sans
+actif n'est rapproché de rien.
 
 ## Contrôle des fonds
 
@@ -123,6 +175,9 @@ saisi.
   conversion, comme le reste du tableau de bord.
 - Les ajustements d'un import CSV de détentions (sans historique) sont des achats et ventes datés
   de l'import au PRU de l'export : leur effet sur les espèces est une approximation.
-- Les dividendes encaissés sont saisis manuellement ; ils ne sont pas créés à partir des
-  dividendes estimés.
+- Les dividendes encaissés ne sont jamais créés à partir des dividendes estimés : seuls les
+  détachements réels sont proposés, et uniquement crédités après validation. Les jours fériés ne
+  sont pas pris en compte dans la date de paiement estimée.
+- Le solde espèces ne se corrige pas directement : un écart avec le relevé du courtier se résout
+  en corrigeant les mouvements ou l'état initial (aucun type « écart de rapprochement » n'existe).
 - Aucune fiscalité n'est calculée pour les retraits : seul un avertissement informatif est affiché.

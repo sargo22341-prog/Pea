@@ -106,6 +106,10 @@ export class CashRepository {
     ).run(userId, input.type, input.amountCents, input.effectiveAt, input.positionId ?? null, input.symbol ?? null, input.source, input.importRef ?? null, input.note ?? null);
   }
 
+  findMovementByImportRef(userId: number, importRef: string): CashMovementRow | undefined {
+    return db.prepare("SELECT * FROM cash_movements WHERE user_id = ? AND import_ref = ?").get(userId, importRef) as CashMovementRow | undefined;
+  }
+
   deleteMovement(userId: number, id: number) {
     return db.prepare("DELETE FROM cash_movements WHERE user_id = ? AND id = ?").run(userId, id);
   }

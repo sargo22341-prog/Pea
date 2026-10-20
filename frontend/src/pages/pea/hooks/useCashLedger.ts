@@ -1,5 +1,5 @@
 import type { CashLedgerDto } from "@pea/shared";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAsync } from "../../../hooks/useAsync";
 import { api } from "../../../lib/api";
 
@@ -26,5 +26,8 @@ export function useCashLedger() {
     return [...byId.values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
   }, [data]);
 
-  return { assets, data, error: ledger.error, loading: ledger.loading && !data, replace: setOverride, reload: async () => { setOverride(null); await ledger.reload(); } };
+  const reloadLedger = ledger.reload;
+  const reload = useCallback(async () => { setOverride(null); await reloadLedger(); }, [reloadLedger]);
+
+  return { assets, data, error: ledger.error, loading: ledger.loading && !data, replace: setOverride, reload };
 }

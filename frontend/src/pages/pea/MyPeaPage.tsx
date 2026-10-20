@@ -2,11 +2,13 @@ import type { CashLedgerDto } from "@pea/shared";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { InitialStateForm } from "../../components/common/cash/InitialStateForm";
+import { DIVIDEND_PROPOSALS_CHANGED_EVENT, useDividendProposals } from "../../components/common/cash/useDividendProposals";
 import { Collapsible } from "../../components/common/feedback/Collapsible";
 import { MOTION } from "../../components/common/motion";
 import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
 import { CashMovementForm } from "./components/CashMovementForm";
+import { DividendProposalsPanel } from "./components/DividendProposalsPanel";
 import { LedgerTable } from "./components/LedgerTable";
 import { PeaOverviewCards } from "./components/PeaOverviewCards";
 import { useCashLedger } from "./hooks/useCashLedger";
@@ -20,6 +22,15 @@ export function MyPeaPage() {
   const ledger = useCashLedger();
   const portfolio = useAsync((signal) => api.portfolioFull(summaryRange, signal), summaryRange, { cacheKey: `portfolio-full:${summaryRange}` });
   const reloadPortfolio = portfolio.reload;
+  const proposals = useDividendProposals();
+  const reloadLedger = ledger.reload;
+
+  // Un dividende validé (ici ou depuis la cloche) crédite les espèces : journal et synthèse sont relus.
+  useEffect(() => {
+    const onChanged = () => { void Promise.all([reloadLedger(), reloadPortfolio()]); };
+    window.addEventListener(DIVIDEND_PROPOSALS_CHANGED_EVENT, onChanged);
+    return () => { window.removeEventListener(DIVIDEND_PROPOSALS_CHANGED_EVENT, onChanged); };
+  }, [reloadLedger, reloadPortfolio]);
 
   useEffect(() => {
     document.title = `${t("cash:page.title")} | PEA Portfolio`;
@@ -61,7 +72,10 @@ export function MyPeaPage() {
           {initialState}
         </section>
       ) : (
-        <CashMovementForm assets={ledger.assets} onSaved={ledgerChanged} summary={summary} />
+        <>
+          <DividendProposalsPanel proposals={proposals} />
+          <CashMovementForm assets={ledger.assets} onSaved={ledgerChanged} summary={summary} />
+        </>
       )}
 
       <LedgerTable ledger={ledger.data} onChanged={ledgerChanged} />

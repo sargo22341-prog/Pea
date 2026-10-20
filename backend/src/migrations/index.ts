@@ -45,6 +45,7 @@ import { userAlertsMigration } from "./alerts/044-user-alerts.js";
 import { materializeLegacyPositionSnapshotsMigration } from "./portfolio/045-materialize-legacy-position-snapshots.js";
 import { expireNewsCacheMigration } from "./cache/046-expire-news-cache.js";
 import { cashLedgerMigration } from "./cash/047-cash-ledger.js";
+import { dividendProposalsMigration } from "./cash/048-dividend-proposals.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -94,5 +95,6 @@ export const migrations: Migration[] = [
   userAlertsMigration,
   materializeLegacyPositionSnapshotsMigration,
   expireNewsCacheMigration,
-  cashLedgerMigration
+  cashLedgerMigration,
+  dividendProposalsMigration
 ];

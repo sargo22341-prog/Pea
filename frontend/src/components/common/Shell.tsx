@@ -7,6 +7,7 @@ import { useFeatureEnabled } from "../../contexts/feature-flags-context";
 import { useAlertEvents } from "../../hooks/useAlertEvents";
 import { useAuthenticatedImageUrl } from "../../hooks/useAuthenticatedImageUrl";
 import { AlertsBell } from "./alerts/AlertsBell";
+import { useDividendProposals } from "./cash/useDividendProposals";
 import { getMobileNavItems } from "./mobileNavItems";
 import { MOTION } from "./motion";
 import { UserMenu } from "./UserMenu";
@@ -30,6 +31,8 @@ export function Shell({ user }: { user: User }) {
   const marketsEnabled = useFeatureEnabled("markets_page");
   const alertsEnabled = useFeatureEnabled("alerts");
   const alertEvents = useAlertEvents(ALERT_LIMITS.latestEvents, alertsEnabled);
+  const dividendProposals = useDividendProposals();
+  const showBell = alertsEnabled || dividendProposals.pending.length > 0;
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }, { marketsEnabled }), [user.assetNewsEnabled, marketsEnabled]);
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export function Shell({ user }: { user: User }) {
             </div>
           </div>
           <div className="flex items-center gap-1 lg:hidden">
-            {alertsEnabled && <AlertsBell alerts={alertEvents} />}
+            {showBell && <AlertsBell alerts={alertEvents} alertsEnabled={alertsEnabled} proposals={dividendProposals} />}
             <UserMenu
               compact
               onProfileIconError={() => { setProfileFailed(true); }}
@@ -83,7 +86,7 @@ export function Shell({ user }: { user: User }) {
                 {t(link.labelKey)}
               </NavLink>
             ))}
-            {alertsEnabled && <AlertsBell alerts={alertEvents} />}
+            {showBell && <AlertsBell alerts={alertEvents} alertsEnabled={alertsEnabled} proposals={dividendProposals} />}
             <UserMenu
               onProfileIconError={() => { setProfileFailed(true); }}
               profileIconUrl={profileIconUrl}
