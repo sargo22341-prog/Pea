@@ -1,6 +1,7 @@
 import { DAY_MS, DIVIDEND_RECENT_DAYS, type DividendProposal } from "@pea/shared";
 import type { DividendProposalRow } from "../../../repositories/cash/dividend-proposals.repository.js";
 import { centsToMoney } from "../cash-ledger.js";
+import { verificationInfo } from "./dividend-verification.js";
 
 export function toProposal(row: DividendProposalRow): DividendProposal {
   return {
@@ -26,7 +27,9 @@ export function toProposal(row: DividendProposalRow): DividendProposal {
     autoAccepted: row.auto_accepted === 1,
     notificationRead: row.notification_read_at !== null,
     creditedAmount: row.credited_cents === null ? undefined : centsToMoney(row.credited_cents),
-    creditedAt: row.credited_at ?? undefined
+    creditedAt: row.credited_at ?? undefined,
+    movementId: row.movement_id ?? undefined,
+    verification: verificationInfo(row)
   };
 }
 

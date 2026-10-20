@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectedDividendDialog } from "../../../components/common/cash/DividendProposalDialog";
 import type { DividendProposalsState } from "../../../components/common/cash/useDividendProposals";
+import { DividendVerificationBadge } from "../../../components/common/cash/verification/DividendVerificationBadge";
 import { InfoHint } from "../../../components/common/disclosure/InfoHint";
 import { Collapsible } from "../../../components/common/feedback/Collapsible";
 import { usePrivacy } from "../../../contexts/privacy-context";
@@ -15,7 +16,7 @@ function ProposalLine({ proposal, prive, children }: { proposal: DividendProposa
   return (
     <li className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 text-sm">
-        <p className="truncate font-semibold">{proposal.symbol} · {proposal.name}</p>
+        <p className="flex min-w-0 items-center gap-2 font-semibold"><span className="truncate">{proposal.symbol} · {proposal.name}</span><DividendVerificationBadge verification={proposal.verification} /></p>
         <p className="muted text-xs">
           {proposal.status === "accepted"
             ? t(proposal.autoAccepted ? "proposals.lineAuto" : "proposals.lineRecorded", { amount: masquerValeur(cashMoney(proposal.creditedAmount ?? proposal.netAmount, proposal.currency), prive), date: formatMaybeDate(proposal.creditedAt ?? proposal.paymentAt) })

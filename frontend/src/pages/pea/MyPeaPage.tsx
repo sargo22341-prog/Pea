@@ -69,6 +69,7 @@ export function MyPeaPage() {
 
       {!pending && settings.referenceAt ? (
         <OpeningDividendsCard
+          certifiedAt={settings.openingDividendsCertifiedAt}
           declared={settings.openingDividends}
           key={`${settings.referenceAt}:${String(justConfigured)}`}
           onSaved={initialStateSaved}

@@ -13,6 +13,7 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 | `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
 | `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
+| `cash_dividend_statement_lines` | Lignes de relevé de coupons certifiées pour des crédits antérieurs ou égaux à l'état initial (migration 53) : mois, numéro de ligne, ISIN, date, net et retenue. Les colonnes `verification`, `verified_at` et `verification_ref` de `cash_movements` et `opening_dividends_certified_at` de `cash_accounts` portent la vérification des dividendes. |
 
 Le **solde espèces n'est jamais stocké**. Il est recalculé à chaque lecture en rejouant, dans
 l'ordre chronologique, les mouvements et les transactions (`cash-ledger.ts`). À date égale, l'ordre
@@ -211,6 +212,54 @@ saisi.
    Renseigner le solde espèces et les versements du relevé, valider.
 5. Contrôler la page « Mon PEA » : l'état initial apparaît comme ajustement technique, les
    anciennes opérations comme résumées, et le solde espèces correspond au relevé.
+
+## Certification par les relevés de coupons
+
+Le code vit dans `backend/src/services/cash/dividend-statements/` (lecture et rapprochement) et
+`backend/src/services/cash/dividends/` (vérification, correction).
+
+**Niveaux de confiance** d'un mouvement `dividend` : aucun, `manual` (« Vérifié manuellement »,
+`POST /api/cash/movements/:id/verify`) ou `document` (« Certifié par relevé », avec la date et la
+référence `AAAA-MM#ligne`, sans donnée personnelle). Le document prime : une vérification manuelle
+ne remplace jamais une certification. Corriger le montant ou la date d'un dividende vérifié retire
+sa vérification ; pour un dividende certifié, l'API exige `confirmUncertify: true` (sinon `409`,
+`details.code = "CERTIFIED_DIVIDEND"`) et l'interface affiche l'avertissement avant d'enregistrer
+(`PUT /api/cash/movements/:id`, ou correction d'une proposition validée).
+
+**Lecture d'un relevé** (`parser/`) : le texte est extrait par `pdf-parse` dans le processus enfant
+des avis d'opéré ; le PDF (application/pdf, signature `%PDF-`, 2 Mo et 60 fichiers au plus) n'est
+jamais écrit sur disque. `pdf-parse` n'écrit pas les cellules vides : une ligne française affiche 3
+montants, une ligne étrangère 4. Chaque attribution possible des colonnes (brut, crédit d'impôt,
+acompte, net fiscal, commission, net client) est contrôlée par l'arithmétique de la ligne (net
+fiscal - commission = net client), puis l'ensemble par la ligne `TOTAL EUR` et le récapitulatif
+`COUPONS : NETS FISCAUX`. Mois introuvable, feuillet manquant, ligne illisible, total faux ou
+lecture ambiguë : le relevé est **refusé en entier**, sans importation partielle. Une quantité sur
+une ligne à part est rattachée à sa ligne. Les remboursements (`DETAIL REMBOURSEMENTS`) sont
+signalés, jamais importés comme dividendes.
+
+**Rapprochement** d'une ligne (`statement-reconciliation.ts`) : actif par ISIN uniquement
+(`positions.isin`, sinon l'ISIN le plus récent des avis d'opéré), date par `isSameDividendCredit`,
+montant au centime, jour à Paris. Cas : dividende enregistré identique (certifié), différent
+(correction proposée, non cochée par défaut), proposition en attente ou ignorée (validée avec le
+net du relevé et certifiée dans une transaction), aucun dividende (mouvement `dividend`, origine
+`pdf`, `import_ref = statement:AAAA-MM#ligne`, certifié), crédit antérieur ou égal à l'état initial
+(jamais crédité), ISIN inconnu (position à choisir, l'ISIN y est enregistré). Un compte `pending`
+est refusé (`409`). La retenue réelle est comparée au taux estimé de `withholding-tax.ts` (écart
+signalé au-delà de 2 % du brut et 2 centimes).
+
+**Import en lot** (Réglages, `POST /api/cash/dividend-statements/preview` puis `/confirm`) :
+l'aperçu n'écrit rien ; la confirmation renvoie les mêmes fichiers avec les choix (`decisions`),
+le serveur relit les relevés et recalcule chaque cas sur l'état courant, ligne par ligne dans une
+transaction. Les lignes antérieures à l'état initial peuvent être certifiées comme dividendes déjà
+perçus : elles sont conservées dans `cash_dividend_statement_lines` et leur total devient le
+montant confirmé (tracé dans `cash_account_revisions`) ; une modification manuelle de ce montant
+retire la certification. Réimporter un relevé ne crée rien et l'indique « déjà certifié ».
+
+**Un seul dividende** (fenêtre du dividende, `POST /api/cash/movements/:id/statement-check` puis
+`/statement-certify`) : le relevé du mois suffit. Sans correspondance exacte, un avertissement
+précis est renvoyé (autre mois, absent à cette date, montant ou date différents, ISIN inconnu) avec
+les lignes de l'actif ; rien n'est écrit sans confirmation, et un écart n'est corrigé qu'avec
+`correct=true`.
 
 ## Limites connues
 

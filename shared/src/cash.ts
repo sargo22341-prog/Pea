@@ -1,3 +1,5 @@
+import type { DividendVerificationInfo } from "./cash-dividend-statements.js";
+
 /**
  * Compte espèces du PEA : journal des mouvements et indicateurs dérivés.
  *
@@ -41,6 +43,8 @@ export interface CashAccountSettings {
   openingWithdrawals: number;
   /** Dividendes perçus jusqu'à la date de référence, confirmés par l'utilisateur. */
   openingDividends?: number | undefined;
+  /** Date à laquelle les dividendes déjà perçus ont été certifiés par des relevés du courtier. */
+  openingDividendsCertifiedAt?: string | undefined;
   updatedAt?: string | undefined;
 }
 
@@ -66,6 +70,8 @@ export interface CashLedgerEntry {
   realizedGain?: number | undefined;
   importRef?: string | undefined;
   note?: string | undefined;
+  /** Vérification d'un dividende encaissé (manuelle ou certifiée par relevé). */
+  verification?: DividendVerificationInfo | undefined;
 }
 
 export interface CashAccountSummary {

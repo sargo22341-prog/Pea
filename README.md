@@ -43,6 +43,8 @@ Fonctionnalites principales :
 - compte especes du PEA : versements, retraits, ventes, dividendes encaisses et frais distingues
   des achats, controle des fonds avant chaque achat, page « Mon PEA » et valeur totale du PEA
   especes comprises (voir [docs/cash-account.md](docs/cash-account.md)) ;
+- certification des dividendes encaisses par les releves de coupons PDF du courtier (import en
+  lot dans les Reglages ou depuis la fenetre d'un dividende), sans conserver les PDF ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;
 - mode prive pour masquer les montants personnels.

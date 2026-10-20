@@ -14,13 +14,27 @@ function ensureMultipart(req: express.Request) {
   }
 }
 
-export function parseMultipartFiles(req: express.Request, fieldName: string, options: { maxFiles?: number; maxFileSize?: number } = {}) {
+export interface MultipartForm {
+  files: UploadedFile[];
+  /** Champs texte du formulaire (le dernier l'emporte pour un nom répété). */
+  fields: Record<string, string>;
+}
+
+/** Taille maximale d'un champ texte (décisions d'un import, par exemple). */
+const maxFieldSize = 256 * 1024;
+
+export async function parseMultipartFiles(req: express.Request, fieldName: string, options: { maxFiles?: number; maxFileSize?: number } = {}) {
+  return (await parseMultipartForm(req, fieldName, options)).files;
+}
+
+export function parseMultipartForm(req: express.Request, fieldName: string, options: { maxFiles?: number; maxFileSize?: number } = {}) {
   ensureMultipart(req);
   const maxFiles = options.maxFiles ?? 20;
   const maxFileSize = options.maxFileSize ?? 10 * 1024 * 1024;
 
-  return new Promise<UploadedFile[]>((resolve, reject) => {
+  return new Promise<MultipartForm>((resolve, reject) => {
     const files: UploadedFile[] = [];
+    const fields: Record<string, string> = {};
     let settled = false;
 
     const fail = (error: Error) => {
@@ -31,7 +45,15 @@ export function parseMultipartFiles(req: express.Request, fieldName: string, opt
 
     const busboy = Busboy({
       headers: req.headers,
-      limits: { files: maxFiles, fileSize: maxFileSize }
+      limits: { files: maxFiles, fileSize: maxFileSize, fieldSize: maxFieldSize }
+    });
+
+    busboy.on("field", (name, value, info) => {
+      if (info.valueTruncated) {
+        fail(new HttpError(400, "Champ de formulaire trop long."));
+        return;
+      }
+      fields[name] = value;
     });
 
     busboy.on("file", (name, stream, info) => {
@@ -72,7 +94,7 @@ export function parseMultipartFiles(req: express.Request, fieldName: string, opt
         reject(new HttpError(400, "Aucun fichier fourni."));
         return;
       }
-      resolve(files);
+      resolve({ files, fields });
     });
 
     req.pipe(busboy);

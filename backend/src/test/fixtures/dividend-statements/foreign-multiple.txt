@@ -1,0 +1,102 @@
+Service clientèle : 00 00 00 00 00 – www.banque-fictive.example
+Banque Fictive S.A. - RCS Fictif 000 000 000 - 1 place de l'Exemple - 00000 Ville Fictive
+Adresse du médiateur : Médiateur fictif - 00000 VILLE FICTIVE
+000000
+ 
+F1
+ 
+P00000 1/1
+000000
+P00000
+CODE-BARRES-FICTIF
+M. CLIENT FICTIF
+1 RUE DE L'EXEMPLE
+00000 VILLE FICTIVE
+AA0
+COUPONS REMBOURSEMENTS : MAI 2024
+le 31/05/2024
+Références de votre compte titres
+00000 00000 00000000000 Compte PEA
+Résident Français
+DETAIL COUPONS
+Date
+échéance
+coupon Quantité Nom de la valeur (code)
+Brut fiscal
+EUR
+Crédit d'impôt
+EUR
+Acompte
+et/ou
+Prélèvements ¨
+EUR
+Net fiscal
+EUR
+Commission
+T.T.C.
+EUR
+Net client
+EUR
+22/04/2024 31 STELLANTIS (NL00150001Q9) 48,05 7,19 40,86 40,86
+revenus d'actions étrangères et opc européens ouvrant
+droit à abattement
+26/04/2024 4 ASML HOLDING (NL0010273215) 7,00 1,04 5,96 5,96
+revenus d'actions étrangères et opc européens ouvrant
+droit à abattement
+02/05/2024 101 ENGIE (FR0010208488) 81,31 81,31 81,31
+revenus d'actions et opc français ouvrant droit à
+abattement
+03/05/2024 4 DANONE (FR0000120644) 8,40 8,40 8,40
+revenus d'actions et opc français ouvrant droit à
+abattement
+03/05/2024 33 FDJ (FR0013451333) 58,74 58,74 58,74
+revenus d'actions et opc français ouvrant droit à
+abattement
+08/05/2024 36 VEOLIA ENVIRON. (FR0000124141) 45,00 45,00 45,00
+revenus d'actions et opc français ouvrant droit à
+abattement
+20/05/2024 7 AIR LIQUIDE (FR0000120073) 22,40 22,40 22,40
+revenus d'actions et opc français ouvrant droit à
+abattement
+TOTAL EUR 8,23 0,00 262,67 0,00 262,67
+¨ Comprend l'acompte sur le revenu au titre de l'impôt et/ou les divers prélèvements dont les contibutions sociales (CSG, CRDS, ...)
+Feuillet 1/2
+
+-- 1 of 2 --
+
+Service clientèle : 00 00 00 00 00 – www.banque-fictive.example
+Banque Fictive S.A. - RCS Fictif 000 000 000 - 1 place de l'Exemple - 00000 Ville Fictive
+Adresse du médiateur : Médiateur fictif - 00000 VILLE FICTIVE
+000000
+ 
+F2
+ 
+P00000 2/1
+CODE-BARRES-FICTIF
+M. CLIENT FICTIF
+1 RUE DE L'EXEMPLE
+00000 VILLE FICTIVE
+AA0
+COUPONS REMBOURSEMENTS : MAI 2024
+le 31/05/2024
+Références de votre compte titres
+00000 00000 00000000000
+DETAIL REMBOURSEMENTS
+Date Nom de la valeur (code)
+Montant unitaire brut
+EUR Quantité
+Montant brut global
+EUR
+Commission T.T.C.
+EUR
+Net client
+EUR
+06/05/2024 ENGIE (FR0010208488) 0,625 101 63,13 63,13
+TOTAL EUR 63,13 0,00 63,13
+COUPONS : NETS FISCAUX 262,67 EUR
+REMBOURSEMENTS : BRUTS GLOBAUX 63,13 EUR
+¨ Comprend l'acompte sur le revenu au titre de l'impôt et/ou les divers prélèvements dont les contibutions sociales (CSG, CRDS, ...)
+Feuillet 2/2
+
+-- 2 of 2 --
+

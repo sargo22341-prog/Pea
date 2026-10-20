@@ -1,4 +1,4 @@
-import type { CashAccountStatus, CashMovementSource, CashMovementType } from "@pea/shared";
+import type { CashAccountStatus, CashMovementSource, CashMovementType, DividendVerification } from "@pea/shared";
 import { db } from "../../db.js";
 
 export interface CashAccountRow {
@@ -10,6 +10,7 @@ export interface CashAccountRow {
   opening_deposits_cents: number;
   opening_withdrawals_cents: number;
   opening_dividends_cents: number | null;
+  opening_dividends_certified_at: string | null;
   dividend_auto_accept: number;
   updated_at: string;
 }
@@ -25,6 +26,9 @@ export interface CashMovementRow {
   source: CashMovementSource;
   import_ref: string | null;
   note: string | null;
+  verification: DividendVerification | null;
+  verified_at: string | null;
+  verification_ref: string | null;
 }
 
 /** Opération sur titres lue pour le journal espèces (toutes positions de l'utilisateur). */
@@ -85,7 +89,13 @@ export class CashRepository {
   }
 
   setOpeningDividends(userId: number, cents: number | null) {
-    db.prepare("UPDATE cash_accounts SET opening_dividends_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").run(cents, userId);
+    // Un montant modifié n'est plus celui des relevés : sa certification est retirée.
+    db.prepare(
+      `UPDATE cash_accounts
+       SET opening_dividends_certified_at = CASE WHEN opening_dividends_cents IS ? THEN opening_dividends_certified_at ELSE NULL END,
+           opening_dividends_cents = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ?`
+    ).run(cents, cents, userId);
   }
 
   setDividendAutoAccept(userId: number, enabled: boolean) {

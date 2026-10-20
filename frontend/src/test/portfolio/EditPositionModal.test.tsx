@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EditPositionModal } from "../../pages/asset-detail/components/EditPositionModal";
+import { EditPositionModal } from "../../pages/asset-detail/components/position-editor/EditPositionModal";
 import { api } from "../../lib/api";
 
 vi.mock("../../lib/api", () => ({
@@ -9,7 +9,8 @@ vi.mock("../../lib/api", () => ({
     positionTransactions: vi.fn(),
     createPositionTransaction: vi.fn(),
     updatePositionTransaction: vi.fn(),
-    deletePositionTransaction: vi.fn()
+    deletePositionTransaction: vi.fn(),
+    cashLedger: vi.fn(() => Promise.resolve({ entries: [] }))
   }
 }));
 

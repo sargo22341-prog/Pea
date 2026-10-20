@@ -1,0 +1,19 @@
+import type { CashLedgerEntry } from "@pea/shared";
+
+/** Identifiant du mouvement espèces d'une ligne du journal (`movement:<id>`), absent pour un achat ou une vente. */
+export function movementIdOf(entry: Pick<CashLedgerEntry, "id">) {
+  return entry.id.startsWith("movement:") ? Number(entry.id.slice("movement:".length)) : undefined;
+}
+
+/** Référence d'une ligne de relevé (`2024-05#3`) affichée `05/2024 n° 3`. */
+export function formatStatementReference(reference: string | undefined) {
+  const match = reference ? /^(\d{4})-(\d{2})#(\d+)$/.exec(reference) : null;
+  if (!match) return reference ?? "";
+  return `${match[2]}/${match[1]} n° ${match[3]}`;
+}
+
+/** Mois d'un relevé (`2024-05`) affiché `05/2024`. */
+export function formatStatementPeriod(period: string | undefined) {
+  const match = period ? /^(\d{4})-(\d{2})$/.exec(period) : null;
+  return match ? `${match[2]}/${match[1]}` : (period ?? "");
+}

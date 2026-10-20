@@ -1,4 +1,4 @@
-import type { DividendProposalStatus, WithholdingBasis } from "@pea/shared";
+import type { DividendProposalStatus, DividendVerification, WithholdingBasis } from "@pea/shared";
 import { db } from "../../db.js";
 import { sqlInList, sqlListParam } from "../sql-list.js";
 
@@ -29,6 +29,9 @@ export interface DividendProposalRow {
   notification_read_at: string | null;
   credited_cents: number | null;
   credited_at: string | null;
+  verification: DividendVerification | null;
+  verified_at: string | null;
+  verification_ref: string | null;
 }
 
 export interface DividendProposalUpsert {
@@ -65,7 +68,7 @@ export interface DividendMovementRow {
   import_ref: string | null;
 }
 
-const PROPOSAL_COLUMNS = "dp.*, COALESCE(p.name, a.name) AS name, m.amount_cents AS credited_cents, m.effective_at AS credited_at";
+const PROPOSAL_COLUMNS = "dp.*, COALESCE(p.name, a.name) AS name, m.amount_cents AS credited_cents, m.effective_at AS credited_at, m.verification, m.verified_at, m.verification_ref";
 const PROPOSAL_FROM = `cash_dividend_proposals dp
   LEFT JOIN positions p ON p.id = dp.position_id
   LEFT JOIN assets a ON a.symbol = dp.symbol

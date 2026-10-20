@@ -14,7 +14,16 @@
     "noTransactions": "No transaction for this position.",
     "save": "Save",
     "title": "Transactions {{symbol}}",
-    "toFill": "To fill"
+    "toFill": "To fill",
+    "filters": {
+      "all": "All",
+      "buy": "Buys",
+      "sell": "Sells",
+      "dividend": "Dividends",
+      "dividendLine": "Cash dividend",
+      "noOperations": "No operation of this type for this position.",
+      "filterLabel": "Filter operations"
+    }
   },
   "compare": {
     "title": "Compare with",

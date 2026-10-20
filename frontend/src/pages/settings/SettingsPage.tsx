@@ -4,6 +4,7 @@ import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSection";
 import { CsvImportSection } from "./components/CsvImportSection";
 import { DividendSettingsSection } from "./components/DividendSettingsSection";
+import { DividendStatementsImport } from "./components/DividendStatementsImport";
 import { ImportAvisOperesPdf } from "./components/ImportAvisOperesPdf";
 import { Collapsible } from "../../components/common/feedback";
 import { ServerSettingsSection } from "../../components/common/ServerSettings";
@@ -40,6 +41,7 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
       <Collapsible onToggle={() => { toggleSection("imports"); }} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
         <CsvImportSection />
         <ImportAvisOperesPdf />
+        <DividendStatementsImport />
       </Collapsible>
       <LogoutSection />
     </div>

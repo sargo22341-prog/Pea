@@ -1,0 +1,53 @@
+Service clientèle : 00 00 00 00 00 – www.banque-fictive.example
+Banque Fictive S.A. - RCS Fictif 000 000 000 - 1 place de l'Exemple - 00000 Ville Fictive
+Adresse du médiateur : Médiateur fictif - 00000 VILLE FICTIVE
+000000
+ 
+F1
+ 
+P00000 1/1
+000000
+P00000
+CODE-BARRES-FICTIF
+M. CLIENT FICTIF
+1 RUE DE L'EXEMPLE
+00000 VILLE FICTIVE
+AA0
+COUPONS REMBOURSEMENTS : AVRIL 2026
+le 30/04/2026
+Références de votre compte titres
+00000 00000 00000000000 Compte PEA
+Résident Français
+DETAIL COUPONS
+Date
+échéance
+coupon Quantité Nom de la valeur (code)
+Brut fiscal
+EUR
+Crédit d'impôt
+EUR
+Acompte
+et/ou
+Prélèvements ¨
+EUR
+Net fiscal
+EUR
+Commission
+T.T.C.
+EUR
+Net client
+EUR
+31/03/2026 45 TOTALENERGIES SE (FR0000120271) 38,25 38,25 38,25
+revenus d'actions et opc français ouvrant droit à
+abattement
+28/04/2026 35 FDJ (FR0013451333) 73,50 73,50 73,50
+revenus d'actions et opc français ouvrant droit à
+abattement
+TOTAL EUR 0,00 0,00 111,75 0,00 111,75
+COUPONS : NETS FISCAUX 111,75 EUR
+REMBOURSEMENTS : BRUTS GLOBAUX 0,00 EUR
+¨ Comprend l'acompte sur le revenu au titre de l'impôt et/ou les divers prélèvements dont les contibutions sociales (CSG, CRDS, ...)
+Feuillet 1/1
+
+-- 1 of 1 --
+

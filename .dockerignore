@@ -25,3 +25,7 @@ backend/data/
 !README.md
 .env
 .env.*
+
+# Documents personnels de test (avis d'opéré, relevés de coupons) : jamais envoyés au démon Docker
+pdf test/
+dividende/

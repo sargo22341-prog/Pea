@@ -20,3 +20,6 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Après la configuration du compte espèces, les dividendes déjà perçus sont calculés à partir du solde, des versements, des achats et des ventes, recoupés avec les dividendes publiés, puis proposés à confirmer.
 - Correction : sur une base mise à jour, la fenêtre de configuration du compte espèces s'affiche de nouveau dès l'accueil (un résumé en cache la masquait).
 - « Mon PEA » : les dividendes déjà perçus ont leur propre carte, ouverte juste après la configuration du solde, puis résumée avec un bouton « Modifier » une fois confirmés.
+- Certification des dividendes par les relevés de coupons PDF du courtier : import de plusieurs relevés à la fois dans les Réglages, aperçu par relevé (dividendes à certifier, à corriger, à ajouter, déjà perçus avant l'état initial), puis confirmation ; les PDF ne sont jamais conservés et un relevé incohérent est refusé en entier.
+- Fenêtre d'un dividende : badge « Certifié par relevé » ou « Vérifié manuellement », bouton « Vérifier avec un relevé » (le relevé du mois suffit) avec un avertissement précis en cas d'écart ; corriger un dividende certifié retire la certification après avertissement.
+- Liste des transactions d'une position : les dividendes encaissés y apparaissent avec leur badge, et un filtre Tous / Achats / Ventes / Dividendes.

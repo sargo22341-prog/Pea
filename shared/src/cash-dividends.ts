@@ -1,3 +1,5 @@
+import type { DividendVerificationInfo } from "./cash-dividend-statements.js";
+
 /**
  * Propositions de dividendes encaissés : chaque détachement réel d'un actif détenu devient, à sa
  * date de paiement, une proposition à valider. Aucun dividende n'est crédité sur les espèces sans
@@ -44,6 +46,9 @@ export interface DividendProposal {
   /** Montant et date réellement crédités (proposition validée), pour une correction. */
   creditedAmount?: number | undefined;
   creditedAt?: string | undefined;
+  /** Mouvement créé à la validation, et sa vérification éventuelle. */
+  movementId?: number | undefined;
+  verification?: DividendVerificationInfo | undefined;
 }
 
 export interface DividendProposalsDto {
@@ -108,4 +113,6 @@ export interface OpeningDividendsEstimate {
 export interface DividendProposalAcceptInput {
   amount?: number | undefined;
   effectiveAt?: string | undefined;
+  /** Correction d'un dividende certifié par relevé : la certification est retirée en connaissance de cause. */
+  confirmUncertify?: boolean | undefined;
 }

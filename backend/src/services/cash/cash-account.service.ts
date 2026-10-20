@@ -1,6 +1,7 @@
 import type { CashAccountSettings, CashAccountSummary, CashLedgerDto, CashLedgerEntry, CashMovementSource, CashMovementType } from "@pea/shared";
 import { PEA_DEPOSIT_CEILING_EUR } from "@pea/shared";
 import { cashRepository, type CashAccountRow, type CashMovementRow, type CashTradeRow } from "../../repositories/cash/cash.repository.js";
+import { verificationInfo } from "./dividends/dividend-verification.js";
 import { centsToMoney, computeLedger, moneyToCents, tradeCashCents, type LedgerAccountState, type LedgerItem, type LedgerResult } from "./cash-ledger.js";
 import { realizedGainsBySale } from "./realized-gains.js";
 
@@ -92,6 +93,7 @@ export class CashAccountService {
       openingDeposits: centsToMoney(account.opening_deposits_cents),
       openingWithdrawals: centsToMoney(account.opening_withdrawals_cents),
       openingDividends: account.opening_dividends_cents === null ? undefined : centsToMoney(account.opening_dividends_cents),
+      openingDividendsCertifiedAt: account.opening_dividends_certified_at ?? undefined,
       updatedAt: account.updated_at
     };
   }
@@ -135,7 +137,7 @@ export class CashAccountService {
       const item = entry.item;
       if (!item) return { ...base, source: "migration" };
       if (item.origin === "movement") {
-        return { ...base, source: item.source, symbol: item.movement.symbol ?? undefined, positionId: item.movement.position_id ?? undefined, importRef: item.movement.import_ref ?? undefined, note: item.movement.note ?? undefined };
+        return { ...base, source: item.source, symbol: item.movement.symbol ?? undefined, positionId: item.movement.position_id ?? undefined, importRef: item.movement.import_ref ?? undefined, note: item.movement.note ?? undefined, verification: verificationInfo(item.movement) };
       }
       const gain = gains.get(item.trade.id);
       return {

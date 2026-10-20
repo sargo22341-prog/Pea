@@ -11,7 +11,9 @@ import { formatMaybeDate, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { InfoHint } from "../disclosure/InfoHint";
 import { MOTION } from "../motion";
+import { DividendCorrectionFields } from "./DividendCorrectionFields";
 import { DividendIsinField } from "./DividendIsinField";
+import { DividendVerificationPanel } from "./verification/DividendVerificationPanel";
 import type { DividendProposalsState } from "./useDividendProposals";
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
@@ -19,22 +21,6 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
     <div className="flex items-baseline justify-between gap-3">
       <dt className="muted">{label}</dt>
       <dd className="text-right font-medium text-slate-100">{children}</dd>
-    </div>
-  );
-}
-
-function CorrectionFields({ amount, creditedAt, onAmount, onCreditedAt }: { amount: string; creditedAt: string; onAmount: (value: string) => void; onCreditedAt: (value: string) => void }) {
-  const { t } = useTranslation("cash");
-  return (
-    <div className="grid gap-3 pt-2 sm:grid-cols-2">
-      <label>
-        <span className="muted mb-1 block">{t("proposals.correctedAmount")}</span>
-        <input className="input" min="0.01" onChange={(event) => { onAmount(event.target.value); }} required step="0.01" type="number" value={amount} />
-      </label>
-      <label>
-        <span className="muted mb-1 block">{t("proposals.creditedAt")}</span>
-        <input className="input" onChange={(event) => { onCreditedAt(event.target.value); }} required type="datetime-local" value={creditedAt} />
-      </label>
     </div>
   );
 }
@@ -50,6 +36,7 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
   const prive = usePrivacy();
   usePullToRefreshSuspended();
   const recorded = proposal.status === "accepted";
+  const certified = proposal.verification?.status === "document";
   const positionId = proposal.positionId;
   const recordedAmount = proposal.creditedAmount ?? proposal.netAmount;
   const [correcting, setCorrecting] = useState(recorded);
@@ -94,7 +81,8 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
       setError(t("errors:numericInvalid"));
       return;
     }
-    const input: DividendProposalAcceptInput = { amount: correctedAmount, effectiveAt };
+    // L'avertissement est affiché au-dessus de la saisie : enregistrer vaut confirmation.
+    const input: DividendProposalAcceptInput = { amount: correctedAmount, effectiveAt, ...(certified ? { confirmUncertify: true } : {}) };
     void run(() => (recorded ? proposals.correct(proposal.id, input) : proposals.accept(proposal.id, input)));
   }
 
@@ -127,7 +115,8 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
           {!recorded && proposal.withholdingBasis !== "isin" && positionId !== undefined ? (
             <DividendIsinField onSave={(isin) => proposals.setIsin(positionId, isin)} />
           ) : null}
-          {correcting ? <CorrectionFields amount={amount} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
+          {correcting ? <DividendCorrectionFields amount={amount} certified={certified} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
+          {recorded && proposal.movementId !== undefined ? <DividendVerificationPanel movementId={proposal.movementId} verification={proposal.verification} /> : null}
           <div className="border-t border-line pt-2">
             <Row label={t("cash:proposals.cashBefore")}>{money(cashBefore)}</Row>
             <Row label={t("cash:proposals.cashAfter")}>{money(cashBefore + credited)}</Row>

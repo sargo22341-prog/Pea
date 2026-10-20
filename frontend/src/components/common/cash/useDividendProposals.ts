@@ -9,7 +9,7 @@ export const DIVIDEND_PROPOSALS_CHANGED_EVENT = "pea:dividend-proposals-changed"
 /** Émis par la tâche horaire du serveur quand un dividende est ajouté ou devient à confirmer. */
 const DIVIDEND_EVENT_TYPES: readonly MarketEventType[] = ["cash-dividends-updated"];
 
-function notifyChanged() {
+export function notifyDividendsChanged() {
   window.dispatchEvent(new Event(DIVIDEND_PROPOSALS_CHANGED_EVENT));
 }
 
@@ -32,7 +32,7 @@ export function useDividendProposals() {
 
   async function after<T>(action: Promise<T>) {
     const value = await action;
-    notifyChanged();
+    notifyDividendsChanged();
     return value;
   }
 

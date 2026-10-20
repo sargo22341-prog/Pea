@@ -12,7 +12,7 @@ import { compareLink } from "../compare/compare-symbols";
 import { AssetDetailHeader } from "./components/AssetDetailHeader";
 import { AssetHistorySection } from "./components/AssetHistorySection";
 import { CreateAlertModal } from "./components/alerts/CreateAlertModal";
-import { EditPositionModal } from "./components/EditPositionModal";
+import { EditPositionModal } from "./components/position-editor/EditPositionModal";
 import { chartReferenceLevels, hasChartLevels } from "./components/insights/insight-levels";
 import { SplitBanner } from "./components/splits/SplitBanner";
 import { useAssetChartLifecycle } from "./hooks/useAssetChartLifecycle";

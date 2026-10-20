@@ -1,0 +1,63 @@
+Service clientèle : 00 00 00 00 00 – www.banque-fictive.example
+Banque Fictive S.A. - RCS Fictif 000 000 000 - 1 place de l'Exemple - 00000 Ville Fictive
+Adresse du médiateur : Médiateur fictif - 00000 VILLE FICTIVE
+000000
+ 
+F1
+ 
+P00000 1/1
+000000
+P00000
+CODE-BARRES-FICTIF
+M. CLIENT FICTIF
+1 RUE DE L'EXEMPLE
+00000 VILLE FICTIVE
+AA0
+COUPONS REMBOURSEMENTS : JUIN 2025
+le 30/06/2025
+Références de votre compte titres
+00000 00000 00000000000 Compte PEA
+Résident Français
+DETAIL COUPONS
+Date
+échéance
+coupon Quantité Nom de la valeur (code)
+Brut fiscal
+EUR
+Crédit d'impôt
+EUR
+Acompte
+et/ou
+Prélèvements ¨
+EUR
+Net fiscal
+EUR
+Commission
+T.T.C.
+EUR
+Net client
+EUR
+27/05/2025
+32
+FDJ (FR0013451333) 65,60 65,60 65,60
+revenus d'actions et opc français ouvrant droit à
+abattement
+29/05/2025 5 LEGRAND (FR0010307819) 11,00 11,00 11,00
+revenus d'actions et opc français ouvrant droit à
+abattement
+09/06/2025
+6
+SAINT-GOBAIN(CIE) (FR0000125007) 13,20 13,20 13,20
+revenus d'actions et opc français ouvrant droit à
+abattement
+23/06/2025 32 STMICROELECTRONICS (NL0000226223) 2,47 0,37 2,10 2,10
+revenus d'actions étrangères et opc européens ouvrant
+droit à abattement
+TOTAL EUR 0,37 0,00 91,90 0,00 91,90
+COUPONS : NETS FISCAUX 91,90 EUR
+REMBOURSEMENTS : BRUTS GLOBAUX 0,00 EUR
+¨ Comprend l'acompte sur le revenu au titre de l'impôt et/ou les divers prélèvements dont les contibutions sociales (CSG, CRDS, ...)
+Feuillet 1/1
+
+-- 1 of 1 --
+
