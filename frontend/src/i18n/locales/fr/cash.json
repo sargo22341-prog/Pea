@@ -207,6 +207,11 @@
       "approximate_trades": "Une partie des opérations vient d'un import CSV de détentions, aux prix de revient : le résultat est approximatif.",
       "no_trades": "Aucun achat ni vente n'est enregistré avant la date de référence : le calcul ne peut pas être recoupé.",
       "mismatch": "Le calcul s'écarte nettement des dividendes publiés : un achat, une vente ou des frais manquent peut-être. Vérifiez avec votre relevé."
-    }
+    },
+    "cancel": "Annuler",
+    "notConfirmed": "Les dividendes perçus avant le {{date}} ne sont pas encore confirmés : calculez-les à partir de votre état initial.",
+    "confirmed": "Dividendes déjà perçus confirmés : {{amount}} (avant le {{date}}).",
+    "calculate": "Calculer",
+    "edit": "Modifier"
   }
 }

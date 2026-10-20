@@ -207,6 +207,11 @@
       "approximate_trades": "Some operations come from a CSV holdings import, at cost price: the result is approximate.",
       "no_trades": "No purchase or sale is recorded before the reference date: the result cannot be cross-checked.",
       "mismatch": "The result differs markedly from published dividends: a purchase, a sale or fees may be missing. Check against your statement."
-    }
+    },
+    "cancel": "Cancel",
+    "notConfirmed": "Dividends received before {{date}} are not confirmed yet: calculate them from your initial state.",
+    "confirmed": "Dividends already received confirmed: {{amount}} (before {{date}}).",
+    "calculate": "Calculate",
+    "edit": "Edit"
   }
 }

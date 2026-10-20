@@ -1,8 +1,7 @@
 import type { CashLedgerDto } from "@pea/shared";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InitialStateForm } from "../../components/common/cash/InitialStateForm";
-import { OpeningDividendsStep } from "../../components/common/cash/OpeningDividendsStep";
 import { DIVIDEND_PROPOSALS_CHANGED_EVENT, useDividendProposals } from "../../components/common/cash/useDividendProposals";
 import { Collapsible } from "../../components/common/feedback/Collapsible";
 import { MOTION } from "../../components/common/motion";
@@ -10,6 +9,7 @@ import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
 import { CashMovementForm } from "./components/CashMovementForm";
 import { DividendProposalsPanel } from "./components/DividendProposalsPanel";
+import { OpeningDividendsCard } from "./components/OpeningDividendsCard";
 import { LedgerTable } from "./components/LedgerTable";
 import { PeaOverviewCards } from "./components/PeaOverviewCards";
 import { useCashLedger } from "./hooks/useCashLedger";
@@ -24,6 +24,8 @@ export function MyPeaPage() {
   const portfolio = useAsync((signal) => api.portfolioFull(summaryRange, signal), summaryRange, { cacheKey: `portfolio-full:${summaryRange}` });
   const reloadPortfolio = portfolio.reload;
   const proposals = useDividendProposals();
+  // État initial confirmé depuis cette page : l'étape des dividendes déjà perçus s'ouvre aussitôt.
+  const [justConfigured, setJustConfigured] = useState(false);
   const reloadLedger = ledger.reload;
 
   // Un dividende validé (ici ou depuis la cloche) crédite les espèces : journal et synthèse sont relus.
@@ -50,6 +52,7 @@ export function MyPeaPage() {
   }
 
   async function initialStateSaved() {
+    if (pending) setJustConfigured(true);
     await Promise.all([ledger.reload(), reloadPortfolio()]);
   }
 
@@ -63,6 +66,16 @@ export function MyPeaPage() {
       </div>
 
       {portfolio.data ? <PeaOverviewCards summary={portfolio.data.summary} /> : null}
+
+      {!pending && settings.referenceAt ? (
+        <OpeningDividendsCard
+          declared={settings.openingDividends}
+          key={`${settings.referenceAt}:${String(justConfigured)}`}
+          onSaved={initialStateSaved}
+          referenceAt={settings.referenceAt}
+          startEditing={justConfigured && settings.openingDividends === undefined}
+        />
+      ) : null}
 
       {pending ? (
         <section className="card space-y-3 border-amber/40 p-4">
@@ -86,11 +99,6 @@ export function MyPeaPage() {
           <p className="muted text-sm">{t("cash:setup.editDescription")}</p>
           {settings.referenceAt ? null : <p className="muted text-sm">{t("cash:setup.none")}</p>}
           {initialState}
-          {settings.referenceAt ? (
-            <div className="border-t border-line pt-3">
-              <OpeningDividendsStep key={settings.updatedAt ?? "opening-dividends"} onDone={async (saved) => { if (saved) await initialStateSaved(); }} />
-            </div>
-          ) : null}
         </Collapsible>
       )}
     </div>

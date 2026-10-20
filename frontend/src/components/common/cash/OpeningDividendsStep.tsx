@@ -28,7 +28,7 @@ function suggestedAmount(estimate: OpeningDividendsEstimate) {
  * enregistrées, recoupés avec les dividendes publiés, puis confirmés ou corrigés par l'utilisateur.
  * Ils n'alimentent que l'indicateur « Dividendes encaissés » : ni le solde ni les versements.
  */
-export function OpeningDividendsStep({ onDone }: { onDone: (saved: boolean) => void | Promise<void> }) {
+export function OpeningDividendsStep({ onDone, skipLabel }: { onDone: (saved: boolean) => void | Promise<void>; skipLabel?: string | undefined }) {
   const { t } = useTranslation(["cash", "errors"]);
   const prive = usePrivacy();
   const estimate = useAsync((signal) => api.openingDividendsEstimate(signal), "opening-dividends");
@@ -85,7 +85,7 @@ export function OpeningDividendsStep({ onDone }: { onDone: (saved: boolean) => v
       </label>
       {error ? <p className="text-coral" role="alert">{error}</p> : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button className="btn-ghost" disabled={saving} onClick={() => void onDone(false)} type="button">{t("cash:openingDividends.skip")}</button>
+        <button className="btn-ghost" disabled={saving} onClick={() => void onDone(false)} type="button">{skipLabel ?? t("cash:openingDividends.skip")}</button>
         {data.declared !== undefined ? <button className="btn-ghost" disabled={saving} onClick={() => void save(null)} type="button">{t("cash:openingDividends.clear")}</button> : null}
         <button className="btn-primary" disabled={saving} onClick={() => void save(Number(value))} type="button">{t("cash:openingDividends.confirm")}</button>
       </div>

@@ -120,7 +120,9 @@ actif n'est rapproché de rien.
 
 ## Dividendes perçus avant l'état initial
 
-Après la confirmation de l'état initial, une seconde étape (`GET`/`PUT
+Après la confirmation de l'état initial (seconde étape de la popup du tableau de bord, ou carte
+« Dividendes déjà perçus » de « Mon PEA », ouverte aussitôt après une configuration faite depuis
+cette page, puis résumée avec « Modifier » une fois le montant confirmé), une étape (`GET`/`PUT
 /api/cash/account/opening-dividends`, `opening-dividends.ts`) propose les dividendes déjà perçus.
 Le solde espèces vaut versements nets - achats + ventes - frais + dividendes, donc :
 
@@ -157,6 +159,10 @@ manque, et un refus n'écrit aucune ligne. Un retrait ou une suppression n'est j
 un versement (`fundable: false`).
 
 ## Migration (version 47) et sauvegarde
+
+La migration 52 vide les blocs d'interface en cache (`frontend_block_cache`) : écrits avant le
+compte espèces et valides jusqu'à 72 heures après la clôture, ils ne portaient pas son statut et
+masquaient la popup de configuration d'une base tout juste migrée.
 
 - Avant d'appliquer la migration sur une base qui contient des utilisateurs, une copie complète
   est écrite par `VACUUM INTO` dans `backups/` à côté du fichier SQLite

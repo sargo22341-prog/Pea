@@ -18,3 +18,5 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Un dividende enregistré, à la main ou automatiquement, se corrige directement (montant et date) depuis la cloche ou « Mon PEA ».
 - L'ISIN d'une action peut être saisi depuis la fenêtre d'un dividende « à vérifier », pour une retenue à la source exacte.
 - Après la configuration du compte espèces, les dividendes déjà perçus sont calculés à partir du solde, des versements, des achats et des ventes, recoupés avec les dividendes publiés, puis proposés à confirmer.
+- Correction : sur une base mise à jour, la fenêtre de configuration du compte espèces s'affiche de nouveau dès l'accueil (un résumé en cache la masquait).
+- « Mon PEA » : les dividendes déjà perçus ont leur propre carte, ouverte juste après la configuration du solde, puis résumée avec un bouton « Modifier » une fois confirmés.

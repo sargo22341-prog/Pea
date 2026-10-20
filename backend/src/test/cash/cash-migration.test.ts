@@ -11,6 +11,7 @@ interface MigrationResult {
   positionsAfter: { symbol: string; quantity: number; average_buy_price: number }[];
   backupsAfterSecondRun: number;
   migration47Count: number;
+  frontendBlocksAfter: number;
 }
 
 test("la migration du compte espèces sauvegarde la base et conserve positions et transactions", () => {
@@ -37,6 +38,8 @@ test("la migration du compte espèces sauvegarde la base et conserve positions e
       legacy.prepare("INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source) VALUES (1, 'buy', 10, 50, 1, 'EUR', '2024-01-10T09:30:00.000Z', 'pdf_avis_opere')").run();
       legacy.prepare("INSERT INTO transactions (position_id, type, quantity, price, total_fees, currency, traded_at, source) VALUES (1, 'sell', 2, 70, 1, 'EUR', '2025-01-10T09:30:00.000Z', 'pdf_avis_opere')").run();
       const transactionsBefore = legacy.prepare("SELECT COUNT(*) AS total FROM transactions").get().total;
+      // Résumé mis en cache avant le compte espèces (sans « pea »), encore valide 72 h après la clôture.
+      legacy.prepare("INSERT INTO frontend_block_cache (cache_key, user_id, block, range, payload, cached_at, expires_at) VALUES ('1:portfolio-summary:1d', '1', 'portfolio-summary', '1d', '{}', ?, ?)").run(Date.now(), Date.now() + 72 * 3600 * 1000);
 
       applyMigrations(legacy);
       const backupDir = path.join(directory, "backups");
@@ -54,7 +57,8 @@ test("la migration du compte espèces sauvegarde la base et conserve positions e
         transactionsAfter: legacy.prepare("SELECT COUNT(*) AS total FROM transactions").get().total,
         positionsAfter: legacy.prepare("SELECT symbol, quantity, average_buy_price FROM positions").all(),
         backupsAfterSecondRun: fs.readdirSync(backupDir).length,
-        migration47Count: legacy.prepare("SELECT COUNT(*) AS total FROM _migrations WHERE version = 47").get().total
+        migration47Count: legacy.prepare("SELECT COUNT(*) AS total FROM _migrations WHERE version = 47").get().total,
+        frontendBlocksAfter: legacy.prepare("SELECT COUNT(*) AS total FROM frontend_block_cache").get().total
       };
       legacy.close();
       console.log("__RESULT__" + JSON.stringify(output));
@@ -74,4 +78,5 @@ test("la migration du compte espèces sauvegarde la base et conserve positions e
   assert.deepEqual(result.positionsAfter, [{ symbol: "AAA.PA", quantity: 8, average_buy_price: 50 }]);
   assert.equal(result.backupsAfterSecondRun, 1, "une base déjà migrée n'est ni re-sauvegardée ni re-migrée");
   assert.equal(result.migration47Count, 1);
+  assert.equal(result.frontendBlocksAfter, 0, "un résumé en cache sans compte espèces ne masque plus la popup de configuration");
 });
