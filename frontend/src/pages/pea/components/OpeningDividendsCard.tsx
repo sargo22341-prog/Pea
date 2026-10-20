@@ -12,11 +12,13 @@ import { masquerValeur } from "../../../lib/privacy";
  * configuration du compte, puis résumé du montant confirmé avec « Modifier », ou rappel tant
  * qu'aucun montant n'est confirmé.
  */
-export function OpeningDividendsCard({ referenceAt, declared, certifiedAt, startEditing, onSaved }: {
+export function OpeningDividendsCard({ referenceAt, declared, certifiedAt, certifiedLines = 0, startEditing, onSaved }: {
   referenceAt: string;
   declared: number | undefined;
   /** Montant certifié par des relevés de coupons ; une modification manuelle retire la certification. */
   certifiedAt?: string | undefined;
+  /** Lignes de relevé certifiées antérieures à la date de départ, affichées dans l'historique. */
+  certifiedLines?: number | undefined;
   startEditing: boolean;
   onSaved: () => void | Promise<void>;
 }) {
@@ -50,6 +52,7 @@ export function OpeningDividendsCard({ referenceAt, declared, certifiedAt, start
             ? t("openingDividends.notConfirmed", { date: formatMaybeDate(referenceAt) })
             : t("openingDividends.confirmed", { amount: masquerValeur(cashMoney(declared), prive), date: formatMaybeDate(referenceAt) })}
         </p>
+        {certifiedLines > 0 ? <p className="muted text-xs">{t("openingDividends.certifiedLines", { count: certifiedLines })}</p> : null}
       </div>
       <button className={declared === undefined ? "btn-primary" : "btn-ghost"} onClick={() => { setEditing(true); }} type="button">
         {declared === undefined ? t("openingDividends.calculate") : t("openingDividends.edit")}

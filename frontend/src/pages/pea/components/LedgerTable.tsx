@@ -10,7 +10,7 @@ import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { api } from "../../../lib/api";
 import { cashMoney, signedCashMoney } from "../../../lib/cash/cash-format";
-import { movementIdOf as movementId } from "../../../lib/cash/ledger-entry";
+import { entryAssetLabel, isStatementLineEntry, movementIdOf as movementId } from "../../../lib/cash/ledger-entry";
 import { formatChartDateTime, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 
@@ -19,7 +19,8 @@ const filters: (CashLedgerEntryKind | "all")[] = ["all", "deposit", "withdrawal"
 function EntryDetail({ entry, prive }: { entry: CashLedgerEntry; prive: boolean }) {
   const { t } = useTranslation("cash");
   const parts: string[] = [];
-  if (entry.symbol) parts.push(entry.name && entry.name !== entry.symbol ? `${entry.symbol} - ${entry.name}` : entry.symbol);
+  const asset = entryAssetLabel(entry);
+  if (asset) parts.push(asset);
   if (entry.quantity !== undefined && entry.price !== undefined) parts.push(t("ledger.tradeDetail", { quantity: formatNumber(entry.quantity), price: masquerValeur(cashMoney(entry.price), prive) }));
   if (entry.fees) parts.push(t("ledger.fees", { amount: masquerValeur(cashMoney(entry.fees), prive) }));
   if (entry.realizedGain !== undefined) parts.push(t("ledger.realized", { amount: masquerValeur(signedCashMoney(entry.realizedGain), prive) }));
@@ -27,7 +28,7 @@ function EntryDetail({ entry, prive }: { entry: CashLedgerEntry; prive: boolean 
   return (
     <span>
       {parts.join(" | ")}
-      {entry.absorbed ? <span className="muted ml-1 text-xs">({t("ledger.absorbed")})</span> : null}
+      {entry.absorbed ? <span className="muted ml-1 text-xs">({t(isStatementLineEntry(entry) ? "ledger.beforeStart" : "ledger.absorbed")})</span> : null}
       {entry.verification ? <span className="ml-2"><DividendVerificationBadge verification={entry.verification} /></span> : null}
     </span>
   );

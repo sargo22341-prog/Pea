@@ -29,3 +29,5 @@ backend/data/
 # Documents personnels de test (avis d'opéré, relevés de coupons) : jamais envoyés au démon Docker
 pdf test/
 dividende/
+Liste operation bourse pea/
+Relevés espèces/

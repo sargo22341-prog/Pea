@@ -24,6 +24,12 @@ export type CashLedgerEntryKind = CashMovementType | "buy" | "sell" | "opening";
 export type CashMovementSource = "manual" | "csv" | "pdf" | "migration";
 
 /**
+ * Origine d'une ligne du journal : celle d'un mouvement, ou `statement` pour un dividende perçu
+ * avant l'état initial, lu sur un relevé de coupons certifié (jamais un mouvement espèces).
+ */
+export type CashLedgerEntrySource = CashMovementSource | "statement";
+
+/**
  * `pending` : portefeuille existant avant la refonte, état initial à confirmer par l'utilisateur ;
  * `ready` : solde espèces calculable (journal complet, ou état initial confirmé).
  */
@@ -49,7 +55,10 @@ export interface CashAccountSettings {
 }
 
 export interface CashLedgerEntry {
-  /** Identifiant stable : `movement:<id>`, `transaction:<id>` ou `opening`. */
+  /**
+   * Identifiant stable : `movement:<id>`, `transaction:<id>`, `opening` ou `statement-line:<id>`
+   * (dividende d'avant l'état initial certifié par relevé, en lecture seule, sans effet sur le solde).
+   */
   id: string;
   kind: CashLedgerEntryKind;
   effectiveAt: string;
@@ -59,10 +68,12 @@ export interface CashLedgerEntry {
   balanceAfter: number;
   /** Opération antérieure à l'état initial : déjà résumée par celui-ci, sans effet sur le solde. */
   absorbed: boolean;
-  source: CashMovementSource;
+  source: CashLedgerEntrySource;
   symbol?: string | undefined;
   name?: string | undefined;
   positionId?: number | undefined;
+  /** ISIN d'une ligne de relevé, affiché quand aucune position ne porte cet ISIN. */
+  isin?: string | undefined;
   quantity?: number | undefined;
   price?: number | undefined;
   fees?: number | undefined;

@@ -7,6 +7,7 @@ import { Collapsible } from "../../components/common/feedback/Collapsible";
 import { MOTION } from "../../components/common/motion";
 import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
+import { isStatementLineEntry } from "../../lib/cash/ledger-entry";
 import { CashMovementForm } from "./components/CashMovementForm";
 import { DividendProposalsPanel } from "./components/DividendProposalsPanel";
 import { OpeningDividendsCard } from "./components/OpeningDividendsCard";
@@ -70,6 +71,7 @@ export function MyPeaPage() {
       {!pending && settings.referenceAt ? (
         <OpeningDividendsCard
           certifiedAt={settings.openingDividendsCertifiedAt}
+          certifiedLines={ledger.data.entries.filter(isStatementLineEntry).length}
           declared={settings.openingDividends}
           key={`${settings.referenceAt}:${String(justConfigured)}`}
           onSaved={initialStateSaved}

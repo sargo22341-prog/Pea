@@ -51,6 +51,7 @@ import { openingDividendsMigration } from "./cash/051-opening-dividends.js";
 import { purgeFrontendBlockCacheMigration } from "./cache/052-purge-frontend-block-cache.js";
 import { positionIsinMigration } from "./portfolio/050-position-isin.js";
 import { dividendCertificationMigration } from "./cash/053-dividend-certification.js";
+import { statementLineNameMigration } from "./cash/054-statement-line-name.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -106,5 +107,6 @@ export const migrations: Migration[] = [
   positionIsinMigration,
   openingDividendsMigration,
   purgeFrontendBlockCacheMigration,
-  dividendCertificationMigration
+  dividendCertificationMigration,
+  statementLineNameMigration
 ];

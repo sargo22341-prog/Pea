@@ -5,6 +5,21 @@ export function movementIdOf(entry: Pick<CashLedgerEntry, "id">) {
   return entry.id.startsWith("movement:") ? Number(entry.id.slice("movement:".length)) : undefined;
 }
 
+/**
+ * Dividende perçu avant l'état initial, lu sur un relevé de coupons certifié (`statement-line:<id>`) :
+ * en lecture seule, jamais un mouvement espèces (ni suppression, ni correction, ni fenêtre).
+ */
+export function isStatementLineEntry(entry: Pick<CashLedgerEntry, "id">) {
+  return entry.id.startsWith("statement-line:");
+}
+
+/** Libellé de l'actif d'une ligne : symbole et nom, sinon nom et ISIN d'une ligne de relevé sans position. */
+export function entryAssetLabel(entry: Pick<CashLedgerEntry, "symbol" | "name" | "isin">) {
+  if (entry.symbol) return entry.name && entry.name !== entry.symbol ? `${entry.symbol} - ${entry.name}` : entry.symbol;
+  if (entry.isin) return entry.name ? `${entry.name} (${entry.isin})` : entry.isin;
+  return undefined;
+}
+
 /** Référence d'une ligne de relevé (`2024-05#3`) affichée `05/2024 n° 3`. */
 export function formatStatementReference(reference: string | undefined) {
   const match = reference ? /^(\d{4})-(\d{2})#(\d+)$/.exec(reference) : null;

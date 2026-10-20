@@ -1,6 +1,7 @@
 import type { CashAccountSettings, CashAccountSummary, CashLedgerDto, CashLedgerEntry, CashMovementSource, CashMovementType } from "@pea/shared";
 import { PEA_DEPOSIT_CEILING_EUR } from "@pea/shared";
 import { cashRepository, type CashAccountRow, type CashMovementRow, type CashTradeRow } from "../../repositories/cash/cash.repository.js";
+import { mergeStatementEntries, openingStatementEntries } from "./dividend-statements/opening-statement-lines.js";
 import { verificationInfo } from "./dividends/dividend-verification.js";
 import { centsToMoney, computeLedger, moneyToCents, tradeCashCents, type LedgerAccountState, type LedgerItem, type LedgerResult } from "./cash-ledger.js";
 import { realizedGainsBySale } from "./realized-gains.js";
@@ -153,7 +154,9 @@ export class CashAccountService {
         realizedGain: gain === undefined ? undefined : centsToMoney(gain)
       };
     });
-    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), entries: entries.reverse() };
+    // Dividendes d'avant l'état initial certifiés par relevé : affichés, jamais rejoués ni comptés.
+    const withStatementLines = mergeStatementEntries(entries, openingStatementEntries(userId, loaded.account.reference_at));
+    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), entries: withStatementLines.reverse() };
   }
 }
 

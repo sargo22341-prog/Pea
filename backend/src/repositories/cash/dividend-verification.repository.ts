@@ -7,6 +7,8 @@ export interface StatementLineRow {
   period: string;
   line_no: number;
   isin: string;
+  /** Nom de la valeur lu sur le relevé ; absent pour une ligne importée avant la migration 54. */
+  name: string | null;
   payment_date: string;
   net_cents: number;
   withholding_cents: number;
@@ -24,6 +26,7 @@ export interface StatementLineInsert {
   period: string;
   lineNo: number;
   isin: string;
+  name: string;
   paymentDate: string;
   netCents: number;
   withholdingCents: number;
@@ -61,9 +64,16 @@ export const dividendVerificationRepository = {
   /** Ligne déjà certifiée : un réimport du même relevé est sans effet. */
   insertStatementLine(userId: number, line: StatementLineInsert) {
     return db.prepare(
-      `INSERT OR IGNORE INTO cash_dividend_statement_lines (user_id, period, line_no, isin, payment_date, net_cents, withholding_cents, certified_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(userId, line.period, line.lineNo, line.isin, line.paymentDate, line.netCents, line.withholdingCents, line.certifiedAt) > 0;
+      `INSERT OR IGNORE INTO cash_dividend_statement_lines (user_id, period, line_no, isin, name, payment_date, net_cents, withholding_cents, certified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(userId, line.period, line.lineNo, line.isin, line.name, line.paymentDate, line.netCents, line.withholdingCents, line.certifiedAt) > 0;
+  },
+
+  /** Réimport d'un relevé : complète le nom d'une ligne déjà certifiée, sans rien modifier d'autre. */
+  completeStatementLineName(userId: number, period: string, lineNo: number, name: string) {
+    db.prepare(
+      "UPDATE cash_dividend_statement_lines SET name = ? WHERE user_id = ? AND period = ? AND line_no = ? AND (name IS NULL OR TRIM(name) = '')"
+    ).run(name, userId, period, lineNo);
   },
 
   listStatementLines(userId: number) {

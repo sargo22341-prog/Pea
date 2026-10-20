@@ -26,7 +26,8 @@
     "manual": "Manual",
     "csv": "CSV import",
     "pdf": "Trade confirmation",
-    "migration": "Migration"
+    "migration": "Migration",
+    "statement": "Coupon statement"
   },
   "metrics": {
     "cash": "Cash balance",
@@ -111,6 +112,7 @@
     "amount": "Amount",
     "balance": "Balance after",
     "absorbed": "summarized by the initial state",
+    "beforeStart": "before the start date",
     "realized": "Realized gain {{amount}}",
     "tradeDetail": "{{quantity}} × {{price}}",
     "fees": "fees {{amount}}",
@@ -213,7 +215,9 @@
     "confirmed": "Dividends already received confirmed: {{amount}} (before {{date}}).",
     "calculate": "Calculate",
     "edit": "Edit",
-    "certified": "Certified by statement"
+    "certified": "Certified by statement",
+    "certifiedLines_one": "{{count}} certified statement line, shown in the history (Received dividend).",
+    "certifiedLines_other": "{{count}} certified statement lines, shown in the history (Received dividend)."
   },
   "verification": {
     "certified": "Certified by statement",

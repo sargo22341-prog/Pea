@@ -140,6 +140,22 @@ corrigé) n'alimente que l'indicateur « Dividendes encaissés » : ni le solde 
 remplace alors les dividendes saisis avant la date de référence (jamais comptés deux fois), est
 tracé dans `cash_account_revisions`, et est effacé si l'état initial change (à reconfirmer).
 
+**Affichage des dividendes certifiés par relevé** : les lignes de relevé conservées dans
+`cash_dividend_statement_lines` (voir « Certification par les relevés de coupons ») sont ajoutées
+au journal de `GET /api/cash` (et de toute réponse qui renvoie le journal) comme dividendes en
+lecture seule : `id = statement-line:<id>`, `kind: "dividend"`, `absorbed: true`,
+`source: "statement"`, vérification `document` avec la référence `AAAA-MM#ligne`. Seules les
+lignes de l'utilisateur antérieures ou égales à la date de départ **actuelle** sont renvoyées (une
+ligne devenue postérieure est masquée). Chaque ligne est rattachée à une position par ISIN
+(`positions.isin`, sinon l'ISIN le plus récent des avis d'opéré) ; sans position, l'ISIN et le nom
+lu sur le relevé (`name`, migration 54, complété au réimport) sont affichés. Ces lignes ne sont
+jamais des mouvements `cash_movements` et n'entrent dans aucun calcul : leur « solde après » est
+celui de l'entrée précédente, et le solde, les versements, le plafond, « Dividendes encaissés »
+(qui les compte déjà via le montant confirmé), le gain global et le XIRR sont inchangés. Elles
+apparaissent grisées, avec la mention « avant la date de départ » et le badge « Certifié par
+relevé », sans action, dans l'historique de « Mon PEA » et dans la liste des opérations d'une
+position ; la carte « Dividendes déjà perçus » indique leur nombre.
+
 ## Contrôle des fonds
 
 `withCashGuard` (`cash-guard.ts`) est le point de contrôle unique de toute écriture qui débite les

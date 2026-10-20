@@ -26,7 +26,8 @@
     "manual": "Saisie",
     "csv": "Import CSV",
     "pdf": "Avis d'opéré",
-    "migration": "Migration"
+    "migration": "Migration",
+    "statement": "Relevé de coupons"
   },
   "metrics": {
     "cash": "Solde espèces",
@@ -111,6 +112,7 @@
     "amount": "Montant",
     "balance": "Solde après",
     "absorbed": "résumé par l'état initial",
+    "beforeStart": "avant la date de départ",
     "realized": "PV réalisée {{amount}}",
     "tradeDetail": "{{quantity}} × {{price}}",
     "fees": "frais {{amount}}",
@@ -213,7 +215,9 @@
     "confirmed": "Dividendes déjà perçus confirmés : {{amount}} (avant le {{date}}).",
     "calculate": "Calculer",
     "edit": "Modifier",
-    "certified": "Certifié par relevé"
+    "certified": "Certifié par relevé",
+    "certifiedLines_one": "{{count}} ligne de relevé certifiée, visible dans l'historique (Dividende encaissé).",
+    "certifiedLines_other": "{{count}} lignes de relevé certifiées, visibles dans l'historique (Dividende encaissé)."
   },
   "verification": {
     "certified": "Certifié par relevé",

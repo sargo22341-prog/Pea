@@ -67,7 +67,7 @@ function certifyOpening(userId: number, context: StatementContext, statements: r
   db.transaction(() => {
     const certifiedAt = context.now.toISOString();
     for (const { period, line } of newOpeningLines(context, statements)) {
-      dividendVerificationRepository.insertStatementLine(userId, { period, lineNo: line.lineNo, isin: line.isin, paymentDate: line.paymentDate, netCents: line.netCents, withholdingCents: line.withholdingCents, certifiedAt });
+      dividendVerificationRepository.insertStatementLine(userId, { period, lineNo: line.lineNo, isin: line.isin, name: line.name, paymentDate: line.paymentDate, netCents: line.netCents, withholdingCents: line.withholdingCents, certifiedAt });
     }
     const after = loadStatementContext(userId, context.now);
     const certification = openingCertification(after, []);
@@ -76,6 +76,19 @@ function certifyOpening(userId: number, context: StatementContext, statements: r
     cashRepository.setOpeningDividends(userId, Math.round(certification.certifiable * 100));
     dividendVerificationRepository.setOpeningDividendsCertified(userId, certifiedAt);
     cashRepository.insertRevision(userId, cashAccountService.settings(previous), cashAccountService.settings(cashAccountService.ensureAccount(userId)));
+  });
+}
+
+/** Réimport : complète le nom des lignes déjà certifiées avant l'état initial (aucun doublon). */
+function completeStoredLineNames(userId: number, context: StatementContext, statements: readonly ValidStatement[]) {
+  db.transaction(() => {
+    for (const { statement } of statements) {
+      for (const line of statement.lines) {
+        if (context.statementLines.some((row) => row.period === statement.period && row.line_no === line.lineNo && !row.name?.trim())) {
+          dividendVerificationRepository.completeStatementLineName(userId, statement.period, line.lineNo, line.name);
+        }
+      }
+    }
   });
 }
 
@@ -95,8 +108,9 @@ export const dividendStatementsService = {
   },
 
   confirm(userId: number, reads: readonly ReadStatement[], input: DividendStatementsConfirmInput, now = new Date()): DividendStatementsImportResult {
-    loadStatementContext(userId, now);
+    const initial = loadStatementContext(userId, now);
     const { valid, rejected } = splitStatements(reads);
+    completeStoredLineNames(userId, initial, valid);
     const decisions = new Map(input.lines.map((decision) => [decision.key, decision]));
     const result: DividendStatementsImportResult = { certified: 0, corrected: 0, created: 0, alreadyCertified: 0, skipped: 0, openingCertified: false, errors: rejected.map((row) => ({ fileName: row.fileName, message: row.error ?? "" })) };
 
