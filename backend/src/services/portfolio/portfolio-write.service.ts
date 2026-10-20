@@ -1,4 +1,4 @@
-import type { Position } from "@pea/shared";
+import type { CashFundingInput, Position } from "@pea/shared";
 import { db } from "../../db.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -11,9 +11,23 @@ import { portfolioReadService } from "./portfolio-read.service.js";
 import type { TransactionMutationInput, TransactionSequenceRow } from "./portfolio.types.js";
 import { requirePresent } from "../../utils/invariant.js";
 import { splitAdjustedTransactions } from "./splits/applied-splits.js";
+import { withCashGuard } from "../cash/cash-guard.js";
+import { tradeCashCents } from "../cash/cash-ledger.js";
+import { cashRepository } from "../../repositories/cash/cash.repository.js";
 
 const negativeSaleMessage = "Cette vente rendrait la quantite detenue negative.";
 const negativeDeletionMessage = "Cette suppression rendrait la quantite detenue negative.";
+export const alreadyImportedMessage = "Cet avis d'opere a deja ete importe.";
+
+/** Contrôle espèces d'une opération sur titres : seul un achat se finance par un versement. */
+function tradeGuard(input: Pick<TransactionMutationInput, "tradedAt" | "type" | "quantity" | "price" | "totalFees">, funding?: CashFundingInput) {
+  return {
+    effectiveAt: input.tradedAt,
+    requiredCents: input.type === "buy" ? -tradeCashCents("buy", input.quantity, input.price, input.totalFees) : 0,
+    fundable: input.type === "buy",
+    funding
+  };
+}
 
 /** Normalise une date de transaction en ISO UTC, comme les saisies manuelles validées par l'API. */
 function normalizeTradedAt(value: string) {
@@ -53,10 +67,12 @@ export class PortfolioWriteService {
     ticker?: string | null;
     totalFees?: number | null;
     rawTextSnippet?: string | null;
+    importRef?: string | null;
   }) {
     const userId = currentUserId();
     const tradedAt = normalizeTradedAt(input.tradedAt);
-    return db.transaction(() => {
+    if (input.importRef && cashRepository.tradeImportRefExists(userId, input.importRef)) throw new HttpError(409, alreadyImportedMessage);
+    return withCashGuard(userId, tradeGuard({ ...input, tradedAt, totalFees: input.totalFees ?? 0 }), () => db.transaction(() => {
       const position = this.ensurePosition(input.symbol, input.name, input.currency, userId);
       this.assertValidTransactionMutation(position.id, {
         tradedAt,
@@ -78,12 +94,13 @@ export class PortfolioWriteService {
         isin: input.isin,
         ticker: input.ticker,
         totalFees: input.totalFees,
-        rawTextSnippet: input.rawTextSnippet
+        rawTextSnippet: input.rawTextSnippet,
+        importRef: input.importRef
       });
       this.recomputePositionFromAnyTransactions(position.id, userId);
       this.invalidatePositionCaches(position.id, userId, input.symbol);
       return position;
-    });
+    }));
   }
   /**
    * Applique une détention importée (export CSV sans historique) sous forme de transactions datées
@@ -98,7 +115,7 @@ export class PortfolioWriteService {
   ) {
     const resolvedUserId = requireUserId(userId);
     const tradedAt = normalizeTradedAt(input.tradedAt);
-    return db.transaction(() => {
+    return withCashGuard(resolvedUserId, { effectiveAt: tradedAt, fundable: true }, () => db.transaction(() => {
       const position = this.ensurePosition(input.symbol, input.name, input.currency, resolvedUserId);
       portfolioRepository.renamePosition(position.id, input.name);
       const rows = portfolioRepository.listTransactionSequence(position.id);
@@ -114,26 +131,26 @@ export class PortfolioWriteService {
       this.recomputePositionFromAnyTransactions(position.id, resolvedUserId);
       this.invalidatePositionCaches(position.id, resolvedUserId, input.symbol);
       return position;
-    });
+    }));
   }
-  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
+  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
     const resolvedUserId = requireUserId(userId);
     const position = portfolioRepository.findPositionById(positionId, resolvedUserId);
     if (!position) throw new HttpError(404, "Position introuvable");
     this.assertValidTransactionMutation(positionId, input);
-    db.transaction(() => {
+    withCashGuard(resolvedUserId, tradeGuard(input, funding), () => {
       portfolioRepository.insertManualTransaction(positionId, input);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
       this.invalidatePositionCaches(positionId, resolvedUserId);
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string) {
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
-    db.transaction(() => {
+    withCashGuard(resolvedUserId, tradeGuard(input, funding), () => {
       portfolioRepository.updateManualTransaction(positionId, transactionId, input);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
       this.invalidatePositionCaches(positionId, resolvedUserId);
@@ -145,9 +162,11 @@ export class PortfolioWriteService {
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     // Supprimer un achat dont dépend une vente ultérieure rendrait l'historique incohérent.
-    const remainingRows = (portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[]).filter((row) => Number(row.id) !== transactionId);
+    const sequence = portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[];
+    const remainingRows = sequence.filter((row) => Number(row.id) !== transactionId);
     this.assertTransactionSequenceDoesNotGoNegative(positionId, remainingRows, negativeDeletionMessage);
-    db.transaction(() => {
+    const deletedAt = sequence.find((row) => Number(row.id) === transactionId)?.traded_at ?? new Date().toISOString();
+    withCashGuard(resolvedUserId, { effectiveAt: deletedAt, requiredCents: 0, fundable: false }, () => {
       portfolioRepository.deleteTransaction(positionId, transactionId);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
       this.invalidatePositionCaches(positionId, resolvedUserId);
@@ -192,7 +211,7 @@ export class PortfolioWriteService {
     const resolvedUserId = requireUserId(userId);
     const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) return false;
-    db.transaction(() => {
+    withCashGuard(resolvedUserId, { effectiveAt: new Date().toISOString(), requiredCents: 0, fundable: false }, () => {
       this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
       portfolioRepository.deletePosition(id, resolvedUserId);
     });

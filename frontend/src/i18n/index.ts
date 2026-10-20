@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import type { AppLanguage } from "@pea/shared";
 import { frResources } from "./resources-fr";
 
-export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets", "compare", "screener", "alerts"] as const;
+export const namespaces = ["common", "navigation", "dashboard", "portfolio", "asset", "settings", "errors", "objectives", "calendar", "markets", "compare", "screener", "alerts", "cash"] as const;
 
 export const languageOptions: { code: AppLanguage; labelKey: string; flag: string }[] = [
   { code: "fr", labelKey: "languages.fr", flag: "🇫🇷" },

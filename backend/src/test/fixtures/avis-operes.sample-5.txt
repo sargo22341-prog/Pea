@@ -1,0 +1,37 @@
+Service Clientèle : 00 00 00 00 00 ou +33 000 00 00 00 depuis l'étranger – www.banque-fictive.example
+Banque Fictive S.A. au capital de 1 000 000,00 € - RCS Exemple 000 000 000 - 1 rue de l'Exemple - 00000 Ville Fictive
+Adresse du médiateur : Médiateur fictif - 1, place de l'Exemple - 00000 VILLE FICTIVE
+000000
+ 
+F1
+ 
+P0001 1/1
+000000
+P0001
+MR JEAN TEST
+1 RUE DE L EXEMPLE
+00000 VILLE FICTIVE
+AA1
+OPERATION DE BOURSE
+le 16/03/2026
+Références de votre compte titres
+00000 00000 00000000000 Compte PEA
+Résident Français
+VENTE COMPTANT
+ACTION
+Date et heure
+locale d'exécution Quantité Informations sur la valeur Informations sur l'exécution
+16/03/2026
+14:05:10
+11 FICTIF WORLD SWAP UCITS ETF C Référence : 000000000002
+Type d'ordre : à cours limite
+Cours demandé : 512,3400 EUR
+Code ISIN : LU0000000002 Cours exécuté : 512,3400 EUR
+Lieu d'exécution : EURONEXT PARIS
+Montant brut Commission Frais (¨) Montant net au crédit de votre compte
+5 635,74 EUR 28,18 EUR 5 607,56 EUR
+Sous réserve de bonne fin.
+(¨) Frais inhérents à la Taxe sur les Transactions Financières française
+Cet avis ne tient pas compte des frais inhérents aux Taxes sur les Transactions Financières européennes (hors France), s'ils doivent s'appliquer.
+
+-- 1 of 1 --

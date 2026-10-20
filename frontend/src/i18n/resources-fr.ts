@@ -11,6 +11,7 @@ import marketsFr from "./locales/fr/markets.json";
 import compareFr from "./locales/fr/compare.json";
 import screenerFr from "./locales/fr/screener.json";
 import alertsFr from "./locales/fr/alerts.json";
+import cashFr from "./locales/fr/cash.json";
 
 /** Traductions françaises, langue de repli : toujours incluses dans le bundle principal. */
 export const frResources = {
@@ -26,5 +27,6 @@ export const frResources = {
   markets: marketsFr,
   compare: compareFr,
   screener: screenerFr,
-  alerts: alertsFr
+  alerts: alertsFr,
+  cash: cashFr
 };

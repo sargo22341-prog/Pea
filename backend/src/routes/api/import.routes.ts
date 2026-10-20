@@ -7,6 +7,7 @@ import { logger } from "../../services/shared/logger.service.js";
 import { dataConstructionQueue } from "../../services/market/construction/data-construction-queue.service.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { parseMultipartFiles } from "../shared/multipart.js";
+import { cashFundingSchema } from "../shared/date-time.schema.js";
 
 export const importRouter = express.Router();
 
@@ -61,6 +62,7 @@ const schemaAvisOpereLigne = z.object({
   montantTotalFrais: z.union([z.number(), z.string()]).optional(),
   devise: z.string().min(1),
   sourceFileName: z.string().optional(),
+  reference: z.string().trim().max(64).optional(),
   rawTextSnippet: z.string().optional(),
   errors: z.array(z.string()).optional(),
   warnings: z.array(z.string()),
@@ -83,8 +85,8 @@ importRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
 }));
 
 importRouter.post("/import/boursorama/confirm", asyncRoute(async (req, res) => {
-  const corps = z.object({ rows: z.array(schemaBoursoramaLigneConfirmation).max(maxImportRows) }).parse(req.body);
-  const resultat = await confirmBoursoramaImport(corps.rows);
+  const corps = z.object({ rows: z.array(schemaBoursoramaLigneConfirmation).max(maxImportRows), funding: cashFundingSchema }).parse(req.body);
+  const resultat = await confirmBoursoramaImport(corps.rows, corps.funding);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "CSV confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
   res.json({ ...resultat, jobId: tache.id, isPreparing: tache.totalTasks > 0 });
@@ -105,8 +107,8 @@ importRouter.post("/import/boursorama/update-preview", asyncRoute(async (req, re
 }));
 
 importRouter.post("/import/boursorama/update-confirm", asyncRoute(async (req, res) => {
-  const corps = z.object({ rows: z.array(schemaBoursoramaLigneMiseAJour).max(maxImportRows) }).parse(req.body);
-  const resultat = await confirmBoursoramaUpdate(corps.rows);
+  const corps = z.object({ rows: z.array(schemaBoursoramaLigneMiseAJour).max(maxImportRows), funding: cashFundingSchema }).parse(req.body);
+  const resultat = await confirmBoursoramaUpdate(corps.rows, corps.funding);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "CSV mise à jour confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
   res.json({ ...resultat, jobId: tache.id, isPreparing: tache.totalTasks > 0 });
@@ -124,8 +126,8 @@ importRouter.post(
 
 importRouter.post("/import/avis-operes/confirm", asyncRoute(async (req, res) => {
   // Validation explicite du schéma pour garantir l'intégrité des données envoyées en base
-  const corps = z.object({ rows: z.array(schemaAvisOpereLigne).max(maxImportRows) }).parse(req.body);
-  const resultat = await confirmAvisOperesImport(corps.rows);
+  const corps = z.object({ rows: z.array(schemaAvisOpereLigne).max(maxImportRows), funding: cashFundingSchema }).parse(req.body);
+  const resultat = await confirmAvisOperesImport(corps.rows, corps.funding);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
   logger.debug("import", "PDF avis confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
   res.json({ ...resultat, jobId: tache.id, isPreparing: tache.totalTasks > 0 });

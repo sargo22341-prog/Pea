@@ -30,7 +30,7 @@ test("deleting a transaction is rejected when a later sale would exceed the held
         });
         const remove = (id) => fetch(\`\${transactionsUrl}/\${id}\`, { method: "DELETE", headers: { Cookie: cookie } });
 
-        await post({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 10, price: 100 });
+        await post({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 10, price: 100, funding: { amount: 1000 } });
         const afterSell = await (await post({ tradedAt: "2026-01-15T10:00:00.000Z", type: "sell", quantity: 8, price: 110 })).json();
         const buy = afterSell.find((row) => row.type === "buy");
         const sell = afterSell.find((row) => row.type === "sell");

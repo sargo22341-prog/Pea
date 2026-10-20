@@ -111,6 +111,9 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.indexExistants.includes("idx_financial_objectives_user_active"), "index objectifs user/active absent");
   assert.ok(resultat.indexExistants.includes("idx_objective_projection_cache_next_update"), "index cache objectifs next update absent");
   assert.ok(resultat.tablesExistantes.includes("financial_objectives"), "table objectifs absente");
+  assert.ok(resultat.tablesExistantes.includes("cash_accounts"), "table compte especes absente");
+  assert.ok(resultat.tablesExistantes.includes("cash_movements"), "table mouvements especes absente");
+  assert.ok(resultat.indexExistants.includes("idx_cash_movements_user_import_ref"), "index unicite des references d'import absent");
   assert.ok(resultat.tablesExistantes.includes("objective_projection_cache"), "table cache projections objectifs absente");
   assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_insert"), "trigger anti-admin runtime insert absent");
   assert.ok(resultat.triggersExistants.includes("users_prevent_non_bootstrap_admin_update"), "trigger anti-admin runtime update absent");
@@ -127,8 +130,8 @@ test("les migrations créent les index et colonnes attendus sur un schéma vierg
   assert.ok(resultat.colonnesMarketSnapshots.includes("market_profile_updated_at"), "colonne market_profile_updated_at absente");
   assert.deepEqual(
     resultat.versionsMigrations,
-    Array.from({ length: 46 }, (_value, index) => index + 1),
-    "les 46 migrations doivent etre enregistrees"
+    Array.from({ length: 47 }, (_value, index) => index + 1),
+    "les 47 migrations doivent etre enregistrees"
   );
 });
 

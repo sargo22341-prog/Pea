@@ -5,6 +5,13 @@ import { objectivePortfolioService } from "../../services/objectives/objective-p
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { runBackendScript } from "../helpers/backend-script.js";
+import { cashAccountService, type LoadedLedger } from "../../services/cash/cash-account.service.js";
+
+/** Compte espèces en attente d'état initial : l'épargne est estimée à partir des achats nets. */
+const pendingCashLedger = {
+  account: { status: "pending", reference_at: null },
+  result: { entries: [] }
+} as unknown as LoadedLedger;
 
 const portfolio = {
   currentCapital: 10_000,
@@ -53,6 +60,7 @@ test("objective portfolio snapshot uses portfolio market value history for real 
     { date: "2026-03-01T00:00:00.000Z", value: 3800, invested: 3000, gain: 800, gainPercent: 26.67 }
   ] as never));
   t.mock.method(portfolioRepository, "listPositions", () => [] as never);
+  t.mock.method(cashAccountService, "load", () => pendingCashLedger);
 
   const snapshot = await objectivePortfolioService.snapshot(1, 35);
   assert.deepEqual(snapshot.realSeries.map((point) => point.real), [1000, 2500, 3800]);
@@ -70,6 +78,7 @@ test("objective portfolio snapshot starts real wealth at first investment date",
   t.mock.method(portfolioRepository, "listTransactionSequence", () => [
     { traded_at: "2026-02-01T14:30:00.000Z", quantity: 10, price: 200, total_fees: 0, type: "buy" }
   ] as never);
+  t.mock.method(cashAccountService, "load", () => pendingCashLedger);
 
   const snapshot = await objectivePortfolioService.snapshot(1, 35);
   assert.deepEqual(snapshot.realSeries.map((point) => point.date), [
@@ -85,6 +94,7 @@ test("objective portfolio snapshot keeps real wealth history when no investment 
     { date: "2026-02-01T00:00:00.000Z", value: 2500, invested: 2000, gain: 500, gainPercent: 25 }
   ] as never));
   t.mock.method(portfolioRepository, "listPositions", () => [] as never);
+  t.mock.method(cashAccountService, "load", () => pendingCashLedger);
 
   const snapshot = await objectivePortfolioService.snapshot(1, 35);
   assert.equal(snapshot.realSeries.length, 2);

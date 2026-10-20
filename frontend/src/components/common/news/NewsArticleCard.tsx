@@ -1,18 +1,10 @@
 import type { NewsArticle } from "@pea/shared";
 import { CalendarCheck, Newspaper } from "lucide-react";
-import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetIcon } from "../AssetIcon";
 import { MOTION } from "../motion";
 import { formatArticleDate } from "../../../lib/format";
 import { isEarningsArticle } from "./earnings-article";
-
-const clampTwoLines: CSSProperties = {
-  display: "-webkit-box",
-  WebkitBoxOrient: "vertical",
-  WebkitLineClamp: 2,
-  overflow: "hidden"
-};
 
 export function NewsArticleCard({
   article,
@@ -51,12 +43,12 @@ export function NewsArticleCard({
       )}
       <div className="min-w-0 self-center">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-          <p className="font-semibold text-slate-100" style={clampTwoLines}>
+          <p className="line-clamp-2 font-semibold text-slate-100">
             {article.title}
           </p>
           {publishedDate && <span className="shrink-0 text-xs text-slate-500">{publishedDate}</span>}
         </div>
-        <p className="mt-1 text-sm text-slate-400" style={clampTwoLines}>
+        <p className="mt-1 line-clamp-2 text-sm text-slate-400">
           {detail || "Yahoo Finance"}
         </p>
         {(earnings || relatedAssets.length > 0) && (

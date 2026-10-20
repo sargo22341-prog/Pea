@@ -26,7 +26,7 @@ export class DatabaseAdapter {
   private database: BetterSqliteDatabase;
   private statements = new Map<string, PreparedStatement>();
 
-  constructor(filePath: string) {
+  constructor(readonly filePath: string) {
     this.database = new BetterSqlite3(filePath);
     this.database.pragma("journal_mode = WAL");
     // Sûr en WAL : un arrêt brutal peut perdre les dernières transactions, jamais corrompre la
@@ -63,6 +63,11 @@ export class DatabaseAdapter {
 
   cachedStatementCount() {
     return this.statements.size;
+  }
+
+  /** Copie cohérente de la base vers un nouveau fichier (qui ne doit pas exister). */
+  backupTo(targetPath: string) {
+    this.database.prepare("VACUUM INTO ?").run(targetPath);
   }
 
   close() {

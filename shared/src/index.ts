@@ -8,6 +8,7 @@ export type * from "./user.js";
 export type * from "./objectives.js";
 export type * from "./objective-simulation.js";
 export type * from "./alerts.js";
+export type * from "./cash.js";
 export {
   CALENDAR_MAX_RANGE_DAYS,
   CALENDAR_SCOPES,
@@ -58,6 +59,7 @@ export {
   ratePayoutRatio,
   summarizeDividendGrowth
 } from "./dividends.js";
+export { CASH_MOVEMENT_TYPES, PEA_DEPOSIT_CEILING_EUR, PEA_WITHDRAWAL_MATURITY_YEARS } from "./cash.js";
 export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
 export { DAY_MS, HOUR_MS, parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {

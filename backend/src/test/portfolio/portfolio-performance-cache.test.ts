@@ -77,7 +77,7 @@ test("portfolio positions performance cache hits, dedupes and invalidates on pos
       const afterSecond = { chartCalls, quoteCalls };
       await Promise.all([portfolioService.positionsPerformance("1d"), portfolioService.positionsPerformance("1d")]);
       const afterConcurrent = { chartCalls, quoteCalls };
-      portfolioService.createTransaction(position.id, { tradedAt: "2026-01-02T10:00:00.000Z", type: "buy", quantity: 1, price: 10, currency: "EUR" });
+      portfolioService.createTransaction(position.id, { tradedAt: "2026-01-02T10:00:00.000Z", type: "buy", quantity: 1, price: 10, currency: "EUR" }, undefined, { amount: 10 });
       await portfolioService.positionsPerformance("1d");
       return { first, second, afterFirst, afterSecond, afterConcurrent, afterInvalidation: { chartCalls, quoteCalls } };
     });

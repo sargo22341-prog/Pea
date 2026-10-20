@@ -6,6 +6,7 @@ import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspen
 import { toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { api } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
+import { useCashFunding } from "../../../components/common/cash/useCashFunding";
 import { MOTION } from "../../../components/common/motion";
 import { SplitAdjustedNote } from "./splits/SplitAdjustedNote";
 import { draftTransaction, errorMessage, maxSellQuantity, parseNonNegativeNumber, toFormRow, type EditableTransactionFormRow } from "./editTransactionForm";
@@ -30,6 +31,7 @@ export function EditPositionModal({
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<EditableTransactionFormRow | null>(null);
   const [confirmPositionDelete, setConfirmPositionDelete] = useState(false);
+  const cashFunding = useCashFunding((failure) => { setError(errorMessage(failure, t)); });
 
   useEffect(() => {
     let alive = true;
@@ -105,15 +107,15 @@ export function EditPositionModal({
       totalFees,
       currency: row.currency
     } as const;
-    try {
+    // Un achat non couvert par les espèces ouvre la popup de versement, puis est rejoué avec lui.
+    await cashFunding.run(async (funding) => {
+      const body = { ...payload, funding };
       const nextRows = row.id.startsWith("draft-")
-        ? await api.createPositionTransaction(position.id, payload)
-        : await api.updatePositionTransaction(position.id, row.id, payload);
+        ? await api.createPositionTransaction(position.id, body)
+        : await api.updatePositionTransaction(position.id, row.id, body);
       setRows(nextRows.map(toFormRow));
       await onSaved();
-    } catch (saveError) {
-      setError(errorMessage(saveError, t));
-    }
+    });
   }
 
   async function remove(row: EditableTransactionFormRow) {
@@ -122,14 +124,12 @@ export function EditPositionModal({
       setRows((current) => current.filter((item) => item.id !== row.id));
       return;
     }
-    try {
+    await cashFunding.run(async () => {
       await api.deletePositionTransaction(position.id, row.id);
       setError(null);
       setRows((current) => current.filter((item) => item.id !== row.id));
       await onSaved();
-    } catch (deleteError) {
-      setError(errorMessage(deleteError, t));
-    }
+    });
   }
 
   return (
@@ -236,6 +236,7 @@ export function EditPositionModal({
           title={t("portfolio:position.deleteTransactionTitle")}
         />
       ) : null}
+      {cashFunding.dialog}
       {confirmPositionDelete ? (
         <ConfirmDialog
           danger

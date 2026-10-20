@@ -10,6 +10,7 @@ import { parseRange } from "../../utils/range.js";
 import { asyncRoute } from "../shared/async-route.js";
 import { yahooSymbolSchema } from "../shared/symbol.js";
 import { requireAuthUser } from "../../middleware/auth.js";
+import { cashFundingSchema } from "../shared/date-time.schema.js";
 
 export const portfolioRouter = express.Router();
 
@@ -58,31 +59,28 @@ portfolioRouter.get("/portfolio/positions/:id/transactions", asyncRoute((req, re
   res.json(portfolioService.listTransactions(id));
 }));
 
+const transactionBodySchema = z.object({
+  tradedAt: tradedAtSchema,
+  type: z.enum(["buy", "sell"]),
+  quantity: z.coerce.number().positive(),
+  price: z.coerce.number().nonnegative(),
+  totalFees: z.coerce.number().nonnegative().optional(),
+  currency: z.string().min(3).max(8).default("EUR"),
+  /** Versement confirmé par l'utilisateur quand le solde espèces ne couvre pas l'achat. */
+  funding: cashFundingSchema
+});
+
 portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
-  const body = z.object({
-    tradedAt: tradedAtSchema,
-    type: z.enum(["buy", "sell"]),
-    quantity: z.coerce.number().positive(),
-    price: z.coerce.number().nonnegative(),
-    totalFees: z.coerce.number().nonnegative().optional(),
-    currency: z.string().min(3).max(8).default("EUR")
-  }).parse(req.body);
-  res.status(201).json(portfolioService.createTransaction(id, body));
+  const { funding, ...body } = transactionBodySchema.parse(req.body);
+  res.status(201).json(portfolioService.createTransaction(id, body, undefined, funding));
 }));
 
 portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
-  const body = z.object({
-    tradedAt: tradedAtSchema,
-    type: z.enum(["buy", "sell"]),
-    quantity: z.coerce.number().positive(),
-    price: z.coerce.number().nonnegative(),
-    totalFees: z.coerce.number().nonnegative().optional(),
-    currency: z.string().min(3).max(8).default("EUR")
-  }).parse(req.body);
-  res.json(portfolioService.updateTransaction(id, transactionId, body));
+  const { funding, ...body } = transactionBodySchema.parse(req.body);
+  res.json(portfolioService.updateTransaction(id, transactionId, body, undefined, funding));
 }));
 
 portfolioRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {

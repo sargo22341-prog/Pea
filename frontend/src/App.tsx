@@ -30,6 +30,7 @@ const ScreenerPage = lazyWithReload(() => import("./pages/screener/ScreenerPage"
 const AlertsPage = lazyWithReload(() => import("./pages/alerts/AlertsPage").then((module) => ({ default: module.AlertsPage })));
 const SearchPage = lazyWithReload(() => import("./pages/search/SearchPage").then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazyWithReload(() => import("./pages/settings/SettingsPage").then((module) => ({ default: module.SettingsPage })));
+const MyPeaPage = lazyWithReload(() => import("./pages/pea/MyPeaPage").then((module) => ({ default: module.MyPeaPage })));
 const AdminPage = lazyWithReload(() => import("./pages/admin/AdminPage").then((module) => ({ default: module.AdminPage })));
 
 function LoadingPage() {
@@ -165,6 +166,7 @@ function AuthenticatedApp() {
                   <Route path="/screener" element={<ScreenerPage />} />
                   <Route path="/alerts" element={me.data.features.includes("alerts") ? <AlertsPage /> : <Navigate replace to="/" />} />
                   <Route path="/objectives" element={<ObjectivePage user={me.data.user} />} />
+                  <Route path="/pea" element={<MyPeaPage />} />
                   <Route path="/assets/:symbol" element={<AssetDetailPage user={me.data.user} />} />
                   <Route path="/settings" element={<SettingsPage onUserUpdated={me.reload} user={me.data.user} />} />
                   <Route path="/admin" element={me.data.user.role === "admin" ? <AdminPage onFeaturesChanged={me.reload} /> : <Navigate replace to="/" />} />

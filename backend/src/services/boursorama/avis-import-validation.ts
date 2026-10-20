@@ -44,6 +44,7 @@ export const confirmOperationSchema = z.object({
   coursExecute: requiredNumber(numberSchema("Cours").nonnegative("Cours doit etre positif ou nul.")),
   montantTotalFrais: optionalNumber(numberSchema("Total frais").nonnegative("Total frais doit etre positif ou nul.").optional()),
   devise: z.string().default("EUR"),
+  reference: z.string().trim().max(64).optional(),
   rawTextSnippet: z.string().optional(),
   selectedSymbol: z.string().optional(),
   selectedAssetName: z.string().optional(),

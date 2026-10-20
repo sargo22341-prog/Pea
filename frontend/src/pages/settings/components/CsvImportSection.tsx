@@ -62,6 +62,7 @@ export function CsvImportSection() {
           showUnchanged={csvImport.showUnchanged}
         />
       )}
+      {csvImport.fundingDialog}
     </section>
   );
 }

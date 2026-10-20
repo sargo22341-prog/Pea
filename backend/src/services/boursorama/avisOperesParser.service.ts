@@ -1,5 +1,7 @@
 import type { ParsedAvisOperation } from "@pea/shared";
 import { z } from "zod";
+import { normalizeFrenchNumber, parseFrenchMoney } from "./avis-numbers.js";
+import { extractQuantity } from "./avis-quantity.js";
 
 const moneyLabels = {
   commission: ["Commission"],
@@ -19,6 +21,7 @@ export const parsedAvisOperationSchema = z.object({
   montantTotalFrais: z.number().nonnegative().optional(),
   devise: z.string().min(3).default("EUR"),
   sourceFileName: z.string().optional(),
+  reference: z.string().optional(),
   rawTextSnippet: z.string().optional(),
   warnings: z.array(z.string())
 });
@@ -42,30 +45,6 @@ export function normalizeText(text: string) {
  */
 function withoutAccents(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "");
-}
-
-/**
- * Convertit un nombre au format français en nombre JavaScript.
- *
- * Exemple : `"1 234,56"` devient `1234.56`.
- */
-export function normalizeFrenchNumber(value: string): number | undefined {
-  const cleaned = value
-    .replace(/\u00a0/g, " ")
-    .replace(/[^\d,.\- ]/g, "")
-    .replace(/\s/g, "")
-    .replace(",", ".");
-
-  const number = Number(cleaned);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-/**
- * Convertit un montant français optionnel en nombre.
- */
-export function parseFrenchMoney(value?: string): number | undefined {
-  if (!value) return undefined;
-  return normalizeFrenchNumber(value);
 }
 
 /**
@@ -136,26 +115,18 @@ export function extractIsin(text: string) {
 }
 
 /**
+ * Extrait la référence de l'ordre (identifiant unique de l'avis chez le courtier).
+ */
+export function extractOrderReference(text: string) {
+  return /R[ée]f[ée]rence\s*:\s*(\d{6,})/i.exec(text)?.[1];
+}
+
+/**
  * Extrait le cours exécuté de l’opération.
  */
 export function extractExecutedPrice(text: string) {
   const value = /Cours ex[ée]cut[ée]\s*:\s*([\d\s.,]+)\s*([A-Z]{3}|€)?/i.exec(text)?.[1];
   return normalizeFrenchNumber(value ?? "");
-}
-
-/**
- * Extrait la quantité exécutée et le nom de la valeur depuis le texte.
- */
-export function extractQuantity(text: string) {
-  const match =
-    /(?:\d{2}:\d{2}:\d{2}\s*\n\s*)?(\d+(?:[,.]\d+)?)\s+([^\n]+?)\s+R[ée]f[ée]rence\s*:/i.exec(
-      text
-    );
-
-  return {
-    quantity: normalizeFrenchNumber(match?.[1] ?? ""),
-    assetName: match?.[2]?.replace(/\s+/g, " ").trim()
-  };
 }
 
 /**
@@ -254,7 +225,8 @@ export function parseAvisOperesText(text: string, fileName?: string): ParsedAvis
   const normalized = normalizeText(text);
   if (!normalized) return [];
 
-  const { quantity, assetName } = extractQuantity(normalized);
+  const [grossAmount] = amountsAfterHeader(normalized, /Montant (?:transaction )?brut/i);
+  const { quantity, assetName } = extractQuantity(normalized, { executedPrice: extractExecutedPrice(normalized), grossAmount });
   const fees = extractFees(normalized);
 
   const operation = {
@@ -269,6 +241,7 @@ export function parseAvisOperesText(text: string, fileName?: string): ParsedAvis
     montantTotalFrais: fees.totalFees ?? sumFees(fees.commission, fees.fees),
     devise: extractCurrency(normalized),
     sourceFileName: fileName,
+    reference: extractOrderReference(normalized),
     rawTextSnippet: rawSnippet(normalized)
   } satisfies Omit<ParsedAvisOperation, "warnings">;
 

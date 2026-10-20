@@ -77,6 +77,8 @@ export interface ParsedAvisOperation {
   montantTotalFrais?: number | string | undefined;
   devise: CurrencyCode;
   sourceFileName?: string | undefined;
+  /** Référence de l'ordre imprimée sur l'avis : identifie un import déjà réalisé. */
+  reference?: string | undefined;
   rawTextSnippet?: string | undefined;
   errors?: string[];
   warnings: string[];

@@ -1,12 +1,16 @@
 import type { PortfolioChartDto, PortfolioSummary, RangeKey } from "@pea/shared";
-import { Activity, Coins, LineChart, Percent, ReceiptText, TrendingUp } from "lucide-react";
+import { Activity, ArrowDownToLine, ChevronRight, Coins, LineChart, TrendingUp, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { formatRangeLabel, money, percent } from "../../../lib/format";
-import { formatFractionPercent } from "../../../lib/format-metrics";
 import { masquerValeur } from "../../../lib/privacy";
 import { Metric } from "./Metric";
 
+/**
+ * Synthèse de la page d'accueil : valeur du PEA et quatre indicateurs essentiels. Le détail
+ * (flux, plafond, plus-values, frais, dividendes) est regroupé sur la page « Mon PEA ».
+ */
 export function TopMetrics({
   summary,
   range,
@@ -22,27 +26,48 @@ export function TopMetrics({
 }) {
   const { t } = useTranslation(["dashboard"]);
   const prive = usePrivacy();
-  // Tuile affichée seulement quand au moins une position verse un dividende connu.
-  const yieldOnCost = summary?.yieldOnCost !== undefined && summary.yieldOnCost > 0 ? summary.yieldOnCost : undefined;
+  const currency = summary?.currency ?? "EUR";
+  // Compte espèces configuré : valeur et performance du PEA entier ; sinon, celles des positions.
+  const pea = summary?.pea?.status === "ready" ? summary.pea : undefined;
 
   return (
     <section className="space-y-3">
-      <PortfolioTotal loading={loading} prive={prive} value={summary?.totalValue} />
-      <div className={`grid grid-cols-2 gap-3 ${yieldOnCost === undefined ? "md:grid-cols-5" : "md:grid-cols-3 xl:grid-cols-6"}`}>
-        <Metric icon={TrendingUp} label={t("topMetrics.invested", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalCost, summary.currency), prive) : undefined} />
-        <Metric icon={Coins} label={t("topMetrics.dividends", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, summary.currency), prive) : undefined} />
-        {yieldOnCost !== undefined ? (
-          <Metric icon={Percent} label={t("topMetrics.yieldOnCost", { ns: "dashboard" })} value={masquerValeur(formatFractionPercent(yieldOnCost), prive)} />
-        ) : null}
-        <Metric icon={ReceiptText} label={t("topMetrics.fees", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalFees, summary.currency), prive) : undefined} />
-        <Metric
-          icon={LineChart}
-          label={t("metrics.performance", { ns: "dashboard" })}
-          loading={loading}
-          tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
-          value={summary ? masquerValeur(`${money(summary.totalPerformance, summary.currency)} (${percent(summary.totalPerformancePercent)})`, prive) : undefined}
-        />
-        <RangeMetric chart={chart} chartLoading={chartLoading} currency={summary?.currency ?? "EUR"} prive={prive} range={range} summaryReady={!loading && summary != null} />
+      <PortfolioTotal loading={loading} prive={prive} value={pea ? pea.totalValue : summary?.totalValue} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {pea ? (
+          <>
+            <Metric
+              icon={LineChart}
+              hint={t("topMetrics.hints.globalGain", { ns: "dashboard" })}
+              label={t("topMetrics.globalGain", { ns: "dashboard" })}
+              tone={pea.globalGain >= 0 ? "positive" : "negative"}
+              value={masquerValeur(pea.simpleReturnPercent === undefined ? money(pea.globalGain, currency) : `${money(pea.globalGain, currency)} (${percent(pea.simpleReturnPercent)})`, prive)}
+            />
+            <RangeMetric chart={chart} chartLoading={chartLoading} currency={currency} prive={prive} range={range} summaryReady={!loading} />
+            <Metric hint={t("topMetrics.hints.cash", { ns: "dashboard" })} icon={Wallet} label={t("topMetrics.cash", { ns: "dashboard" })} value={masquerValeur(money(pea.cash, currency), prive)} />
+            <Metric hint={t("topMetrics.hints.deposits", { ns: "dashboard" })} icon={ArrowDownToLine} label={t("topMetrics.deposits", { ns: "dashboard" })} value={masquerValeur(money(pea.deposits, currency), prive)} />
+          </>
+        ) : (
+          <>
+            <Metric
+              icon={LineChart}
+              hint={t("topMetrics.hints.performance", { ns: "dashboard" })}
+              label={t("metrics.performance", { ns: "dashboard" })}
+              loading={loading}
+              tone={summary == null ? undefined : summary.totalPerformance >= 0 ? "positive" : "negative"}
+              value={summary ? masquerValeur(`${money(summary.totalPerformance, currency)} (${percent(summary.totalPerformancePercent)})`, prive) : undefined}
+            />
+            <RangeMetric chart={chart} chartLoading={chartLoading} currency={currency} prive={prive} range={range} summaryReady={!loading && summary != null} />
+            <Metric hint={t("topMetrics.hints.invested", { ns: "dashboard" })} icon={TrendingUp} label={t("topMetrics.invested", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalCost, currency), prive) : undefined} />
+            <Metric hint={t("topMetrics.hints.dividends", { ns: "dashboard" })} icon={Coins} label={t("topMetrics.dividends", { ns: "dashboard" })} loading={loading} value={summary ? masquerValeur(money(summary.totalDividendsReceived, currency), prive) : undefined} />
+          </>
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Link className="btn-ghost text-sm" to="/pea">
+          {t("topMetrics.myPea", { ns: "dashboard" })}
+          <ChevronRight size={16} />
+        </Link>
       </div>
     </section>
   );
@@ -95,10 +120,11 @@ function RangeMetric({
 }) {
   const { t } = useTranslation(["dashboard"]);
   const label = t("topMetrics.rangePerformance", { ns: "dashboard", range: formatRangeLabel(range) });
+  const hint = t("topMetrics.hints.range", { ns: "dashboard" });
   if (!summaryReady) {
-    return <Metric icon={Activity} label={label} loading />;
+    return <Metric hint={hint} icon={Activity} label={label} loading />;
   }
-  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} label={label} prive={prive} />;
+  return <LoadedRangeMetric chart={chart} chartLoading={chartLoading} currency={currency} hint={hint} label={label} prive={prive} />;
 }
 
 /**
@@ -108,17 +134,20 @@ function LoadedRangeMetric({
   currency,
   chart,
   chartLoading,
+  hint,
   label,
   prive
 }: {
   currency: string;
   chart: PortfolioChartDto | null;
   chartLoading: boolean;
+  hint: string;
   label: string;
   prive: boolean;
 }) {
   return (
     <Metric
+      hint={hint}
       icon={Activity}
       label={label}
       loading={chartLoading || !chart}

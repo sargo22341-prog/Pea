@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  normalizeText,
-  normalizeFrenchNumber,
-  parseFrenchDate,
-  parseFrenchMoney
-} from "../../../services/boursorama/avisOperesParser.service.js";
+import { normalizeFrenchNumber, parseFrenchMoney } from "../../../services/boursorama/avis-numbers.js";
+import { normalizeText, parseFrenchDate } from "../../../services/boursorama/avisOperesParser.service.js";
 
 test("normalizeFrenchNumber converts French decimal notation to JS numbers", () => {
   assert.equal(normalizeFrenchNumber("1 234,56"), 1234.56);

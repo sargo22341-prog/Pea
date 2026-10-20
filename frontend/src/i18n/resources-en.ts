@@ -11,6 +11,7 @@ import marketsEn from "./locales/en/markets.json";
 import compareEn from "./locales/en/compare.json";
 import screenerEn from "./locales/en/screener.json";
 import alertsEn from "./locales/en/alerts.json";
+import cashEn from "./locales/en/cash.json";
 
 /** Traductions anglaises, chargées à la demande dans un chunk séparé (voir loadLanguageResources). */
 export const enResources = {
@@ -26,5 +27,6 @@ export const enResources = {
   markets: marketsEn,
   compare: compareEn,
   screener: screenerEn,
-  alerts: alertsEn
+  alerts: alertsEn,
+  cash: cashEn
 };

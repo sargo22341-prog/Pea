@@ -191,7 +191,7 @@ test("portfolio transactions with fees work on a fresh database", () => {
         const createTransaction = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tradedAt: "2026-04-30T10:00:00.000Z", type: "buy", quantity: 2, price: 100, totalFees: 1.5, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-04-30T10:00:00.000Z", type: "buy", quantity: 2, price: 100, totalFees: 1.5, currency: "EUR", funding: { amount: 201.5 } })
         });
         const transactions = await createTransaction.json();
         const listed = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, { headers: { Cookie: cookie } });

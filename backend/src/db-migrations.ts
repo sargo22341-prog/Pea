@@ -1,6 +1,25 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { DatabaseAdapter } from "./db-adapter.js";
 import { migrations as allMigrations } from "./migrations/index.js";
 import type { Migration } from "./migrations/types.js";
+
+/** Une base sans utilisateur est une installation neuve : il n'y a rien à sauvegarder. */
+function hasUserData(db: DatabaseAdapter) {
+  const table = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+  return Boolean(table && db.prepare("SELECT 1 FROM users LIMIT 1").get());
+}
+
+/** Sauvegarde la base avant une migration sensible et renvoie le chemin de la copie. */
+export function backupBeforeMigration(db: DatabaseAdapter, migration: Migration, now = new Date()) {
+  if (db.filePath === ":memory:" || !hasUserData(db)) return undefined;
+  const directory = path.join(path.dirname(db.filePath), "backups");
+  fs.mkdirSync(directory, { recursive: true });
+  const stamp = now.toISOString().replace(/[:.]/g, "-");
+  const target = path.join(directory, `${path.basename(db.filePath, path.extname(db.filePath))}-avant-migration-${migration.version}-${stamp}.sqlite`);
+  db.backupTo(target);
+  return target;
+}
 
 export function applyMigrations(db: DatabaseAdapter, migrations: Migration[] = allMigrations): void {
   db.exec(`
@@ -23,6 +42,7 @@ export function applyMigrations(db: DatabaseAdapter, migrations: Migration[] = a
       db.prepare("INSERT INTO _migrations (version, description) VALUES (?, ?)").run(migration.version, migration.description);
     };
     try {
+      if (migration.sauvegardeAvant) backupBeforeMigration(db, migration);
       if (migration.transactional === false) apply();
       else db.transaction(apply);
     } catch (error) {

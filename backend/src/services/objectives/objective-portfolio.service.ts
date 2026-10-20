@@ -1,6 +1,8 @@
 import type { ObjectiveContributionPoint, ObjectiveSeriesPoint } from "@pea/shared";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
+import { cashAccountService } from "../cash/cash-account.service.js";
+import { centsToMoney, entryTimeMs } from "../cash/cash-ledger.js";
 
 export interface ObjectivePortfolioSnapshot {
   currentCapital: number;
@@ -50,12 +52,23 @@ export class ObjectivePortfolioService {
         };
       });
 
+    // Épargne mensuelle : flux externes du journal espèces (versements - retraits) dès qu'ils sont
+    // connus. Avant l'état initial (ou tant qu'il n'est pas confirmé), seuls les achats nets des
+    // ventes donnent une estimation : un réinvestissement n'y est pas compté deux fois.
+    const cash = cashAccountService.load(userId);
+    const ready = cash.account.status === "ready";
+    const ledgerStartMs = ready && cash.account.reference_at ? entryTimeMs(cash.account.reference_at) : ready ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
     for (const transaction of sorted) {
       const date = new Date(transaction.traded_at);
-      if (!Number.isFinite(date.getTime())) continue;
+      if (!Number.isFinite(date.getTime()) || date.getTime() > ledgerStartMs) continue;
       const amount = transaction.quantity * transaction.price + (transaction.total_fees ?? 0);
       const signed = transaction.type === "sell" ? -amount : amount;
       monthly.set(monthKey(date), (monthly.get(monthKey(date)) ?? 0) + signed);
+    }
+    for (const entry of cash.result.entries) {
+      if ((entry.kind !== "deposit" && entry.kind !== "withdrawal") || entry.absorbed || entryTimeMs(entry.effectiveAt) <= ledgerStartMs) continue;
+      const date = new Date(entry.effectiveAt);
+      monthly.set(monthKey(date), (monthly.get(monthKey(date)) ?? 0) + centsToMoney(entry.amountCents));
     }
 
     const months = [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -65,7 +78,8 @@ export class ObjectivePortfolioService {
       : 0;
 
     return {
-      currentCapital: summary.totalValue,
+      // Capital actuel : valeur du PEA espèces comprises, dès que le solde espèces est connu.
+      currentCapital: summary.pea?.status === "ready" ? summary.pea.totalValue : summary.totalValue,
       realSeries,
       contributions: months.map(([month, amount]) => ({ month, amount, kind: "real" })),
       averageMonthlySavings

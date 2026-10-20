@@ -84,7 +84,7 @@ test("sell transaction is accepted when quantity is available", () => {
         const buy = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 5, price: 100, totalFees: 0, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 5, price: 100, totalFees: 0, currency: "EUR", funding: { amount: 500 } })
         });
         const sell = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
@@ -131,7 +131,7 @@ test("sell transaction is rejected when quantity would go negative", () => {
         await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 2, price: 100, totalFees: 0, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 2, price: 100, totalFees: 0, currency: "EUR", funding: { amount: 200 } })
         });
         const oversell = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
@@ -178,7 +178,7 @@ test("transaction tradedAt invalide est refuse et une date valide est normalisee
         const valid = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tradedAt: "2026-01-10 10:00", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-01-10 10:00", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR", funding: { amount: 100 } })
         });
         const body = await valid.json();
         console.log("__RESULT__" + JSON.stringify({

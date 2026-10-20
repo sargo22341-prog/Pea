@@ -62,11 +62,24 @@
     "marketHours": "Market hours: {{city}} {{hours}}, local market time"
   },
   "topMetrics": {
-    "invested": "Total invested",
-    "dividends": "Total dividends",
+    "invested": "Positions cost basis",
+    "dividends": "Estimated dividends",
     "fees": "Total fees",
     "yieldOnCost": "Yield on cost",
-    "rangePerformance": "Performance over {{range}}"
+    "rangePerformance": "Performance over {{range}}",
+    "globalGain": "Overall gain",
+    "cash": "Available cash",
+    "deposits": "Total deposits",
+    "myPea": "View my PEA",
+    "hints": {
+      "globalGain": "PEA value + withdrawals - deposits: everything the PEA has earned (gains, dividends, net of fees). The % is relative to net deposits.",
+      "range": "Change in the positions value over the selected period, excluding purchases and sales.",
+      "cash": "Money available in the PEA cash account for new purchases.",
+      "deposits": "Total transfers into the PEA since opening; this is what counts towards the €150,000 ceiling.",
+      "performance": "Unrealized gain: current positions value - cost basis.",
+      "invested": "Amount paid for the securities held (average cost × quantity), purchase fees included.",
+      "dividends": "Estimate: published dividends × quantity held on each ex-date."
+    }
   },
   "dividendsPage": {
     "loading": "Loading dividends...",

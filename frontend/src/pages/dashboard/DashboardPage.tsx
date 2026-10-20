@@ -4,6 +4,7 @@ import { EmptyState } from "../../components/common/EmptyState";
 import { PortfolioEvolutionSection } from "./components/evolution/PortfolioEvolutionSection";
 import { PortfolioEvolutionSkeleton } from "./components/DashboardSkeletons";
 import { TopMetrics } from "./components/TopMetrics";
+import { CashSetupPrompt } from "./components/cash/CashSetupPrompt";
 import type { DashboardRangeSetter } from "./components/types";
 import { useAsync } from "../../hooks/useAsync";
 import { marketSnapshotConcernsSymbols, useMarketEventReload, type MarketEventPayload } from "../../hooks/useMarketEventReload";
@@ -134,6 +135,8 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
         range={selectedRange}
         summary={summary}
       />
+
+      {summary?.pea?.status === "pending" ? <CashSetupPrompt onConfigured={portfolioReload} positionsCost={summary.totalCost} /> : null}
 
       {summary ? (
         <PortfolioEvolutionSection

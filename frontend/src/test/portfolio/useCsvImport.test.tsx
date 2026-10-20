@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCsvImport } from "../../pages/settings/hooks/useCsvImport";
 import { api } from "../../lib/api";
+import { ApiError } from "../../lib/api-core";
 
 const navigate = vi.fn();
 
@@ -38,6 +39,7 @@ function Probe() {
       <span data-testid="rows">{csv.rows.length}</span>
       <span data-testid="row-action">{csv.rows[0]?.action ?? ""}</span>
       <span data-testid="row-errors">{csv.rows[0]?.errors.join("|") ?? ""}</span>
+      {csv.fundingDialog}
     </div>
   );
 }
@@ -92,8 +94,27 @@ describe("useCsvImport", () => {
     await waitFor(() => { expect(api.confirmBoursorama).toHaveBeenCalledTimes(1); });
     expect(api.confirmBoursorama).toHaveBeenCalledWith([
       expect.objectContaining({ symbol: "AI.PA", action: "merge" })
-    ]);
+    ], undefined);
     expect(navigate).toHaveBeenCalledWith("/");
+  });
+
+  it("resends the whole import with the deposit confirmed in the single funding dialog", async () => {
+    vi.mocked(api.previewBoursorama).mockResolvedValue([
+      { line: 2, isin: "FR0000120073", symbol: "AI.PA", name: "Air Liquide", quantity: 10, averageBuyPrice: 100, currency: "EUR", errors: [] }
+    ] as never);
+    vi.mocked(api.confirmBoursorama)
+      .mockRejectedValueOnce(new ApiError(422, "Solde especes insuffisant.", { details: { code: "INSUFFICIENT_FUNDS", available: 0, required: 1000, shortfall: 1000, effectiveAt: "2026-01-05T10:00:00.000Z", fundable: true } }))
+      .mockResolvedValueOnce({ imported: ["AI.PA"], skipped: [], errors: [] });
+
+    render(<Probe />);
+    fireEvent.click(screen.getByText("preview"));
+    await screen.findByText("1");
+    fireEvent.click(screen.getByText("confirm"));
+    fireEvent.click(await screen.findByText("Confirmer le versement et l'opération"));
+
+    await waitFor(() => { expect(api.confirmBoursorama).toHaveBeenCalledTimes(2); });
+    expect(api.confirmBoursorama).toHaveBeenLastCalledWith([expect.objectContaining({ symbol: "AI.PA" })], { amount: 1000 });
+    await waitFor(() => { expect(navigate).toHaveBeenCalledWith("/"); });
   });
 
   it("keeps confirmation errors on matching rows without dropping existing validation errors", async () => {
@@ -125,7 +146,7 @@ describe("useCsvImport", () => {
     expect(screen.getByTestId("row-errors").textContent).toContain("Prix manquant");
     expect(api.confirmBoursorama).toHaveBeenCalledWith([
       expect.objectContaining({ action: "replace" })
-    ]);
+    ], undefined);
     expect(navigate).not.toHaveBeenCalled();
   });
 });

@@ -65,7 +65,7 @@ test("deleting the last manual transaction removes the empty position", () => {
         const created = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions\`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Cookie: cookie },
-          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR" })
+          body: JSON.stringify({ tradedAt: "2026-01-10T10:00:00.000Z", type: "buy", quantity: 1, price: 100, totalFees: 0, currency: "EUR", funding: { amount: 100 } })
         });
         const transactions = await created.json();
         const deleted = await fetch(\`\${baseUrl}/api/portfolio/positions/\${position.id}/transactions/\${transactions[0].id}\`, {
@@ -129,7 +129,7 @@ test("portfolio chart uses current value when manual buy is newer than market hi
         price: 1593.5,
         totalFees: 0,
         currency: "EUR"
-      });
+      }, undefined, { amount: 1593.5 });
       const summary = await portfolioService.summary("1d");
       const chart = await portfolioService.chart("1d", 1, { intradayNow: new Date("2026-01-10T12:05:00.000Z") });
       const positionsPerformance = await portfolioService.positionsPerformance("1d", { intradayNow: new Date("2026-01-10T12:05:00.000Z") });
@@ -202,7 +202,7 @@ test("portfolio chart 1w ignores transactions older than the chart history windo
         price: 50,
         totalFees: 0,
         currency: "EUR"
-      });
+      }, undefined, { amount: 100 });
       const chart = await portfolioService.chart("1w", 1, { intradayNow: new Date("2026-05-21T12:00:00.000Z") });
       return {
         firstTimestamp: chart.timestamps[0],

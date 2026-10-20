@@ -40,6 +40,9 @@ Fonctionnalites principales :
 - actualites Yahoo Finance, filtrables sur les actifs suivis, regroupables par actif et
   signalees autour des publications de resultats ;
 - imports Boursorama CSV et avis d'operes PDF ;
+- compte especes du PEA : versements, retraits, ventes, dividendes encaisses et frais distingues
+  des achats, controle des fonds avant chaque achat, page « Mon PEA » et valeur totale du PEA
+  especes comprises (voir [docs/cash-account.md](docs/cash-account.md)) ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;
 - mode prive pour masquer les montants personnels.

@@ -1,5 +1,6 @@
 import type { CurrencyCode, DisplayRangeKey, MarketSessionDto, MarketState, Quote, RangeKey } from "../market.js";
 import type { FinancialYearItem } from "../fundamentals.js";
+import type { PeaOverview } from "../cash.js";
 import type { DividendSustainabilityItem, LookThroughSource, PortfolioCorrelation, PortfolioLookThrough, PortfolioValuation } from "./analysis.js";
 
 export interface UserAssetPositionDto {
@@ -128,6 +129,8 @@ export interface PortfolioSummary {
   positions: PositionWithMarket[];
   /** Dividendes annuels attendus rapportés au coût total du portefeuille (fraction). */
   yieldOnCost?: number | undefined;
+  /** Compte espèces et valeur totale du PEA (positions + espèces). */
+  pea?: PeaOverview | undefined;
 }
 
 export interface PortfolioFullDto {

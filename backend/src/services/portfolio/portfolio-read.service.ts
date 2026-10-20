@@ -15,6 +15,7 @@ import { appliedSplitsByPosition } from "./splits/applied-splits.js";
 import { splitFactorAt, type AppliedSplit } from "./splits/split-adjustment.js";
 import { withPositionSignals } from "./insights/position-signals.js";
 import { portfolioYieldOnCost } from "./insights/yield-on-cost.js";
+import { peaOverview } from "../cash/pea-overview.js";
 
 function splitFactorOrUndefined(tradedAt: string, splits: AppliedSplit[]) {
   const factor = splitFactorAt(tradedAt, splits);
@@ -118,7 +119,8 @@ export class PortfolioReadService {
       assetsCount: positions.length,
       currency: "EUR",
       positions,
-      yieldOnCost: portfolioYieldOnCost(positions)
+      yieldOnCost: portfolioYieldOnCost(positions),
+      pea: peaOverview(resolvedUserId, totalValue, totalCost)
     };
     // Un résumé calculé avec un cours périmé ou absent n'est pas figé : le prochain appel, déclenché
     // par la fin du rafraîchissement en arrière-plan, le recalcule avec le cours à jour.

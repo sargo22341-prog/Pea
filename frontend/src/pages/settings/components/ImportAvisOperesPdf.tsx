@@ -38,6 +38,7 @@ export function ImportAvisOperesPdf() {
       {pdfImport.message && <p className="p-4 text-sm text-mint">{pdfImport.message}</p>}
       {pdfImport.loading && <p className="p-4 text-slate-400">{t("imports.extracting", { ns: "settings" })}</p>}
       {pdfImport.rows.length > 0 && <AvisOperesPreview loading={pdfImport.loading} onConfirm={() => void pdfImport.confirm()} onRemoveRow={pdfImport.removeRow} onUpdateRow={pdfImport.updateRow} rows={pdfImport.rows} />}
+      {pdfImport.fundingDialog}
     </section>
   );
 }

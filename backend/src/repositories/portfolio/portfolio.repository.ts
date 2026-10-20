@@ -30,6 +30,7 @@ export interface TransactionRow {
   isin?: string | null;
   ticker?: string | null;
   raw_text_snippet?: string | null;
+  import_ref?: string | null;
 }
 
 export interface PortfolioTransactionInsert {
@@ -45,6 +46,7 @@ export interface PortfolioTransactionInsert {
   ticker?: string|null | undefined;
   totalFees?: number|null | undefined;
   rawTextSnippet?: string|null | undefined;
+  importRef?: string|null | undefined;
 }
 
 export interface UserAssetPositionRow {
@@ -159,8 +161,8 @@ export class PortfolioRepository {
     db.prepare(
       `INSERT INTO transactions (
         position_id, type, quantity, price, currency, traded_at, source, source_file_name,
-        asset_name, isin, ticker, total_fees, raw_text_snippet
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?)`
+        asset_name, isin, ticker, total_fees, raw_text_snippet, import_ref
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pdf_avis_opere', ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       input.positionId,
       input.type,
@@ -173,7 +175,8 @@ export class PortfolioRepository {
       input.isin ?? null,
       input.ticker ?? null,
       input.totalFees ?? null,
-      input.rawTextSnippet ?? null
+      input.rawTextSnippet ?? null,
+      input.importRef ?? null
     );
   }
 

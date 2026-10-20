@@ -11,6 +11,13 @@ export interface Migration {
    */
   transactional?: false;
   /**
+   * Copie complète de la base (`VACUUM INTO`, dans `backups/` à côté du fichier SQLite) avant
+   * d'appliquer la migration sur une installation existante : réservé aux migrations qui touchent
+   * aux données financières des utilisateurs. Restauration : arrêter le serveur et remplacer le
+   * fichier SQLite par la copie.
+   */
+  sauvegardeAvant?: true;
+  /**
    * Rollback optionnel.
    *
    * Convention :

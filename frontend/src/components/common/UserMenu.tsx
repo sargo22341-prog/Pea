@@ -1,5 +1,5 @@
 import type { User } from "@pea/shared";
-import { ChevronDown, Settings, Shield, Target } from "lucide-react";
+import { ChevronDown, Settings, Shield, Target, Wallet } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
@@ -58,6 +58,10 @@ export function UserMenu({ compact = false, onProfileIconError, profileIconUrl, 
           <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/objectives">
             <Target size={16} />
             {t("objectives")}
+          </NavLink>
+          <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/pea">
+            <Wallet size={16} />
+            {t("myPea")}
           </NavLink>
           <NavLink className={itemClass} onClick={() => { setOpen(false); }} role="menuitem" to="/settings">
             <Settings size={16} />

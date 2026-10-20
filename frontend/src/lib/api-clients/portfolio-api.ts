@@ -1,4 +1,5 @@
 import type {
+  CashFundingInput,
   EditablePortfolioTransaction,
   PortfolioAnalysis,
   PortfolioDividends,
@@ -18,6 +19,8 @@ interface PositionTransactionInput {
   price: number;
   totalFees?: number;
   currency: string;
+  /** Versement confirmé par l'utilisateur quand le solde espèces ne couvre pas l'achat. */
+  funding?: CashFundingInput | undefined;
 }
 
 export const portfolioApi = {

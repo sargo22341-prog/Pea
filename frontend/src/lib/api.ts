@@ -1,5 +1,6 @@
 import type {
   AuthMe,
+  CashFundingInput,
   AppLanguage,
   BoursoramaImportRow,
   BoursoramaUpdateRow,
@@ -15,6 +16,7 @@ import { adminApi } from "./api-clients/admin-api";
 import { alertsApi } from "./api-clients/alerts-api";
 import { assetApi } from "./api-clients/asset-api";
 import { calendarApi } from "./api-clients/calendar-api";
+import { cashApi } from "./api-clients/cash-api";
 import { marketApi } from "./api-clients/market-api";
 import { marketsApi } from "./api-clients/markets-api";
 import { objectivesApi } from "./api-clients/objectives-api";
@@ -105,15 +107,15 @@ function postImport<T>(path: string, body: string | FormData) {
 
 const importApi = {
   previewBoursorama: (content: string) => postImport<BoursoramaImportRow[]>("/api/import/boursorama/preview", JSON.stringify({ content })),
-  confirmBoursorama: (rows: BoursoramaImportRow[]) => postImport<ImportResult>("/api/import/boursorama/confirm", JSON.stringify({ rows })),
+  confirmBoursorama: (rows: BoursoramaImportRow[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/boursorama/confirm", JSON.stringify({ rows, funding })),
   previewBoursoramaUpdate: (content: string) => postImport<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", JSON.stringify({ content })),
-  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[]) => postImport<ImportResult>("/api/import/boursorama/update-confirm", JSON.stringify({ rows })),
+  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/boursorama/update-confirm", JSON.stringify({ rows, funding })),
   previewAvisOperesPdf: (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => { formData.append("files", file); });
     return postImport<ParsedAvisOperation[]>("/api/import/avis-operes/preview", formData);
   },
-  confirmAvisOperesPdf: (rows: ParsedAvisOperation[]) => postImport<ImportResult>("/api/import/avis-operes/confirm", JSON.stringify({ rows }))
+  confirmAvisOperesPdf: (rows: ParsedAvisOperation[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/avis-operes/confirm", JSON.stringify({ rows, funding }))
 };
 
 export const api = {
@@ -123,6 +125,7 @@ export const api = {
   ...screenerApi,
   ...alertsApi,
   ...portfolioApi,
+  ...cashApi,
   ...objectivesApi,
   ...assetApi,
   ...adminApi,

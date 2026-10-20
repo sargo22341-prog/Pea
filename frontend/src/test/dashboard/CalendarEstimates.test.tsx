@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortfolioCalendarEvents } from "../../components/common/AssetCalendarEvents";
@@ -16,6 +16,8 @@ describe("portfolio calendar estimates", () => {
   });
 
   afterEach(() => {
+    // Démonter avant de retirer le bouchon : un effet de défilement tardif ne doit pas le manquer.
+    cleanup();
     Reflect.deleteProperty(Element.prototype, "scrollIntoView");
     vi.clearAllMocks();
   });

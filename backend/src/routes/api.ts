@@ -23,6 +23,7 @@ import { compareRouter } from "./api/market-data/compare.routes.js";
 import { screenerRouter } from "./api/screener/screener.routes.js";
 import { alertsRouter } from "./api/alerts/alerts.routes.js";
 import { featureFlagsRouter } from "./api/admin/feature-flags.routes.js";
+import { cashRouter } from "./api/cash/cash.routes.js";
 
 export const apiRouter = express.Router();
 
@@ -47,6 +48,7 @@ apiRouter.use(compareRouter);
 apiRouter.use(screenerRouter);
 apiRouter.use(alertsRouter);
 apiRouter.use(portfolioRouter);
+apiRouter.use(cashRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
 apiRouter.use(calendarEventsRouter);

@@ -1,10 +1,11 @@
-import type { BoursoramaUpdateRow, SearchResult } from "@pea/shared";
-import { db } from "../../db.js";
+import type { BoursoramaUpdateRow, CashFundingInput, SearchResult } from "@pea/shared";
 import { HttpError } from "../../utils/http-error.js";
 import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
 import { holdingTolerance } from "../portfolio/holdings/holding-adjustment.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
+import { currentUserId } from "../auth/user-context.js";
+import { withCashGuard } from "../cash/cash-guard.js";
 import { assertYahooSymbolExists } from "./avis-import-validation.js";
 import { maxImportRows, parseBoursoramaCsv, type BoursoramaRow } from "./boursorama-csv.parser.js";
 
@@ -67,11 +68,14 @@ function errorMessage(error: unknown, fallback: string) {
 
 /**
  * Applique en une seule transaction les détentions validées : un échec d'écriture annule tout
- * l'import au lieu de laisser un portefeuille partiellement modifié.
+ * l'import au lieu de laisser un portefeuille partiellement modifié. Les ajustements sont des
+ * achats et ventes datés de l'import : un contrôle espèces unique porte sur tout le lot, et le
+ * versement de financement n'est créé que s'il a été confirmé (`funding`).
  */
-function applyPlannedHoldings(planned: PlannedHolding[], result: ImportResult) {
+function applyPlannedHoldings(planned: PlannedHolding[], result: ImportResult, funding?: CashFundingInput, beforeHoldings?: () => void) {
   const tradedAt = new Date().toISOString();
-  db.transaction(() => {
+  withCashGuard(currentUserId(), { effectiveAt: tradedAt, fundable: true, funding }, () => {
+    beforeHoldings?.();
     for (const holding of planned) {
       portfolioService.applyImportedHolding({ ...holding, currency: boursoramaAccountCurrency, tradedAt });
     }
@@ -107,7 +111,7 @@ export async function previewBoursoramaImport(content: string): Promise<Boursora
   return rows;
 }
 
-export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: "replace" | "merge" | "ignore" | undefined })[]): Promise<ImportResult> {
+export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: "replace" | "merge" | "ignore" | undefined })[], funding?: CashFundingInput): Promise<ImportResult> {
   const result: ImportResult = { imported: [], skipped: [], errors: [] };
   const planned: PlannedHolding[] = [];
   for (const row of rows) {
@@ -130,7 +134,7 @@ export async function confirmBoursoramaImport(rows: (BoursoramaRow & { action?: 
       result.errors.push({ line: row.line, message: errorMessage(error, "Import impossible.") });
     }
   }
-  applyPlannedHoldings(planned, result);
+  applyPlannedHoldings(planned, result, funding);
   return result;
 }
 
@@ -188,7 +192,7 @@ export async function previewBoursoramaUpdate(content: string): Promise<Boursora
   return rows;
 }
 
-export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]): Promise<ImportResult> {
+export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[], funding?: CashFundingInput): Promise<ImportResult> {
   const result: ImportResult = { imported: [], skipped: [], errors: [] };
   const planned: PlannedHolding[] = [];
   const deletions: { line: number; symbol: string; positionId: number }[] = [];
@@ -211,12 +215,11 @@ export async function confirmBoursoramaUpdate(rows: BoursoramaUpdateRow[]): Prom
       result.errors.push({ line: row.line, message: errorMessage(error, "Mise a jour impossible.") });
     }
   }
-  db.transaction(() => {
+  applyPlannedHoldings(planned, result, funding, () => {
     for (const deletion of deletions) {
       if (portfolioService.deletePosition(deletion.positionId)) result.imported.push(deletion.symbol);
       else result.errors.push({ line: deletion.line, message: "Position introuvable pour suppression." });
     }
-    applyPlannedHoldings(planned, result);
   });
   return result;
 }

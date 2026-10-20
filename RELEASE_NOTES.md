@@ -6,3 +6,9 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
+- Import des avis d'opérés PDF : les quantités de 1 000 titres et plus (ex. « 1 916 ») sont désormais lues en entier, et un avis déjà importé (même référence d'ordre) est ignoré.
+- Nouveau compte espèces du PEA : un achat n'est plus compté comme un versement. Les ventes et dividendes encaissés créditent les espèces, les achats, frais et retraits les débitent, et le solde est recalculé à partir de l'historique.
+- Achat sans espèces suffisantes : une fenêtre indique le solde, le coût et le montant manquant, et propose d'enregistrer le versement correspondant avec l'achat (saisie manuelle, imports CSV et PDF).
+- Nouvelle page « Mon PEA » (lien depuis l'accueil et menu du profil) : valeur, versements et performance du compte, saisie des versements, retraits avec avertissement réglementaire, dividendes encaissés et frais, et historique complet avec le solde après chaque mouvement.
+- Accueil simplifié : la valeur totale du PEA espèces comprises et quatre indicateurs (gain global, performance sur la période, espèces disponibles, versements cumulés) ; le détail est regroupé dans « Mon PEA », et chaque indicateur est expliqué au survol de son icône ⓘ.
+- Mise à jour d'un portefeuille existant : une fenêtre guidée demande le solde espèces et les versements historiques (jamais déduits des anciens achats) ; la base est sauvegardée automatiquement avant la migration.

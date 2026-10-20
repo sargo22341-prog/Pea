@@ -62,11 +62,24 @@
     "marketHours": "Horaires du marche : {{city}} {{hours}}, heure locale du marche"
   },
   "topMetrics": {
-    "invested": "Total investi",
-    "dividends": "Total dividendes",
+    "invested": "Prix de revient des positions",
+    "dividends": "Dividendes estimés",
     "fees": "Total frais",
     "yieldOnCost": "Rendement sur cout",
-    "rangePerformance": "Performance sur {{range}}"
+    "rangePerformance": "Performance sur {{range}}",
+    "globalGain": "Gain global",
+    "cash": "Espèces disponibles",
+    "deposits": "Versements cumulés",
+    "myPea": "Voir mon PEA",
+    "hints": {
+      "globalGain": "Valeur du PEA + retraits - versements : tout ce que le PEA vous a rapporté (plus-values, dividendes, frais déduits). Le % est rapporté aux versements nets.",
+      "range": "Variation de la valeur des positions sur la période choisie, hors effet des achats et ventes.",
+      "cash": "Argent disponible sur le compte espèces du PEA pour de nouveaux achats.",
+      "deposits": "Total des virements faits vers le PEA depuis son ouverture ; c'est ce qui compte pour le plafond de 150 000 €.",
+      "performance": "Plus-value latente : valeur actuelle des positions - prix de revient.",
+      "invested": "Somme payée pour les titres détenus (PRU × quantité), frais d'achat inclus.",
+      "dividends": "Estimation : dividendes publiés × quantité détenue à chaque détachement."
+    }
   },
   "dividendsPage": {
     "loading": "Chargement des dividendes...",

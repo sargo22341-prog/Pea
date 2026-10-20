@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
+import { useCashFunding } from "../../../components/common/cash/useCashFunding";
 
 interface ImportError { line: number; message: string }
 
@@ -26,6 +27,7 @@ export function useCsvImport() {
   const [showUnchanged, setShowUnchanged] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const cashFunding = useCashFunding((error) => { setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" })); });
 
   async function importCsv(file?: File) {
     const content = await readCsv(file);
@@ -62,13 +64,13 @@ export function useCsvImport() {
     if (updateRows.some((row) => row.proposedAction === "delete") && !window.confirm(t("imports.confirmDeleteMissing", { ns: "settings" }))) return;
     setLoading(true);
     try {
-      const result = await api.confirmBoursoramaUpdate(updateRows);
-      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(t("imports.confirmUpdateResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
-      setUpdateRows((current) => rowsWithImportErrors(current, result.errors));
-      if (result.errors.length === 0) void navigate("/");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
+      await cashFunding.run(async (funding) => {
+        const result = await api.confirmBoursoramaUpdate(updateRows, funding);
+        if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
+        setMessage(t("imports.confirmUpdateResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
+        setUpdateRows((current) => rowsWithImportErrors(current, result.errors));
+        if (result.errors.length === 0) void navigate("/");
+      });
     } finally {
       setLoading(false);
     }
@@ -77,13 +79,13 @@ export function useCsvImport() {
   async function confirmImport() {
     setLoading(true);
     try {
-      const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })));
-      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(t("imports.confirmImportResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
-      setRows((current) => rowsWithImportErrors(current, result.errors));
-      if (result.errors.length === 0) void navigate("/");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : t("imports.validationError", { ns: "settings" }));
+      await cashFunding.run(async (funding) => {
+        const result = await api.confirmBoursorama(rows.map((row) => ({ ...row, action: row.action ?? "merge" })), funding);
+        if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
+        setMessage(t("imports.confirmImportResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
+        setRows((current) => rowsWithImportErrors(current, result.errors));
+        if (result.errors.length === 0) void navigate("/");
+      });
     } finally {
       setLoading(false);
     }
@@ -102,6 +104,7 @@ export function useCsvImport() {
   return {
     confirmImport,
     confirmUpdate,
+    fundingDialog: cashFunding.dialog,
     importCsv,
     loading,
     message,

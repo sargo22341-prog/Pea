@@ -1,4 +1,5 @@
 import type {
+  CashFundingInput,
   EditablePortfolioTransaction,
   PortfolioChartDto,
   PortfolioFullDto,
@@ -59,12 +60,12 @@ export class PortfolioService {
     return portfolioReadService.transactionStats(positionId, totalDividendsReceived, currency, userId);
   }
 
-  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string) {
-    return portfolioWriteService.createTransaction(positionId, input, userId);
+  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
+    return portfolioWriteService.createTransaction(positionId, input, userId, funding);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string) {
-    return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId);
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
+    return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId, funding);
   }
 
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {

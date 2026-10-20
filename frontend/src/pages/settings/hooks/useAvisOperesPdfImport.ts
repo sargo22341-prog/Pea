@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../../lib/api";
 import { notifyDataConstructionChanged } from "../../../lib/dataConstruction";
+import { useCashFunding } from "../../../components/common/cash/useCashFunding";
 
 interface ImportError { line: number; message: string }
 
@@ -19,6 +20,7 @@ export function useAvisOperesPdfImport() {
   const [rows, setRows] = useState<ParsedAvisOperation[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const cashFunding = useCashFunding((error) => { setMessage(error instanceof Error ? error.message : t("imports.pdfImportError", { ns: "settings" })); });
 
   async function preview(files?: FileList | null) {
     const pdfFiles = Array.from(files ?? []);
@@ -34,15 +36,16 @@ export function useAvisOperesPdfImport() {
     }
   }
 
+  /** Un lot non couvert par les espèces ouvre une seule popup récapitulant le montant manquant. */
   async function confirm() {
     setLoading(true);
     try {
-      const result = await api.confirmAvisOperesPdf(rows);
-      if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-      setMessage(t("imports.operationImportedResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
-      setRows((current) => result.errors.length ? rowsWithImportErrors(current, result.errors) : []);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : t("imports.pdfImportError", { ns: "settings" }));
+      await cashFunding.run(async (funding) => {
+        const result = await api.confirmAvisOperesPdf(rows, funding);
+        if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
+        setMessage(t("imports.operationImportedResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
+        setRows((current) => result.errors.length ? rowsWithImportErrors(current, result.errors) : []);
+      });
     } finally {
       setLoading(false);
     }
@@ -56,5 +59,5 @@ export function useAvisOperesPdfImport() {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
   }
 
-  return { confirm, loading, message, preview, removeRow, rows, updateRow };
+  return { confirm, fundingDialog: cashFunding.dialog, loading, message, preview, removeRow, rows, updateRow };
 }

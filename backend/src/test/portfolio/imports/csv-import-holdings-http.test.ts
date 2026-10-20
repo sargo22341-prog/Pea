@@ -83,7 +83,7 @@ test("CSV holdings imports append transactions instead of overwriting positions"
         await call("/api/import/boursorama/update-confirm", alice.cookie, { rows: updatePreview.filter((row) => row.symbol === "AAA.PA") });
         const afterUpdate = await holding(alice.cookie, "AAA.PA");
 
-        await call("/api/import/boursorama/confirm", bob.cookie, { rows: [csvRow(1, "AAA.PA", 3, 10, "replace")] });
+        await call("/api/import/boursorama/confirm", bob.cookie, { rows: [csvRow(1, "AAA.PA", 3, 10, "replace")], funding: { amount: 30 } });
         const bobHolding = await holding(bob.cookie, "AAA.PA");
 
         console.log("__RESULT__" + JSON.stringify({
