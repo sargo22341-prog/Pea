@@ -57,11 +57,13 @@ export interface PaymentDate {
 
 /**
  * Date de paiement d'un détachement : la première date publiée comprise entre le jour du
- * détachement et `PAYMENT_DATE_MAX_DELAY_DAYS` jours après, sinon une date estimée.
+ * détachement et `PAYMENT_DATE_MAX_DELAY_DAYS` jours après, et avant le jour du détachement
+ * suivant (une date publiée au-delà concerne ce versement suivant), sinon une date estimée.
  */
-export function resolvePaymentDate(exDividendAt: string, publishedPaymentDates: readonly string[]): PaymentDate {
+export function resolvePaymentDate(exDividendAt: string, publishedPaymentDates: readonly string[], nextExDividendAt?: string): PaymentDate {
   const exDayStart = Date.parse(`${isoDay(exDividendAt)}T00:00:00.000Z`);
-  const latest = exDayStart + PAYMENT_DATE_MAX_DELAY_DAYS * DAY_MS;
+  const nextExDayStart = nextExDividendAt === undefined ? Number.POSITIVE_INFINITY : Date.parse(`${isoDay(nextExDividendAt)}T00:00:00.000Z`);
+  const latest = Math.min(exDayStart + PAYMENT_DATE_MAX_DELAY_DAYS * DAY_MS, nextExDayStart - 1);
   const published = publishedPaymentDates
     .map((date) => ({ date, time: Date.parse(date) }))
     .filter(({ time }) => Number.isFinite(time) && time >= exDayStart && time <= latest)

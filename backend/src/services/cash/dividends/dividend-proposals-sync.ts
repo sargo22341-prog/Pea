@@ -27,13 +27,13 @@ function quantityAtExDate(context: CandidateContext, exTime: number) {
  * futur, quantité nulle, dividende nul ou crédit daté avant l'état initial (déjà compris dans le
  * solde déclaré).
  */
-export function proposalCandidate(context: CandidateContext, dividend: DividendEvent): DividendProposalUpsert | undefined {
+export function proposalCandidate(context: CandidateContext, dividend: DividendEvent, nextDividend?: DividendEvent): DividendProposalUpsert | undefined {
   const exTime = Date.parse(dividend.date);
   if (!Number.isFinite(exTime) || exTime > context.now || !(dividend.amount > 0)) return undefined;
   const quantity = quantityAtExDate(context, exTime);
   if (!(quantity > 0)) return undefined;
   const exDividendAt = new Date(exTime).toISOString();
-  const payment = resolvePaymentDate(exDividendAt, context.paymentDates);
+  const payment = resolvePaymentDate(exDividendAt, context.paymentDates, nextDividend?.date);
   if (isAbsorbed(payment.paymentAt, context.referenceAt)) return undefined;
   const withholding = estimateWithholding(context.isin, context.position.symbol);
   const amounts = dividendAmounts(dividend.amount, quantity, withholding.rate);
@@ -94,8 +94,10 @@ export function syncDividendProposals(userId: number, now = new Date()) {
         referenceAt: account.reference_at ?? undefined,
         now: now.getTime()
       };
-      for (const dividend of dividendsService.readDividends(position.symbol)) {
-        const candidate = proposalCandidate(context, dividend);
+      // Détachements triés par date : le suivant borne la date de paiement publiée de chacun.
+      const dividends = dividendsService.readDividends(position.symbol);
+      for (const [index, dividend] of dividends.entries()) {
+        const candidate = proposalCandidate(context, dividend, dividends[index + 1]);
         if (!candidate || alreadyRecorded(candidate, movements)) continue;
         dividendProposalsRepository.upsert(userId, candidate);
         kept.add(`${candidate.symbol}:${candidate.exDate}`);

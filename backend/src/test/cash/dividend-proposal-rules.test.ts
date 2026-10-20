@@ -57,6 +57,18 @@ test("date de paiement : publiée si elle suit le détachement, sinon J+2 ouvré
   assert.equal(addBusinessDays("2026-05-15T07:00:00.000Z", 2), "2026-05-19T07:00:00.000Z");
 });
 
+test("dividendes successifs : la date publiée du versement suivant n'est jamais reprise", () => {
+  // Versement mensuel : seule la date de paiement de juin est publiée.
+  const published = ["2026-06-17T00:00:00.000Z"];
+  assert.deepEqual(resolvePaymentDate("2026-05-14T07:00:00.000Z", published, "2026-06-12T07:00:00.000Z"), { paymentAt: "2026-05-18T07:00:00.000Z", estimated: true });
+  assert.deepEqual(resolvePaymentDate("2026-06-12T07:00:00.000Z", published), { paymentAt: "2026-06-17T00:00:00.000Z", estimated: false });
+
+  const transactions = [trade("buy", "2026-01-10T10:00:00.000Z", 10), trade("sell", "2026-06-01T10:00:00.000Z", 4)];
+  const may = proposalCandidate(context(transactions, { paymentDates: published }), dividend("2026-05-14T07:00:00.000Z", 1), dividend("2026-06-12T07:00:00.000Z", 1));
+  const june = proposalCandidate(context(transactions, { paymentDates: published }), dividend("2026-06-12T07:00:00.000Z", 1));
+  assert.deepEqual([may?.paymentAt, may?.quantity, june?.paymentAt, june?.quantity], ["2026-05-18T07:00:00.000Z", 10, "2026-06-17T00:00:00.000Z", 6], "chaque versement garde sa date et sa quantité");
+});
+
 test("quantité au détachement : une vente partielle antérieure est déduite, une vente postérieure non", () => {
   const transactions = [trade("buy", "2026-01-10T10:00:00.000Z", 10), trade("sell", "2026-03-01T10:00:00.000Z", 4), trade("sell", "2026-05-20T10:00:00.000Z", 6)];
   const candidate = proposalCandidate(context(transactions), dividend("2026-05-14T07:00:00.000Z", 1.5));
