@@ -11,6 +11,8 @@ import { formatMaybeDate, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { InfoHint } from "../disclosure/InfoHint";
 import { MOTION } from "../motion";
+import { DividendIsinField } from "./DividendIsinField";
+import type { DividendProposalsState } from "./useDividendProposals";
 
 function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -21,29 +23,44 @@ function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   );
 }
 
+function CorrectionFields({ amount, creditedAt, onAmount, onCreditedAt }: { amount: string; creditedAt: string; onAmount: (value: string) => void; onCreditedAt: (value: string) => void }) {
+  const { t } = useTranslation("cash");
+  return (
+    <div className="grid gap-3 pt-2 sm:grid-cols-2">
+      <label>
+        <span className="muted mb-1 block">{t("proposals.correctedAmount")}</span>
+        <input className="input" min="0.01" onChange={(event) => { onAmount(event.target.value); }} required step="0.01" type="number" value={amount} />
+      </label>
+      <label>
+        <span className="muted mb-1 block">{t("proposals.creditedAt")}</span>
+        <input className="input" onChange={(event) => { onCreditedAt(event.target.value); }} required type="datetime-local" value={creditedAt} />
+      </label>
+    </div>
+  );
+}
+
 /**
- * Fenêtre de validation d'un dividende proposé : détail du calcul, solde espèces avant / après.
- * « Valider » enregistre le montant proposé, « Corriger » ouvre la saisie du montant et de la date
- * de crédit, « Ignorer » écarte la proposition (réversible depuis « Mon PEA »). Fermer la fenêtre
- * n'enregistre rien.
+ * Fenêtre d'un dividende : détail du calcul et solde espèces avant / après. À confirmer :
+ * « Valider » enregistre le montant proposé, « Corriger » ouvre la saisie, « Ignorer » l'écarte
+ * (réversible depuis « Mon PEA »). Déjà enregistré (à la main ou automatiquement) : la correction
+ * modifie directement le mouvement. Fermer la fenêtre n'enregistre rien.
  */
-export function DividendProposalDialog({ proposal, cash, onAccept, onIgnore, onClose }: {
-  proposal: DividendProposal;
-  cash: number;
-  onAccept: (input: DividendProposalAcceptInput) => Promise<unknown>;
-  onIgnore: () => Promise<unknown>;
-  onClose: () => void;
-}) {
+export function DividendProposalDialog({ proposal, proposals, onClose }: { proposal: DividendProposal; proposals: DividendProposalsState; onClose: () => void }) {
   const { t } = useTranslation(["cash", "common", "errors"]);
   const prive = usePrivacy();
   usePullToRefreshSuspended();
-  const [correcting, setCorrecting] = useState(false);
-  const [amount, setAmount] = useState(String(proposal.netAmount));
-  const [creditedAt, setCreditedAt] = useState(toDateTimeLocalValue(proposal.paymentAt));
+  const recorded = proposal.status === "accepted";
+  const positionId = proposal.positionId;
+  const recordedAmount = proposal.creditedAmount ?? proposal.netAmount;
+  const [correcting, setCorrecting] = useState(recorded);
+  const [amount, setAmount] = useState(String(recordedAmount));
+  const [creditedAt, setCreditedAt] = useState(toDateTimeLocalValue(proposal.creditedAt ?? proposal.paymentAt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const correctedAmount = Number(amount);
   const credited = correcting && Number.isFinite(correctedAmount) ? correctedAmount : proposal.netAmount;
+  // Un dividende enregistré est déjà dans le solde : seul l'écart de la correction le modifie.
+  const cashBefore = recorded ? proposals.cash - recordedAmount : proposals.cash;
   const money = (value: number) => masquerValeur(cashMoney(value, proposal.currency), prive);
 
   useEffect(() => {
@@ -67,9 +84,9 @@ export function DividendProposalDialog({ proposal, cash, onAccept, onIgnore, onC
     }
   }
 
-  function accept() {
+  function save() {
     if (!correcting) {
-      void run(() => onAccept({}));
+      void run(() => proposals.accept(proposal.id, {}));
       return;
     }
     const effectiveAt = localInputToIso(creditedAt);
@@ -77,7 +94,8 @@ export function DividendProposalDialog({ proposal, cash, onAccept, onIgnore, onC
       setError(t("errors:numericInvalid"));
       return;
     }
-    void run(() => onAccept({ amount: correctedAmount, effectiveAt }));
+    const input: DividendProposalAcceptInput = { amount: correctedAmount, effectiveAt };
+    void run(() => (recorded ? proposals.correct(proposal.id, input) : proposals.accept(proposal.id, input)));
   }
 
   return createPortal(
@@ -86,12 +104,13 @@ export function DividendProposalDialog({ proposal, cash, onAccept, onIgnore, onC
         <div className="flex items-start gap-3 border-b border-line p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-mint/40 bg-mint/10 text-mint"><Coins size={20} /></div>
           <div className="min-w-0 flex-1">
-            <p className="muted">{t("cash:proposals.dialogKicker")}</p>
+            <p className="muted">{t(recorded ? "cash:proposals.recordedKicker" : "cash:proposals.dialogKicker")}</p>
             <h2 className="truncate text-base font-semibold" id="dividend-proposal-title">{proposal.symbol} · {proposal.name}</h2>
           </div>
           <button aria-label={t("common:actions.close")} className="btn-ghost shrink-0 px-2" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         <dl className="space-y-2 p-4 text-sm">
+          {proposal.autoAccepted ? <p className="rounded-md border border-mint/40 bg-mint/10 p-2 text-xs text-mint">{t("cash:proposals.autoAcceptedNotice", { date: formatMaybeDate(proposal.decidedAt) })}</p> : null}
           <Row label={t("cash:proposals.exDividendAt")}>{formatMaybeDate(proposal.exDividendAt)}</Row>
           <Row label={t("cash:proposals.quantity")}>{formatNumber(proposal.quantity)}</Row>
           <Row label={t("cash:proposals.amountPerShare")}>{masquerValeur(`${formatNumber(proposal.amountPerShare)} ${proposal.currency}`, prive)}</Row>
@@ -103,33 +122,36 @@ export function DividendProposalDialog({ proposal, cash, onAccept, onIgnore, onC
           <Row label={t("cash:proposals.paymentAt")}>
             {formatMaybeDate(proposal.paymentAt)}{proposal.paymentEstimated ? ` (${t("cash:proposals.estimated")})` : ""}
           </Row>
-          {proposal.needsReview ? <p className="rounded-md border border-amber/40 bg-amber/10 p-2 text-xs text-amber">{t("cash:proposals.needsReview")}</p> : null}
-          {correcting ? (
-            <div className="grid gap-3 pt-2 sm:grid-cols-2">
-              <label>
-                <span className="muted mb-1 block">{t("cash:proposals.correctedAmount")}</span>
-                <input className="input" min="0.01" onChange={(event) => { setAmount(event.target.value); }} required step="0.01" type="number" value={amount} />
-              </label>
-              <label>
-                <span className="muted mb-1 block">{t("cash:proposals.creditedAt")}</span>
-                <input className="input" onChange={(event) => { setCreditedAt(event.target.value); }} required type="datetime-local" value={creditedAt} />
-              </label>
-            </div>
+          {recorded ? <Row label={t("cash:proposals.recordedAmount")}>{money(recordedAmount)}</Row> : null}
+          {proposal.needsReview && !recorded ? <p className="rounded-md border border-amber/40 bg-amber/10 p-2 text-xs text-amber">{t("cash:proposals.needsReview")}</p> : null}
+          {!recorded && proposal.withholdingBasis !== "isin" && positionId !== undefined ? (
+            <DividendIsinField onSave={(isin) => proposals.setIsin(positionId, isin)} />
           ) : null}
+          {correcting ? <CorrectionFields amount={amount} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
           <div className="border-t border-line pt-2">
-            <Row label={t("cash:proposals.cashBefore")}>{money(cash)}</Row>
-            <Row label={t("cash:proposals.cashAfter")}>{money(cash + credited)}</Row>
+            <Row label={t("cash:proposals.cashBefore")}>{money(cashBefore)}</Row>
+            <Row label={t("cash:proposals.cashAfter")}>{money(cashBefore + credited)}</Row>
           </div>
           {error ? <p className="text-sm text-coral" role="alert">{error}</p> : null}
         </dl>
         <div className="flex flex-col-reverse gap-2 border-t border-line p-4 sm:flex-row sm:justify-end">
           <button className="btn-ghost sm:mr-auto" disabled={busy} onClick={onClose} type="button">{t("common:actions.cancel")}</button>
-          <button className="btn-ghost" disabled={busy} onClick={() => void run(onIgnore)} type="button">{t("cash:proposals.ignore")}</button>
+          {recorded ? null : <button className="btn-ghost" disabled={busy} onClick={() => void run(() => proposals.ignore(proposal.id))} type="button">{t("cash:proposals.ignore")}</button>}
           {correcting ? null : <button className="btn-ghost" disabled={busy} onClick={() => { setCorrecting(true); }} type="button">{t("cash:proposals.correct")}</button>}
-          <button className="btn-primary" disabled={busy} onClick={accept} type="button">{correcting ? t("cash:proposals.saveCorrection") : t("cash:proposals.accept")}</button>
+          <button className="btn-primary" disabled={busy} onClick={save} type="button">{correcting ? t("cash:proposals.saveCorrection") : t("cash:proposals.accept")}</button>
         </div>
       </div>
     </div>,
     document.body
   );
+}
+
+/**
+ * Fenêtre de la proposition sélectionnée, relue dans l'état courant : un ISIN saisi ou un ajout
+ * automatique la met à jour, et un changement de statut la réinitialise.
+ */
+export function SelectedDividendDialog({ selectedId, proposals, onClose }: { selectedId: number | null; proposals: DividendProposalsState; onClose: () => void }) {
+  const proposal = selectedId === null ? undefined : proposals.find(selectedId);
+  if (!proposal) return null;
+  return <DividendProposalDialog key={`${proposal.id}:${proposal.status}`} onClose={onClose} proposal={proposal} proposals={proposals} />;
 }

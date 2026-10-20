@@ -89,7 +89,7 @@ export function syncDividendProposals(userId: number, now = new Date()) {
       const context: CandidateContext = {
         position,
         transactions: transactions.get(position.id),
-        isin: isins.get(position.id),
+        isin: position.isin ?? isins.get(position.id),
         paymentDates: paymentDates.get(position.symbol.toUpperCase()) ?? [],
         referenceAt: account.reference_at ?? undefined,
         now: now.getTime()

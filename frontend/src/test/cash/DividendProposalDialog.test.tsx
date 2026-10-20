@@ -37,7 +37,9 @@ const proposal: DividendProposal = {
   country: "NL",
   withholdingBasis: "isin",
   needsReview: false,
-  status: "pending"
+  status: "pending",
+  autoAccepted: false,
+  notificationRead: false
 };
 
 /** Cloche alimentée comme dans l'en-tête (`Shell`), sans la fonctionnalité Alertes. */
@@ -54,9 +56,9 @@ async function openDialog() {
 
 describe("DividendProposalDialog", () => {
   beforeEach(() => {
-    dividendProposals.mockResolvedValue({ pending: [proposal], ignored: [], cash: 100 });
+    dividendProposals.mockResolvedValue({ pending: [proposal], ignored: [], recent: [], unreadAutoAccepted: 0, cash: 100 });
     acceptDividendProposal.mockResolvedValue({});
-    ignoreDividendProposal.mockResolvedValue({ pending: [], ignored: [proposal], cash: 100 });
+    ignoreDividendProposal.mockResolvedValue({ pending: [], ignored: [proposal], recent: [], unreadAutoAccepted: 0, cash: 100 });
   });
 
   afterEach(() => {

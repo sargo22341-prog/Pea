@@ -46,6 +46,9 @@ import { materializeLegacyPositionSnapshotsMigration } from "./portfolio/045-mat
 import { expireNewsCacheMigration } from "./cache/046-expire-news-cache.js";
 import { cashLedgerMigration } from "./cash/047-cash-ledger.js";
 import { dividendProposalsMigration } from "./cash/048-dividend-proposals.js";
+import { dividendAutomationMigration } from "./cash/049-dividend-automation.js";
+import { openingDividendsMigration } from "./cash/051-opening-dividends.js";
+import { positionIsinMigration } from "./portfolio/050-position-isin.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -96,5 +99,8 @@ export const migrations: Migration[] = [
   materializeLegacyPositionSnapshotsMigration,
   expireNewsCacheMigration,
   cashLedgerMigration,
-  dividendProposalsMigration
+  dividendProposalsMigration,
+  dividendAutomationMigration,
+  positionIsinMigration,
+  openingDividendsMigration
 ];

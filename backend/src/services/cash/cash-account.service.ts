@@ -52,7 +52,8 @@ function ledgerState(account: CashAccountRow): LedgerAccountState {
     referenceAt: account.reference_at ?? undefined,
     openingCashCents: account.opening_cash_cents,
     openingDepositsCents: account.opening_deposits_cents,
-    openingWithdrawalsCents: account.opening_withdrawals_cents
+    openingWithdrawalsCents: account.opening_withdrawals_cents,
+    openingDividendsCents: account.opening_dividends_cents ?? undefined
   };
 }
 
@@ -90,6 +91,7 @@ export class CashAccountService {
       openingCash: centsToMoney(account.opening_cash_cents),
       openingDeposits: centsToMoney(account.opening_deposits_cents),
       openingWithdrawals: centsToMoney(account.opening_withdrawals_cents),
+      openingDividends: account.opening_dividends_cents === null ? undefined : centsToMoney(account.opening_dividends_cents),
       updatedAt: account.updated_at
     };
   }

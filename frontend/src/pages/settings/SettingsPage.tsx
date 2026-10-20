@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSection";
 import { CsvImportSection } from "./components/CsvImportSection";
+import { DividendSettingsSection } from "./components/DividendSettingsSection";
 import { ImportAvisOperesPdf } from "./components/ImportAvisOperesPdf";
 import { Collapsible } from "../../components/common/feedback";
 import { ServerSettingsSection } from "../../components/common/ServerSettings";
@@ -34,6 +35,7 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
       <ServerSettingsSection onToggle={() => { toggleSection("server"); }} open={openSection === "server"} />
       <AccountSettingsSection onToggle={() => { toggleSection("account"); }} open={openSection === "account"} />
       <UserPreferencesSection onToggle={() => { toggleSection("preferences"); }} onUserUpdated={onUserUpdated} open={openSection === "preferences"} />
+      <DividendSettingsSection onToggle={() => { toggleSection("dividends"); }} open={openSection === "dividends"} />
       {user.role === "admin" && <AssetIconsSettingsSection onToggle={() => { toggleSection("icons"); }} open={openSection === "icons"} />}
       <Collapsible onToggle={() => { toggleSection("imports"); }} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
         <CsvImportSection />

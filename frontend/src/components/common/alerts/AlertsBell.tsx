@@ -1,4 +1,3 @@
-import type { DividendProposal } from "@pea/shared";
 import { Bell } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +5,7 @@ import { Link } from "react-router-dom";
 import type { AlertEventsState } from "../../../hooks/useAlertEvents";
 import { useDismiss } from "../../../hooks/useDismiss";
 import { formatArticleDate } from "../../../lib/format";
-import { DividendProposalDialog } from "../cash/DividendProposalDialog";
+import { SelectedDividendDialog } from "../cash/DividendProposalDialog";
 import type { DividendProposalsState } from "../cash/useDividendProposals";
 import { MOTION } from "../motion";
 import { describeEvent } from "./alert-labels";
@@ -24,13 +23,19 @@ const MAX_BADGE_COUNT = 9;
 export function AlertsBell({ alerts, proposals, alertsEnabled = true }: { alerts: AlertEventsState; proposals?: DividendProposalsState | undefined; alertsEnabled?: boolean }) {
   const { t } = useTranslation(["alerts", "asset"]);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<DividendProposal | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => { setOpen(false); }, []);
-  const closeDialog = useCallback(() => { setSelected(null); }, []);
+  const closeDialog = useCallback(() => { setSelectedId(null); }, []);
   useDismiss(open, rootRef, close);
   const pending = proposals?.pending ?? [];
-  const badge = alerts.unread + pending.length;
+  const added = (proposals?.recent ?? []).filter((proposal) => proposal.autoAccepted && !proposal.notificationRead);
+  const badge = alerts.unread + pending.length + added.length;
+  const unreadNotifications = alerts.unread + added.length;
+
+  async function markAllRead() {
+    await Promise.all([alertsEnabled && alerts.unread > 0 ? alerts.markAllRead() : undefined, added.length && proposals ? proposals.markNotificationsRead() : undefined]);
+  }
 
   return (
     <div className="relative shrink-0" ref={rootRef}>
@@ -53,11 +58,11 @@ export function AlertsBell({ alerts, proposals, alertsEnabled = true }: { alerts
         <div className={`absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-line bg-panel shadow-glow ${MOTION.menu}`} role="menu">
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
             <span className="text-sm font-semibold">{t("bell.title")}</span>
-            {alerts.unread > 0 && (
-              <button className="text-xs font-semibold text-sky hover:text-sky/80" onClick={() => void alerts.markAllRead()} type="button">{t("markAllRead")}</button>
+            {unreadNotifications > 0 && (
+              <button className="text-xs font-semibold text-sky hover:text-sky/80" onClick={() => void markAllRead()} type="button">{t("markAllRead")}</button>
             )}
           </div>
-          <DividendProposalItems onSelect={(proposal) => { close(); setSelected(proposal); }} proposals={pending} />
+          <DividendProposalItems added={added} onSelect={(id) => { close(); setSelectedId(id); }} pending={pending} />
           {!alertsEnabled ? null : alerts.events.length === 0 ? (
             <p className="px-3 py-4 text-sm text-slate-400">{t("bell.empty")}</p>
           ) : (
@@ -79,15 +84,7 @@ export function AlertsBell({ alerts, proposals, alertsEnabled = true }: { alerts
           {alertsEnabled ? <Link className="block border-t border-line px-3 py-2 text-center text-xs font-semibold text-sky hover:bg-panel2" onClick={close} role="menuitem" to="/alerts">{t("bell.seeAll")}</Link> : null}
         </div>
       )}
-      {selected && proposals ? (
-        <DividendProposalDialog
-          cash={proposals.cash}
-          onAccept={(input) => proposals.accept(selected.id, input)}
-          onClose={closeDialog}
-          onIgnore={() => proposals.ignore(selected.id)}
-          proposal={selected}
-        />
-      ) : null}
+      {proposals ? <SelectedDividendDialog onClose={closeDialog} proposals={proposals} selectedId={selectedId} /> : null}
     </div>
   );
 }

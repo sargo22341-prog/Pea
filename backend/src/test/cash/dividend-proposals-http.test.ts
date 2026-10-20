@@ -73,7 +73,7 @@ test("propositions de dividendes via l'API : appartenance, validation des entré
 
   // 15 × 2 € = 30 € bruts ; retenue allemande 26,375 % (ISIN DE) = 7,91 € ; net 22,09 €.
   assert.equal(result.aliceList.pending[0]?.netAmount, 22.09);
-  assert.deepEqual(result.bobList, { pending: [], ignored: [], cash: 0 });
+  assert.deepEqual(result.bobList, { pending: [], ignored: [], recent: [], unreadAutoAccepted: 0, cash: 0 });
   assert.equal(result.bobAccept.status, 404);
   assert.equal(result.bobIgnore.status, 404);
   assert.equal(result.bobRestore.status, 404);

@@ -2,6 +2,7 @@ import type { CashLedgerDto } from "@pea/shared";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { InitialStateForm } from "../../components/common/cash/InitialStateForm";
+import { OpeningDividendsStep } from "../../components/common/cash/OpeningDividendsStep";
 import { DIVIDEND_PROPOSALS_CHANGED_EVENT, useDividendProposals } from "../../components/common/cash/useDividendProposals";
 import { Collapsible } from "../../components/common/feedback/Collapsible";
 import { MOTION } from "../../components/common/motion";
@@ -85,6 +86,11 @@ export function MyPeaPage() {
           <p className="muted text-sm">{t("cash:setup.editDescription")}</p>
           {settings.referenceAt ? null : <p className="muted text-sm">{t("cash:setup.none")}</p>}
           {initialState}
+          {settings.referenceAt ? (
+            <div className="border-t border-line pt-3">
+              <OpeningDividendsStep key={settings.updatedAt ?? "opening-dividends"} onDone={async (saved) => { if (saved) await initialStateSaved(); }} />
+            </div>
+          ) : null}
         </Collapsible>
       )}
     </div>

@@ -136,6 +136,8 @@ export class CashMovementsService {
         throw new HttpError(409, flowsBeforeReferenceMessage);
       }
       cashRepository.updateAccount(userId, next);
+      // Les dividendes déjà perçus se déduisent de l'état initial : ils sont à reconfirmer s'il change.
+      if (initialStateChanged(previous, next)) cashRepository.setOpeningDividends(userId, null);
       const after = cashAccountService.load(userId).result;
       if (after.minBalanceCents < 0) {
         throw new HttpError(422, negativeOpeningMessage, { code: "INSUFFICIENT_FUNDS", available: centsToMoney(next.openingCashCents), required: 0, shortfall: centsToMoney(-after.minBalanceCents), effectiveAt: after.firstNegativeAt ?? input.referenceAt, fundable: false });
@@ -145,6 +147,14 @@ export class CashMovementsService {
     invalidateCashViews(userId);
     return cashAccountService.ledger(userId);
   }
+}
+
+function initialStateChanged(previous: CashAccountRow, next: { referenceAt: string; openingCashCents: number; openingDepositsCents: number; openingWithdrawalsCents: number }) {
+  return previous.reference_at === null
+    || entryTimeMs(previous.reference_at) !== entryTimeMs(next.referenceAt)
+    || previous.opening_cash_cents !== next.openingCashCents
+    || previous.opening_deposits_cents !== next.openingDepositsCents
+    || previous.opening_withdrawals_cents !== next.openingWithdrawalsCents;
 }
 
 /** Un dividende validé depuis une proposition couvre-t-il déjà ce crédit (même actif, date proche) ? */

@@ -127,5 +127,12 @@
     "deleteError": "Delete failed.",
     "updated": "{{symbol}} icon updated.",
     "deleted": "{{symbol}} icon deleted."
+  },
+  "dividends": {
+    "title": "Dividends",
+    "autoAccept": "Automatically add certain dividends",
+    "autoAcceptHelp": "Off: every dividend paid on your holdings must be confirmed from the bell. On: certain dividends are recorded on their own, on their payment date, and reported in the bell.",
+    "autoAcceptDetails": "A dividend is certain when the company's ISIN is known (imported trade notice or entered), its country is in the withholding tax table (excluding Irish and Luxembourg funds, often exempt), it is paid in euros and no nearby dividend was entered manually. Others still need confirming. Certain dividends already pending are recorded too.",
+    "autoAcceptCorrection": "Every added dividend stays correctable (amount and date) from the bell or the \"My PEA\" page."
   }
 }

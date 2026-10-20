@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { dividendService } from "../../services/portfolio/dividends/dividend.service.js";
 import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
+import { positionIsinService } from "../../services/portfolio/holdings/position-isin.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { intradayDebugClock } from "../../utils/debug-clock.js";
@@ -74,6 +75,12 @@ portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute((req, r
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const { funding, ...body } = transactionBodySchema.parse(req.body);
   res.status(201).json(portfolioService.createTransaction(id, body, undefined, funding));
+}));
+
+portfolioRouter.put("/portfolio/positions/:id/isin", asyncRoute((req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params["id"]);
+  const body = z.object({ isin: z.string().trim().min(1).max(20).nullable() }).strict().parse(req.body);
+  res.json(positionIsinService.set(requireAuthUser(req).id, id, body.isin));
 }));
 
 portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {

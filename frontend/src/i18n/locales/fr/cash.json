@@ -131,12 +131,13 @@
     "globalGain": "Valeur du PEA + retraits - versements : ce que le PEA vous a rapporté au total (plus-values réalisées et latentes, dividendes, frais déduits). Le % est rapporté aux versements nets.",
     "latentGain": "Gain ou perte « sur le papier » des titres encore détenus : valeur actuelle - prix de revient. Il évolue avec les cours tant que vous ne vendez pas.",
     "realizedGain": "Gain ou perte définitivement acquis par vos ventes : prix de vente - PRU des titres vendus - frais. Le produit des ventes est déjà dans le solde espèces.",
-    "cashDividends": "Dividendes réellement crédités sur le compte espèces (montant net, après retenue à la source étrangère éventuelle) : saisis à la main, ou proposés automatiquement puis validés par vous. Ils ne comptent jamais dans les versements ni dans le plafond.",
+    "cashDividends": "Dividendes réellement crédités sur le compte espèces (montant net, après retenue à la source étrangère éventuelle) : saisis à la main, proposés puis validés, ajoutés automatiquement s'ils sont sûrs, et ceux perçus avant l'état initial si vous les avez confirmés. Ils ne comptent jamais dans les versements ni dans le plafond.",
     "estimatedDividends": "Estimation des dividendes reçus depuis vos achats : dividendes publiés par Yahoo Finance × quantité détenue à chaque date de détachement. Montant brut, non enregistré dans les espèces.",
     "yieldOnCost": "Dividende annuel attendu au rythme actuel, rapporté au prix de revient de vos positions. Les ETF capitalisants ne versent rien et font baisser ce taux.",
     "fees": "Frais de courtage des achats et ventes + frais indépendants saisis dans le journal espèces.",
     "withholding": "Retenue prélevée par le pays de la société (déduit du préfixe ISIN, sinon de la place de cotation). Dans un PEA, elle n'est ni récupérable ni imputable. La fiscalité française ne s'applique qu'au retrait : elle n'est pas déduite ici.",
-    "dividendProposal": "Brut = dividende par action publié × quantité détenue à la date de détachement (divisions comprises). Net proposé = brut - retenue à la source estimée. Sans date de paiement publiée, le crédit est estimé deux jours de bourse après le détachement. Rien n'est crédité sans votre validation."
+    "dividendProposal": "Brut = dividende par action publié × quantité détenue à la date de détachement (divisions comprises). Net proposé = brut - retenue à la source estimée. Sans date de paiement publiée, le crédit est estimé deux jours de bourse après le détachement. Rien n'est crédité sans votre validation.",
+    "openingDividends": "Le solde espèces vaut versements nets - achats + ventes - frais + dividendes. On en déduit : dividendes = solde - versements nets + achats - ventes + frais. Le calcul n'est juste que si toutes vos opérations antérieures sont enregistrées. Le montant confirmé ne modifie ni le solde ni les versements : il complète l'indicateur « Dividendes encaissés »."
   },
   "proposals": {
     "title": "Dividendes à valider",
@@ -170,6 +171,42 @@
     "toVerify": "à vérifier",
     "nonePending": "Aucun dividende en attente de validation.",
     "ignoredTitle_one": "{{count}} dividende ignoré",
-    "ignoredTitle_other": "{{count}} dividendes ignorés"
+    "ignoredTitle_other": "{{count}} dividendes ignorés",
+    "recordedKicker": "Dividende encaissé enregistré",
+    "autoAcceptedNotice": "Ajouté automatiquement le {{date}} : le montant était sûr. Corrigez-le s'il diffère de votre relevé.",
+    "recordedAmount": "Montant enregistré",
+    "isinLabel": "ISIN de la société (pour une retenue exacte et les prochains dividendes)",
+    "isinSave": "Enregistrer l'ISIN",
+    "isinInvalid": "ISIN invalide : deux lettres de pays, neuf caractères et un chiffre de contrôle (ex. FR0000120271).",
+    "isinSaved": "ISIN enregistré : la retenue est recalculée.",
+    "bellAdded": "Dividende {{symbol}} : {{amount}} ajouté automatiquement",
+    "bellAddedActions": "Vérifier / Corriger",
+    "lineAuto": "{{amount}} ajouté automatiquement, crédit le {{date}}",
+    "lineRecorded": "{{amount}} enregistré, crédit le {{date}}",
+    "recentTitle_one": "{{count}} dividende enregistré récemment",
+    "recentTitle_other": "{{count}} dividendes enregistrés récemment"
+  },
+  "openingDividends": {
+    "loading": "Calcul des dividendes déjà perçus…",
+    "title": "Dividendes déjà perçus",
+    "info": "Comment ce montant est déduit",
+    "intro": "D'après votre état initial au {{date}} et les opérations enregistrées avant cette date, voici les dividendes que votre PEA a probablement déjà encaissés. Vérifiez-les avant de confirmer.",
+    "cash": "Solde espèces déclaré",
+    "netDeposits": "Versements nets déclarés",
+    "buys": "Achats enregistrés (frais compris)",
+    "sells": "Ventes enregistrées (frais déduits)",
+    "fees": "Frais indépendants",
+    "implied": "Dividendes déduits",
+    "published": "Recoupement avec les dividendes publiés × quantités détenues : {{gross}} brut, environ {{net}} net de retenue.",
+    "amount": "Dividendes perçus à enregistrer (€)",
+    "skip": "Passer",
+    "clear": "Effacer",
+    "confirm": "Confirmer",
+    "warnings": {
+      "negative": "Le calcul est négatif : des ventes ou des dividendes manquent dans l'historique, ou les versements déclarés sont trop élevés. Saisissez le montant de votre relevé.",
+      "approximate_trades": "Une partie des opérations vient d'un import CSV de détentions, aux prix de revient : le résultat est approximatif.",
+      "no_trades": "Aucun achat ni vente n'est enregistré avant la date de référence : le calcul ne peut pas être recoupé.",
+      "mismatch": "Le calcul s'écarte nettement des dividendes publiés : un achat, une vente ou des frais manquent peut-être. Vérifiez avec votre relevé."
+    }
   }
 }

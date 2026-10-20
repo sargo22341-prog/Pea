@@ -61,7 +61,7 @@ export {
   summarizeDividendGrowth
 } from "./dividends.js";
 export { CASH_MOVEMENT_TYPES, PEA_DEPOSIT_CEILING_EUR, PEA_WITHDRAWAL_MATURITY_YEARS } from "./cash.js";
-export { DIVIDEND_PROPOSAL_STATUSES } from "./cash-dividends.js";
+export { DIVIDEND_PROPOSAL_STATUSES, DIVIDEND_RECENT_DAYS } from "./cash-dividends.js";
 export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
 export { DAY_MS, HOUR_MS, parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {

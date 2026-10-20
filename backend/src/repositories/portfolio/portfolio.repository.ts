@@ -111,6 +111,10 @@ export class PortfolioRepository {
     return db.prepare("SELECT * FROM positions WHERE user_id = ? AND symbol = ?").get(ensureUserId(userId), symbol.toUpperCase()) as PositionRow | undefined;
   }
 
+  updateIsin(userId: number, positionId: number, isin: string | null) {
+    db.prepare("UPDATE positions SET isin = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND id = ?").run(isin, userId, positionId);
+  }
+
   findPositionById(positionId: number, userId: number | string): PositionRow | undefined {
     return db.prepare("SELECT * FROM positions WHERE user_id = ? AND id = ?").get(ensureUserId(userId), positionId) as PositionRow | undefined;
   }

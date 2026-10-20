@@ -127,5 +127,12 @@
     "deleteError": "Suppression impossible.",
     "updated": "Icone {{symbol}} mise a jour.",
     "deleted": "Icone {{symbol}} supprimee."
+  },
+  "dividends": {
+    "title": "Dividendes",
+    "autoAccept": "Ajouter automatiquement les dividendes sûrs",
+    "autoAcceptHelp": "Désactivé : chaque dividende détaché sur vos positions est à confirmer depuis la cloche. Activé : les dividendes sûrs sont enregistrés seuls, à leur date de paiement, et signalés dans la cloche.",
+    "autoAcceptDetails": "Un dividende est sûr si l'ISIN de la société est connu (avis d'opéré importé ou saisi), que son pays figure dans la table des retenues à la source (hors fonds irlandais et luxembourgeois, souvent exonérés), qu'il est versé en euros et qu'aucun dividende proche n'a été saisi à la main. Les autres restent à confirmer. Les dividendes sûrs déjà en attente sont aussi enregistrés.",
+    "autoAcceptCorrection": "Chaque dividende ajouté reste corrigeable (montant et date) depuis la cloche ou la page « Mon PEA »."
   }
 }

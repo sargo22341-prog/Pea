@@ -9,6 +9,8 @@ export interface CashAccountRow {
   opening_cash_cents: number;
   opening_deposits_cents: number;
   opening_withdrawals_cents: number;
+  opening_dividends_cents: number | null;
+  dividend_auto_accept: number;
   updated_at: string;
 }
 
@@ -82,6 +84,19 @@ export class CashRepository {
     ).run(input.status, input.referenceAt, input.openedAt, input.openingCashCents, input.openingDepositsCents, input.openingWithdrawalsCents, userId);
   }
 
+  setOpeningDividends(userId: number, cents: number | null) {
+    db.prepare("UPDATE cash_accounts SET opening_dividends_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").run(cents, userId);
+  }
+
+  setDividendAutoAccept(userId: number, enabled: boolean) {
+    db.prepare("UPDATE cash_accounts SET dividend_auto_accept = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").run(Number(enabled), userId);
+  }
+
+  /** Comptes dont le solde est calculable : seuls ceux-ci reçoivent des propositions de dividendes. */
+  listReadyUserIds() {
+    return (db.prepare("SELECT user_id FROM cash_accounts WHERE status = 'ready' ORDER BY user_id").all() as { user_id: number }[]).map((row) => row.user_id);
+  }
+
   insertRevision(userId: number, previous: unknown, next: unknown) {
     db.prepare("INSERT INTO cash_account_revisions (user_id, previous_json, next_json) VALUES (?, ?, ?)")
       .run(userId, previous === undefined ? null : JSON.stringify(previous), JSON.stringify(next));
@@ -108,6 +123,11 @@ export class CashRepository {
 
   findMovementByImportRef(userId: number, importRef: string): CashMovementRow | undefined {
     return db.prepare("SELECT * FROM cash_movements WHERE user_id = ? AND import_ref = ?").get(userId, importRef) as CashMovementRow | undefined;
+  }
+
+  /** Correction d'un mouvement existant (montant, date) ; type, actif et référence restent inchangés. */
+  updateMovement(userId: number, id: number, amountCents: number, effectiveAt: string) {
+    return db.prepare("UPDATE cash_movements SET amount_cents = ?, effective_at = ? WHERE user_id = ? AND id = ?").run(amountCents, effectiveAt, userId, id) > 0;
   }
 
   deleteMovement(userId: number, id: number) {

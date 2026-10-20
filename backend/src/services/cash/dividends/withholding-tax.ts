@@ -1,4 +1,5 @@
 import type { WithholdingBasis } from "@pea/shared";
+import { isValidIsin, normalizeIsin } from "../../../utils/isin.js";
 
 /**
  * Retenue à la source estimée sur un dividende encaissé dans un PEA.
@@ -68,8 +69,6 @@ const listingCountries: Readonly<Record<string, string>> = {
   VI: "AT"
 };
 
-const isinPattern = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
-
 export interface WithholdingEstimate {
   country?: string | undefined;
   rate: number;
@@ -87,8 +86,8 @@ function listingCountry(symbol: string) {
  * sinon pays de cotation. Un pays absent de la table donne 0 % et un montant à vérifier.
  */
 export function estimateWithholding(isin: string | null | undefined, symbol: string): WithholdingEstimate {
-  const normalizedIsin = isin?.trim().toUpperCase();
-  const fromIsin = normalizedIsin && isinPattern.test(normalizedIsin) ? normalizedIsin.slice(0, 2) : undefined;
+  const normalizedIsin = isin ? normalizeIsin(isin) : undefined;
+  const fromIsin = normalizedIsin && isValidIsin(normalizedIsin) ? normalizedIsin.slice(0, 2) : undefined;
   const country = fromIsin ?? listingCountry(symbol);
   const basis: WithholdingBasis = fromIsin ? "isin" : country ? "listing" : "unknown";
   const known = country === undefined ? undefined : countryWithholdings[country];

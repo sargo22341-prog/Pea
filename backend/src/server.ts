@@ -10,6 +10,7 @@ import { cacheCleanupService } from "./services/shared/cache-cleanup.service.js"
 import { marketEventsService } from "./services/market/events/market-events.service.js";
 import { logger } from "./services/shared/logger.service.js";
 import { marketScheduler } from "./schedulers/market-scheduler.service.js";
+import { dividendProposalsScheduler } from "./schedulers/dividend-proposals-scheduler.service.js";
 import { newsScheduler } from "./schedulers/news-scheduler.service.js";
 import { objectiveScheduler } from "./schedulers/objective-scheduler.service.js";
 
@@ -34,6 +35,7 @@ const server = app.listen(config.port, "0.0.0.0", () => {
   marketScheduler.start();
   objectiveScheduler.start();
   newsScheduler.start();
+  dividendProposalsScheduler.start();
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {
@@ -55,6 +57,7 @@ const shutdown = createGracefulShutdown({
     { name: "market scheduler", run: () => marketScheduler.stop() },
     { name: "objective scheduler", run: () => objectiveScheduler.stop() },
     { name: "news scheduler", run: () => newsScheduler.stop() },
+    { name: "dividend proposals scheduler", run: () => dividendProposalsScheduler.stop() },
     { name: "cache cleanup", run: () => { cacheCleanupService.stop(); } },
     { name: "market streams", run: () => { marketEventsService.closeAll(); } },
     { name: "data construction queue", run: () => dataConstructionQueue.stop() }

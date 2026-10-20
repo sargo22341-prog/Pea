@@ -39,6 +39,8 @@ export interface CashAccountSettings {
   openingDeposits: number;
   /** Retraits cumulés jusqu'à la date de référence. */
   openingWithdrawals: number;
+  /** Dividendes perçus jusqu'à la date de référence, confirmés par l'utilisateur. */
+  openingDividends?: number | undefined;
   updatedAt?: string | undefined;
 }
 
@@ -75,7 +77,7 @@ export interface CashAccountSummary {
   deposits: number;
   withdrawals: number;
   netDeposits: number;
-  /** Dividendes réellement encaissés (enregistrés dans le journal). */
+  /** Dividendes réellement encaissés : journal, plus ceux déclarés avant l'état initial. */
   cashDividends: number;
   /** Frais indépendants d'une opération sur titres. */
   standaloneFees: number;

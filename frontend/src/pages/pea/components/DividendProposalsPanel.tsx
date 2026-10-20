@@ -1,7 +1,7 @@
 import type { DividendProposal } from "@pea/shared";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { DividendProposalDialog } from "../../../components/common/cash/DividendProposalDialog";
+import { SelectedDividendDialog } from "../../../components/common/cash/DividendProposalDialog";
 import type { DividendProposalsState } from "../../../components/common/cash/useDividendProposals";
 import { InfoHint } from "../../../components/common/disclosure/InfoHint";
 import { Collapsible } from "../../../components/common/feedback/Collapsible";
@@ -17,8 +17,10 @@ function ProposalLine({ proposal, prive, children }: { proposal: DividendProposa
       <div className="min-w-0 text-sm">
         <p className="truncate font-semibold">{proposal.symbol} · {proposal.name}</p>
         <p className="muted text-xs">
-          {t("proposals.line", { amount: masquerValeur(cashMoney(proposal.netAmount, proposal.currency), prive), date: formatMaybeDate(proposal.paymentAt) })}
-          {proposal.needsReview ? ` · ${t("proposals.toVerify")}` : ""}
+          {proposal.status === "accepted"
+            ? t(proposal.autoAccepted ? "proposals.lineAuto" : "proposals.lineRecorded", { amount: masquerValeur(cashMoney(proposal.creditedAmount ?? proposal.netAmount, proposal.currency), prive), date: formatMaybeDate(proposal.creditedAt ?? proposal.paymentAt) })
+            : t("proposals.line", { amount: masquerValeur(cashMoney(proposal.netAmount, proposal.currency), prive), date: formatMaybeDate(proposal.paymentAt) })}
+          {proposal.needsReview && proposal.status === "pending" ? ` · ${t("proposals.toVerify")}` : ""}
         </p>
       </div>
       <div className="flex shrink-0 gap-2">{children}</div>
@@ -27,15 +29,15 @@ function ProposalLine({ proposal, prive, children }: { proposal: DividendProposa
 }
 
 /**
- * Dividendes proposés dans « Mon PEA » : en attente (à valider, corriger ou ignorer) et ignorés
- * (réactivables). Masqué tant qu'il n'y a rien à traiter.
+ * Dividendes proposés dans « Mon PEA » : en attente (à valider, corriger ou ignorer), enregistrés
+ * récemment (corrigeables) et ignorés (réactivables). Masqué tant qu'il n'y a rien à afficher.
  */
 export function DividendProposalsPanel({ proposals }: { proposals: DividendProposalsState }) {
   const { t } = useTranslation(["cash", "errors"]);
   const prive = usePrivacy();
-  const [selected, setSelected] = useState<DividendProposal | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if (!proposals.pending.length && !proposals.ignored.length) return null;
+  if (!proposals.pending.length && !proposals.ignored.length && !proposals.recent.length) return null;
 
   async function restore(id: number) {
     setError(null);
@@ -58,11 +60,22 @@ export function DividendProposalsPanel({ proposals }: { proposals: DividendPropo
         <ul className="divide-y divide-line">
           {proposals.pending.map((proposal) => (
             <ProposalLine key={proposal.id} prive={prive} proposal={proposal}>
-              <button className="btn-primary" onClick={() => { setSelected(proposal); }} type="button">{t("cash:proposals.review")}</button>
+              <button className="btn-primary" onClick={() => { setSelectedId(proposal.id); }} type="button">{t("cash:proposals.review")}</button>
             </ProposalLine>
           ))}
         </ul>
       ) : <p className="muted text-sm">{t("cash:proposals.nonePending")}</p>}
+      {proposals.recent.length ? (
+        <Collapsible title={t("cash:proposals.recentTitle", { count: proposals.recent.length })}>
+          <ul className="divide-y divide-line">
+            {proposals.recent.map((proposal) => (
+              <ProposalLine key={proposal.id} prive={prive} proposal={proposal}>
+                <button className="btn-ghost" onClick={() => { setSelectedId(proposal.id); }} type="button">{t("cash:proposals.correct")}</button>
+              </ProposalLine>
+            ))}
+          </ul>
+        </Collapsible>
+      ) : null}
       {proposals.ignored.length ? (
         <Collapsible title={t("cash:proposals.ignoredTitle", { count: proposals.ignored.length })}>
           <ul className="divide-y divide-line">
@@ -75,15 +88,7 @@ export function DividendProposalsPanel({ proposals }: { proposals: DividendPropo
         </Collapsible>
       ) : null}
       {error ?? proposals.error ? <p className="text-sm text-coral" role="alert">{error ?? proposals.error}</p> : null}
-      {selected ? (
-        <DividendProposalDialog
-          cash={proposals.cash}
-          onAccept={(input) => proposals.accept(selected.id, input)}
-          onClose={() => { setSelected(null); }}
-          onIgnore={() => proposals.ignore(selected.id)}
-          proposal={selected}
-        />
-      ) : null}
+      <SelectedDividendDialog onClose={() => { setSelectedId(null); }} proposals={proposals} selectedId={selectedId} />
     </section>
   );
 }

@@ -14,3 +14,7 @@ Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](d
 - Mise à jour d'un portefeuille existant : une fenêtre guidée demande le solde espèces et les versements historiques (jamais déduits des anciens achats) ; la base est sauvegardée automatiquement avant la migration.
 - Dividendes encaissés proposés automatiquement : chaque dividende détaché sur une position détenue apparaît dans la cloche à sa date de paiement, avec le brut, la retenue à la source estimée selon le pays et le net proposé ; rien n'est crédité sans votre validation (Valider, Corriger ou Ignorer).
 - Page « Mon PEA » : liste des dividendes à valider et des dividendes ignorés, réactivables ; un dividende déjà saisi à la main n'est ni proposé ni enregistré une seconde fois.
+- Réglages, section « Dividendes » : option d'ajout automatique des dividendes sûrs (ISIN connu, pays identifié, versés en euros) ; les autres restent à confirmer, et chaque ajout est signalé dans la cloche, même sans s'être connecté.
+- Un dividende enregistré, à la main ou automatiquement, se corrige directement (montant et date) depuis la cloche ou « Mon PEA ».
+- L'ISIN d'une action peut être saisi depuis la fenêtre d'un dividende « à vérifier », pour une retenue à la source exacte.
+- Après la configuration du compte espèces, les dividendes déjà perçus sont calculés à partir du solde, des versements, des achats et des ventes, recoupés avec les dividendes publiés, puis proposés à confirmer.

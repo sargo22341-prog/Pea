@@ -1,4 +1,4 @@
-import type { CashFundingInput, CashLedgerDto, CashMovementType, DividendProposalAcceptInput, DividendProposalsDto } from "@pea/shared";
+import type { CashFundingInput, CashLedgerDto, CashMovementType, DividendProposalAcceptInput, DividendProposalsDto, DividendSettings, OpeningDividendsEstimate } from "@pea/shared";
 import { request } from "../api-core";
 
 export interface CashMovementPayload {
@@ -36,6 +36,16 @@ export const cashApi = {
   dividendProposals: (signal?: AbortSignal) => request<DividendProposalsDto>("/api/cash/dividend-proposals", { signal: signal ?? null }),
   acceptDividendProposal: (id: number, input: DividendProposalAcceptInput) =>
     request<DividendProposalDecision>(`/api/cash/dividend-proposals/${id}/accept`, { method: "POST", body: JSON.stringify(input) }),
+  correctDividendProposal: (id: number, input: DividendProposalAcceptInput) =>
+    request<DividendProposalDecision>(`/api/cash/dividend-proposals/${id}/correct`, { method: "POST", body: JSON.stringify(input) }),
   ignoreDividendProposal: (id: number) => proposalAction(id, "ignore"),
-  restoreDividendProposal: (id: number) => proposalAction(id, "restore")
+  restoreDividendProposal: (id: number) => proposalAction(id, "restore"),
+  markDividendNotificationsRead: () => request<DividendProposalsDto>("/api/cash/dividend-proposals/notifications/read", { method: "POST", body: "{}" }),
+  dividendSettings: (signal?: AbortSignal) => request<DividendSettings>("/api/cash/dividend-settings", { signal: signal ?? null }),
+  updateDividendSettings: (settings: DividendSettings) => request<DividendSettings>("/api/cash/dividend-settings", { method: "PUT", body: JSON.stringify(settings) }),
+  openingDividendsEstimate: (signal?: AbortSignal) => request<OpeningDividendsEstimate>("/api/cash/account/opening-dividends", { signal: signal ?? null }),
+  confirmOpeningDividends: (amount: number | null) =>
+    request<CashLedgerDto>("/api/cash/account/opening-dividends", { method: "PUT", body: JSON.stringify({ amount }) }),
+  setPositionIsin: (positionId: number, isin: string | null) =>
+    request<{ positionId: number; isin: string | null }>(`/api/portfolio/positions/${positionId}/isin`, { method: "PUT", body: JSON.stringify({ isin }) })
 };

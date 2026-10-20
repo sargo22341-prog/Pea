@@ -32,7 +32,7 @@ export function Shell({ user }: { user: User }) {
   const alertsEnabled = useFeatureEnabled("alerts");
   const alertEvents = useAlertEvents(ALERT_LIMITS.latestEvents, alertsEnabled);
   const dividendProposals = useDividendProposals();
-  const showBell = alertsEnabled || dividendProposals.pending.length > 0;
+  const showBell = alertsEnabled || dividendProposals.pending.length > 0 || dividendProposals.unreadAutoAccepted > 0;
   const links = useMemo(() => getMobileNavItems({ assetNewsEnabled: user.assetNewsEnabled }, { marketsEnabled }), [user.assetNewsEnabled, marketsEnabled]);
 
   useEffect(() => {

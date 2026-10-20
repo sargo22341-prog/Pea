@@ -10,7 +10,7 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 |---|---|
 | `transactions` | Achats (`buy`) et ventes (`sell`) existants, avec frais. Nouvelle colonne `import_ref` (référence d'ordre d'un avis PDF, préfixée `pdf:`) pour refuser un second import. |
 | `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
-| `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes) et date d'ouverture facultative. |
+| `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
 | `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
 
@@ -51,7 +51,8 @@ proposés puis validés, voir ci-dessous).
 ## Dividendes proposés à la validation
 
 Chaque dividende détaché sur une position détenue devient une **proposition** à valider. Aucun
-dividende n'est jamais crédité sans confirmation explicite. Le code vit dans
+dividende n'est crédité sans confirmation explicite, sauf les dividendes sûrs quand l'utilisateur
+a activé l'ajout automatique (voir plus bas). Le code vit dans
 `backend/src/services/cash/dividends/`.
 
 **Génération** (`dividend-proposals-sync.ts`) : à chaque lecture de
@@ -92,11 +93,49 @@ Taux vérifiés le 2026-10-20 (sources en commentaire du module).
 - `ignore` : statut `ignored`, réversible par `restore` depuis « Mon PEA » ;
 - supprimer le mouvement d'un dividende validé remet la proposition en attente.
 
+**Ajout automatique** (réglage « Dividendes » de la page Réglages, désactivé par défaut,
+`GET`/`PUT /api/cash/dividend-settings`) : seuls les dividendes **sûrs** sont validés sans clic,
+avec la même transaction que « Valider ». Sûr = ISIN valide connu (saisi sur la position, migration
+50, ou issu d'un avis d'opéré), pays présent dans la table des retenues hors IE/LU, dividende en
+euros, et aucune saisie manuelle rapprochée. La date de paiement estimée est acceptée (elle reste
+corrigeable). Les autres restent à confirmer. La tâche horaire `dividend-proposals-scheduler`
+génère les propositions et applique l'ajout automatique pour chaque compte prêt, sans appel Yahoo,
+et envoie l'évènement SSE `cash-dividends-updated` quand un dividende est ajouté ou devient à
+confirmer. Chaque ajout automatique est signalé dans la cloche jusqu'à « Tout marquer comme lu ».
+
+**Correction** (`POST /api/cash/dividend-proposals/:id/correct`) : un dividende validé (à la main
+ou automatiquement) se corrige directement, montant et date, depuis la cloche ou « Mon PEA »
+(dividendes enregistrés depuis moins de 30 jours). Le mouvement est modifié sous `withCashGuard` :
+une baisse qui découvrirait le compte plus tard est refusée (`422`, non finançable).
+
+**ISIN d'une position** (`PUT /api/portfolio/positions/:id/isin`, clé de contrôle vérifiée) :
+saisi depuis la fenêtre d'un dividende « à vérifier », il fixe le pays de la société, recalcule
+les propositions en attente et rend les suivantes sûres.
+
 **Rapprochement** (`isSameDividendCredit`) : deux crédits de dividende du même actif datés à moins
 de 10 jours (`DIVIDEND_RECONCILIATION_WINDOW_DAYS`) sont le même versement. Un dividende déjà saisi
 à la main n'est donc pas proposé, une proposition validée ne peut pas être ressaisie à la main
 (`409`), et la référence d'import unique interdit un second enregistrement. Un dividende saisi sans
 actif n'est rapproché de rien.
+
+## Dividendes perçus avant l'état initial
+
+Après la confirmation de l'état initial, une seconde étape (`GET`/`PUT
+/api/cash/account/opening-dividends`, `opening-dividends.ts`) propose les dividendes déjà perçus.
+Le solde espèces vaut versements nets - achats + ventes - frais + dividendes, donc :
+
+```text
+dividendes = solde déclaré - versements nets déclarés + achats - ventes + frais indépendants
+```
+
+(opérations antérieures ou égales à la date de référence, frais d'achat et de vente inclus). Le
+calcul n'est juste que si toutes les opérations antérieures sont enregistrées ; il est recoupé avec
+les dividendes publiés × quantité détenue (positions à transactions datées), brut et net de retenue.
+Avertissements : résultat négatif, opérations issues d'un import CSV de détentions, aucune opération
+antérieure, écart de plus de 25 % (et 50 €) avec l'estimation publiée. Le montant confirmé (ou
+corrigé) n'alimente que l'indicateur « Dividendes encaissés » : ni le solde ni les versements. Il
+remplace alors les dividendes saisis avant la date de référence (jamais comptés deux fois), est
+tracé dans `cash_account_revisions`, et est effacé si l'état initial change (à reconfirmer).
 
 ## Contrôle des fonds
 
@@ -176,7 +215,8 @@ saisi.
 - Les ajustements d'un import CSV de détentions (sans historique) sont des achats et ventes datés
   de l'import au PRU de l'export : leur effet sur les espèces est une approximation.
 - Les dividendes encaissés ne sont jamais créés à partir des dividendes estimés : seuls les
-  détachements réels sont proposés, et uniquement crédités après validation. Les jours fériés ne
+  détachements réels sont proposés, crédités après validation, ou sans clic s'ils sont sûrs et
+  que l'ajout automatique est activé. Les jours fériés ne
   sont pas pris en compte dans la date de paiement estimée.
 - Le solde espèces ne se corrige pas directement : un écart avec le relevé du courtier se résout
   en corrigeant les mouvements ou l'état initial (aucun type « écart de rapprochement » n'existe).

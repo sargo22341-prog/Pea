@@ -131,12 +131,13 @@
     "globalGain": "PEA value + withdrawals - deposits: what the PEA has earned overall (realized and unrealized gains, dividends, net of fees). The % is relative to net deposits.",
     "latentGain": "Paper gain or loss on the securities still held: current value - cost basis. It moves with prices until you sell.",
     "realizedGain": "Gain or loss locked in by your sales: sale price - average cost of the shares sold - fees. Sale proceeds are already in the cash balance.",
-    "cashDividends": "Dividends actually credited to the cash account (net amount, after any foreign withholding tax): entered manually, or proposed automatically and confirmed by you. They never count as deposits nor towards the ceiling.",
+    "cashDividends": "Dividends actually credited to the cash account (net amount, after any foreign withholding tax): entered manually, proposed then confirmed, added automatically when certain, and those received before the initial state if you confirmed them. They never count as deposits nor towards the ceiling.",
     "estimatedDividends": "Estimate of dividends received since your purchases: dividends published by Yahoo Finance × quantity held on each ex-date. Gross amount, not recorded in cash.",
     "yieldOnCost": "Expected annual dividend at the current rate, relative to the cost basis of your positions. Accumulating ETFs pay nothing and lower this rate.",
     "fees": "Brokerage fees on purchases and sales + standalone fees entered in the cash ledger.",
     "withholding": "Tax withheld by the company's country (from the ISIN prefix, otherwise from the listing venue). In a PEA it can neither be reclaimed nor offset. French taxation only applies on withdrawal and is not deducted here.",
-    "dividendProposal": "Gross = published dividend per share × quantity held on the ex-dividend date (splits included). Proposed net = gross - estimated withholding tax. Without a published payment date, the credit is estimated two trading days after the ex-dividend date. Nothing is credited without your confirmation."
+    "dividendProposal": "Gross = published dividend per share × quantity held on the ex-dividend date (splits included). Proposed net = gross - estimated withholding tax. Without a published payment date, the credit is estimated two trading days after the ex-dividend date. Nothing is credited without your confirmation.",
+    "openingDividends": "The cash balance equals net deposits - purchases + sales - fees + dividends. Hence: dividends = balance - net deposits + purchases - sales + fees. The result is only right if all your earlier operations are recorded. The confirmed amount changes neither the balance nor the deposits: it completes the \"Cash dividends\" indicator."
   },
   "proposals": {
     "title": "Dividends to confirm",
@@ -170,6 +171,42 @@
     "toVerify": "to check",
     "nonePending": "No dividend awaiting confirmation.",
     "ignoredTitle_one": "{{count}} ignored dividend",
-    "ignoredTitle_other": "{{count}} ignored dividends"
+    "ignoredTitle_other": "{{count}} ignored dividends",
+    "recordedKicker": "Recorded cash dividend",
+    "autoAcceptedNotice": "Added automatically on {{date}}: the amount was certain. Correct it if it differs from your statement.",
+    "recordedAmount": "Recorded amount",
+    "isinLabel": "Company ISIN (for an exact withholding tax and future dividends)",
+    "isinSave": "Save ISIN",
+    "isinInvalid": "Invalid ISIN: two country letters, nine characters and a check digit (e.g. FR0000120271).",
+    "isinSaved": "ISIN saved: the withholding tax is recalculated.",
+    "bellAdded": "{{symbol}} dividend: {{amount}} added automatically",
+    "bellAddedActions": "Review / Correct",
+    "lineAuto": "{{amount}} added automatically, credited on {{date}}",
+    "lineRecorded": "{{amount}} recorded, credited on {{date}}",
+    "recentTitle_one": "{{count}} recently recorded dividend",
+    "recentTitle_other": "{{count}} recently recorded dividends"
+  },
+  "openingDividends": {
+    "loading": "Calculating dividends already received…",
+    "title": "Dividends already received",
+    "info": "How this amount is derived",
+    "intro": "Based on your initial state on {{date}} and the operations recorded before that date, here are the dividends your PEA has probably already received. Check them before confirming.",
+    "cash": "Declared cash balance",
+    "netDeposits": "Declared net deposits",
+    "buys": "Recorded purchases (fees included)",
+    "sells": "Recorded sales (fees deducted)",
+    "fees": "Standalone fees",
+    "implied": "Derived dividends",
+    "published": "Cross-check with published dividends × quantities held: {{gross}} gross, about {{net}} net of withholding tax.",
+    "amount": "Dividends received to record (€)",
+    "skip": "Skip",
+    "clear": "Clear",
+    "confirm": "Confirm",
+    "warnings": {
+      "negative": "The result is negative: sales or dividends are missing from the history, or the declared deposits are too high. Enter the amount from your statement.",
+      "approximate_trades": "Some operations come from a CSV holdings import, at cost price: the result is approximate.",
+      "no_trades": "No purchase or sale is recorded before the reference date: the result cannot be cross-checked.",
+      "mismatch": "The result differs markedly from published dividends: a purchase, a sale or fees may be missing. Check against your statement."
+    }
   }
 }

@@ -25,6 +25,10 @@ export interface DividendProposalRow {
   status: DividendProposalStatus;
   movement_id: number | null;
   decided_at: string | null;
+  auto_accepted: number;
+  notification_read_at: string | null;
+  credited_cents: number | null;
+  credited_at: string | null;
 }
 
 export interface DividendProposalUpsert {
@@ -50,6 +54,8 @@ export interface ProposalPositionRow {
   id: number;
   symbol: string;
   quantity: number;
+  /** ISIN saisi sur la position, prioritaire sur celui des avis d'opéré importés. */
+  isin: string | null;
 }
 
 export interface DividendMovementRow {
@@ -59,8 +65,11 @@ export interface DividendMovementRow {
   import_ref: string | null;
 }
 
-const PROPOSAL_COLUMNS = "dp.*, COALESCE(p.name, a.name) AS name";
-const PROPOSAL_FROM = "cash_dividend_proposals dp LEFT JOIN positions p ON p.id = dp.position_id LEFT JOIN assets a ON a.symbol = dp.symbol";
+const PROPOSAL_COLUMNS = "dp.*, COALESCE(p.name, a.name) AS name, m.amount_cents AS credited_cents, m.effective_at AS credited_at";
+const PROPOSAL_FROM = `cash_dividend_proposals dp
+  LEFT JOIN positions p ON p.id = dp.position_id
+  LEFT JOIN assets a ON a.symbol = dp.symbol
+  LEFT JOIN cash_movements m ON m.id = dp.movement_id AND m.user_id = dp.user_id`;
 
 /**
  * Accès SQL des propositions de dividendes. Chaque requête filtre sur `user_id` : une proposition
@@ -68,7 +77,7 @@ const PROPOSAL_FROM = "cash_dividend_proposals dp LEFT JOIN positions p ON p.id 
  */
 export const dividendProposalsRepository = {
   listPositions(userId: number) {
-    return db.prepare("SELECT id, symbol, quantity FROM positions WHERE user_id = ?").all(userId) as ProposalPositionRow[];
+    return db.prepare("SELECT id, symbol, quantity, isin FROM positions WHERE user_id = ?").all(userId) as ProposalPositionRow[];
   },
 
   /** ISIN le plus récent connu pour chaque position (renseigné par les avis d'opéré importés). */
@@ -141,16 +150,28 @@ export const dividendProposalsRepository = {
     db.prepare("DELETE FROM cash_dividend_proposals WHERE user_id = ? AND id = ? AND status <> 'accepted'").run(userId, id);
   },
 
-  changeStatus(userId: number, id: number, change: { from: DividendProposalStatus; to: DividendProposalStatus; decidedAt: string | null; movementId?: number | null | undefined }) {
+  /** Un ajout automatique reste non lu jusqu'à « Tout marquer comme lu » ou une correction. */
+  changeStatus(userId: number, id: number, change: { from: DividendProposalStatus; to: DividendProposalStatus; decidedAt: string | null; movementId?: number | null | undefined; autoAccepted?: boolean | undefined }) {
     return db.prepare(
-      "UPDATE cash_dividend_proposals SET status = ?, decided_at = ?, movement_id = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND id = ? AND status = ?"
-    ).run(change.to, change.decidedAt, change.movementId ?? null, userId, id, change.from) > 0;
+      `UPDATE cash_dividend_proposals
+       SET status = ?, decided_at = ?, movement_id = ?, auto_accepted = ?, notification_read_at = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ? AND id = ? AND status = ?`
+    ).run(change.to, change.decidedAt, change.movementId ?? null, Number(change.autoAccepted ?? false), userId, id, change.from) > 0;
+  },
+
+  markNotificationsRead(userId: number, readAt: string, id?: number) {
+    db.prepare(
+      `UPDATE cash_dividend_proposals SET notification_read_at = ?
+       WHERE user_id = ? AND auto_accepted = 1 AND notification_read_at IS NULL AND (? IS NULL OR id = ?)`
+    ).run(readAt, userId, id ?? null, id ?? null);
   },
 
   /** Le mouvement d'une proposition validée est supprimé : la proposition redevient en attente. */
   releaseMovement(userId: number, movementId: number) {
     db.prepare(
-      "UPDATE cash_dividend_proposals SET status = 'pending', movement_id = NULL, decided_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND movement_id = ?"
+      `UPDATE cash_dividend_proposals
+       SET status = 'pending', movement_id = NULL, decided_at = NULL, auto_accepted = 0, notification_read_at = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ? AND movement_id = ?`
     ).run(userId, movementId);
   }
 };

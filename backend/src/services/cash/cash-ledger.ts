@@ -44,6 +44,11 @@ export interface LedgerAccountState {
   openingCashCents: number;
   openingDepositsCents: number;
   openingWithdrawalsCents: number;
+  /**
+   * Dividendes perçus jusqu'à la date de référence, confirmés par l'utilisateur. Déclarés, ils
+   * remplacent dans l'indicateur les dividendes résumés par l'état initial (jamais comptés deux fois).
+   */
+  openingDividendsCents?: number | undefined;
 }
 
 export interface LedgerItem {
@@ -109,6 +114,8 @@ export function computeLedger<T extends LedgerItem>(account: LedgerAccountState,
     dividendsCents: 0,
     feesCents: 0
   };
+  const openingDividendsCents = account.referenceAt === undefined ? undefined : account.openingDividendsCents;
+  result.dividendsCents = openingDividendsCents ?? 0;
   let balance = 0;
   let openingApplied = account.referenceAt === undefined;
 
@@ -125,7 +132,7 @@ export function computeLedger<T extends LedgerItem>(account: LedgerAccountState,
     if (!absorbed) applyOpening();
     balance += item.amountCents;
     entries.push({ item, id: item.id, kind: item.kind, effectiveAt: item.effectiveAt, amountCents: item.amountCents, balanceAfterCents: balance, absorbed });
-    if (item.kind === "dividend") result.dividendsCents += item.amountCents;
+    if (item.kind === "dividend" && !(absorbed && openingDividendsCents !== undefined)) result.dividendsCents += item.amountCents;
     if (item.kind === "fee") result.feesCents -= item.amountCents;
     if (absorbed) continue;
     if (item.kind === "deposit") result.depositsCents += item.amountCents;

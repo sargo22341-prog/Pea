@@ -37,14 +37,71 @@ export interface DividendProposal {
   needsReview: boolean;
   status: DividendProposalStatus;
   decidedAt?: string | undefined;
+  /** Validée sans clic par l'ajout automatique des dividendes sûrs. */
+  autoAccepted: boolean;
+  /** Notification « ajouté automatiquement » déjà lue. */
+  notificationRead: boolean;
+  /** Montant et date réellement crédités (proposition validée), pour une correction. */
+  creditedAmount?: number | undefined;
+  creditedAt?: string | undefined;
 }
 
 export interface DividendProposalsDto {
   /** Propositions en attente dont la date de paiement est atteinte. */
   pending: DividendProposal[];
   ignored: DividendProposal[];
+  /** Dividendes validés récemment (corrigeables), dont les ajouts automatiques non lus. */
+  recent: DividendProposal[];
+  /** Ajouts automatiques dont la notification n'est pas encore lue. */
+  unreadAutoAccepted: number;
   /** Solde espèces actuel, pour afficher le solde avant / après validation. */
   cash: number;
+}
+
+/** Durée pendant laquelle un dividende validé reste listé (et corrigeable) parmi les récents. */
+export const DIVIDEND_RECENT_DAYS = 30;
+
+export interface DividendSettings {
+  /**
+   * Enregistre sans confirmation les dividendes sûrs : ISIN connu, pays de la table des retenues,
+   * hors fonds possiblement exonérés, en euros, sans saisie manuelle proche. Les autres restent à
+   * confirmer.
+   */
+  autoAccept: boolean;
+}
+
+/** Raison pour laquelle l'estimation des dividendes déjà perçus doit être vérifiée. */
+export type OpeningDividendsWarning =
+  /** Le calcul donne un montant négatif : opérations manquantes ou versements surévalués. */
+  | "negative"
+  /** Des opérations antérieures viennent d'un import CSV de détentions (montants approchés). */
+  | "approximate_trades"
+  /** Aucune opération sur titres avant la date de référence : le calcul ne peut rien recouper. */
+  | "no_trades"
+  /** Écart important avec l'estimation tirée des dividendes publiés. */
+  | "mismatch";
+
+/**
+ * Dividendes déjà perçus avant l'état initial, déduits du solde déclaré : solde espèces -
+ * versements nets + achats - ventes + frais = dividendes. À confirmer par l'utilisateur.
+ */
+export interface OpeningDividendsEstimate {
+  referenceAt: string;
+  cash: number;
+  netDeposits: number;
+  /** Coût des achats antérieurs, frais inclus. */
+  buys: number;
+  /** Produit des ventes antérieures, frais déduits. */
+  sells: number;
+  standaloneFees: number;
+  /** Résultat du calcul (peut être négatif si l'historique est incomplet). */
+  implied: number;
+  /** Recoupement : dividendes publiés × quantité détenue, avant et après retenue estimée. */
+  publishedGross: number;
+  publishedNet: number;
+  warnings: OpeningDividendsWarning[];
+  /** Montant déjà confirmé par l'utilisateur, s'il existe. */
+  declared?: number | undefined;
 }
 
 /** Validation d'une proposition ; un montant ou une date fournis corrigent les valeurs proposées. */
