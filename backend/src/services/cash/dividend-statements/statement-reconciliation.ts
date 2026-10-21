@@ -26,6 +26,8 @@ export interface StatementContext {
   positions: StatementPositionRow[];
   /** Mouvements `dividend` de l'utilisateur. */
   movements: CashMovementRow[];
+  /** Remboursements de capital de l'utilisateur. */
+  credits: CashMovementRow[];
   /** Propositions en attente ou ignorées. */
   proposals: DividendProposalRow[];
   /** Lignes déjà certifiées comme dividendes perçus avant l'état initial. */

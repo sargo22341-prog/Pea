@@ -1,20 +1,23 @@
-import type { DividendStatementLinePreview, DividendStatementPreview, DividendStatementRefund } from "@pea/shared";
+import type { DividendStatementLinePreview, DividendStatementPreview } from "@pea/shared";
 import { cashRepository, type CashMovementRow } from "../../../repositories/cash/cash.repository.js";
 import { dividendProposalsRepository } from "../../../repositories/cash/dividend-proposals.repository.js";
 import { dividendVerificationRepository } from "../../../repositories/cash/dividend-verification.repository.js";
 import { centsToMoney } from "../cash-ledger.js";
 import { requireReadyAccount } from "../dividends/dividend-credit.js";
 import { statementReference, verificationInfo } from "../dividends/dividend-verification.js";
-import type { ParsedDividendStatement, ParsedStatementLine, ParsedStatementRefund } from "./parser/statement-parser.js";
+import type { ParsedDividendStatement, ParsedStatementLine } from "./parser/statement-parser.js";
+import { refundPreview } from "./statement-refunds.js";
 import { classifyLine, compareWithholding, type LineClassification, type StatementContext } from "./statement-reconciliation.js";
 
 /** État du compte nécessaire au rapprochement ; un compte espèces non configuré est refusé (409). */
 export function loadStatementContext(userId: number, now: Date): StatementContext {
   const account = requireReadyAccount(userId);
+  const movements = cashRepository.listMovements(userId);
   return {
     account,
     positions: dividendVerificationRepository.listPositions(userId),
-    movements: cashRepository.listMovements(userId).filter((movement) => movement.type === "dividend"),
+    movements: movements.filter((movement) => movement.type === "dividend"),
+    credits: movements.filter((movement) => movement.type === "capital_repayment"),
     proposals: dividendProposalsRepository.listForUser(userId).filter((row) => row.status !== "accepted"),
     statementLines: dividendVerificationRepository.listStatementLines(userId),
     now
@@ -44,10 +47,6 @@ function movementDto(movement: CashMovementRow) {
   return { id: movement.id, amount: centsToMoney(movement.amount_cents), effectiveAt: movement.effective_at, verification: verificationInfo(movement) };
 }
 
-function refundDto(refund: ParsedStatementRefund): DividendStatementRefund {
-  return { paymentDate: refund.paymentDate, name: refund.name, isin: refund.isin, amount: centsToMoney(refund.amountCents) };
-}
-
 export function linePreview(period: string, line: ParsedStatementLine, classification: LineClassification): DividendStatementLinePreview {
   const { position } = classification;
   return {
@@ -67,7 +66,7 @@ export function statementPreview(context: StatementContext, fileName: string, st
     fileName,
     period: statement.period,
     lines: statement.lines.map((line) => linePreview(statement.period, line, classifyLine(context, statement.period, line))),
-    refunds: statement.refunds.map(refundDto),
+    refunds: statement.refunds.map((refund) => refundPreview(context, statement.period, refund)),
     totalNet: centsToMoney(statement.totalNetCents)
   };
 }

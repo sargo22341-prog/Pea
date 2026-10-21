@@ -34,8 +34,9 @@ export interface StatementLineInsert {
 }
 
 /**
- * Accès SQL de la vérification des dividendes. Chaque requête filtre sur `user_id` et, pour un
- * mouvement, sur le type `dividend` : un autre mouvement ne peut jamais être certifié.
+ * Accès SQL de la vérification des crédits liés à un titre. Chaque requête filtre sur `user_id`
+ * et, pour un mouvement, sur les types `dividend`, `capital_repayment` et `compensation` : un
+ * versement, un retrait ou des frais ne peuvent jamais être certifiés par un relevé de coupons.
  */
 export const dividendVerificationRepository = {
   /** Positions et leur ISIN : saisi sur la position, sinon le plus récent des avis d'opéré importés. */
@@ -53,7 +54,7 @@ export const dividendVerificationRepository = {
 
   setVerification(userId: number, movementId: number, verification: DividendVerification, verifiedAt: string, reference: string | null) {
     return db.prepare(
-      "UPDATE cash_movements SET verification = ?, verified_at = ?, verification_ref = ? WHERE user_id = ? AND id = ? AND type = 'dividend'"
+      "UPDATE cash_movements SET verification = ?, verified_at = ?, verification_ref = ? WHERE user_id = ? AND id = ? AND type IN ('dividend', 'capital_repayment', 'compensation')"
     ).run(verification, verifiedAt, reference, userId, movementId) > 0;
   },
 

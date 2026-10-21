@@ -27,7 +27,7 @@ const unmatchedLine: CashLedgerEntry = { ...statementLine, id: "statement-line:1
 const movement: CashLedgerEntry = { id: "movement:3", kind: "dividend", effectiveAt: "2026-03-31T12:00:00.000Z", amount: 38.25, balanceAfter: 138.25, absorbed: false, source: "manual", symbol: "BN.PA", positionId: 1 };
 
 const ledger: CashLedgerDto = {
-  summary: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", cash: 138.25, deposits: 100, withdrawals: 0, netDeposits: 100, cashDividends: 128.0, standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_900, realizedGain: 0, historyIncomplete: true },
+  summary: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", cash: 138.25, deposits: 100, withdrawals: 0, netDeposits: 100, cashDividends: 128.0, otherCredits: 0, standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_900, realizedGain: 0, historyIncomplete: true },
   settings: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", openingCash: 100, openingDeposits: 100, openingWithdrawals: 0, openingDividends: 89.71 },
   entries: [movement, unmatchedLine, statementLine]
 };

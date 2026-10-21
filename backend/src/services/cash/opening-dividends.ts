@@ -1,4 +1,4 @@
-import type { CashLedgerDto, OpeningDividendsEstimate, OpeningDividendsWarning } from "@pea/shared";
+import { isOtherCreditType, type CashLedgerDto, type OpeningDividendsEstimate, type OpeningDividendsWarning } from "@pea/shared";
 import { db } from "../../db.js";
 import { cashRepository } from "../../repositories/cash/cash.repository.js";
 import { dividendProposalsRepository } from "../../repositories/cash/dividend-proposals.repository.js";
@@ -32,14 +32,16 @@ export interface OpeningDividendsComputation {
   buysCents: number;
   sellsCents: number;
   feesCents: number;
+  /** Remboursements de capital et indemnisations : des crédits qui ne sont pas des dividendes. */
+  otherCreditsCents: number;
   impliedCents: number;
   warnings: OpeningDividendsWarning[];
 }
 
 /**
  * Le solde espèces à la date de référence vaut versements nets - achats + ventes - frais +
- * dividendes. Les dividendes perçus s'en déduisent : solde - versements nets + achats - ventes +
- * frais. Le calcul n'est juste que si toutes les opérations antérieures sont enregistrées : il est
+ * autres crédits + dividendes. Les dividendes perçus s'en déduisent : solde - versements nets +
+ * achats - ventes + frais - autres crédits (remboursements de capital, indemnisations). Le calcul n'est juste que si toutes les opérations antérieures sont enregistrées : il est
  * recoupé avec les dividendes publiés et toujours soumis à confirmation.
  */
 export function computeOpeningDividends(input: OpeningDividendsInput): OpeningDividendsComputation {
@@ -47,8 +49,9 @@ export function computeOpeningDividends(input: OpeningDividendsInput): OpeningDi
   const buysCents = -sum("buy");
   const sellsCents = sum("sell");
   const feesCents = -sum("fee");
+  const otherCreditsCents = input.absorbed.filter((entry) => isOtherCreditType(entry.kind)).reduce((total, entry) => total + entry.amountCents, 0);
   const netDepositsCents = input.openingDepositsCents - input.openingWithdrawalsCents;
-  const impliedCents = input.openingCashCents - netDepositsCents + buysCents - sellsCents + feesCents;
+  const impliedCents = input.openingCashCents - netDepositsCents + buysCents - sellsCents + feesCents - otherCreditsCents;
 
   const warnings: OpeningDividendsWarning[] = [];
   if (impliedCents < 0) warnings.push("negative");
@@ -56,7 +59,7 @@ export function computeOpeningDividends(input: OpeningDividendsInput): OpeningDi
   if (!input.absorbed.some((entry) => entry.kind === "buy" || entry.kind === "sell")) warnings.push("no_trades");
   const tolerance = Math.max(OPENING_DIVIDENDS_MISMATCH_MIN_CENTS, input.publishedNetCents * OPENING_DIVIDENDS_MISMATCH_RATIO);
   if (input.publishedNetCents > 0 && Math.abs(impliedCents - input.publishedNetCents) > tolerance) warnings.push("mismatch");
-  return { buysCents, sellsCents, feesCents, impliedCents, warnings };
+  return { buysCents, sellsCents, feesCents, otherCreditsCents, impliedCents, warnings };
 }
 
 /**
@@ -109,6 +112,7 @@ export const openingDividendsService = {
       buys: centsToMoney(computed.buysCents),
       sells: centsToMoney(computed.sellsCents),
       standaloneFees: centsToMoney(computed.feesCents),
+      otherCredits: centsToMoney(computed.otherCreditsCents),
       implied: centsToMoney(computed.impliedCents),
       publishedGross: centsToMoney(published.grossCents),
       publishedNet: centsToMoney(published.netCents),

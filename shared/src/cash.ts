@@ -5,7 +5,7 @@ import type { DividendVerificationInfo } from "./cash-dividend-statements.js";
  *
  * Les montants exposés par l'API sont en euros (deux décimales exactes) ; le backend les stocke et
  * les additionne en centimes entiers. Le solde espèces n'est jamais stocké : il est recalculé à
- * partir du journal (versements, retraits, achats, ventes, dividendes, frais).
+ * partir du journal (versements, retraits, achats, ventes, dividendes, autres crédits, frais).
  */
 
 /** Plafond légal des versements sur un PEA classique (hors PEA-PME), en euros. */
@@ -15,8 +15,20 @@ export const PEA_DEPOSIT_CEILING_EUR = 150_000;
 export const PEA_WITHDRAWAL_MATURITY_YEARS = 5;
 
 /** Mouvements enregistrés dans le journal espèces (les achats et ventes vivent dans les transactions). */
-export const CASH_MOVEMENT_TYPES = ["deposit", "withdrawal", "dividend", "fee"] as const;
+export const CASH_MOVEMENT_TYPES = ["deposit", "withdrawal", "dividend", "capital_repayment", "compensation", "fee"] as const;
 export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
+
+/**
+ * Autres crédits : remboursement de capital (prime d'émission, réduction de capital) et
+ * indemnisation (rompus d'une attribution gratuite, soulte). Ils augmentent le solde espèces mais
+ * ne sont ni des versements (plafond, rendement annualisé) ni des dividendes encaissés.
+ */
+export const CASH_OTHER_CREDIT_TYPES = ["capital_repayment", "compensation"] as const satisfies readonly CashMovementType[];
+export type CashOtherCreditType = (typeof CASH_OTHER_CREDIT_TYPES)[number];
+
+export function isOtherCreditType(type: string): type is CashOtherCreditType {
+  return (CASH_OTHER_CREDIT_TYPES as readonly string[]).includes(type);
+}
 
 /** Toute ligne du journal : mouvements espèces, opérations sur titres et état initial de migration. */
 export type CashLedgerEntryKind = CashMovementType | "buy" | "sell" | "opening";
@@ -96,6 +108,8 @@ export interface CashAccountSummary {
   netDeposits: number;
   /** Dividendes réellement encaissés : journal, plus ceux déclarés avant l'état initial. */
   cashDividends: number;
+  /** Remboursements de capital et indemnisations postérieurs à l'état initial (ni versements ni dividendes). */
+  otherCredits: number;
   /** Frais indépendants d'une opération sur titres. */
   standaloneFees: number;
   depositCeiling: number;

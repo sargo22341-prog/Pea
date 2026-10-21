@@ -99,6 +99,8 @@ export interface OpeningDividendsEstimate {
   /** Produit des ventes antérieures, frais déduits. */
   sells: number;
   standaloneFees: number;
+  /** Remboursements de capital et indemnisations antérieurs : des crédits qui ne sont pas des dividendes. */
+  otherCredits: number;
   /** Résultat du calcul (peut être négatif si l'historique est incomplet). */
   implied: number;
   /** Recoupement : dividendes publiés × quantité détenue, avant et après retenue estimée. */

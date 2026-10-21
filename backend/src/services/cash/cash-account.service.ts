@@ -6,7 +6,7 @@ import { verificationInfo } from "./dividends/dividend-verification.js";
 import { centsToMoney, computeLedger, moneyToCents, tradeCashCents, type LedgerAccountState, type LedgerItem, type LedgerResult } from "./cash-ledger.js";
 import { realizedGainsBySale } from "./realized-gains.js";
 
-const movementSign: Record<CashMovementType, 1 | -1> = { deposit: 1, dividend: 1, withdrawal: -1, fee: -1 };
+const movementSign: Record<CashMovementType, 1 | -1> = { deposit: 1, dividend: 1, capital_repayment: 1, compensation: 1, withdrawal: -1, fee: -1 };
 
 export type CashLedgerItem = LedgerItem & ({ origin: "movement"; movement: CashMovementRow } | { origin: "trade"; trade: CashTradeRow });
 
@@ -111,6 +111,7 @@ export class CashAccountService {
       withdrawals: centsToMoney(result.withdrawalsCents),
       netDeposits: centsToMoney(result.depositsCents - result.withdrawalsCents),
       cashDividends: centsToMoney(result.dividendsCents),
+      otherCredits: centsToMoney(result.otherCreditsCents),
       standaloneFees: centsToMoney(result.feesCents),
       depositCeiling: PEA_DEPOSIT_CEILING_EUR,
       remainingCeiling: centsToMoney(Math.max(0, ceilingCents - result.depositsCents)),

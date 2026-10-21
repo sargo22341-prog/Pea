@@ -20,9 +20,9 @@ export function entryAssetLabel(entry: Pick<CashLedgerEntry, "symbol" | "name" |
   return undefined;
 }
 
-/** Référence d'une ligne de relevé (`2024-05#3`) affichée `05/2024 n° 3`. */
+/** Référence d'une ligne de relevé (`2024-05#3`, remboursement `2024-05#R1`) affichée `05/2024 n° 3` ou `05/2024 n° R1`. */
 export function formatStatementReference(reference: string | undefined) {
-  const match = reference ? /^(\d{4})-(\d{2})#(\d+)$/.exec(reference) : null;
+  const match = reference ? /^(\d{4})-(\d{2})#(R?\d+)$/.exec(reference) : null;
   if (!match) return reference ?? "";
   return `${match[2]}/${match[1]} n° ${match[3]}`;
 }

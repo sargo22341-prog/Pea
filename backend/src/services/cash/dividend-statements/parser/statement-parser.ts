@@ -16,10 +16,16 @@ export interface ParsedStatementLine {
   netCents: number;
 }
 
+/** Remboursement de capital (prime d'émission, réduction de capital), montants en centimes. */
 export interface ParsedStatementRefund {
-  paymentDate?: string | undefined;
-  name?: string | undefined;
-  isin?: string | undefined;
+  /** Numéro de la ligne dans la section des remboursements (à partir de 1). */
+  lineNo: number;
+  paymentDate: string;
+  name: string;
+  isin: string;
+  quantity: number;
+  grossCents: number;
+  /** Montant réellement crédité (« Net client »). */
   amountCents: number;
 }
 
@@ -94,13 +100,25 @@ function readCoupons(sections: ReturnType<typeof readSections>, netFiscalSummary
   });
 }
 
-/** Remboursements signalés ; sans ligne lisible, le récapitulatif non nul est signalé seul. */
+/**
+ * Remboursements : chaque ligne doit être lisible, la somme des nets égale à la ligne TOTAL et la
+ * somme des bruts au récapitulatif. Un récapitulatif non nul sans ligne lisible refuse le relevé.
+ */
 function readRefunds(sections: ReturnType<typeof readSections>, refundsSummaryCents: number | undefined): ParsedStatementRefund[] {
-  const refunds = sections.filter((section) => section.kind === "refunds").flatMap((section) => section.rows).map(parseRefundRow)
-    .filter((refund): refund is NonNullable<typeof refund> => refund !== undefined && refund.amountCents > 0)
-    .map((refund) => ({ paymentDate: isoDate(refund.date), name: refund.name, isin: refund.isin, amountCents: refund.amountCents }));
-  if (!refunds.length && refundsSummaryCents) return [{ amountCents: refundsSummaryCents }];
-  return refunds;
+  const refundSections = sections.filter((section) => section.kind === "refunds");
+  const rows = refundSections.flatMap((section) => section.rows).map(parseRefundRow);
+  if (!rows.length) {
+    if (refundsSummaryCents) throw new StatementFormatError("Relevé incohérent : un remboursement est annoncé mais aucune ligne n'est lisible.");
+    return [];
+  }
+  const totals = refundSections.map((section) => section.total).filter((total) => total !== undefined);
+  const [total] = totals;
+  const netTotal = total?.at(-1);
+  const sum = (pick: (row: (typeof rows)[number]) => number) => rows.reduce((value, row) => value + pick(row), 0);
+  if (totals.length !== 1 || netTotal === undefined || sum((row) => row.netCents) !== netTotal || sum((row) => row.grossCents) !== refundsSummaryCents) {
+    throw new StatementFormatError("Relevé incohérent : le total des remboursements ne correspond pas au détail.");
+  }
+  return rows.map((row, index) => ({ lineNo: index + 1, paymentDate: isoDate(row.date), name: row.name, isin: row.isin, quantity: row.quantity, grossCents: row.grossCents, amountCents: row.netCents }));
 }
 
 /**

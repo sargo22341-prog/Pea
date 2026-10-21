@@ -84,6 +84,7 @@ export function PeaOverviewCards({ summary }: { summary: PortfolioSummary }) {
           <Row hint={t("hints.latentGain")} label={t("metrics.latentGain")} tone={toneOf(summary.totalPerformance)} value={masquerValeur(`${cashMoney(summary.totalPerformance)} (${percent(summary.totalPerformancePercent)})`, prive)} />
           {pea ? <Row hint={t("hints.realizedGain")} label={t("metrics.realizedGain")} tone={toneOf(pea.realizedGain)} value={show(pea.realizedGain)} /> : null}
           {pea ? <Row hint={t("hints.cashDividends")} label={t("overview.cashDividends")} value={show(pea.cashDividends)} /> : null}
+          {pea?.otherCredits ? <Row hint={t("hints.otherCredits")} label={t("overview.otherCredits")} value={show(pea.otherCredits)} /> : null}
           <Row hint={t("hints.estimatedDividends")} label={t("overview.estimatedDividends")} value={show(summary.totalDividendsReceived)} />
           {yieldOnCost !== undefined ? <Row hint={t("hints.yieldOnCost")} label={t("overview.yieldOnCost")} value={masquerValeur(formatFractionPercent(yieldOnCost), prive)} /> : null}
           <Row hint={t("hints.fees")} label={t("overview.fees")} value={show(fees)} />

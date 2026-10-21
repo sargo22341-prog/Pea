@@ -1,4 +1,4 @@
-import { CASH_MOVEMENT_TYPES, PEA_WITHDRAWAL_MATURITY_YEARS, type CashAccountSummary, type CashLedgerDto, type CashMovementType } from "@pea/shared";
+import { CASH_MOVEMENT_TYPES, PEA_WITHDRAWAL_MATURITY_YEARS, isOtherCreditType, type CashAccountSummary, type CashLedgerDto, type CashMovementType } from "@pea/shared";
 import { useState, type SubmitEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useCashFunding } from "../../../components/common/cash/useCashFunding";
@@ -11,6 +11,11 @@ import type { LedgerAsset } from "../hooks/useCashLedger";
 
 const yearMs = 365.25 * 24 * 60 * 60 * 1000;
 
+/** Mouvements liés à un titre : l'actif est proposé, toujours facultatif. */
+function acceptsPosition(type: CashMovementType) {
+  return type === "dividend" || type === "fee" || isOtherCreditType(type);
+}
+
 function accountAgeYears(openedAt: string | undefined) {
   if (!openedAt) return undefined;
   const age = (Date.now() - new Date(openedAt).getTime()) / yearMs;
@@ -18,7 +23,7 @@ function accountAgeYears(openedAt: string | undefined) {
 }
 
 /**
- * Versement, retrait, dividende encaissé ou frais indépendants. Le backend reste l'arbitre : le
+ * Versement, retrait, dividende encaissé, remboursement de capital, indemnisation ou frais indépendants. Le backend reste l'arbitre : le
  * retrait maximal affiché n'est qu'une aide, un retrait qui découvrirait le compte est refusé.
  */
 export function CashMovementForm({ summary, assets, onSaved }: { summary: CashAccountSummary; assets: LedgerAsset[]; onSaved: (ledger: CashLedgerDto) => void }) {
@@ -53,7 +58,7 @@ export function CashMovementForm({ summary, assets, onSaved }: { summary: CashAc
         type,
         amount: numericAmount,
         effectiveAt: iso,
-        positionId: (type === "dividend" || type === "fee") && positionId ? Number(positionId) : undefined,
+        positionId: acceptsPosition(type) && positionId ? Number(positionId) : undefined,
         note: note.trim() || undefined,
         funding
       });
@@ -94,7 +99,7 @@ export function CashMovementForm({ summary, assets, onSaved }: { summary: CashAc
           <span className="muted mb-1 block">{t("cash:movement.date")}</span>
           <input className="input" onChange={(event) => { setEffectiveAt(event.target.value); }} required type="datetime-local" value={effectiveAt} />
         </label>
-        {type === "dividend" || type === "fee" ? (
+        {acceptsPosition(type) ? (
           <label>
             <span className="muted mb-1 block">{t("cash:movement.position")}</span>
             <select className="input" onChange={(event) => { setPositionId(event.target.value); }} value={positionId}>
@@ -117,6 +122,7 @@ export function CashMovementForm({ summary, assets, onSaved }: { summary: CashAc
               </p>
             ) : null}
             {type === "dividend" ? <p className="muted">{t("cash:movement.dividendHint")}</p> : null}
+            {isOtherCreditType(type) ? <p className="muted">{t("cash:movement.otherCreditHint")}</p> : null}
             {exceedsCeiling ? <p className="text-amber">{t("cash:movement.ceilingExceeded", { ceiling: cashMoney(summary.depositCeiling) })}</p> : null}
           </div>
           <button className="btn-primary" type="submit">{t("cash:movement.submit")}</button>

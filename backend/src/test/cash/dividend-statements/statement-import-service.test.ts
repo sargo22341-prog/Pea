@@ -5,7 +5,7 @@ import { statementScenario } from "./statement-scenario.js";
 
 interface Movement { id: number; symbol: string; amount_cents: number; effective_at: string; source: string; verification: string | null; verification_ref: string | null; import_ref: string | null }
 interface LinePreview { key: string; case: string; movement?: { id: number }; proposalId?: number; possibleDuplicate?: boolean }
-interface ImportResult { certified: number; corrected: number; created: number; alreadyCertified: number; skipped: number; openingCertified: boolean; errors: { message: string }[] }
+interface ImportResult { certified: number; corrected: number; created: number; alreadyCertified: number; skipped: number; refunds: number; openingCertified: boolean; errors: { message: string }[] }
 
 interface Result {
   preview: { april: LinePreview[]; may: LinePreview[]; old: LinePreview[]; opening: { certifiable: number; declared?: number } };
@@ -71,7 +71,8 @@ test("relevés de coupons : chaque cas de rapprochement, dividendes déjà perç
   assert.ok(result.preview.old.every((line) => line.case === "opening"), "un crédit antérieur à l'état initial n'est jamais crédité");
   assert.deepEqual(result.preview.opening, { referenceAt: "2026-03-01T00:00:00.000Z", certifiable: 262.67 });
 
-  assert.deepEqual(result.first, { certified: 2, corrected: 1, created: 2, alreadyCertified: 0, skipped: 0, openingCertified: true, errors: [] });
+  // Le remboursement du relevé de mai 2024 n'est pas coché : il est ignoré, sans création.
+  assert.deepEqual(result.first, { certified: 2, corrected: 1, created: 2, alreadyCertified: 0, skipped: 1, refunds: 0, openingCertified: true, errors: [] });
   const bySymbol = (symbol: string) => result.movements.find((row) => row.symbol === symbol);
   assert.deepEqual([bySymbol("TTE.PA")?.verification, bySymbol("TTE.PA")?.verification_ref], ["document", "2026-04#1"]);
   assert.deepEqual([bySymbol("FDJ.PA")?.amount_cents, bySymbol("FDJ.PA")?.effective_at, bySymbol("FDJ.PA")?.verification], [7350, "2026-04-28T12:00:00.000Z", "document"]);
@@ -88,7 +89,7 @@ test("relevés de coupons : chaque cas de rapprochement, dividendes déjà perç
   assert.deepEqual([result.summary.cash, result.summary.deposits, result.summary.remainingCeiling], [287.55, 100, 149_900]);
 
   // Les 7 lignes antérieures à l'état initial sont aussi déjà certifiées.
-  assert.deepEqual(result.second, { certified: 0, corrected: 0, created: 0, alreadyCertified: 12, skipped: 0, openingCertified: false, errors: [] });
+  assert.deepEqual(result.second, { certified: 0, corrected: 0, created: 0, alreadyCertified: 12, skipped: 1, refunds: 0, openingCertified: false, errors: [] });
   assert.equal(result.movementsAfterReimport, 5, "réimporter le même relevé ne crée rien");
   assert.ok(result.reimportPreview.every((value) => value === "already_certified"));
   assert.equal(result.pendingAccount.status, 409, "un compte espèces non configuré est refusé");

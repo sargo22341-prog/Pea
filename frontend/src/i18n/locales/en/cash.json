@@ -9,6 +9,7 @@
     "performance": "Performance",
     "costBasis": "Positions cost basis",
     "cashDividends": "Received dividends",
+    "otherCredits": "Other credits",
     "estimatedDividends": "Estimated dividends",
     "yieldOnCost": "Yield on cost",
     "fees": "Fees"
@@ -19,6 +20,8 @@
     "buy": "Purchase",
     "sell": "Sale",
     "dividend": "Received dividend",
+    "capital_repayment": "Capital repayment",
+    "compensation": "Compensation",
     "fee": "Fees",
     "opening": "Initial state (technical adjustment)"
   },
@@ -100,6 +103,7 @@
     "withdrawalWarning": "Note: before 5 years, a withdrawal normally closes the PEA; after 5 years, withdrawn gains remain subject to social contributions. Exact rules depend on your situation: no tax is computed here.",
     "withdrawalWarningAge": "Your PEA is {{years}} year(s) old.",
     "dividendHint": "Enter here a credited dividend that was not proposed. Dividends paid on your holdings are proposed automatically on their payment date and are only credited once you confirm them.",
+    "otherCreditHint": "A capital repayment or a compensation is neither a deposit nor a dividend: it increases the balance without affecting the ceiling. Before the initial state date, it is summarized by it and deducted from dividends already received.",
     "ceilingExceeded": "This deposit would exceed the {{ceiling}} deposit ceiling."
   },
   "ledger": {
@@ -134,6 +138,7 @@
     "latentGain": "Paper gain or loss on the securities still held: current value - cost basis. It moves with prices until you sell.",
     "realizedGain": "Gain or loss locked in by your sales: sale price - average cost of the shares sold - fees. Sale proceeds are already in the cash balance.",
     "cashDividends": "Dividends actually credited to the cash account (net amount, after any foreign withholding tax): entered manually, proposed then confirmed, added automatically when certain, and those received before the initial state if you confirmed them. They never count as deposits nor towards the ceiling.",
+    "otherCredits": "Capital repayments (share premium, capital reduction) and compensations (fractional rights of a bonus share allotment, cash adjustment) credited since the initial state. They increase the cash balance but are neither deposits (ceiling, annualized return) nor dividends.",
     "estimatedDividends": "Estimate of dividends received since your purchases: dividends published by Yahoo Finance × quantity held on each ex-date. Gross amount, not recorded in cash.",
     "yieldOnCost": "Expected annual dividend at the current rate, relative to the cost basis of your positions. Accumulating ETFs pay nothing and lower this rate.",
     "fees": "Brokerage fees on purchases and sales + standalone fees entered in the cash ledger.",
@@ -198,6 +203,7 @@
     "buys": "Recorded purchases (fees included)",
     "sells": "Recorded sales (fees deducted)",
     "fees": "Standalone fees",
+    "otherCredits": "Recorded repayments and compensations",
     "implied": "Derived dividends",
     "published": "Cross-check with published dividends × quantities held: {{gross}} gross, about {{net}} net of withholding tax.",
     "amount": "Dividends received to record (€)",
@@ -253,7 +259,7 @@
   },
   "statements": {
     "title": "Coupon and dividend statements (PDF)",
-    "help": "Import one or more monthly statements from your broker to certify your dividends. PDFs are read then discarded: only the date, ISIN and amounts are kept.",
+    "help": "Import one or more monthly statements from your broker to certify your dividends and capital repayments. PDFs are read then forgotten: only the date, ISIN and amounts are kept.",
     "choose": "Choose statements",
     "reading": "Reading statements…",
     "period": "Statement {{period}}",
@@ -273,14 +279,13 @@
     "noPosition": "Choose…",
     "possibleDuplicate": "A dividend entered without an asset, with the same amount, exists at a close date: check it is not the same one before applying.",
     "withholdingGap": "Actual withholding {{actual}}%, estimated at {{estimated}}%.",
-    "refund": "Refund of {{amount}} {{name}}: reported, not imported as a dividend.",
     "openingTitle": "Dividends already received",
     "openingText": "Lines before {{date}}: {{amount}} in total. Confirmed amount: {{declared}} (gap {{gap}}).",
     "openingNone": "none",
     "openingCertify": "Certify this amount as dividends already received",
     "confirm": "Confirm",
     "cancel": "Cancel",
-    "result": "{{certified}} certified, {{corrected}} corrected, {{created}} added, {{alreadyCertified}} already certified, {{skipped}} not applied, {{errors}} error(s).",
+    "result": "{{certified}} certified, {{corrected}} corrected, {{created}} added, {{alreadyCertified}} already certified, {{skipped}} not applied, {{errors}} error(s), including {{refunds}} capital repayment(s).",
     "openingCertified": "Dividends already received certified.",
     "line": "{{date}} · {{name}} ({{isin}}) · {{net}} net",
     "caseTitles": {
@@ -292,6 +297,19 @@
       "opening": "Before the initial state",
       "unknown_asset": "Asset to choose",
       "future": "Upcoming"
-    }
+    },
+    "refundTitle": "Capital repayments",
+    "refundLine": "{{date}} · {{name}} ({{isin}}) · {{quantity}} shares · {{amount}}",
+    "refundCases": {
+      "certify": "Recorded repayment found: it will be certified.",
+      "already_certified": "Already certified.",
+      "ambiguous": "Several recorded repayments match: choose the one that matches this line.",
+      "create": "No repayment recorded: it will be added to cash (neither a deposit nor a dividend) and certified.",
+      "future": "Future date: ignored."
+    },
+    "refundBeforeStart": "Before the initial state: recorded for reference, without effect on the balance, and deducted from dividends already received.",
+    "refundDuplicate": "A repayment with another amount exists at a close date for this security: check it is not the same one before applying.",
+    "chooseMovement": "Recorded repayment",
+    "movementOption": "{{amount}} on {{date}}"
   }
 }

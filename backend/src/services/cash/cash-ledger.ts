@@ -1,4 +1,4 @@
-import type { CashLedgerEntryKind, CashMovementSource } from "@pea/shared";
+import { isOtherCreditType, type CashLedgerEntryKind, type CashMovementSource } from "@pea/shared";
 
 /**
  * Moteur pur du journal espèces : tri chronologique déterministe, solde courant en centimes
@@ -10,10 +10,12 @@ const kindPriority: Record<CashLedgerEntryKind, number> = {
   opening: 0,
   deposit: 1,
   dividend: 2,
-  sell: 3,
-  buy: 4,
-  fee: 5,
-  withdrawal: 6
+  capital_repayment: 3,
+  compensation: 4,
+  sell: 5,
+  buy: 6,
+  fee: 7,
+  withdrawal: 8
 };
 
 export function moneyToCents(value: number) {
@@ -82,6 +84,8 @@ export interface LedgerResult<T extends LedgerItem = LedgerItem> {
   depositsCents: number;
   withdrawalsCents: number;
   dividendsCents: number;
+  /** Remboursements de capital et indemnisations postérieurs à l'état initial. */
+  otherCreditsCents: number;
   feesCents: number;
 }
 
@@ -112,6 +116,7 @@ export function computeLedger<T extends LedgerItem>(account: LedgerAccountState,
     depositsCents: account.referenceAt === undefined ? 0 : account.openingDepositsCents,
     withdrawalsCents: account.referenceAt === undefined ? 0 : account.openingWithdrawalsCents,
     dividendsCents: 0,
+    otherCreditsCents: 0,
     feesCents: 0
   };
   const openingDividendsCents = account.referenceAt === undefined ? undefined : account.openingDividendsCents;
@@ -137,6 +142,7 @@ export function computeLedger<T extends LedgerItem>(account: LedgerAccountState,
     if (absorbed) continue;
     if (item.kind === "deposit") result.depositsCents += item.amountCents;
     if (item.kind === "withdrawal") result.withdrawalsCents -= item.amountCents;
+    if (isOtherCreditType(item.kind)) result.otherCreditsCents += item.amountCents;
     if (balance < result.minBalanceCents) result.minBalanceCents = balance;
     if (balance < 0 && result.firstNegativeAt === undefined) result.firstNegativeAt = item.effectiveAt;
   }

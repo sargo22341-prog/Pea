@@ -108,12 +108,36 @@ export function parseCouponRow(text: string, index: number): CouponRowText {
   return { date: match[1], quantity: quantity === undefined ? undefined : Number(quantity), name: match[3].trim(), isin: match[4], amounts };
 }
 
-const refundRow = new RegExp(`^(${DATE_SOURCE}) (.+?) ?\\((${ISIN_SOURCE})\\).* (${AMOUNT_SOURCE})$`);
+export interface RefundRowText {
+  date: string;
+  name: string;
+  isin: string;
+  quantity: number;
+  grossCents: number;
+  netCents: number;
+}
 
-/** Remboursement : seul le net client (dernier montant) est retenu, pour être signalé. */
-export function parseRefundRow(text: string) {
+/** Écart d'arrondi toléré entre montant unitaire × quantité et brut global (unitaire à 3 décimales et plus). */
+const REFUND_ROUNDING_TOLERANCE_CENTS = 1;
+
+const refundRow = new RegExp(`^(${DATE_SOURCE}) (.+?) ?\\((${ISIN_SOURCE})\\) (\\d+,\\d+) (\\d+)((?: ${AMOUNT_SOURCE}){2,3})$`);
+
+/**
+ * Remboursement : date, valeur, ISIN, montant unitaire, quantité, brut, commission (absente si
+ * nulle) et net client. Chaque ligne est contrôlée : unitaire × quantité = brut, brut -
+ * commission = net. Une ligne illisible refuse le relevé : un remboursement est importé.
+ */
+export function parseRefundRow(text: string, index: number): RefundRowText {
   const match = refundRow.exec(text);
-  if (!match?.[1] || !match[2] || !match[3] || !match[4]) return undefined;
-  const amount = amountList(match[4]);
-  return { date: match[1], name: match[2].trim(), isin: match[3], amountCents: amount?.[0] ?? 0 };
+  const amounts = match?.[6] ? amountList(match[6]) : undefined;
+  const unit = match?.[4] ? Number(match[4].replace(",", ".")) : Number.NaN;
+  const quantity = Number(match?.[5]);
+  const gross = amounts?.[0];
+  const net = amounts?.at(-1);
+  const commission = amounts?.length === 3 ? amounts[1] ?? 0 : 0;
+  if (!match?.[1] || !match[2] || !match[3] || gross === undefined || net === undefined || !Number.isFinite(unit) || !Number.isInteger(quantity) || quantity <= 0
+    || Math.abs(Math.round(unit * quantity * 100) - gross) > REFUND_ROUNDING_TOLERANCE_CENTS || gross - commission !== net || net <= 0) {
+    throw new StatementFormatError(`Remboursement ${index + 1} du relevé illisible ou incohérent.`);
+  }
+  return { date: match[1], name: match[2].trim(), isin: match[3], quantity, grossCents: gross, netCents: net };
 }

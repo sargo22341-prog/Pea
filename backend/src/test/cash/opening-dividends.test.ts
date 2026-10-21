@@ -16,7 +16,20 @@ test("dividendes déjà perçus = solde - versements nets + achats - ventes + fr
     absorbed: [{ kind: "buy", amountCents: -1_200_000 }, { kind: "sell", amountCents: 450_000 }, { kind: "fee", amountCents: -2_000 }, { kind: "dividend", amountCents: 5_000 }],
     publishedNetCents: 22_000
   });
-  assert.deepEqual(computed, { buysCents: 1_200_000, sellsCents: 450_000, feesCents: 2_000, impliedCents: 22_000, warnings: [] });
+  assert.deepEqual(computed, { buysCents: 1_200_000, sellsCents: 450_000, feesCents: 2_000, otherCreditsCents: 0, impliedCents: 22_000, warnings: [] });
+});
+
+test("dividendes déjà perçus : les remboursements de capital et indemnisations résumés en sont déduits", () => {
+  // Même solde de 1 700, dont 61,25 de remboursement et 65,53 d'indemnisation : ce ne sont pas des dividendes.
+  const computed = computeOpeningDividends({
+    ...base,
+    openingCashCents: 170_000,
+    openingDepositsCents: 1_000_000,
+    openingWithdrawalsCents: 100_000,
+    absorbed: [{ kind: "buy", amountCents: -1_200_000 }, { kind: "sell", amountCents: 450_000 }, { kind: "fee", amountCents: -2_000 }, { kind: "capital_repayment", amountCents: 6_125 }, { kind: "compensation", amountCents: 6_553 }]
+  });
+  assert.equal(computed.otherCreditsCents, 12_678);
+  assert.equal(computed.impliedCents, 22_000 - 12_678);
 });
 
 test("le calcul signale un historique incomplet, approché ou incohérent", () => {

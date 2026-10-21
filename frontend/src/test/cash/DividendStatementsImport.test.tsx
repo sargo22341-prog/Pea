@@ -24,7 +24,7 @@ const preview: DividendStatementsPreviewDto = {
       fileName: "mai.pdf",
       period: "2026-05",
       totalNet: 33.6,
-      refunds: [{ paymentDate: "2026-05-05", name: "ENGIE", isin: "FR0010208488", amount: 51.04 }],
+      refunds: [{ lineNo: 1, key: "2026-05#R1", case: "create", beforeStart: false, paymentDate: "2026-05-05", name: "ENGIE", isin: "FR0010208488", quantity: 160, gross: 51.04, amount: 51.04 }],
       lines: [
         line(1, "DANONE", "create"),
         line(2, "VEOLIA", "unknown_asset", { isin: "FR0000124141" }),
@@ -55,7 +55,9 @@ describe("import des relevés de coupons", () => {
     await loadPreview(user);
     for (const title of ["Dividendes à ajouter", "Actif à choisir", "Écarts à corriger", "Déjà certifiés"]) expect(screen.getByText(title)).toBeInTheDocument();
     expect(screen.getByText(/Enregistré avec 70,00\s€ le .* corrigé avec les valeurs du relevé/)).toBeInTheDocument();
-    expect(screen.getByText(/Remboursement de 51,04\s€ ENGIE : signalé, non importé/)).toBeInTheDocument();
+    expect(screen.getByText("Remboursements de capital")).toBeInTheDocument();
+    expect(screen.getByText(/ENGIE \(FR0010208488\) · 160 titres · 51,04\s€/)).toBeInTheDocument();
+    expect(screen.getByText(/il sera ajouté aux espèces \(ni versement ni dividende\) et certifié/)).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Relevé refusé, rien n'en sera importé : Relevé incohérent");
     expect(screen.getByText(/262,67\s€ au total\. Montant confirmé : 250,00\s€ \(écart \+12,67\s€\)/)).toBeInTheDocument();
     expect(screen.getByText("Certifié par relevé")).toBeInTheDocument();
@@ -64,11 +66,11 @@ describe("import des relevés de coupons", () => {
 
   it("applies safe lines by default and requires explicit choices for corrections and unknown assets", async () => {
     const user = userEvent.setup();
-    confirmDividendStatements.mockResolvedValue({ certified: 0, corrected: 1, created: 2, alreadyCertified: 1, skipped: 0, openingCertified: true, errors: [] });
+    confirmDividendStatements.mockResolvedValue({ certified: 0, corrected: 1, created: 3, alreadyCertified: 1, skipped: 0, refunds: 1, openingCertified: true, errors: [] });
     await loadPreview(user);
-    // Ordre d'affichage par cas : écart à corriger, dividende à ajouter, actif à choisir.
+    // Ordre d'affichage par cas : écart à corriger, dividende à ajouter, actif à choisir, puis remboursement.
     const checkboxes = screen.getAllByRole("checkbox", { name: "Appliquer" });
-    expect(checkboxes.map((box) => (box as HTMLInputElement).checked)).toEqual([false, true, false]);
+    expect(checkboxes.map((box) => (box as HTMLInputElement).checked)).toEqual([false, true, false, true]);
     expect(checkboxes[2]).toBeDisabled();
 
     const select = screen.getByRole("combobox", { name: "Position" });
@@ -85,13 +87,14 @@ describe("import des relevés de coupons", () => {
     expect(files).toHaveLength(2);
     expect(decisions).toEqual({
       lines: [
-        { key: "2026-05#1", apply: true, positionId: undefined },
-        { key: "2026-05#2", apply: true, positionId: 11 },
-        { key: "2026-05#3", apply: true, positionId: undefined }
+        { key: "2026-05#1", apply: true, positionId: undefined, movementId: undefined },
+        { key: "2026-05#2", apply: true, positionId: 11, movementId: undefined },
+        { key: "2026-05#3", apply: true, positionId: undefined, movementId: undefined },
+        { key: "2026-05#R1", apply: true, positionId: undefined, movementId: undefined }
       ],
       certifyOpening: true
     });
-    expect(await screen.findByText(/0 certifié\(s\), 1 corrigé\(s\), 2 ajouté\(s\), 1 déjà certifié\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/0 certifié\(s\), 1 corrigé\(s\), 3 ajouté\(s\), 1 déjà certifié\(s\).*dont 1 remboursement\(s\) de capital/)).toBeInTheDocument();
     expect(screen.getByText("Dividendes déjà perçus certifiés.")).toBeInTheDocument();
   });
 });

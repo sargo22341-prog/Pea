@@ -9,7 +9,7 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 | Table | Rôle |
 |---|---|
 | `transactions` | Achats (`buy`) et ventes (`sell`) existants, avec frais. Nouvelle colonne `import_ref` (référence d'ordre d'un avis PDF, préfixée `pdf:`) pour refuser un second import. `traded_at` est toujours un instant ISO UTC (migration 55, voir « Opérations sur titres sans doublon »). |
-| `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
+| `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), remboursements de capital (`capital_repayment`) et indemnisations (`compensation`, migration 56), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
 | `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
 | `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
@@ -17,14 +17,15 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 
 Le **solde espèces n'est jamais stocké**. Il est recalculé à chaque lecture en rejouant, dans
 l'ordre chronologique, les mouvements et les transactions (`cash-ledger.ts`). À date égale, l'ordre
-est déterministe : état initial, versement, dividende, vente, achat, frais, retrait, puis
-identifiant.
+est déterministe : état initial, versement, dividende, remboursement de capital, indemnisation,
+vente, achat, frais, retrait, puis identifiant.
 
 Effet sur les espèces :
 
 - achat : `-(quantité × prix + frais)` ;
 - vente : `+(quantité × prix - frais)` ;
-- versement et dividende encaissé : crédit ; retrait et frais : débit.
+- versement, dividende encaissé, remboursement de capital et indemnisation : crédit ; retrait et
+  frais : débit.
 
 Les montants sont arrondis au centime puis additionnés en entiers : aucune dérive flottante.
 
@@ -34,6 +35,10 @@ Les montants sont arrondis au centime puis additionnés en entiers : aucune dér
   ensuite. Un achat, une vente, un dividende, une plus-value ou un ajustement technique ne les
   augmentent jamais.
 - **Retraits cumulés** sont suivis séparément : ils n'effacent pas les versements.
+- **Autres crédits** (`otherCredits`) = remboursements de capital et indemnisations postérieurs à
+  l'état initial. Ils augmentent le solde espèces (donc la valeur et le gain global) mais ne sont
+  ni des versements (plafond, versements nets, flux du rendement annualisé) ni des dividendes
+  encaissés.
 - **Plafond restant** = 150 000 € - versements cumulés (PEA classique ; les retraits ne
   reconstituent pas le plafond). Un versement au-delà est signalé, pas bloqué.
 - **Plus-values réalisées** : pour chaque vente, produit net (frais déduits) moins le coût moyen
@@ -125,10 +130,12 @@ Après la confirmation de l'état initial (seconde étape de la popup du tableau
 « Dividendes déjà perçus » de « Mon PEA », ouverte aussitôt après une configuration faite depuis
 cette page, puis résumée avec « Modifier » une fois le montant confirmé), une étape (`GET`/`PUT
 /api/cash/account/opening-dividends`, `opening-dividends.ts`) propose les dividendes déjà perçus.
-Le solde espèces vaut versements nets - achats + ventes - frais + dividendes, donc :
+Le solde espèces vaut versements nets - achats + ventes - frais + autres crédits + dividendes,
+donc :
 
 ```text
 dividendes = solde déclaré - versements nets déclarés + achats - ventes + frais indépendants
+             - remboursements de capital - indemnisations
 ```
 
 (opérations antérieures ou égales à la date de référence, frais d'achat et de vente inclus). Le
@@ -286,8 +293,11 @@ acompte, net fiscal, commission, net client) est contrôlée par l'arithmétique
 fiscal - commission = net client), puis l'ensemble par la ligne `TOTAL EUR` et le récapitulatif
 `COUPONS : NETS FISCAUX`. Mois introuvable, feuillet manquant, ligne illisible, total faux ou
 lecture ambiguë : le relevé est **refusé en entier**, sans importation partielle. Une quantité sur
-une ligne à part est rattachée à sa ligne. Les remboursements (`DETAIL REMBOURSEMENTS`) sont
-signalés, jamais importés comme dividendes.
+une ligne à part est rattachée à sa ligne. Les remboursements (`DETAIL REMBOURSEMENTS`) ne sont
+jamais des dividendes : chaque ligne (date, valeur, ISIN, montant unitaire, quantité, brut,
+commission absente si nulle, net) est contrôlée (unitaire × quantité = brut au centime près, brut -
+commission = net), leur somme par la ligne `TOTAL EUR` de la section et le récapitulatif
+`REMBOURSEMENTS : BRUTS GLOBAUX` ; une ligne illisible ou un total faux refuse le relevé.
 
 **Rapprochement** d'une ligne (`statement-reconciliation.ts`) : actif par ISIN uniquement
 (`positions.isin`, sinon l'ISIN le plus récent des avis d'opéré), date par `isSameDividendCredit`,
@@ -298,6 +308,21 @@ net du relevé et certifiée dans une transaction), aucun dividende (mouvement `
 (jamais crédité), ISIN inconnu (position à choisir, l'ISIN y est enregistré). Un compte `pending`
 est refusé (`409`). La retenue réelle est comparée au taux estimé de `withholding-tax.ts` (écart
 signalé au-delà de 2 % du brut et 2 centimes).
+
+**Remboursements de capital** (`statement-refunds.ts`, règle commune
+`credits/other-credit-matching.ts`) : clé `AAAA-MM#R<ligne>`. Un mouvement `capital_repayment` est
+le même crédit s'il a le même montant au centime, une date à 15 jours au plus
+(`OTHER_CREDIT_MATCH_WINDOW_DAYS`) et le même actif quand les deux en ont un (le nom n'est jamais un
+critère) ; un mouvement déjà certifié par une autre ligne est exclu. Cas : déjà créé ou certifié
+par cette ligne (`already_certified`, réimport sans effet), un seul candidat (certifié), plusieurs
+(`ambiguous` : rien n'est choisi, l'utilisateur désigne le mouvement, `movementId` dans la
+décision, recontrôlé côté serveur parmi ses seuls candidats), aucun (mouvement créé, origine `pdf`,
+`import_ref = statement:AAAA-MM#R<ligne>`, certifié ; sans position portant l'ISIN, il est créé sans
+actif avec le nom et l'ISIN en note ; non coché par défaut si un remboursement d'un autre montant
+existe pour la même valeur à une date proche), date future (ignoré). Un remboursement antérieur à
+l'état initial est enregistré de la même façon : résumé par l'état initial, il ne change pas le
+solde mais est déduit du calcul des dividendes déjà perçus. La référence d'import unique interdit
+une seconde création, quel que soit l'ordre des imports.
 
 **Import en lot** (Réglages, `POST /api/cash/dividend-statements/preview` puis `/confirm`) :
 l'aperçu n'écrit rien ; la confirmation renvoie les mêmes fichiers avec les choix (`decisions`),
@@ -312,6 +337,19 @@ retire la certification. Réimporter un relevé ne crée rien et l'indique « d�
 précis est renvoyé (autre mois, absent à cette date, montant ou date différents, ISIN inconnu) avec
 les lignes de l'actif ; rien n'est écrit sans confirmation, et un écart n'est corrigé qu'avec
 `correct=true`.
+
+## Remboursements de capital et indemnisations
+
+Deux types de mouvement (migration 56, qui recopie `cash_movements` à l'identique pour élargir la
+contrainte du type, base sauvegardée avant) : `capital_repayment` (prime d'émission, réduction de
+capital) et `compensation` (rompus d'une attribution gratuite, soulte). Ce sont des crédits : ils
+augmentent le solde, mais ne sont ni des versements (plafond, versements nets, XIRR) ni des
+dividendes (`cashDividends`) ; ils alimentent l'indicateur « Autres crédits ». Ils se saisissent
+dans « Mon PEA » (formulaire « Ajouter un mouvement », actif facultatif), y compris avant la date de
+l'état initial (résumés, sans effet sur le solde, mais déduits des dividendes déjà perçus), et se
+filtrent dans l'historique. Les remboursements sont aussi créés ou certifiés par l'import des
+relevés de coupons (voir ci-dessus). Supprimer l'un d'eux passe par `withCashGuard`, comme tout
+mouvement.
 
 ## Limites connues
 

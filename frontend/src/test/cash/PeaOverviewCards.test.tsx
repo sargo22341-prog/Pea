@@ -11,6 +11,7 @@ const pea: PeaOverview = {
   withdrawals: 100,
   netDeposits: 900,
   cashDividends: 30,
+  otherCredits: 0,
   standaloneFees: 2,
   depositCeiling: 150_000,
   remainingCeiling: 149_000,

@@ -73,6 +73,7 @@ export function OpeningDividendsStep({ onDone, skipLabel }: { onDone: (saved: bo
         <Line label={t("cash:openingDividends.buys")} value={`+ ${money(data.buys)}`} />
         <Line label={t("cash:openingDividends.sells")} value={`- ${money(data.sells)}`} />
         <Line label={t("cash:openingDividends.fees")} value={`+ ${money(data.standaloneFees)}`} />
+        {data.otherCredits ? <Line label={t("cash:openingDividends.otherCredits")} value={`- ${money(data.otherCredits)}`} /> : null}
         <Line label={t("cash:openingDividends.implied")} strong value={money(data.implied)} />
       </dl>
       <p className="muted">{t("cash:openingDividends.published", { gross: money(data.publishedGross), net: money(data.publishedNet) })}</p>

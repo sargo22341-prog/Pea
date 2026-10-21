@@ -38,12 +38,47 @@ export interface DividendStatementLine {
   net: number;
 }
 
-/** Remboursement (prime d'émission, capital) : signalé, jamais importé comme dividende. */
+/**
+ * Remboursement de capital (prime d'émission, réduction de capital) lu sur un relevé : jamais un
+ * dividende, il devient un mouvement `capital_repayment` certifié par le relevé.
+ */
 export interface DividendStatementRefund {
-  paymentDate?: string | undefined;
-  name?: string | undefined;
-  isin?: string | undefined;
+  /** Numéro de la ligne dans la section des remboursements (à partir de 1). */
+  lineNo: number;
+  paymentDate: string;
+  name: string;
+  isin: string;
+  quantity: number;
+  gross: number;
+  /** Montant réellement crédité (« Net client »). */
   amount: number;
+}
+
+/**
+ * Rapprochement d'un remboursement avec le journal espèces (même montant au centime, date proche,
+ * même actif quand les deux en ont un) :
+ * - `certify` : un seul remboursement enregistré correspond, il est certifié ;
+ * - `already_certified` : déjà certifié ou créé par cette ligne (réimport) ;
+ * - `ambiguous` : plusieurs remboursements correspondent, l'utilisateur choisit ;
+ * - `create` : aucun remboursement enregistré, il est créé et certifié ;
+ * - `future` : date dans le futur, rien n'est fait.
+ */
+export const DIVIDEND_STATEMENT_REFUND_CASES = ["certify", "already_certified", "ambiguous", "create", "future"] as const;
+export type DividendStatementRefundCase = (typeof DIVIDEND_STATEMENT_REFUND_CASES)[number];
+
+export interface DividendStatementRefundPreview extends DividendStatementRefund {
+  /** Clé d'un remboursement dans un lot : `<mois>#R<ligne>` (ex. `2024-05#R1`). */
+  key: string;
+  case: DividendStatementRefundCase;
+  /** Antérieur ou égal à l'état initial : enregistré pour mémoire (déduit des dividendes déjà perçus), sans effet sur le solde. */
+  beforeStart: boolean;
+  /** Position portant l'ISIN, absente si l'ISIN est inconnu du portefeuille (le remboursement est alors enregistré sans actif). */
+  position?: { id: number; symbol: string; name: string } | undefined;
+  movement?: DividendStatementMovementRef | undefined;
+  /** Remboursements enregistrés candidats d'un cas `ambiguous`. */
+  candidates?: DividendStatementMovementRef[] | undefined;
+  /** Un remboursement du même actif, d'un autre montant, existe à une date proche : doublon possible. */
+  possibleDuplicate?: boolean | undefined;
 }
 
 /**
@@ -94,7 +129,7 @@ export interface DividendStatementPreview {
   /** Relevé refusé en entier (illisible ou incohérent) : rien n'en sera importé. */
   error?: string | undefined;
   lines: DividendStatementLinePreview[];
-  refunds: DividendStatementRefund[];
+  refunds: DividendStatementRefundPreview[];
   totalNet: number;
 }
 
@@ -120,6 +155,8 @@ export interface DividendStatementLineDecision {
   apply: boolean;
   /** Position choisie pour un ISIN inconnu : l'ISIN y sera enregistré. */
   positionId?: number | undefined;
+  /** Remboursement enregistré choisi pour un remboursement `ambiguous`. */
+  movementId?: number | undefined;
 }
 
 export interface DividendStatementsConfirmInput {
@@ -133,6 +170,8 @@ export interface DividendStatementsImportResult {
   created: number;
   alreadyCertified: number;
   skipped: number;
+  /** Remboursements de capital créés ou certifiés (inclus dans `created` et `certified`). */
+  refunds: number;
   openingCertified: boolean;
   errors: { fileName: string; lineNo?: number | undefined; message: string }[];
 }

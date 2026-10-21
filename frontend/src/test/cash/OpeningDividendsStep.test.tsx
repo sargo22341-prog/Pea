@@ -19,6 +19,7 @@ const estimate: OpeningDividendsEstimate = {
   netDeposits: 1000,
   buys: 600,
   sells: 40,
+  otherCredits: 0,
   standaloneFees: 0,
   implied: 10,
   publishedGross: 10,

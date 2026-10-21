@@ -1,4 +1,4 @@
-import type { DividendStatementPreview, DividendStatementsConfirmInput, DividendStatementsImportResult, DividendStatementsPreviewDto, OpeningDividendsCertification } from "@pea/shared";
+import type { DividendStatementLineDecision, DividendStatementPreview, DividendStatementsConfirmInput, DividendStatementsImportResult, DividendStatementsPreviewDto, OpeningDividendsCertification } from "@pea/shared";
 import { db } from "../../../db.js";
 import { cashRepository } from "../../../repositories/cash/cash.repository.js";
 import { dividendVerificationRepository } from "../../../repositories/cash/dividend-verification.repository.js";
@@ -8,6 +8,7 @@ import { centsToMoney, entryTimeMs } from "../cash-ledger.js";
 import { invalidateCashViews } from "../cash-movements.service.js";
 import type { ParsedDividendStatement } from "./parser/statement-parser.js";
 import { applyStatementLine } from "./statement-apply.js";
+import { applyRefund, classifyRefund, refundReference } from "./statement-refunds.js";
 import { lineKey, loadStatementContext, statementPreview } from "./statement-context.js";
 import type { ReadStatement } from "./statement-file.js";
 import { classifyLine, lineEffectiveAt, type StatementContext } from "./statement-reconciliation.js";
@@ -92,6 +93,21 @@ function completeStoredLineNames(userId: number, context: StatementContext, stat
   });
 }
 
+/** Remboursements du relevé : créés ou certifiés comme mouvements `capital_repayment`, jamais en double. */
+function applyRefunds(userId: number, statement: ParsedDividendStatement, decisions: ReadonlyMap<string, DividendStatementLineDecision>, result: DividendStatementsImportResult, now: Date) {
+  for (const refund of statement.refunds) {
+    const decision = decisions.get(refundReference(statement.period, refund.lineNo));
+    if (!decision?.apply) {
+      if (classifyRefund(loadStatementContext(userId, now), statement.period, refund).case === "already_certified") result.alreadyCertified += 1;
+      else result.skipped += 1;
+      continue;
+    }
+    const outcome = applyRefund(userId, loadStatementContext(userId, now), statement.period, refund, decision.movementId);
+    result[outcome] += 1;
+    if (outcome === "created" || outcome === "certified") result.refunds += 1;
+  }
+}
+
 /**
  * Import des relevés mensuels de coupons : un aperçu sans écriture, puis une confirmation qui
  * relit les mêmes fichiers (rien n'est cru du client) et n'applique que les lignes choisies.
@@ -112,7 +128,7 @@ export const dividendStatementsService = {
     const { valid, rejected } = splitStatements(reads);
     completeStoredLineNames(userId, initial, valid);
     const decisions = new Map(input.lines.map((decision) => [decision.key, decision]));
-    const result: DividendStatementsImportResult = { certified: 0, corrected: 0, created: 0, alreadyCertified: 0, skipped: 0, openingCertified: false, errors: rejected.map((row) => ({ fileName: row.fileName, message: row.error ?? "" })) };
+    const result: DividendStatementsImportResult = { certified: 0, corrected: 0, created: 0, alreadyCertified: 0, skipped: 0, refunds: 0, openingCertified: false, errors: rejected.map((row) => ({ fileName: row.fileName, message: row.error ?? "" })) };
 
     for (const { fileName, statement } of valid) {
       for (const line of statement.lines) {
@@ -134,6 +150,7 @@ export const dividendStatementsService = {
           result.errors.push({ fileName, lineNo: line.lineNo, message: error.message });
         }
       }
+      applyRefunds(userId, statement, decisions, result, now);
     }
     if (input.certifyOpening) {
       const context = loadStatementContext(userId, now);

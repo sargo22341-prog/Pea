@@ -14,7 +14,7 @@ import { entryAssetLabel, isStatementLineEntry, movementIdOf as movementId } fro
 import { formatChartDateTime, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 
-const filters: (CashLedgerEntryKind | "all")[] = ["all", "deposit", "withdrawal", "buy", "sell", "dividend", "fee"];
+const filters: (CashLedgerEntryKind | "all")[] = ["all", "deposit", "withdrawal", "buy", "sell", "dividend", "capital_repayment", "compensation", "fee"];
 
 function EntryDetail({ entry, prive }: { entry: CashLedgerEntry; prive: boolean }) {
   const { t } = useTranslation("cash");

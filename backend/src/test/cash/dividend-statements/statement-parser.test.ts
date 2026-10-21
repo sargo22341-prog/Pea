@@ -28,9 +28,9 @@ test("un relevé étranger de plusieurs lignes est lu ligne à ligne, retenues c
   assert.equal(statement.totalNetCents, 26_267);
 });
 
-test("un remboursement est signalé séparément et n'est jamais une ligne de dividende", () => {
+test("un remboursement est lu séparément et n'est jamais une ligne de dividende", () => {
   const statement = parseDividendStatement(fixture("foreign-multiple.txt"));
-  assert.deepEqual(statement.refunds, [{ paymentDate: "2024-05-06", name: "ENGIE", isin: "FR0010208488", amountCents: 6313 }]);
+  assert.deepEqual(statement.refunds, [{ lineNo: 1, paymentDate: "2024-05-06", name: "ENGIE", isin: "FR0010208488", quantity: 101, grossCents: 6313, amountCents: 6313 }]);
   assert.ok(!statement.lines.some((line) => line.paymentDate === "2024-05-06"));
 });
 

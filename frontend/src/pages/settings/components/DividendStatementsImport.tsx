@@ -9,10 +9,10 @@ import { formatMaybeDate } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
 import { useDividendStatementsImport, type DividendStatementsImportState } from "../hooks/useDividendStatementsImport";
 import { DividendStatementLine } from "./DividendStatementLine";
+import { DividendStatementRefundLine } from "./DividendStatementRefundLine";
 
 function StatementCard({ statement, state }: { statement: DividendStatementPreview; state: DividendStatementsImportState }) {
   const { t } = useTranslation("cash");
-  const prive = usePrivacy();
   const positions = state.preview?.positions ?? [];
   return (
     <div className={`rounded-md border p-3 ${statement.error ? "border-coral/60 bg-coral/5" : "border-line bg-ink/40"}`}>
@@ -30,9 +30,14 @@ function StatementCard({ statement, state }: { statement: DividendStatementPrevi
           </div>
         );
       })}
-      {statement.refunds.map((refund, index) => (
-        <p className="mt-2 text-xs text-amber" key={`${refund.isin ?? ""}-${String(index)}`}>{t("statements.refund", { amount: masquerValeur(cashMoney(refund.amount), prive), name: refund.name ?? "" })}</p>
-      ))}
+      {statement.refunds.length ? (
+        <div className="mt-2">
+          <p className="text-xs font-medium uppercase text-slate-500">{t("statements.refundTitle")}</p>
+          <ul className="divide-y divide-line">
+            {statement.refunds.map((refund) => <DividendStatementRefundLine choice={state.choices[refund.key]} key={refund.key} onChoose={(choice) => { state.choose(refund.key, choice); }} refund={refund} />)}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -9,6 +9,7 @@
     "performance": "Performance",
     "costBasis": "Prix de revient des positions",
     "cashDividends": "Dividendes encaissés",
+    "otherCredits": "Autres crédits",
     "estimatedDividends": "Dividendes estimés",
     "yieldOnCost": "Rendement sur coût",
     "fees": "Frais"
@@ -19,6 +20,8 @@
     "buy": "Achat",
     "sell": "Vente",
     "dividend": "Dividende encaissé",
+    "capital_repayment": "Remboursement de capital",
+    "compensation": "Indemnisation",
     "fee": "Frais",
     "opening": "État initial (ajustement technique)"
   },
@@ -100,6 +103,7 @@
     "withdrawalWarning": "Information : avant 5 ans, un retrait entraîne en principe la clôture du PEA ; après 5 ans, les gains retirés restent soumis aux prélèvements sociaux. Les règles exactes dépendent de votre situation : aucune fiscalité n'est calculée ici.",
     "withdrawalWarningAge": "Votre PEA a {{years}} an(s) d'ancienneté.",
     "dividendHint": "Saisissez ici un dividende crédité qui n'a pas été proposé. Les dividendes détachés sur vos positions sont proposés automatiquement à leur date de paiement et ne sont crédités qu'après votre validation.",
+    "otherCreditHint": "Un remboursement de capital ou une indemnisation n'est ni un versement ni un dividende : il augmente le solde sans toucher au plafond. Avant la date de l'état initial, il est résumé par celui-ci et déduit des dividendes déjà perçus.",
     "ceilingExceeded": "Ce versement dépasserait le plafond de versements de {{ceiling}}."
   },
   "ledger": {
@@ -134,6 +138,7 @@
     "latentGain": "Gain ou perte « sur le papier » des titres encore détenus : valeur actuelle - prix de revient. Il évolue avec les cours tant que vous ne vendez pas.",
     "realizedGain": "Gain ou perte définitivement acquis par vos ventes : prix de vente - PRU des titres vendus - frais. Le produit des ventes est déjà dans le solde espèces.",
     "cashDividends": "Dividendes réellement crédités sur le compte espèces (montant net, après retenue à la source étrangère éventuelle) : saisis à la main, proposés puis validés, ajoutés automatiquement s'ils sont sûrs, et ceux perçus avant l'état initial si vous les avez confirmés. Ils ne comptent jamais dans les versements ni dans le plafond.",
+    "otherCredits": "Remboursements de capital (prime d'émission, réduction de capital) et indemnisations (rompus d'une attribution gratuite, soulte) crédités depuis l'état initial. Ils augmentent le solde espèces mais ne sont ni des versements (plafond, rendement annualisé) ni des dividendes.",
     "estimatedDividends": "Estimation des dividendes reçus depuis vos achats : dividendes publiés par Yahoo Finance × quantité détenue à chaque date de détachement. Montant brut, non enregistré dans les espèces.",
     "yieldOnCost": "Dividende annuel attendu au rythme actuel, rapporté au prix de revient de vos positions. Les ETF capitalisants ne versent rien et font baisser ce taux.",
     "fees": "Frais de courtage des achats et ventes + frais indépendants saisis dans le journal espèces.",
@@ -198,6 +203,7 @@
     "buys": "Achats enregistrés (frais compris)",
     "sells": "Ventes enregistrées (frais déduits)",
     "fees": "Frais indépendants",
+    "otherCredits": "Remboursements et indemnisations enregistrés",
     "implied": "Dividendes déduits",
     "published": "Recoupement avec les dividendes publiés × quantités détenues : {{gross}} brut, environ {{net}} net de retenue.",
     "amount": "Dividendes perçus à enregistrer (€)",
@@ -253,7 +259,7 @@
   },
   "statements": {
     "title": "Relevés de coupons et dividendes (PDF)",
-    "help": "Importez un ou plusieurs relevés mensuels de votre courtier pour certifier vos dividendes. Les PDF sont lus puis oubliés : seuls la date, l'ISIN et les montants sont gardés.",
+    "help": "Importez un ou plusieurs relevés mensuels de votre courtier pour certifier vos dividendes et remboursements de capital. Les PDF sont lus puis oubliés : seuls la date, l'ISIN et les montants sont gardés.",
     "choose": "Choisir des relevés",
     "reading": "Lecture des relevés…",
     "period": "Relevé {{period}}",
@@ -273,14 +279,13 @@
     "noPosition": "Choisir…",
     "possibleDuplicate": "Un dividende saisi sans actif, du même montant, existe à une date proche : vérifiez qu'il ne s'agit pas du même avant d'appliquer.",
     "withholdingGap": "Retenue réelle de {{actual}} %, estimée à {{estimated}} %.",
-    "refund": "Remboursement de {{amount}} {{name}} : signalé, non importé comme dividende.",
     "openingTitle": "Dividendes déjà perçus",
     "openingText": "Lignes antérieures au {{date}} : {{amount}} au total. Montant confirmé : {{declared}} (écart {{gap}}).",
     "openingNone": "aucun",
     "openingCertify": "Certifier ce montant comme dividendes déjà perçus",
     "confirm": "Confirmer",
     "cancel": "Annuler",
-    "result": "{{certified}} certifié(s), {{corrected}} corrigé(s), {{created}} ajouté(s), {{alreadyCertified}} déjà certifié(s), {{skipped}} non appliqué(s), {{errors}} erreur(s).",
+    "result": "{{certified}} certifié(s), {{corrected}} corrigé(s), {{created}} ajouté(s), {{alreadyCertified}} déjà certifié(s), {{skipped}} non appliqué(s), {{errors}} erreur(s), dont {{refunds}} remboursement(s) de capital.",
     "openingCertified": "Dividendes déjà perçus certifiés.",
     "line": "{{date}} · {{name}} ({{isin}}) · {{net}} net",
     "caseTitles": {
@@ -292,6 +297,19 @@
       "opening": "Avant l'état initial",
       "unknown_asset": "Actif à choisir",
       "future": "À venir"
-    }
+    },
+    "refundTitle": "Remboursements de capital",
+    "refundLine": "{{date}} · {{name}} ({{isin}}) · {{quantity}} titres · {{amount}}",
+    "refundCases": {
+      "certify": "Remboursement enregistré retrouvé : il sera certifié.",
+      "already_certified": "Déjà certifié.",
+      "ambiguous": "Plusieurs remboursements enregistrés correspondent : choisissez celui qui correspond à cette ligne.",
+      "create": "Aucun remboursement enregistré : il sera ajouté aux espèces (ni versement ni dividende) et certifié.",
+      "future": "Date future : ignoré."
+    },
+    "refundBeforeStart": "Antérieur à l'état initial : enregistré pour mémoire, sans effet sur le solde, et déduit des dividendes déjà perçus.",
+    "refundDuplicate": "Un remboursement d'un autre montant existe à une date proche pour cette valeur : vérifiez qu'il ne s'agit pas du même avant d'appliquer.",
+    "chooseMovement": "Remboursement enregistré",
+    "movementOption": "{{amount}} le {{date}}"
   }
 }

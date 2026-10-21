@@ -23,7 +23,8 @@ const decisionsSchema = z.object({
   lines: z.array(z.object({
     key: z.string().trim().min(1).max(32),
     apply: z.boolean(),
-    positionId: idSchema.optional()
+    positionId: idSchema.optional(),
+    movementId: idSchema.optional()
   }).strict()).max(MAX_STATEMENT_FILES * 100),
   certifyOpening: z.boolean()
 }).strict();

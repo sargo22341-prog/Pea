@@ -1,4 +1,4 @@
-import type { DividendStatementLinePreview, DividendStatementsImportResult, DividendStatementsPreviewDto } from "@pea/shared";
+import type { DividendStatementLinePreview, DividendStatementRefundPreview, DividendStatementsImportResult, DividendStatementsPreviewDto } from "@pea/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notifyDividendsChanged } from "../../../components/common/cash/useDividendProposals";
@@ -7,6 +7,8 @@ import { api } from "../../../lib/api";
 export interface LineChoice {
   apply: boolean;
   positionId?: number | undefined;
+  /** Remboursement enregistré choisi pour un remboursement ambigu. */
+  movementId?: number | undefined;
 }
 
 /** Cas applicables ligne à ligne ; les lignes antérieures à l'état initial passent par la certification groupée. */
@@ -14,6 +16,17 @@ const APPLICABLE = new Set<DividendStatementLinePreview["case"]>(["certify", "mi
 
 export function isApplicable(line: DividendStatementLinePreview) {
   return APPLICABLE.has(line.case);
+}
+
+const APPLICABLE_REFUNDS = new Set<DividendStatementRefundPreview["case"]>(["certify", "ambiguous", "create"]);
+
+export function isRefundApplicable(refund: DividendStatementRefundPreview) {
+  return APPLICABLE_REFUNDS.has(refund.case);
+}
+
+/** Un remboursement ambigu ou un doublon possible attend une décision explicite. */
+function defaultRefundChoice(refund: DividendStatementRefundPreview): LineChoice {
+  return { apply: (refund.case === "certify" || refund.case === "create") && !refund.possibleDuplicate };
 }
 
 /**
@@ -55,7 +68,10 @@ export function useDividendStatementsImport() {
       const next = await api.previewDividendStatements(pdfFiles);
       setFiles(pdfFiles);
       setPreview(next);
-      setChoices(Object.fromEntries(next.statements.flatMap((statement) => statement.lines.filter(isApplicable).map((line) => [line.key, defaultChoice(line)]))));
+      setChoices(Object.fromEntries(next.statements.flatMap((statement) => [
+        ...statement.lines.filter(isApplicable).map((line) => [line.key, defaultChoice(line)] as const),
+        ...statement.refunds.filter(isRefundApplicable).map((refund) => [refund.key, defaultRefundChoice(refund)] as const)
+      ])));
       setCertifyOpening(false);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : t("errors:unknown"));
@@ -68,7 +84,7 @@ export function useDividendStatementsImport() {
     setLoading(true);
     setError(null);
     try {
-      const lines = Object.entries(choices).map(([key, choice]) => ({ key, apply: choice.apply, positionId: choice.positionId }));
+      const lines = Object.entries(choices).map(([key, choice]) => ({ key, apply: choice.apply, positionId: choice.positionId, movementId: choice.movementId }));
       setResult(await api.confirmDividendStatements(files, { lines, certifyOpening }));
       reset();
       notifyDividendsChanged();

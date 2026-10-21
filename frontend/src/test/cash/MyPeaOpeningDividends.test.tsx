@@ -24,6 +24,7 @@ function ledger(openingDividends: number | undefined, updatedAt: string): CashLe
   return {
     summary: {
       status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", cash: 100, deposits: 700, withdrawals: 0, netDeposits: 700, cashDividends: openingDividends ?? 0,
+      otherCredits: 0,
       standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_300, realizedGain: 0, historyIncomplete: true
     },
     settings: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", openingCash: 100, openingDeposits: 700, openingWithdrawals: 0, openingDividends, updatedAt },
@@ -32,7 +33,7 @@ function ledger(openingDividends: number | undefined, updatedAt: string): CashLe
 }
 
 const estimate: OpeningDividendsEstimate = {
-  referenceAt: "2026-03-01T00:00:00.000Z", cash: 100, netDeposits: 700, buys: 610, sells: 0, standaloneFees: 0, implied: 10, publishedGross: 10, publishedNet: 10, warnings: []
+  referenceAt: "2026-03-01T00:00:00.000Z", cash: 100, netDeposits: 700, buys: 610, sells: 0, otherCredits: 0, standaloneFees: 0, implied: 10, publishedGross: 10, publishedNet: 10, warnings: []
 };
 
 describe("Mon PEA : dividendes déjà perçus", () => {
