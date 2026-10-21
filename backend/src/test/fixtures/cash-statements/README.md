@@ -10,6 +10,8 @@ abrégés de sociétés cotées sont conservés.
 
 - `legacy-opening.txt` : ancien format, juillet 2021, ouverture du compte (ancien solde nul,
   virement de création, trois achats le même jour).
+- `legacy-second-month.txt` : ancien format, août 2021, suite de `legacy-opening.txt` : coupon et
+  virement « Virement de <Nom> » (reconstitué, nom fictif) ; sert au passage en historique complet.
 - `legacy-mixed.txt` : ancien format, décembre 2025 : virements (dont « Virement de <Nom> »),
   montant à milliers ambigu (« … EO 2 583,38 »), coupons (dont « VEOLIA ENVIRON. », qui contient
   « VIR »), remboursement de titres (quantité « -98 »), indemnisation et vente. La ligne de vente

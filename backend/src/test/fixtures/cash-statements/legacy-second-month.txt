@@ -1,0 +1,31 @@
+000001
+F0000
+P0000 1/1
+000001
+P0000
+MME FICTIVE CAMILLE
+1 RUE DE L EXEMPLE
+00000 VILLE FICTIVE
+AA1
+RELEVE COMPTE ESPECES : AOUT 2021
+Feuillet 1/1
+Edité le 31/08/2021
+Extrait au 31/08/2021
+Références de votre compte espèces
+00000 00000 00000000000 Compte PEA
+Résident Français
+RELEVE D'IDENTITE BANCAIRE
+Titulaire : MME FICTIVE CAMILLE
+Domiciliation : BANQUE FICTIVE
+00000 00000 00000000000 00
+RIB du compte espèces : 00000 00000 00000000000 00
+IBAN : FR76 0000 0000 0000 0000 0000 000
+BIC - Adresse SWIFT : FICTFRPPXXX
+Date de
+compta. Libellé de l'opération Quantité Nom de la valeur Débit EUR Crédit EUR
+31/07/2021 ANCIEN SOLDE 124,55
+10/08/2021 COUPONS ECHEANCE 06/08 2 ENGIE 1,70
+20/08/2021 VIR Virement de Camille DURAND 100,00
+31/08/2021 NOUVEAU SOLDE 226,25
+Protégé par la Garantie des Dépôts www.garantiedesdepots.fr
+-- 1 of 1 --

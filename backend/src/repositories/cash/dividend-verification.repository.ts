@@ -81,6 +81,11 @@ export const dividendVerificationRepository = {
     return db.prepare("SELECT * FROM cash_dividend_statement_lines WHERE user_id = ? ORDER BY payment_date, period, line_no").all(userId) as StatementLineRow[];
   },
 
+  /** Ligne devenue un mouvement certifié (passage en historique complet). */
+  deleteStatementLine(userId: number, id: number) {
+    db.prepare("DELETE FROM cash_dividend_statement_lines WHERE user_id = ? AND id = ?").run(userId, id);
+  },
+
   setOpeningDividendsCertified(userId: number, certifiedAt: string | null) {
     db.prepare("UPDATE cash_accounts SET opening_dividends_certified_at = ? WHERE user_id = ?").run(certifiedAt, userId);
   }

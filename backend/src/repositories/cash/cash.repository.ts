@@ -12,6 +12,8 @@ export interface CashAccountRow {
   opening_dividends_cents: number | null;
   opening_dividends_certified_at: string | null;
   dividend_auto_accept: number;
+  full_history_at: string | null;
+  full_history_reference_at: string | null;
   updated_at: string;
 }
 
@@ -96,6 +98,21 @@ export class CashRepository {
            opening_dividends_cents = ?, updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`
     ).run(cents, cents, userId);
+  }
+
+  /**
+   * Passage en historique complet : l'état initial et les dividendes déjà perçus sont effacés,
+   * l'ancienne date de départ est conservée (`full_history_reference_at`) et la date d'ouverture
+   * complétée si elle était inconnue.
+   */
+  completeHistory(userId: number, input: { formerReferenceAt: string; openedAt: string | undefined; at: string }) {
+    db.prepare(
+      `UPDATE cash_accounts
+       SET reference_at = NULL, opening_cash_cents = 0, opening_deposits_cents = 0, opening_withdrawals_cents = 0,
+           opening_dividends_cents = NULL, opening_dividends_certified_at = NULL, opened_at = COALESCE(opened_at, ?),
+           full_history_at = ?, full_history_reference_at = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = ? AND status = 'ready' AND reference_at IS NOT NULL`
+    ).run(input.openedAt ?? null, input.at, input.formerReferenceAt, userId);
   }
 
   setDividendAutoAccept(userId: number, enabled: boolean) {

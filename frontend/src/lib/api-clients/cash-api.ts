@@ -1,4 +1,4 @@
-import type { CashFundingInput, CashLedgerDto, CashMovementType, DividendProposalAcceptInput, DividendProposalsDto, DividendSettings, OpeningDividendsEstimate } from "@pea/shared";
+import type { CashFundingInput, CashLedgerDto, CashMovementType, DividendProposalAcceptInput, DividendProposalsDto, DividendSettings, FullHistoryPreview, OpeningDividendsEstimate } from "@pea/shared";
 import { request } from "../api-core";
 import { unverifyQuery } from "../cash/cash-statement-check";
 
@@ -45,6 +45,8 @@ export const cashApi = {
   dividendSettings: (signal?: AbortSignal) => request<DividendSettings>("/api/cash/dividend-settings", { signal: signal ?? null }),
   updateDividendSettings: (settings: DividendSettings) => request<DividendSettings>("/api/cash/dividend-settings", { method: "PUT", body: JSON.stringify(settings) }),
   openingDividendsEstimate: (signal?: AbortSignal) => request<OpeningDividendsEstimate>("/api/cash/account/opening-dividends", { signal: signal ?? null }),
+  fullHistoryPreview: (signal?: AbortSignal) => request<FullHistoryPreview>("/api/cash/account/full-history", { signal: signal ?? null }),
+  completeFullHistory: () => request<CashLedgerDto>("/api/cash/account/full-history", { method: "POST", body: JSON.stringify({ confirm: true }) }),
   confirmOpeningDividends: (amount: number | null) =>
     request<CashLedgerDto>("/api/cash/account/opening-dividends", { method: "PUT", body: JSON.stringify({ amount }) }),
   setPositionIsin: (positionId: number, isin: string | null) =>

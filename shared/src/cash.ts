@@ -65,6 +65,8 @@ export interface CashAccountSettings {
   openingDividends?: number | undefined;
   /** Date à laquelle les dividendes déjà perçus ont été certifiés par des relevés du courtier. */
   openingDividendsCertifiedAt?: string | undefined;
+  /** Passage en historique complet : l'état initial a été remplacé par les relevés espèces. */
+  fullHistoryAt?: string | undefined;
   updatedAt?: string | undefined;
 }
 

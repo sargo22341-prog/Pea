@@ -120,6 +120,12 @@ export const cashStatementsRepository = {
     db.prepare(`UPDATE cash_statement_lines SET ${column} = NULL, matched_at = NULL WHERE user_id = ? AND ${column} = ?`).run(userId, id);
   },
 
+  /** La ligne de relevé de coupons devenue un mouvement : la ligne espèces vérifie désormais ce mouvement. */
+  relinkDividendLine(userId: number, dividendLineId: number, movementId: number) {
+    return db.prepare("UPDATE cash_statement_lines SET dividend_line_id = NULL, movement_id = ? WHERE user_id = ? AND dividend_line_id = ?")
+      .run(movementId, userId, dividendLineId) > 0;
+  },
+
   /** Lignes rapprochées des transactions d'une position (suppression de la position). */
   countLinkedTradesOfPosition(userId: number, positionId: number) {
     const row = db.prepare(

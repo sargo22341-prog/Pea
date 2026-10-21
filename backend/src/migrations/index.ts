@@ -55,6 +55,7 @@ import { statementLineNameMigration } from "./cash/054-statement-line-name.js";
 import { transactionTradedAtUtcMigration } from "./portfolio/055-transaction-traded-at-utc.js";
 import { cashOtherCreditsMigration } from "./cash/056-cash-other-credits.js";
 import { cashStatementsMigration } from "./cash/057-cash-statements.js";
+import { fullHistoryMigration } from "./cash/058-full-history.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -114,5 +115,6 @@ export const migrations: Migration[] = [
   statementLineNameMigration,
   transactionTradedAtUtcMigration,
   cashOtherCreditsMigration,
-  cashStatementsMigration
+  cashStatementsMigration,
+  fullHistoryMigration
 ];

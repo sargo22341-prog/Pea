@@ -10,8 +10,8 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 |---|---|
 | `transactions` | Achats (`buy`) et ventes (`sell`) existants, avec frais. Nouvelle colonne `import_ref` (référence d'ordre d'un avis PDF, préfixée `pdf:`) pour refuser un second import. `traded_at` est toujours un instant ISO UTC (migration 55, voir « Opérations sur titres sans doublon »). |
 | `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), remboursements de capital (`capital_repayment`) et indemnisations (`compensation`, migration 56), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
-| `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
-| `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
+| `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49), date d'ouverture facultative et, après un passage en historique complet (migration 58), sa date (`full_history_at`) et l'ancienne date de départ (`full_history_reference_at`). |
+| `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial et du passage en historique complet (avant / après, en JSON). |
 | `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
 | `cash_statements` | Relevés espèces importés (migration 57) : un par utilisateur et par mois, période couverte (date de l'ancien solde, date du nouveau solde), soldes en centimes et empreinte du contenu lu. |
 | `cash_statement_lines` | Lignes de relevé espèces (migration 57) : date d'écriture et de valeur, nature, libellé normalisé, montant signé en centimes, quantité, nom abrégé, échéance d'un coupon, et l'élément vérifié (transaction, mouvement ou ligne de relevé de coupons). Au plus un élément par ligne (`CHECK`), au plus une ligne par élément (index uniques), `ON DELETE SET NULL`. |
@@ -469,10 +469,59 @@ opérations postérieures à la date de départ, non rapprochées, écrites dans
 nombre d'avis d'opéré (achats et ventes non rapprochés) et nombre de coupons ou remboursements du
 relevé non certifiés par un relevé de coupons. Le contrôle ne fait que lire : rien n'est écrit.
 
+## Passage en historique complet
+
+Le code vit dans `backend/src/services/cash/full-history/` (règles pures dans
+`full-history-plan.ts`). `GET /api/cash/account/full-history` renvoie un aperçu sans écriture,
+affiché dans « Mon PEA » (carte « Historique complet ») tant qu'un état initial existe ;
+`POST /api/cash/account/full-history` avec `{ "confirm": true }` (obligatoire, sinon `400`) réalise
+le passage, après une confirmation dans l'interface.
+
+**Conditions** (sinon refus `409`, `details = { code: "FULL_HISTORY_INELIGIBLE", blockers }`, chaque
+raison avec son nombre et ses premières références, sans donnée personnelle) :
+
+- compte prêt avec un état initial (`not_ready`, `already_full`) ;
+- relevés espèces importés (`no_statements`), le premier partant de 0 € avec un virement d'ouverture
+  (`first_statement_not_opening`), chacun reprenant le nouveau solde du précédent — un mois sans
+  relevé est accepté si le solde se suit, un changement de compte aussi (`continuity_break`) — et
+  le dernier allant au moins jusqu'au jour de la date de départ (`not_covered`) ;
+- avant la date de départ, chaque achat, vente et coupon du relevé rapproché d'une opération
+  (`missing_trade_notices`, `missing_coupon_statements`) et chaque opération de l'application
+  rapprochée d'une ligne (`unmatched_entries`) ;
+- chaque dividende certifié par relevé de coupons d'avant la date de départ retrouvé sur un relevé
+  espèces (`unmatched_coupon_lines`) et rattaché par son ISIN à une position unique
+  (`coupon_without_position`).
+
+**Passage**, dans une seule transaction, le plan étant recalculé sur l'état courant :
+
+1. chaque versement, retrait, frais, remboursement ou indemnisation du relevé résumé par l'état
+   initial devient un mouvement (origine `pdf`, `import_ref = cash-statement:AAAA-MM#ligne`, daté
+   comme à l'import), vérifié par sa ligne ;
+2. chaque ligne de `cash_dividend_statement_lines` devient un mouvement `dividend` certifié (même
+   date, montant net, position par ISIN, `import_ref = statement:AAAA-MM#ligne` : un réimport du
+   relevé de coupons le reconnaît « déjà certifié »), la ligne du relevé espèces le vérifie et la
+   ligne de coupons est supprimée ;
+3. l'état initial et les dividendes déjà perçus sont effacés (`reference_at`, soldes déclarés,
+   `opening_dividends_cents`), la date d'ouverture est complétée par le jour du virement d'ouverture
+   si elle était inconnue, et le passage est tracé dans `cash_account_revisions` ;
+4. le contrôle mensuel est recalculé : si un mois clos au plus tard le jour de l'ancienne date de
+   départ ne boucle pas au centime, tout est annulé (`409`, `FULL_HISTORY_MISMATCH`, `periods`).
+
+Aucun double comptage : les versements déclarés sont remplacés par les virements réels, les
+dividendes déjà perçus par les mouvements convertis, et plus aucune ligne n'est « avant la date de
+départ ». L'aperçu compare les indicateurs avant et après (solde, versements, retraits, dividendes
+encaissés, autres crédits) : un écart révèle un état initial inexact, les relevés font foi. Après
+le passage, `historyIncomplete` vaut `false` et le rendement annualisé (XIRR) est calculé ;
+l'ancienne date de départ (`full_history_reference_at`) borne toujours les propositions de
+dividendes, déjà enregistrés jusque-là. Réimporter les relevés espèces ou de coupons ne crée rien.
+Le mode état initial reste celui de qui n'a pas tous ses relevés ; après le passage, il ne se
+ressaisit plus depuis « Mon PEA ».
+
 ## Limites connues
 
-- Les versements antérieurs à la refonte ne peuvent pas être reconstitués : la performance
-  historique d'un portefeuille migré est indicative et le XIRR n'est pas calculé.
+- Sans relevés espèces depuis l'ouverture, les versements antérieurs à la refonte ne peuvent pas
+  être reconstitués : la performance historique d'un portefeuille migré est indicative et le XIRR
+  n'est pas calculé (voir « Passage en historique complet »).
 - Le compte espèces est en euros ; les opérations sur titres sont comptées dans leur devise sans
   conversion, comme le reste du tableau de bord.
 - Les ajustements d'un import CSV de détentions (sans historique) sont des achats et ventes datés
@@ -489,4 +538,7 @@ relevé non certifiés par un relevé de coupons. Le contrôle ne fait que lire 
   rapprochée qu'au réimport du relevé espèces, après l'import du document manquant.
 - Contrôle mensuel : avec un état initial, les mois clos avant la date de départ ne sont pas
   comparés (les versements antérieurs ne sont pas enregistrés un par un) ; seuls leurs documents
-  manquants sont signalés.
+  manquants sont signalés. Le passage en historique complet les rend comparables.
+- Passage en historique complet : sans retour automatique vers un état initial (la sauvegarde de
+  la base reste le moyen de revenir en arrière) ; un virement écrit après l'achat qu'il finance peut
+  faire passer le solde rejoué sous zéro quelques jours, signalé dans l'aperçu.

@@ -407,5 +407,51 @@
       "trade_notice": "trade notice missing",
       "coupon_statement": "coupon statement missing"
     }
+  },
+  "fullHistory": {
+    "title": "Full history",
+    "description": "Your cash statements can replace the initial state of {{date}}: deposits become the actual dated transfers, dividends before that date become real verified movements, and the annualized return becomes available.",
+    "coverage": "{{count}} cash statements imported, from {{first}} to {{last}}.",
+    "creation": "{{count}} × {{kind}} created from the statements: {{amount}}",
+    "dividends": "{{count}} dividend(s) certified by coupon statements become movements: {{amount}}",
+    "before": "With initial state",
+    "after": "Full history",
+    "totals": {
+      "cash": "Cash balance",
+      "deposits": "Total deposits",
+      "withdrawals": "Total withdrawals",
+      "cashDividends": "Cash dividends",
+      "otherCredits": "Other credits"
+    },
+    "differences": "Amounts in orange differ: the declared initial state was inaccurate, the cash statements prevail.",
+    "negative": "The replayed balance goes below zero on {{date}} (operation written before its funding): check this date after switching.",
+    "action": "Switch to full history",
+    "saving": "Switching…",
+    "confirmTitle": "Switch to full history?",
+    "confirmDescription": "The initial state will be deleted and replaced by the operations read on your cash statements, in a single recorded operation. Indicators will be recalculated since the PEA was opened.",
+    "confirm": "Switch to full history",
+    "failed": "Switching to full history failed.",
+    "missing": "Still missing",
+    "someReferences": "{{references}}…",
+    "done": "Full history since the PEA was opened, verified by cash statements (switched on {{date}}).",
+    "blockers": {
+      "not_ready": "Set up the cash account first.",
+      "already_full": "The history is already complete.",
+      "no_statements": "Import your cash statements since the PEA was opened (Settings).",
+      "first_statement_not_opening": "The first imported statement does not start at €0 with the opening transfer: import the statements since opening.",
+      "continuity_break_one": "A statement does not continue the previous balance: a statement is probably missing.",
+      "continuity_break_other": "{{count}} statements do not continue the previous balance: statements are probably missing.",
+      "not_covered": "The imported statements end before the start date: import the following ones.",
+      "missing_trade_notices_one": "A buy or sell on the statement has no trade: import the trade notice, then re-import the cash statement.",
+      "missing_trade_notices_other": "{{count}} buys or sells on the statements have no trade: import the trade notices, then re-import the cash statements.",
+      "missing_coupon_statements_one": "A coupon on the statement is not certified: import the coupon statement, then re-import the cash statement.",
+      "missing_coupon_statements_other": "{{count}} coupons on the statements are not certified: import the coupon statements, then re-import the cash statements.",
+      "unmatched_entries_one": "An operation in the app, before the start date, is missing from the statements (likely duplicate or error).",
+      "unmatched_entries_other": "{{count}} operations in the app, before the start date, are missing from the statements (likely duplicates or errors).",
+      "unmatched_coupon_lines_one": "A dividend certified by a coupon statement is not found on the cash statements.",
+      "unmatched_coupon_lines_other": "{{count}} dividends certified by coupon statements are not found on the cash statements.",
+      "coupon_without_position_one": "A certified dividend matches no position: enter the position's ISIN.",
+      "coupon_without_position_other": "{{count}} certified dividends match no position: enter the positions' ISIN."
+    }
   }
 }

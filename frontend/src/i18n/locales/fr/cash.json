@@ -407,5 +407,51 @@
       "trade_notice": "avis d'opéré manquant",
       "coupon_statement": "relevé de coupons manquant"
     }
+  },
+  "fullHistory": {
+    "title": "Historique complet",
+    "description": "Vos relevés espèces peuvent remplacer l'état initial du {{date}} : les versements deviennent les virements réels datés, les dividendes d'avant cette date de vrais mouvements vérifiés, et le rendement annualisé devient calculable.",
+    "coverage": "{{count}} relevés espèces importés, de {{first}} à {{last}}.",
+    "creation": "{{count}} × {{kind}} créé(s) depuis les relevés : {{amount}}",
+    "dividends": "{{count}} dividende(s) certifié(s) par relevé de coupons deviennent des mouvements : {{amount}}",
+    "before": "Avec l'état initial",
+    "after": "Historique complet",
+    "totals": {
+      "cash": "Solde espèces",
+      "deposits": "Versements cumulés",
+      "withdrawals": "Retraits cumulés",
+      "cashDividends": "Dividendes encaissés",
+      "otherCredits": "Autres crédits"
+    },
+    "differences": "Les montants en orange diffèrent : l'état initial déclaré n'était pas exact, les relevés espèces font foi.",
+    "negative": "Le solde rejoué passe sous zéro le {{date}} (opération écrite avant son financement) : vérifiez cette date après le passage.",
+    "action": "Passer en historique complet",
+    "saving": "Passage en cours…",
+    "confirmTitle": "Passer en historique complet ?",
+    "confirmDescription": "L'état initial sera supprimé et remplacé par les opérations lues sur vos relevés espèces, dans une seule opération tracée. Les indicateurs seront recalculés depuis l'ouverture du PEA.",
+    "confirm": "Passer en historique complet",
+    "failed": "Le passage en historique complet a échoué.",
+    "missing": "Ce qui manque encore",
+    "someReferences": "{{references}}…",
+    "done": "Historique complet depuis l'ouverture du PEA, vérifié par les relevés espèces (passage du {{date}}).",
+    "blockers": {
+      "not_ready": "Configurez d'abord le compte espèces.",
+      "already_full": "L'historique est déjà complet.",
+      "no_statements": "Importez vos relevés espèces depuis l'ouverture du PEA (Réglages).",
+      "first_statement_not_opening": "Le premier relevé importé ne part pas de 0 € avec le virement d'ouverture : importez les relevés depuis l'ouverture.",
+      "continuity_break_one": "Un relevé ne reprend pas le solde du précédent : un relevé manque probablement.",
+      "continuity_break_other": "{{count}} relevés ne reprennent pas le solde du précédent : des relevés manquent probablement.",
+      "not_covered": "Les relevés importés s'arrêtent avant la date de départ : importez les suivants.",
+      "missing_trade_notices_one": "Un achat ou une vente du relevé n'a pas d'opération : importez l'avis d'opéré, puis réimportez le relevé espèces.",
+      "missing_trade_notices_other": "{{count}} achats ou ventes des relevés n'ont pas d'opération : importez les avis d'opéré, puis réimportez les relevés espèces.",
+      "missing_coupon_statements_one": "Un coupon du relevé n'est pas certifié : importez le relevé de coupons, puis réimportez le relevé espèces.",
+      "missing_coupon_statements_other": "{{count}} coupons des relevés ne sont pas certifiés : importez les relevés de coupons, puis réimportez les relevés espèces.",
+      "unmatched_entries_one": "Une opération de l'application, avant la date de départ, est absente des relevés (doublon ou erreur probable).",
+      "unmatched_entries_other": "{{count}} opérations de l'application, avant la date de départ, sont absentes des relevés (doublons ou erreurs probables).",
+      "unmatched_coupon_lines_one": "Un dividende certifié par relevé de coupons n'est pas retrouvé sur les relevés espèces.",
+      "unmatched_coupon_lines_other": "{{count}} dividendes certifiés par relevé de coupons ne sont pas retrouvés sur les relevés espèces.",
+      "coupon_without_position_one": "Un dividende certifié ne correspond à aucune position : saisissez l'ISIN de la position.",
+      "coupon_without_position_other": "{{count}} dividendes certifiés ne correspondent à aucune position : saisissez l'ISIN des positions."
+    }
   }
 }

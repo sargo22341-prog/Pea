@@ -51,6 +51,9 @@ Fonctionnalites principales :
   signalement des avis d'operes absents et des operations non retrouvees), sans conserver les PDF ;
 - controle mensuel du compte dans « Mon PEA » : solde de fin de mois de chaque releve especes
   compare au solde calcule, causes d'un ecart et documents manquants ;
+- passage en historique complet quand les releves especes couvrent tout depuis l'ouverture :
+  l'etat initial est remplace par les virements et dividendes reels, et le rendement annualise
+  devient calculable ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;
 - mode prive pour masquer les montants personnels.

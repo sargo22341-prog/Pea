@@ -91,7 +91,9 @@ export function syncDividendProposals(userId: number, now = new Date()) {
         transactions: transactions.get(position.id),
         isin: position.isin ?? isins.get(position.id),
         paymentDates: paymentDates.get(position.symbol.toUpperCase()) ?? [],
-        referenceAt: account.reference_at ?? undefined,
+        // Après un passage en historique complet, l'ancienne date de départ borne toujours les
+        // propositions : les dividendes qu'elle résumait sont devenus des mouvements.
+        referenceAt: account.reference_at ?? account.full_history_reference_at ?? undefined,
         now: now.getTime()
       };
       // Détachements triés par date : le suivant borne la date de paiement publiée de chacun.

@@ -14,6 +14,7 @@ export type * from "./cash-dividend-statements.js";
 export type * from "./cash/cash-statement-lines.js";
 export type * from "./cash/cash-statements.js";
 export type * from "./cash/cash-account-check.js";
+export type * from "./cash/cash-full-history.js";
 export {
   CALENDAR_MAX_RANGE_DAYS,
   CALENDAR_SCOPES,
@@ -69,6 +70,7 @@ export { DIVIDEND_PROPOSAL_STATUSES, DIVIDEND_RECENT_DAYS } from "./cash-dividen
 export { DIVIDEND_STATEMENT_CASES, DIVIDEND_STATEMENT_CHECK_OUTCOMES, DIVIDEND_STATEMENT_REFUND_CASES, DIVIDEND_VERIFICATIONS } from "./cash-dividend-statements.js";
 export { CASH_STATEMENT_CONTINUITY, CASH_STATEMENT_LINE_KINDS } from "./cash/cash-statement-lines.js";
 export { CASH_MONTH_CHECK_STATUSES } from "./cash/cash-account-check.js";
+export { FULL_HISTORY_BLOCKERS, FULL_HISTORY_INELIGIBLE_CODE, FULL_HISTORY_MISMATCH_CODE } from "./cash/cash-full-history.js";
 export { CASH_STATEMENT_CHECK_STATUSES, CASH_STATEMENT_LINE_CASES, CASH_STATEMENT_VERIFIED_CODE, MAX_CASH_STATEMENT_FILES } from "./cash/cash-statements.js";
 export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
 export { DUPLICATE_TRANSACTION_CODE } from "./portfolio/transactions.js";

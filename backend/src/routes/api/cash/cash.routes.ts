@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAuthUser } from "../../../middleware/auth.js";
 import { cashAccountService } from "../../../services/cash/cash-account.service.js";
 import { cashMovementsService } from "../../../services/cash/cash-movements.service.js";
+import { fullHistoryService } from "../../../services/cash/full-history/full-history.service.js";
 import { asyncRoute } from "../../shared/async-route.js";
 import { cashFundingSchema, isoDateTimeSchema } from "../../shared/date-time.schema.js";
 
@@ -36,6 +37,19 @@ cashRouter.get("/cash", asyncRoute((req, res) => {
 
 cashRouter.put("/cash/account", asyncRoute((req, res) => {
   res.json(cashMovementsService.configure(requireAuthUser(req).id, accountSchema.parse(req.body)));
+}));
+
+/** Passage en historique complet : aperçu (aucune écriture), puis confirmation explicite. */
+const fullHistorySchema = z.object({ confirm: z.literal(true) }).strict();
+
+cashRouter.get("/cash/account/full-history", asyncRoute((req, res) => {
+  res.json(fullHistoryService.preview(requireAuthUser(req).id));
+}));
+
+cashRouter.post("/cash/account/full-history", asyncRoute((req, res) => {
+  const userId = requireAuthUser(req).id;
+  fullHistorySchema.parse(req.body);
+  res.json(fullHistoryService.complete(userId));
 }));
 
 cashRouter.post("/cash/movements", asyncRoute((req, res) => {

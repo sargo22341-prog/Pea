@@ -97,6 +97,7 @@ export class CashAccountService {
       openingWithdrawals: centsToMoney(account.opening_withdrawals_cents),
       openingDividends: account.opening_dividends_cents === null ? undefined : centsToMoney(account.opening_dividends_cents),
       openingDividendsCertifiedAt: account.opening_dividends_certified_at ?? undefined,
+      fullHistoryAt: account.full_history_at ?? undefined,
       updatedAt: account.updated_at
     };
   }

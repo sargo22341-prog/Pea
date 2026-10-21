@@ -8,8 +8,10 @@ import { MOTION } from "../../components/common/motion";
 import { useAsync } from "../../hooks/useAsync";
 import { api } from "../../lib/api";
 import { isStatementLineEntry } from "../../lib/cash/ledger-entry";
+import { formatMaybeDate } from "../../lib/format";
 import { CashMovementForm } from "./components/CashMovementForm";
 import { DividendProposalsPanel } from "./components/DividendProposalsPanel";
+import { FullHistoryCard } from "./components/full-history/FullHistoryCard";
 import { OpeningDividendsCard } from "./components/OpeningDividendsCard";
 import { LedgerTable } from "./components/LedgerTable";
 import { MonthlyCheckCard } from "./components/monthly-check/MonthlyCheckCard";
@@ -84,6 +86,9 @@ export function MyPeaPage() {
         />
       ) : null}
 
+      {!pending && settings.referenceAt ? <FullHistoryCard onCompleted={ledgerChanged} version={checkVersion} /> : null}
+      {settings.fullHistoryAt ? <p className="muted text-sm">{t("cash:fullHistory.done", { date: formatMaybeDate(settings.fullHistoryAt) })}</p> : null}
+
       {pending ? (
         <section className="card space-y-3 border-amber/40 p-4">
           <div>
@@ -103,7 +108,8 @@ export function MyPeaPage() {
 
       <LedgerTable ledger={ledger.data} onChanged={ledgerChanged} />
 
-      {pending ? null : (
+      {/* Historique complet : l'état initial a été remplacé par les relevés, il ne se ressaisit plus. */}
+      {pending || settings.fullHistoryAt ? null : (
         <Collapsible title={t("cash:setup.editTitle")}>
           <p className="muted text-sm">{t("cash:setup.editDescription")}</p>
           {settings.referenceAt ? null : <p className="muted text-sm">{t("cash:setup.none")}</p>}
