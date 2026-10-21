@@ -15,7 +15,8 @@ import type {
 import { portfolioChartsService } from "./portfolio-charts.service.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
-import { portfolioWriteService, type DuplicateConsent } from "./portfolio-write.service.js";
+import { portfolioWriteService, type DuplicateConsent, type TransactionConsent } from "./portfolio-write.service.js";
+import type { UnverifyConsent } from "../cash/cash-statements/verification-guard.js";
 import type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
 
 export type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
@@ -64,12 +65,12 @@ export class PortfolioService {
     return portfolioWriteService.createTransaction(positionId, input, userId, funding, consent);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent?: DuplicateConsent) {
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent?: TransactionConsent) {
     return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId, funding, consent);
   }
 
-  deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
-    portfolioWriteService.deleteTransaction(positionId, transactionId, userId);
+  deleteTransaction(positionId: number, transactionId: number, userId?: number | string, consent?: UnverifyConsent) {
+    portfolioWriteService.deleteTransaction(positionId, transactionId, userId, consent);
   }
 
   recomputePositionFromAnyTransactions(positionId: number, userId?: number | string) {
@@ -80,8 +81,8 @@ export class PortfolioService {
     portfolioWriteService.assertValidTransactionMutation(positionId, input, transactionIdToReplace);
   }
 
-  deletePosition(id: number, userId?: number | string): boolean {
-    return portfolioWriteService.deletePosition(id, userId);
+  deletePosition(id: number, userId?: number | string, consent?: UnverifyConsent): boolean {
+    return portfolioWriteService.deletePosition(id, userId, consent);
   }
 
   full(range: RangeKey, userId?: string | number, options: PortfolioMarketDataOptions = {}): Promise<PortfolioFullDto> {

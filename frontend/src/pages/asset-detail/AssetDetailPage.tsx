@@ -158,7 +158,7 @@ export function AssetDetailPage({ user }: { user: User }) {
       {editor.editing && editor.editedPosition && (
         <EditPositionModal
           onClose={() => void editor.closePositionEditor()}
-          onDeleted={() => void editor.deletePosition()}
+          onDeleted={(confirmUnverify) => void editor.deletePosition(confirmUnverify)}
           onSaved={editor.refreshAfterEdit}
           position={editor.editedPosition}
           startWithDraft={editor.startWithDraft}

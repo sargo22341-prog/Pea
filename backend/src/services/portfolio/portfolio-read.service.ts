@@ -16,6 +16,7 @@ import { splitFactorAt, type AppliedSplit } from "./splits/split-adjustment.js";
 import { withPositionSignals } from "./insights/position-signals.js";
 import { portfolioYieldOnCost } from "./insights/yield-on-cost.js";
 import { peaOverview } from "../cash/pea-overview.js";
+import { loadCashChecks } from "../cash/cash-statements/statement-coverage.js";
 
 function splitFactorOrUndefined(tradedAt: string, splits: AppliedSplit[]) {
   const factor = splitFactorAt(tradedAt, splits);
@@ -63,6 +64,7 @@ export class PortfolioReadService {
     if (!rows.length) return [];
 
     const splits = appliedSplitsByPosition([positionId]).get(positionId) ?? [];
+    const cashCheck = loadCashChecks(resolved);
     return rows.map((row) => ({
       id: String(row.id),
       positionId: row.position_id,
@@ -82,7 +84,8 @@ export class PortfolioReadService {
       currency: row.currency,
       rawTextSnippet: row.raw_text_snippet ?? undefined,
       createdAt: row.traded_at,
-      splitFactor: splitFactorOrUndefined(row.traded_at, splits)
+      splitFactor: splitFactorOrUndefined(row.traded_at, splits),
+      cashCheck: cashCheck(`transaction:${String(row.id)}`, row.type === "sell" ? "sell" : "buy", row.traded_at)
     }));
   }
 

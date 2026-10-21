@@ -1,0 +1,37 @@
+Banque Fictive - SA au capital de 1 000 000,00 EUR - RCS Exemple 000 000 000
+1 rue de la Banque - 00000 Ville Bancaire - www.banque-fictive.example
+Service Clientèle : 00 00 00 00 00
+A réception d'un extrait de compte vous disposez d'un délai de quatre mois pour formuler toute réclamation auprès de votre service clientèle.
+Date 	N° de RIB 	Devise 	Période 	Page
+Banque 	Guichet 	N° de Compte 	Clé RIB
+28/02/2026 	00000 	00000 	00000000000 	00 	EUR 	Du 07/02/2026 au 27/02/2026 	1/1
+Mod.00.00000-00
+FICTIVE CAMILLE
+1 RUE DE L EXEMPLE
+00000 VILLE FICTIVE
+Extrait de votre compte en EUR
+(Protégé par la Garantie des Dépôts www.garantiedesdepots.fr)
+Compte à vue P.E.A.
+B.I.C. 	FICTFRPPXXX 	I.B.A.N. FR76 0000 0000 0000 0000 0000 000
+Nouveau solde en EUR : 	1 	20,28
+Cumul des coupons : nets fiscaux encaissés depuis le 1er janvier 2026 : 2,72 EUR
+Date opération Libellé 	Date
+Valeur
+Débit
+EUR
+Crédit
+EUR
+Solde au 	06/02/2026 	0,00
+09/02/2026 	Reprise solde compte :00000-00000000000 	06/02/2026 	25,06
+12/02/2026 	VIR Virement depuis BoursoBank 	12/02/2026 	2.000,00
+FICTIVE CAMILLE
+12/02/2026 	ACHAT COMPTANT 	16/02/2026 	968,40
+Nom de la valeur: ENGIE
+Quantité: 37
+12/02/2026 	ACHAT ETRANGER 	16/02/2026 	1.039,10
+Nom de la valeur: ISHS VI-ISMWSPE EO
+Quantité: 167
+18/02/2026 	COUPONS ECHEANCE 18/02 	18/02/2026 	2,72
+Nom de la valeur: ASML HOLDING
+Quantité: 2
+-- 1 of 1 --

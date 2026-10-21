@@ -8,6 +8,7 @@ import { objectiveProjectionInvalidationService } from "../objectives/objective-
 import { invalidateFrontendBlockCache } from "../shared/cache.service.js";
 import { cashAccountService } from "./cash-account.service.js";
 import { withCashGuard } from "./cash-guard.js";
+import { assertUnverifyConsent, type UnverifyConsent } from "./cash-statements/verification-guard.js";
 import { centsToMoney, entryTimeMs, isAbsorbed, moneyToCents } from "./cash-ledger.js";
 import { DIVIDEND_IMPORT_REF_PREFIX, isSameDividendCredit } from "./dividends/dividend-proposal-rules.js";
 
@@ -103,9 +104,10 @@ export class CashMovementsService {
     return cashAccountService.ledger(userId);
   }
 
-  delete(userId: number, movementId: number): CashLedgerDto {
+  delete(userId: number, movementId: number, consent: UnverifyConsent = {}): CashLedgerDto {
     const movement = cashRepository.findMovement(userId, movementId);
     if (!movement) throw new HttpError(404, "Mouvement introuvable.");
+    assertUnverifyConsent(userId, { movementId }, consent);
     withCashGuard(userId, { effectiveAt: movement.effective_at, requiredCents: movement.amount_cents, fundable: false }, () => {
       dividendProposalsRepository.releaseMovement(userId, movementId);
       cashRepository.deleteMovement(userId, movementId);

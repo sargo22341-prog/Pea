@@ -4,6 +4,11 @@ import { HttpError } from "../../utils/http-error.js";
 
 /** Durée maximale d'analyse d'un PDF : un fichier piégé ne peut pas occuper un processus indéfiniment. */
 const pdfExtractionTimeoutMs = 30_000;
+/**
+ * Processus d'extraction simultanés pour un lot de relevés : plusieurs années de relevés mensuels
+ * ne lancent pas plus d'une poignée de processus Node à la fois.
+ */
+export const PDF_EXTRACTION_CONCURRENCY = 4;
 const childScript = fileURLToPath(new URL("./pdf-text.child.js", import.meta.url));
 
 type ChildReply = { text: string } | { error: string };

@@ -1,5 +1,6 @@
 import type { CashFundingInput, CashLedgerDto, CashMovementType, DividendProposalAcceptInput, DividendProposalsDto, DividendSettings, OpeningDividendsEstimate } from "@pea/shared";
 import { request } from "../api-core";
+import { unverifyQuery } from "../cash/cash-statement-check";
 
 export interface CashMovementPayload {
   type: CashMovementType;
@@ -32,7 +33,7 @@ export const cashApi = {
     request<CashLedgerDto>("/api/cash/account", { method: "PUT", body: JSON.stringify(input) }),
   createCashMovement: (input: CashMovementPayload) =>
     request<CashLedgerDto>("/api/cash/movements", { method: "POST", body: JSON.stringify(input) }),
-  deleteCashMovement: (id: number) => request<CashLedgerDto>(`/api/cash/movements/${id}`, { method: "DELETE" }),
+  deleteCashMovement: (id: number, confirmUnverify?: boolean) => request<CashLedgerDto>(`/api/cash/movements/${id}${unverifyQuery(confirmUnverify)}`, { method: "DELETE" }),
   dividendProposals: (signal?: AbortSignal) => request<DividendProposalsDto>("/api/cash/dividend-proposals", { signal: signal ?? null }),
   acceptDividendProposal: (id: number, input: DividendProposalAcceptInput) =>
     request<DividendProposalDecision>(`/api/cash/dividend-proposals/${id}/accept`, { method: "POST", body: JSON.stringify(input) }),

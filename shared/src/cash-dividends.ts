@@ -117,4 +117,6 @@ export interface DividendProposalAcceptInput {
   effectiveAt?: string | undefined;
   /** Correction d'un dividende certifié par relevé : la certification est retirée en connaissance de cause. */
   confirmUncertify?: boolean | undefined;
+  /** Correction d'un dividende vérifié par relevé espèces : la vérification est retirée en connaissance de cause. */
+  confirmUnverify?: boolean | undefined;
 }

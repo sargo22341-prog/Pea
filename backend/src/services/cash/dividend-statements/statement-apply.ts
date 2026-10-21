@@ -47,7 +47,7 @@ export function applyStatementLine(userId: number, context: StatementContext, pe
         return "certified";
       case "mismatch":
         if (!movement) return "skipped";
-        correctDividendMovement(userId, movement, { ...credit, confirmUncertify: true }, context.now);
+        correctDividendMovement(userId, movement, { ...credit, confirmUncertify: true, confirmUnverify: true }, context.now);
         certifyMovement(userId, movement.id, reference, context.now);
         return "corrected";
       case "proposal": {

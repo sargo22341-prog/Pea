@@ -1,6 +1,7 @@
 import type { CashLedgerEntry } from "@pea/shared";
 import { Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CashStatementBadge } from "../../../../components/common/cash/verification/CashStatementBadge";
 import { DividendVerificationBadge } from "../../../../components/common/cash/verification/DividendVerificationBadge";
 import { usePrivacy } from "../../../../contexts/privacy-context";
 import { cashMoney } from "../../../../lib/cash/cash-format";
@@ -25,6 +26,7 @@ export function DividendRow({ entry, onOpen }: { entry: CashLedgerEntry; onOpen:
         <span className="muted">{formatChartDateTime(entry.effectiveAt)}</span>
         {beforeStart ? <span className="muted text-xs">({t("cash:ledger.beforeStart")})</span> : null}
         <DividendVerificationBadge verification={entry.verification} />
+        <CashStatementBadge check={entry.cashCheck} />
       </div>
       <div className="flex items-center gap-3">
         <span className="font-semibold text-mint">{masquerValeur(cashMoney(entry.amount), prive)}</span>

@@ -4,12 +4,14 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useCashFunding } from "../../../components/common/cash/useCashFunding";
+import { CashStatementBadge } from "../../../components/common/cash/verification/CashStatementBadge";
 import { DividendMovementDialog } from "../../../components/common/cash/verification/DividendMovementDialog";
 import { DividendVerificationBadge } from "../../../components/common/cash/verification/DividendVerificationBadge";
 import { ConfirmDialog } from "../../../components/common/feedback/ConfirmDialog";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { api } from "../../../lib/api";
 import { cashMoney, signedCashMoney } from "../../../lib/cash/cash-format";
+import { isCashVerified } from "../../../lib/cash/cash-statement-check";
 import { entryAssetLabel, isStatementLineEntry, movementIdOf as movementId } from "../../../lib/cash/ledger-entry";
 import { formatChartDateTime, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
@@ -30,6 +32,7 @@ function EntryDetail({ entry, prive }: { entry: CashLedgerEntry; prive: boolean 
       {parts.join(" | ")}
       {entry.absorbed ? <span className="muted ml-1 text-xs">({t(isStatementLineEntry(entry) ? "ledger.beforeStart" : "ledger.absorbed")})</span> : null}
       {entry.verification ? <span className="ml-2"><DividendVerificationBadge verification={entry.verification} /></span> : null}
+      {entry.cashCheck ? <span className="ml-2"><CashStatementBadge check={entry.cashCheck} /></span> : null}
     </span>
   );
 }
@@ -55,7 +58,8 @@ export function LedgerTable({ ledger, onChanged }: { ledger: CashLedgerDto; onCh
     const id = movementId(entry);
     if (id === undefined) return;
     setError(null);
-    await cashFunding.run(async () => { onChanged(await api.deleteCashMovement(id)); });
+    // L'avertissement est affiché dans la confirmation : supprimer vaut retrait de la vérification.
+    await cashFunding.run(async () => { onChanged(await api.deleteCashMovement(id, isCashVerified(entry.cashCheck))); });
   }
 
   return (
@@ -117,7 +121,10 @@ export function LedgerTable({ ledger, onChanged }: { ledger: CashLedgerDto; onCh
         <ConfirmDialog
           danger
           confirmLabel={t("common:actions.delete")}
-          description={t("cash:ledger.deleteDescription", { amount: cashMoney(Math.abs(pendingDelete.amount)), date: formatChartDateTime(pendingDelete.effectiveAt) })}
+          description={[
+            t("cash:ledger.deleteDescription", { amount: cashMoney(Math.abs(pendingDelete.amount)), date: formatChartDateTime(pendingDelete.effectiveAt) }),
+            isCashVerified(pendingDelete.cashCheck) ? t("cash:cashStatements.unverifyWarning") : ""
+          ].filter(Boolean).join(" ")}
           onCancel={() => { setPendingDelete(null); }}
           onConfirm={() => void remove(pendingDelete)}
           title={t("cash:ledger.deleteTitle")}

@@ -15,7 +15,8 @@ const idSchema = z.coerce.number().int().positive();
 const acceptSchema = z.object({
   amount: z.coerce.number().positive().max(maxAmount).optional(),
   effectiveAt: isoDateTimeSchema.optional(),
-  confirmUncertify: z.boolean().optional()
+  confirmUncertify: z.boolean().optional(),
+  confirmUnverify: z.boolean().optional()
 }).strict();
 
 dividendProposalsRouter.get("/cash/dividend-proposals", asyncRoute((req, res) => {

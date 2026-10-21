@@ -1,6 +1,8 @@
 import type { CashAccountSettings, CashAccountSummary, CashLedgerDto, CashLedgerEntry, CashMovementSource, CashMovementType } from "@pea/shared";
 import { PEA_DEPOSIT_CEILING_EUR } from "@pea/shared";
 import { cashRepository, type CashAccountRow, type CashMovementRow, type CashTradeRow } from "../../repositories/cash/cash.repository.js";
+import { loadCashChecks } from "./cash-statements/statement-coverage.js";
+import { CASH_STATEMENT_IMPORT_REF_PREFIX } from "./cash-statements/statement-keys.js";
 import { mergeStatementEntries, openingStatementEntries } from "./dividend-statements/opening-statement-lines.js";
 import { verificationInfo } from "./dividends/dividend-verification.js";
 import { centsToMoney, computeLedger, moneyToCents, tradeCashCents, type LedgerAccountState, type LedgerItem, type LedgerResult } from "./cash-ledger.js";
@@ -139,7 +141,8 @@ export class CashAccountService {
       const item = entry.item;
       if (!item) return { ...base, source: "migration" };
       if (item.origin === "movement") {
-        return { ...base, source: item.source, symbol: item.movement.symbol ?? undefined, positionId: item.movement.position_id ?? undefined, importRef: item.movement.import_ref ?? undefined, note: item.movement.note ?? undefined, verification: verificationInfo(item.movement) };
+        const source = item.movement.import_ref?.startsWith(CASH_STATEMENT_IMPORT_REF_PREFIX) ? "cash_statement" as const : item.source;
+        return { ...base, source, symbol: item.movement.symbol ?? undefined, positionId: item.movement.position_id ?? undefined, importRef: item.movement.import_ref ?? undefined, note: item.movement.note ?? undefined, verification: verificationInfo(item.movement) };
       }
       const gain = gains.get(item.trade.id);
       return {
@@ -157,7 +160,9 @@ export class CashAccountService {
     });
     // Dividendes d'avant l'état initial certifiés par relevé : affichés, jamais rejoués ni comptés.
     const withStatementLines = mergeStatementEntries(entries, openingStatementEntries(userId, loaded.account.reference_at));
-    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), entries: withStatementLines.reverse() };
+    const cashCheck = loadCashChecks(userId);
+    const checked = withStatementLines.map((entry) => entry.kind === "opening" ? entry : { ...entry, cashCheck: cashCheck(entry.id, entry.kind, entry.effectiveAt) });
+    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), entries: checked.reverse() };
   }
 }
 

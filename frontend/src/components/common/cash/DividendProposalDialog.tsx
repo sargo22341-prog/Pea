@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { usePrivacy } from "../../../contexts/privacy-context";
 import { usePullToRefreshSuspended } from "../../../hooks/usePullToRefreshSuspended";
 import { cashMoney, localInputToIso } from "../../../lib/cash/cash-format";
+import { isCashStatementVerifiedError } from "../../../lib/cash/cash-statement-check";
 import { toDateTimeLocalValue } from "../../../lib/dateTimeInput";
 import { formatMaybeDate, formatNumber } from "../../../lib/format";
 import { masquerValeur } from "../../../lib/privacy";
@@ -44,6 +45,8 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
   const [creditedAt, setCreditedAt] = useState(toDateTimeLocalValue(proposal.creditedAt ?? proposal.paymentAt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Refus « vérifié par relevé espèces » : l'avertissement s'affiche, enregistrer à nouveau confirme.
+  const [cashVerified, setCashVerified] = useState(false);
   const correctedAmount = Number(amount);
   const credited = correcting && Number.isFinite(correctedAmount) ? correctedAmount : proposal.netAmount;
   // Un dividende enregistré est déjà dans le solde : seul l'écart de la correction le modifie.
@@ -65,7 +68,8 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
       await action();
       onClose();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : t("errors:unknown"));
+      if (isCashStatementVerifiedError(failure)) setCashVerified(true);
+      else setError(failure instanceof Error ? failure.message : t("errors:unknown"));
     } finally {
       setBusy(false);
     }
@@ -82,7 +86,7 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
       return;
     }
     // L'avertissement est affiché au-dessus de la saisie : enregistrer vaut confirmation.
-    const input: DividendProposalAcceptInput = { amount: correctedAmount, effectiveAt, ...(certified ? { confirmUncertify: true } : {}) };
+    const input: DividendProposalAcceptInput = { amount: correctedAmount, effectiveAt, ...(certified ? { confirmUncertify: true } : {}), ...(cashVerified ? { confirmUnverify: true } : {}) };
     void run(() => (recorded ? proposals.correct(proposal.id, input) : proposals.accept(proposal.id, input)));
   }
 
@@ -115,7 +119,7 @@ export function DividendProposalDialog({ proposal, proposals, onClose }: { propo
           {!recorded && proposal.withholdingBasis !== "isin" && positionId !== undefined ? (
             <DividendIsinField onSave={(isin) => proposals.setIsin(positionId, isin)} />
           ) : null}
-          {correcting ? <DividendCorrectionFields amount={amount} certified={certified} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
+          {correcting ? <DividendCorrectionFields amount={amount} cashVerified={cashVerified} certified={certified} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
           {recorded && proposal.movementId !== undefined ? <DividendVerificationPanel movementId={proposal.movementId} verification={proposal.verification} /> : null}
           <div className="border-t border-line pt-2">
             <Row label={t("cash:proposals.cashBefore")}>{money(cashBefore)}</Row>

@@ -44,5 +44,6 @@ cashRouter.post("/cash/movements", asyncRoute((req, res) => {
 
 cashRouter.delete("/cash/movements/:id", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
-  res.json(cashMovementsService.delete(requireAuthUser(req).id, id));
+  // `?confirmUnverify=true` : suppression confirmée d'un mouvement vérifié par relevé espèces.
+  res.json(cashMovementsService.delete(requireAuthUser(req).id, id, { confirmUnverify: req.query["confirmUnverify"] === "true" }));
 }));

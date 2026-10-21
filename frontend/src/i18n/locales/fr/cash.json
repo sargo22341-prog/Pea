@@ -30,7 +30,8 @@
     "csv": "Import CSV",
     "pdf": "Avis d'opéré",
     "migration": "Migration",
-    "statement": "Relevé de coupons"
+    "statement": "Relevé de coupons",
+    "cash_statement": "Relevé espèces"
   },
   "metrics": {
     "cash": "Solde espèces",
@@ -311,5 +312,59 @@
     "refundDuplicate": "Un remboursement d'un autre montant existe à une date proche pour cette valeur : vérifiez qu'il ne s'agit pas du même avant d'appliquer.",
     "chooseMovement": "Remboursement enregistré",
     "movementOption": "{{amount}} le {{date}}"
+  },
+  "cashStatements": {
+    "title": "Relevés espèces (PDF)",
+    "info": "À quoi sert le relevé espèces ?",
+    "hint": "Le relevé espèces mensuel de votre courtier fait foi pour tous les mouvements d'argent du PEA. Chaque achat, vente, dividende, versement ou autre crédit retrouvé au centime reçoit le badge « Vérifié par relevé espèces ». Il ne remplace pas les avis d'opéré ni les relevés de coupons (cours, frais, ISIN) : il les confirme. Les PDF sont lus puis oubliés : seuls les dates, libellés, montants, quantités et noms abrégés des valeurs sont gardés, jamais l'IBAN ni votre nom.",
+    "help": "Importez vos relevés espèces mensuels, même plusieurs années à la fois, pour vérifier chaque opération, créer les versements et signaler ce qui manque.",
+    "choose": "Choisir des relevés espèces",
+    "period": "Relevé espèces {{period}}",
+    "balances": "Ancien solde {{opening}} au {{openingDate}}, nouveau solde {{closing}} au {{closingDate}}.",
+    "alreadyImported": "Relevé déjà importé : seules les lignes encore à rapprocher peuvent l'être.",
+    "nothingToDo": "Rien à faire pour ce relevé.",
+    "summary": "{{statements}} relevé(s) lu(s), {{pending}} ligne(s) à confirmer.",
+    "showAll": "Afficher toutes les lignes",
+    "balanceTransfer": "Reprise de solde",
+    "beforeStart": "Antérieur à l'état initial : vérifie l'historique, sans effet sur le solde.",
+    "chooseTarget": "Opération correspondante",
+    "targetOption": "{{kind}} {{symbol}} du {{date}} · {{amount}}",
+    "result": "{{statements}} relevé(s) enregistré(s), {{verified}} opération(s) vérifiée(s), {{created}} créée(s), {{alreadyVerified}} déjà vérifiée(s), {{unmatched}} encore à rapprocher, {{errors}} erreur(s).",
+    "cases": {
+      "already_verified": "Déjà vérifié.",
+      "verify": "Retrouvé dans l'application : il sera vérifié.",
+      "ambiguous": "Plusieurs opérations correspondent : choisissez celle qui figure sur cette ligne.",
+      "missing_trade": "Avis d'opéré manquant : importez-le, puis réimportez ce relevé. Rien n'est créé.",
+      "missing_dividend": "Relevé de coupons manquant pour ce dividende antérieur à l'état initial : importez-le, puis réimportez ce relevé.",
+      "opening": "Antérieur à l'état initial : déjà compris dans les montants déclarés, rien n'est créé.",
+      "neutral": "Reprise du solde de l'ancien compte : transfert neutre, ni versement ni crédit."
+    },
+    "create": {
+      "deposit": "Versement absent de l'application : il sera créé et vérifié.",
+      "withdrawal": "Retrait absent de l'application : il sera créé et vérifié.",
+      "fee": "Frais absents de l'application : ils seront créés et vérifiés.",
+      "capital_repayment": "Remboursement de capital absent : il sera créé (ni versement ni dividende) et vérifié.",
+      "compensation": "Indemnisation absente : elle sera créée (ni versement ni dividende) et vérifiée.",
+      "dividend": "Coupon absent de l'application : choisissez la position pour l'ajouter et le vérifier."
+    },
+    "continuity": {
+      "first": "Premier relevé connu.",
+      "account_change": "Changement de compte : le solde du relevé {{previous}} est repris (transfert neutre).",
+      "gapQuiet": "Aucun relevé pour {{months}} : le solde se suit, mois probablement sans opération.",
+      "gapMissing": "Relevé manquant pour {{months}} : le solde ne se suit pas depuis le relevé {{previous}}.",
+      "balance_break": "L'ancien solde ne correspond pas au nouveau solde du relevé {{previous}}."
+    },
+    "check": {
+      "label": "Relevé espèces",
+      "verified": "Vérifié par relevé espèces",
+      "to_verify": "À vérifier",
+      "not_found": "Non retrouvé au relevé",
+      "verifiedTitle": "Vérifié le {{date}} par le relevé espèces {{reference}}",
+      "to_verifyTitle": "Aucun relevé espèces importé ne couvre encore cette opération.",
+      "not_foundTitle": "La période est couverte par les relevés espèces importés, mais cette opération n'y figure pas : doublon ou erreur probable."
+    },
+    "unverifyTitle": "Opération vérifiée par relevé espèces",
+    "unverifyWarning": "Cette opération est vérifiée par un relevé espèces : la modifier ou la supprimer retirera cette vérification.",
+    "unverifyConfirm": "Modifier quand même"
   }
 }

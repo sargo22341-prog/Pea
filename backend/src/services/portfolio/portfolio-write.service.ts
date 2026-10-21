@@ -17,6 +17,7 @@ import { cashRepository } from "../../repositories/cash/cash.repository.js";
 import { config } from "../../config.js";
 import { toUtcIso } from "../timezone/wall-clock.js";
 import { assertNoIdenticalTrade } from "./duplicates/identical-trades.js";
+import { assertPositionUnverifyConsent, assertUnverifyConsent, releaseVerification, type UnverifyConsent } from "../cash/cash-statements/verification-guard.js";
 
 const negativeSaleMessage = "Cette vente rendrait la quantite detenue negative.";
 const negativeDeletionMessage = "Cette suppression rendrait la quantite detenue negative.";
@@ -46,6 +47,9 @@ function normalizeTradedAt(value: string) {
 export interface DuplicateConsent {
   confirmDuplicate?: boolean | undefined;
 }
+
+/** Confirmations d'une modification : doublon, retrait d'une vérification par relevé espèces. */
+export type TransactionConsent = DuplicateConsent & UnverifyConsent;
 
 /**
  * `PortfolioWriteService` : gère toutes les mutations du portefeuille (transactions CRUD,
@@ -158,23 +162,26 @@ export class PortfolioWriteService {
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent: DuplicateConsent = {}) {
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent: TransactionConsent = {}) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
     assertNoIdenticalTrade(positionId, input, { ...consent, excludeTransactionId: transactionId });
+    assertUnverifyConsent(resolvedUserId, { transactionId }, consent);
     withCashGuard(resolvedUserId, tradeGuard(input, funding), () => {
+      releaseVerification(resolvedUserId, { transactionId });
       portfolioRepository.updateManualTransaction(positionId, transactionId, input);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
       this.invalidatePositionCaches(positionId, resolvedUserId);
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-  deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {
+  deleteTransaction(positionId: number, transactionId: number, userId?: number | string, consent: UnverifyConsent = {}) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
+    assertUnverifyConsent(resolvedUserId, { transactionId }, consent);
     // Supprimer un achat dont dépend une vente ultérieure rendrait l'historique incohérent.
     const sequence = portfolioRepository.listTransactionSequence(positionId) as TransactionSequenceRow[];
     const remainingRows = sequence.filter((row) => Number(row.id) !== transactionId);
@@ -221,10 +228,11 @@ export class PortfolioWriteService {
       : [...rows, mutation];
     this.assertTransactionSequenceDoesNotGoNegative(positionId, nextRows, negativeSaleMessage);
   }
-  deletePosition(id: number, userId?: number | string): boolean {
+  deletePosition(id: number, userId?: number | string, consent: UnverifyConsent = {}): boolean {
     const resolvedUserId = requireUserId(userId);
     const existing = portfolioRepository.findPositionById(id, resolvedUserId);
     if (!existing) return false;
+    assertPositionUnverifyConsent(resolvedUserId, id, consent);
     withCashGuard(resolvedUserId, { effectiveAt: new Date().toISOString(), requiredCents: 0, fundable: false }, () => {
       this.invalidatePositionCaches(id, resolvedUserId, existing.symbol);
       portfolioRepository.deletePosition(id, resolvedUserId);

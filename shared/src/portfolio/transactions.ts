@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "../market.js";
 import type { PeaEligibilityResult } from "../assets.js";
+import type { CashStatementCheck } from "../cash/cash-statements.js";
 
 export interface BoursoramaImportRow {
   line: number;
@@ -63,6 +64,8 @@ export interface EditablePortfolioTransaction extends PortfolioTransaction {
   tradedAt: string;
   /** Facteur des divisions d'actions appliquées à cette transaction (quantité × facteur, prix ÷ facteur). */
   splitFactor?: number | undefined;
+  /** Contrôle par les relevés espèces : vérifié, à vérifier ou non retrouvé. */
+  cashCheck?: CashStatementCheck | undefined;
 }
 
 /** Code d'erreur (409) d'une opération identique à une opération déjà enregistrée sur la position. */

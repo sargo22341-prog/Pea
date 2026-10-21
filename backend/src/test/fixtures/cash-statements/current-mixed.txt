@@ -1,0 +1,45 @@
+Banque Fictive - SA au capital de 1 000 000,00 EUR - RCS Exemple 000 000 000
+1 rue de la Banque - 00000 Ville Bancaire - www.banque-fictive.example
+Service Clientèle : 00 00 00 00 00
+A réception d'un extrait de compte vous disposez d'un délai de quatre mois pour formuler toute réclamation auprès de votre service clientèle.
+Date 	N° de RIB 	Devise 	Période 	Page
+Banque 	Guichet 	N° de Compte 	Clé RIB
+02/04/2026 	00000 	00000 	00000000000 	00 	EUR 	Du 28/02/2026 au 31/03/2026 	1/1
+Mod.00.00000-00
+FICTIVE CAMILLE
+1 RUE DE L EXEMPLE
+00000 VILLE FICTIVE
+Extrait de votre compte en EUR
+(Protégé par la Garantie des Dépôts www.garantiedesdepots.fr)
+Compte à vue P.E.A.
+B.I.C. 	FICTFRPPXXX 	I.B.A.N. FR76 0000 0000 0000 0000 0000 000
+Nouveau solde en EUR : 	1 	13,06
+Cumul des coupons : nets fiscaux encaissés depuis le 1er janvier 2026 : 2,72 EUR
+Date opération Libellé 	Date
+Valeur
+Débit
+EUR
+Crédit
+EUR
+Solde au 	27/02/2026 	20,28
+05/03/2026 	COUPONS ECHEANCE 05/03 	05/03/2026 	164,96
+Nom de la valeur: TOTALENERGIES SE
+Quantité: 296
+05/03/2026 	REMBOURSEMENT TITRES 	05/03/2026 	51,04
+Nom de la valeur: ENGIE
+Quantité: 160
+05/03/2026 	COUPONS ECHEANCE 05/03 	05/03/2026 	4,59
+Nom de la valeur: AIR LIQUIDE
+Quantité: 4
+09/03/2026 	LIQUID. INDEMNISATION 	07/03/2026 	70,99
+Nom de la valeur: AIR LIQUIDE
+Quantité: 0
+16/03/2026 	VENTE COMPTANT 	18/03/2026 	1.312,50
+Nom de la valeur: LEGRAND
+Quantité: 12
+17/03/2026 	VIR Virement depuis BoursoBank 	17/03/2026 	2.000,00
+FICTIVE CAMILLE
+17/03/2026 	ACHAT ETRANGER 	19/03/2026 	3.611,30
+Nom de la valeur: IS.MS.W.S.P.UC.EUR
+Quantité: 292
+-- 1 of 1 --

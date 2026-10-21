@@ -70,12 +70,20 @@ const transactionBodySchema = z.object({
   /** Versement confirmé par l'utilisateur quand le solde espèces ne couvre pas l'achat. */
   funding: cashFundingSchema,
   /** Confirmation explicite d'une opération identique à une opération déjà enregistrée (sinon 409). */
-  confirmDuplicate: z.boolean().optional()
+  confirmDuplicate: z.boolean().optional(),
+  /** Confirmation explicite du retrait de la vérification par relevé espèces (sinon 409). */
+  confirmUnverify: z.boolean().optional()
 });
+
+/** `?confirmUnverify=true` : suppression confirmée d'un élément vérifié par relevé espèces. */
+function unverifyConsent(req: express.Request) {
+  return { confirmUnverify: req.query["confirmUnverify"] === "true" };
+}
 
 portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
-  const { funding, confirmDuplicate, ...body } = transactionBodySchema.parse(req.body);
+  // Une création ne retire aucune vérification : la confirmation éventuelle est ignorée.
+  const { funding, confirmDuplicate, ...body } = transactionBodySchema.omit({ confirmUnverify: true }).parse(req.body);
   res.status(201).json(portfolioService.createTransaction(id, body, undefined, funding, { confirmDuplicate }));
 }));
 
@@ -88,20 +96,20 @@ portfolioRouter.put("/portfolio/positions/:id/isin", asyncRoute((req, res) => {
 portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
-  const { funding, confirmDuplicate, ...body } = transactionBodySchema.parse(req.body);
-  res.json(portfolioService.updateTransaction(id, transactionId, body, undefined, funding, { confirmDuplicate }));
+  const { funding, confirmDuplicate, confirmUnverify, ...body } = transactionBodySchema.parse(req.body);
+  res.json(portfolioService.updateTransaction(id, transactionId, body, undefined, funding, { confirmDuplicate, confirmUnverify }));
 }));
 
 portfolioRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
-  portfolioService.deleteTransaction(id, transactionId);
+  portfolioService.deleteTransaction(id, transactionId, undefined, unverifyConsent(req));
   res.status(204).send();
 }));
 
 portfolioRouter.delete("/portfolio/positions/:id", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
-  const deleted = portfolioService.deletePosition(id);
+  const deleted = portfolioService.deletePosition(id, undefined, unverifyConsent(req));
   if (!deleted) throw new HttpError(404, "Position introuvable");
   res.status(204).send();
 }));

@@ -5,8 +5,8 @@ import { StatementFormatError } from "./parser/statement-text.js";
 
 /** Un relevé mensuel pèse quelques dizaines de kilo-octets : au-delà, le fichier n'en est pas un. */
 export const MAX_STATEMENT_FILE_BYTES = 2 * 1024 * 1024;
-/** Plusieurs années de relevés mensuels peuvent être importées en une fois. */
-export const MAX_STATEMENT_FILES = 60;
+/** Plusieurs années de relevés mensuels (plus de 60) peuvent être importées en une fois. */
+export const MAX_STATEMENT_FILES = 120;
 
 export const notAPdfMessage = "Seuls les relevés au format PDF sont acceptés.";
 

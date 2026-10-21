@@ -7,6 +7,7 @@ import { usePrivacy } from "../../../../contexts/privacy-context";
 import { usePullToRefreshSuspended } from "../../../../hooks/usePullToRefreshSuspended";
 import { api } from "../../../../lib/api";
 import { cashMoney, localInputToIso } from "../../../../lib/cash/cash-format";
+import { isCashVerified } from "../../../../lib/cash/cash-statement-check";
 import { movementIdOf } from "../../../../lib/cash/ledger-entry";
 import { toDateTimeLocalValue } from "../../../../lib/dateTimeInput";
 import { formatChartDateTime } from "../../../../lib/format";
@@ -14,6 +15,7 @@ import { masquerValeur } from "../../../../lib/privacy";
 import { MOTION } from "../../motion";
 import { DividendCorrectionFields } from "../DividendCorrectionFields";
 import { notifyDividendsChanged } from "../useDividendProposals";
+import { CashStatementBadge } from "./CashStatementBadge";
 import { DividendVerificationPanel } from "./DividendVerificationPanel";
 
 /**
@@ -26,6 +28,7 @@ export function DividendMovementDialog({ entry, onClose, onChanged }: { entry: C
   usePullToRefreshSuspended();
   const movementId = movementIdOf(entry);
   const certified = entry.verification?.status === "document";
+  const cashVerified = isCashVerified(entry.cashCheck);
   const [correcting, setCorrecting] = useState(false);
   const [amount, setAmount] = useState(String(entry.amount));
   const [creditedAt, setCreditedAt] = useState(toDateTimeLocalValue(entry.effectiveAt));
@@ -53,7 +56,7 @@ export function DividendMovementDialog({ entry, onClose, onChanged }: { entry: C
     setError(null);
     try {
       // L'avertissement est affiché au-dessus de la saisie : enregistrer vaut confirmation.
-      onChanged?.(await api.correctDividend(id, { amount: value, effectiveAt, ...(certified ? { confirmUncertify: true } : {}) }));
+      onChanged?.(await api.correctDividend(id, { amount: value, effectiveAt, ...(certified ? { confirmUncertify: true } : {}), ...(cashVerified ? { confirmUnverify: true } : {}) }));
       notifyDividendsChanged();
       setCorrecting(false);
     } catch (failure) {
@@ -77,7 +80,8 @@ export function DividendMovementDialog({ entry, onClose, onChanged }: { entry: C
         <div className="space-y-2 p-4 text-sm">
           <p className="flex justify-between gap-3"><span className="muted">{t("cash:verification.amount")}</span><span className="font-medium">{masquerValeur(cashMoney(entry.amount), prive)}</span></p>
           <p className="flex justify-between gap-3"><span className="muted">{t("cash:verification.date")}</span><span className="font-medium">{formatChartDateTime(entry.effectiveAt)}</span></p>
-          {correcting ? <DividendCorrectionFields amount={amount} certified={certified} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
+          {entry.cashCheck ? <p className="flex justify-between gap-3"><span className="muted">{t("cash:cashStatements.check.label")}</span><CashStatementBadge check={entry.cashCheck} /></p> : null}
+          {correcting ? <DividendCorrectionFields amount={amount} cashVerified={cashVerified} certified={certified} creditedAt={creditedAt} onAmount={setAmount} onCreditedAt={setCreditedAt} /> : null}
           <DividendVerificationPanel movementId={movementId} onChanged={onChanged} verification={entry.verification} />
           {error ? <p className="text-sm text-coral" role="alert">{error}</p> : null}
         </div>

@@ -13,6 +13,8 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 | `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
 | `cash_dividend_proposals` | Dividendes proposés à la validation (migration 48) : une ligne par utilisateur, actif et date de détachement, statut `pending` / `accepted` / `ignored`, montants en centimes et mouvement créé à la validation. |
+| `cash_statements` | Relevés espèces importés (migration 57) : un par utilisateur et par mois, période couverte (date de l'ancien solde, date du nouveau solde), soldes en centimes et empreinte du contenu lu. |
+| `cash_statement_lines` | Lignes de relevé espèces (migration 57) : date d'écriture et de valeur, nature, libellé normalisé, montant signé en centimes, quantité, nom abrégé, échéance d'un coupon, et l'élément vérifié (transaction, mouvement ou ligne de relevé de coupons). Au plus un élément par ligne (`CHECK`), au plus une ligne par élément (index uniques), `ON DELETE SET NULL`. |
 | `cash_dividend_statement_lines` | Lignes de relevé de coupons certifiées pour des crédits antérieurs ou égaux à l'état initial (migration 53) : mois, numéro de ligne, ISIN, date, net et retenue. Les colonnes `verification`, `verified_at` et `verification_ref` de `cash_movements` et `opening_dividends_certified_at` de `cash_accounts` portent la vérification des dividendes. |
 
 Le **solde espèces n'est jamais stocké**. Il est recalculé à chaque lecture en rejouant, dans
@@ -286,7 +288,7 @@ sa vérification ; pour un dividende certifié, l'API exige `confirmUncertify: t
 (`PUT /api/cash/movements/:id`, ou correction d'une proposition validée).
 
 **Lecture d'un relevé** (`parser/`) : le texte est extrait par `pdf-parse` dans le processus enfant
-des avis d'opéré ; le PDF (application/pdf, signature `%PDF-`, 2 Mo et 60 fichiers au plus) n'est
+des avis d'opéré ; le PDF (application/pdf, signature `%PDF-`, 2 Mo et 120 fichiers au plus, lus 4 à la fois) n'est
 jamais écrit sur disque. `pdf-parse` n'écrit pas les cellules vides : une ligne française affiche 3
 montants, une ligne étrangère 4. Chaque attribution possible des colonnes (brut, crédit d'impôt,
 acompte, net fiscal, commission, net client) est contrôlée par l'arithmétique de la ligne (net
@@ -351,6 +353,91 @@ filtrent dans l'historique. Les remboursements sont aussi créés ou certifiés 
 relevés de coupons (voir ci-dessus). Supprimer l'un d'eux passe par `withCashGuard`, comme tout
 mouvement.
 
+## Lecture des relevés espèces
+
+Le relevé espèces mensuel est le document qui fait foi pour tous les flux d'argent. Sa lecture vit
+dans `backend/src/services/cash/cash-statements/parser/` ; le PDF est extrait en mémoire par le
+processus enfant des avis d'opéré et n'est jamais conservé. Seuls les champs utiles sont gardés :
+dates d'écriture et de valeur, libellé normalisé (`VIR Virement de`, sans le nom), montant signé,
+quantité, nom abrégé de la valeur, date d'échéance d'un coupon. Jamais d'IBAN, de nom du titulaire,
+de numéro de compte ni de nom de donneur d'ordre.
+
+**Formats** : l'ancien (jusqu'à janvier 2026, « RELEVE COMPTE ESPECES : JUILLET 2021 », feuillets,
+tableau borné par `ANCIEN SOLDE` et `NOUVEAU SOLDE`, milliers séparés par une espace) et le nouveau
+(à partir de février 2026, « Du … au … 1/1 », `Solde au`, date de valeur, milliers séparés par un
+point, nom et quantité sur des lignes à part, caractère parasite possible avant le nouveau solde).
+Le mois est lu dans le contenu, jamais dans le nom du fichier.
+
+**Sens** : `pdf-parse` perd les colonnes Débit / Crédit. Le libellé, reconnu en début de ligne
+seulement (`VEOLIA ENVIRON.` contient « VIR »), donne le sens quand il est sans équivoque :
+virements entrants (`VIR VIREMENT CREATION COMPTE`, `VIR Virement interne depuis`, `VIR Virement
+depuis`, `VIR Virement de`), achats, ventes, coupons (`COUPONS ECHEANCE JJ/MM`), remboursements
+(`REMBOURSEMENT TITRES`), indemnisations (`LIQUID. INDEMNISATION`), frais, taxes et retraits. Un
+autre virement (`VIR …`) ou une reprise de solde peuvent être dans les deux sens. Contrôle
+obligatoire : ancien solde + lignes = nouveau solde au centime ; seule l'unique attribution qui
+boucle est acceptée (`statement-signs.ts`). Un montant de l'ancien format est d'abord lu avec ses
+milliers (« 2 583,38 ») ; si rien ne boucle, les autres lectures (« 583,38 » précédé de « 2 ») sont
+essayées. Libellé inconnu, solde qui ne boucle pas, plusieurs lectures qui bouclent, feuillet ou page
+manquant, opération hors de la période : le relevé est **refusé en entier**.
+
+**Continuité** (`statement-continuity.ts`) : chaque relevé est comparé au précédent connu (importé
+ou du même lot) : continu (mois suivant, ancien solde = nouveau solde précédent), rupture de solde,
+mois manquant (avec l'indication que le solde se suit, mois probablement sans opération, ou non,
+relevé oublié) ou changement de compte (ancien solde nul et ligne `Reprise solde compte` égale au
+solde précédent : transfert neutre, ni versement ni crédit). Une empreinte du contenu lu (sans
+donnée personnelle) reconnaît deux fichiers identiques.
+
+## Rapprochement des relevés espèces
+
+Le code vit dans `backend/src/services/cash/cash-statements/` (règles pures dans `matching/`,
+`statement-classification.ts` et `statement-coverage.ts`) ; l'import passe par `POST
+/api/cash/cash-statements/preview` puis `/confirm` (Réglages, à côté des autres imports, 120 relevés
+au plus par lot, lus 4 à la fois). L'aperçu n'écrit rien ; la confirmation relit les fichiers,
+enregistre chaque relevé et ses lignes (un mois déjà importé à l'identique est relu sans rien
+recréer, un autre contenu pour le même mois est refusé, deux fois le même mois dans un lot aussi),
+puis applique chaque ligne choisie dans sa transaction, après recalcul sur l'état courant.
+
+**Critères** (`matching/line-matching.ts`) : nature (donc sens), montant signé au centime, quantité
+pour un achat ou une vente, date d'écriture dans une fenêtre nommée (`match-windows.ts`) : un achat
+ou une vente est écrit de 1 jour avant à 5 jours après l'exécution, un coupon jusqu'à 15 jours
+après son paiement (3 jours avant pour une saisie manuelle), un versement, un retrait ou des frais à
+7 jours près, un remboursement ou une indemnisation à 15 jours près. Le nom abrégé de la valeur
+n'est jamais un critère. Les candidats sont les transactions, les mouvements et, pour un coupon
+antérieur à l'état initial, les lignes de relevé de coupons certifiées ; un élément déjà rapproché
+d'une autre ligne n'est jamais candidat. Sur tout le lot, une ligne qui n'a plus qu'un candidat le
+prend ; n lignes identiques face aux mêmes n éléments sont appariées dans l'ordre chronologique ;
+une ligne face à plusieurs éléments reste **ambiguë** et l'utilisateur choisit (`targetId`,
+recontrôlé côté serveur parmi les seuls candidats).
+
+| Ligne du relevé | Rapprochée avec | Si rien ne correspond |
+|---|---|---|
+| Achat / vente | transaction : sens, montant net (quantité × cours ± frais), quantité, fenêtre | « Avis d'opéré manquant », rien n'est créé |
+| Coupon | dividende (mouvement, ou ligne de relevé de coupons avant l'état initial) | après l'état initial : dividende créé à sa date d'échéance, position choisie par l'utilisateur (une proposition en attente est validée plutôt que doublée ; un autre dividende proche de la même valeur refuse la création) ; avant : « relevé de coupons manquant » |
+| Virement entrant / sortant, frais | versement, retrait, frais | créé (origine `pdf`, `import_ref = cash-statement:AAAA-MM#ligne`, affiché « Relevé espèces ») ; avant l'état initial : résumé par celui-ci, rien n'est créé |
+| Remboursement / indemnisation | mouvement du même type | créé (même avant l'état initial : résumé, mais déduit des dividendes déjà perçus), nom abrégé en note |
+| Reprise de solde | — | transfert neutre, aucun mouvement |
+
+Un versement créé est daté du début du jour d'écriture à Paris (il précède les achats qu'il finance
+le même jour) ; un retrait ou des frais passent par `withCashGuard`. Le remboursement est le même
+crédit pour les deux documents : créé par le relevé de coupons, il est vérifié par le relevé
+espèces ; créé par le relevé espèces, il est certifié par le relevé de coupons (critères de
+`other-credit-matching.ts`) : jamais deux mouvements.
+
+**Contrôle de chaque élément** (`cashCheck` des lignes du journal et des opérations d'une position) :
+`verified` (« Vérifié par relevé espèces », référence `AAAA-MM#ligne` et date), `not_found` (« Non
+retrouvé au relevé » : toute la fenêtre où il aurait dû être écrit est couverte par des relevés
+importés, mais aucune ligne ne lui correspond, doublon ou erreur probable) ou `to_verify` (« À
+vérifier »). Un dividende peut porter les deux niveaux : « Certifié par relevé » (coupons) et
+« Vérifié par relevé espèces ».
+
+**Modifier ou supprimer un élément vérifié** (achat, vente, mouvement, position contenant une
+opération vérifiée, correction d'un dividende) retire la vérification : sans `confirmUnverify`
+(corps de la requête, ou `?confirmUnverify=true` pour une suppression), l'API répond `409`,
+`details = { code: "CASH_STATEMENT_VERIFIED", reference }`, et l'interface affiche
+l'avertissement avant de renvoyer la demande confirmée. La ligne redevient à rapprocher ; un
+réimport du relevé la vérifie de nouveau si l'élément y correspond toujours (ou crée l'élément
+manquant). Une correction issue d'un relevé de coupons vaut confirmation.
+
 ## Limites connues
 
 - Les versements antérieurs à la refonte ne peuvent pas être reconstitués : la performance
@@ -366,3 +453,6 @@ mouvement.
 - Le solde espèces ne se corrige pas directement : un écart avec le relevé du courtier se résout
   en corrigeant les mouvements ou l'état initial (aucun type « écart de rapprochement » n'existe).
 - Aucune fiscalité n'est calculée pour les retraits : seul un avertissement informatif est affiché.
+- Relevés espèces : un relevé par mois (deux comptes le même mois, lors d'un changement de compte,
+  ne sont pas distingués) ; une ligne restée sans avis d'opéré ou sans relevé de coupons n'est
+  rapprochée qu'au réimport du relevé espèces, après l'import du document manquant.

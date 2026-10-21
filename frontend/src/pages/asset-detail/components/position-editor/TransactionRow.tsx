@@ -1,6 +1,7 @@
 import type { EditablePortfolioTransaction, PositionWithMarket } from "@pea/shared";
 import { Save, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CashStatementBadge } from "../../../../components/common/cash/verification/CashStatementBadge";
 import { toDateTimeLocalValue } from "../../../../lib/dateTimeInput";
 import { maxSellQuantity, type EditableTransactionFormRow } from "../editTransactionForm";
 import { SplitAdjustedNote } from "../splits/SplitAdjustedNote";
@@ -21,6 +22,7 @@ export function TransactionRow({ row, position, onPatch, onType, onQuantity, onS
   return (
     <div className={`rounded-md border p-3 ${isDraft ? "border-mint/50 bg-mint/5" : "border-line bg-ink/60"}`}>
       {isDraft ? <p className="mb-3 text-xs font-medium uppercase text-mint">{t("portfolio:position.toFill")}</p> : null}
+      {!isDraft && row.cashCheck ? <div className="mb-2"><CashStatementBadge check={row.cashCheck} /></div> : null}
       <div className="grid gap-3 md:grid-cols-[minmax(190px,1.5fr)_120px_1fr_1fr_1fr_110px_auto_auto] md:items-end">
         <label>
           <span className="muted mb-1 block">{t("common:fields.date")}</span>

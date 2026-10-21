@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { AssetIconsSettingsSection } from "./components/AssetIconsSettingsSection";
+import { CashStatementsImport } from "./components/cash-statements/CashStatementsImport";
 import { CsvImportSection } from "./components/CsvImportSection";
 import { DividendSettingsSection } from "./components/DividendSettingsSection";
 import { DividendStatementsImport } from "./components/DividendStatementsImport";
@@ -42,6 +43,7 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
         <CsvImportSection />
         <ImportAvisOperesPdf />
         <DividendStatementsImport />
+        <CashStatementsImport />
       </Collapsible>
       <LogoutSection />
     </div>

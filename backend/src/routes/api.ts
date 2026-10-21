@@ -25,6 +25,7 @@ import { alertsRouter } from "./api/alerts/alerts.routes.js";
 import { featureFlagsRouter } from "./api/admin/feature-flags.routes.js";
 import { cashRouter } from "./api/cash/cash.routes.js";
 import { dividendProposalsRouter } from "./api/cash/dividend-proposals.routes.js";
+import { cashStatementsRouter } from "./api/cash/cash-statements.routes.js";
 import { dividendStatementsRouter } from "./api/cash/dividend-statements.routes.js";
 
 export const apiRouter = express.Router();
@@ -53,6 +54,7 @@ apiRouter.use(portfolioRouter);
 apiRouter.use(cashRouter);
 apiRouter.use(dividendProposalsRouter);
 apiRouter.use(dividendStatementsRouter);
+apiRouter.use(cashStatementsRouter);
 apiRouter.use(importRouter);
 apiRouter.use(watchlistRouter);
 apiRouter.use(calendarEventsRouter);

@@ -1,4 +1,5 @@
 import type { DividendVerificationInfo } from "./cash-dividend-statements.js";
+import type { CashStatementCheck } from "./cash/cash-statements.js";
 
 /**
  * Compte espèces du PEA : journal des mouvements et indicateurs dérivés.
@@ -36,10 +37,11 @@ export type CashLedgerEntryKind = CashMovementType | "buy" | "sell" | "opening";
 export type CashMovementSource = "manual" | "csv" | "pdf" | "migration";
 
 /**
- * Origine d'une ligne du journal : celle d'un mouvement, ou `statement` pour un dividende perçu
- * avant l'état initial, lu sur un relevé de coupons certifié (jamais un mouvement espèces).
+ * Origine d'une ligne du journal : celle d'un mouvement, `statement` pour un dividende perçu
+ * avant l'état initial, lu sur un relevé de coupons certifié (jamais un mouvement espèces), ou
+ * `cash_statement` pour un mouvement créé depuis un relevé espèces.
  */
-export type CashLedgerEntrySource = CashMovementSource | "statement";
+export type CashLedgerEntrySource = CashMovementSource | "statement" | "cash_statement";
 
 /**
  * `pending` : portefeuille existant avant la refonte, état initial à confirmer par l'utilisateur ;
@@ -95,6 +97,8 @@ export interface CashLedgerEntry {
   note?: string | undefined;
   /** Vérification d'un dividende encaissé (manuelle ou certifiée par relevé). */
   verification?: DividendVerificationInfo | undefined;
+  /** Contrôle par les relevés espèces (absent pour l'état initial). */
+  cashCheck?: CashStatementCheck | undefined;
 }
 
 export interface CashAccountSummary {

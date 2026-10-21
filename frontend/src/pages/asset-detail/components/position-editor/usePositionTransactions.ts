@@ -3,8 +3,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCashFunding } from "../../../../components/common/cash/useCashFunding";
 import { api } from "../../../../lib/api";
+import { isCashStatementVerifiedError, isCashVerified } from "../../../../lib/cash/cash-statement-check";
 import { isDuplicateTransactionError } from "../../../../lib/portfolio/duplicate-transaction";
 import { draftTransaction, errorMessage, maxSellQuantity, parseNonNegativeNumber, toFormRow, type EditableTransactionFormRow } from "../editTransactionForm";
+
+interface TransactionConsent {
+  confirmDuplicate?: boolean;
+  confirmUnverify?: boolean;
+}
 
 /**
  * Achats et ventes modifiables d'une position : chargement, saisie, enregistrement (avec la popup
@@ -16,6 +22,7 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingDuplicate, setPendingDuplicate] = useState<EditableTransactionFormRow | null>(null);
+  const [pendingUnverify, setPendingUnverify] = useState<EditableTransactionFormRow | null>(null);
   const cashFunding = useCashFunding((failure) => { setError(errorMessage(failure, t)); });
 
   useEffect(() => {
@@ -58,8 +65,11 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
     patchRow(index, { quantity });
   }
 
-  /** Une opération identique à une opération déjà saisie n'est enregistrée qu'après confirmation. */
-  async function save(row: EditableTransactionFormRow, confirmDuplicate = false) {
+  /**
+   * Une opération identique à une opération déjà saisie, ou la modification d'une opération
+   * vérifiée par relevé espèces, n'est enregistrée qu'après confirmation.
+   */
+  async function save(row: EditableTransactionFormRow, consent: TransactionConsent = {}) {
     let quantity: number;
     let price: number;
     let totalFees: number;
@@ -84,15 +94,16 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
     const payload = { tradedAt: row.tradedAt, type: row.type === "sell" ? "sell" : "buy", quantity, price, totalFees, currency: row.currency } as const;
     // Un achat non couvert par les espèces ouvre la popup de versement, puis est rejoué avec lui.
     await cashFunding.run(async (funding) => {
-      const body = { ...payload, funding, ...(confirmDuplicate ? { confirmDuplicate: true } : {}) };
+      const body = { ...payload, funding, ...consent };
       try {
         const nextRows = row.id.startsWith("draft-")
           ? await api.createPositionTransaction(position.id, body)
           : await api.updatePositionTransaction(position.id, row.id, body);
         setRows(nextRows.map(toFormRow));
       } catch (failure) {
-        if (!isDuplicateTransactionError(failure)) throw failure;
-        setPendingDuplicate(row);
+        if (isDuplicateTransactionError(failure)) setPendingDuplicate(row);
+        else if (isCashStatementVerifiedError(failure)) setPendingUnverify(row);
+        else throw failure;
         return;
       }
       await onSaved();
@@ -102,7 +113,13 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
   function resolveDuplicate(confirmed: boolean) {
     const row = pendingDuplicate;
     setPendingDuplicate(null);
-    if (confirmed && row) void save(row, true);
+    if (confirmed && row) void save(row, { confirmDuplicate: true });
+  }
+
+  function resolveUnverify(confirmed: boolean) {
+    const row = pendingUnverify;
+    setPendingUnverify(null);
+    if (confirmed && row) void save(row, { confirmUnverify: true });
   }
 
   async function remove(row: EditableTransactionFormRow) {
@@ -111,7 +128,8 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
       return;
     }
     await cashFunding.run(async () => {
-      await api.deletePositionTransaction(position.id, row.id);
+      // La confirmation de suppression prévient du retrait de la vérification par relevé espèces.
+      await api.deletePositionTransaction(position.id, row.id, isCashVerified(row.cashCheck));
       setError(null);
       setRows((current) => current.filter((item) => item.id !== row.id));
       await onSaved();
@@ -125,6 +143,8 @@ export function usePositionTransactions(position: PositionWithMarket, startWithD
     fundingDialog: cashFunding.dialog,
     pendingDuplicate,
     resolveDuplicate,
+    pendingUnverify,
+    resolveUnverify,
     addDraft: () => { setRows((current) => [draftTransaction(position), ...current]); },
     patchRow,
     patchType,

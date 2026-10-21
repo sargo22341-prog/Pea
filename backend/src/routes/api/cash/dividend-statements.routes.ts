@@ -7,7 +7,9 @@ import { dividendMovementService } from "../../../services/cash/dividends/divide
 import { MAX_STATEMENT_FILE_BYTES, MAX_STATEMENT_FILES, readSingleStatement, readStatement } from "../../../services/cash/dividend-statements/statement-file.js";
 import { dividendStatementsService } from "../../../services/cash/dividend-statements/statement-import.service.js";
 import { dividendStatementCheckService } from "../../../services/cash/dividend-statements/statement-single.service.js";
+import { PDF_EXTRACTION_CONCURRENCY } from "../../../services/boursorama/pdf-text-extractor.js";
 import { assertDistinctUploads } from "../../../services/shared/upload-fingerprint.js";
+import { mapWithConcurrency } from "../../../utils/map-limit.js";
 import { HttpError } from "../../../utils/http-error.js";
 import { asyncRoute } from "../../shared/async-route.js";
 import { isoDateTimeSchema } from "../../shared/date-time.schema.js";
@@ -32,7 +34,8 @@ const decisionsSchema = z.object({
 const correctionSchema = z.object({
   amount: z.coerce.number().positive().max(maxAmount).optional(),
   effectiveAt: isoDateTimeSchema.optional(),
-  confirmUncertify: z.boolean().optional()
+  confirmUncertify: z.boolean().optional(),
+  confirmUnverify: z.boolean().optional()
 }).strict();
 
 function parseDecisions(raw: string | undefined) {
@@ -54,7 +57,7 @@ dividendStatementsRouter.post("/cash/dividend-statements/preview", asyncRoute(as
   const userId = requireAuthUser(req).id;
   const form = await parseMultipartForm(req, "files", uploadLimits);
   assertDistinctUploads(form.files);
-  const reads = await Promise.all(form.files.map(readStatement));
+  const reads = await mapWithConcurrency(form.files, PDF_EXTRACTION_CONCURRENCY, readStatement);
   res.json(dividendStatementsService.preview(userId, reads));
 }));
 
@@ -63,7 +66,7 @@ dividendStatementsRouter.post("/cash/dividend-statements/confirm", asyncRoute(as
   const form = await parseMultipartForm(req, "files", uploadLimits);
   assertDistinctUploads(form.files);
   const decisions = parseDecisions(form.fields["decisions"]);
-  const reads = await Promise.all(form.files.map(readStatement));
+  const reads = await mapWithConcurrency(form.files, PDF_EXTRACTION_CONCURRENCY, readStatement);
   res.json(dividendStatementsService.confirm(userId, reads, decisions));
 }));
 

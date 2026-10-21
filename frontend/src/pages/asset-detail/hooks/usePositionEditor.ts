@@ -17,10 +17,11 @@ export function usePositionEditor({ position, quote, reload }: { position?: Posi
   const [openingPositionEditor, setOpeningPositionEditor] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  async function deletePosition() {
+  /** `confirmUnverify` : la confirmation affichée prévenait que des opérations vérifiées par relevé espèces seront supprimées. */
+  async function deletePosition(confirmUnverify = false) {
     const target = position ?? draftPosition;
     if (!target) return;
-    await api.deletePosition(target.id);
+    await api.deletePosition(target.id, confirmUnverify);
     setDraftPosition(null);
     setToast(t("positionDeleted"));
     await reload();

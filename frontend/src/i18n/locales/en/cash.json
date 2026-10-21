@@ -30,7 +30,8 @@
     "csv": "CSV import",
     "pdf": "Trade confirmation",
     "migration": "Migration",
-    "statement": "Coupon statement"
+    "statement": "Coupon statement",
+    "cash_statement": "Cash statement"
   },
   "metrics": {
     "cash": "Cash balance",
@@ -311,5 +312,59 @@
     "refundDuplicate": "A repayment with another amount exists at a close date for this security: check it is not the same one before applying.",
     "chooseMovement": "Recorded repayment",
     "movementOption": "{{amount}} on {{date}}"
+  },
+  "cashStatements": {
+    "title": "Cash statements (PDF)",
+    "info": "What is the cash statement for?",
+    "hint": "Your broker's monthly cash statement is the reference for every money movement of the PEA. Each purchase, sale, dividend, deposit or other credit found to the cent gets the “Verified by cash statement” badge. It does not replace trade confirmations or coupon statements (price, fees, ISIN): it confirms them. PDFs are read then forgotten: only dates, labels, amounts, quantities and abbreviated security names are kept, never the IBAN or your name.",
+    "help": "Import your monthly cash statements, even several years at once, to verify each operation, create deposits and flag what is missing.",
+    "choose": "Choose cash statements",
+    "period": "Cash statement {{period}}",
+    "balances": "Opening balance {{opening}} on {{openingDate}}, closing balance {{closing}} on {{closingDate}}.",
+    "alreadyImported": "Statement already imported: only lines still unmatched can be matched.",
+    "nothingToDo": "Nothing to do for this statement.",
+    "summary": "{{statements}} statement(s) read, {{pending}} line(s) to confirm.",
+    "showAll": "Show all lines",
+    "balanceTransfer": "Balance transfer",
+    "beforeStart": "Before the initial state: verifies the history, no effect on the balance.",
+    "chooseTarget": "Matching operation",
+    "targetOption": "{{kind}} {{symbol}} on {{date}} · {{amount}}",
+    "result": "{{statements}} statement(s) saved, {{verified}} operation(s) verified, {{created}} created, {{alreadyVerified}} already verified, {{unmatched}} still unmatched, {{errors}} error(s).",
+    "cases": {
+      "already_verified": "Already verified.",
+      "verify": "Found in the app: it will be verified.",
+      "ambiguous": "Several operations match: choose the one on this line.",
+      "missing_trade": "Missing trade confirmation: import it, then import this statement again. Nothing is created.",
+      "missing_dividend": "Missing coupon statement for this dividend before the initial state: import it, then import this statement again.",
+      "opening": "Before the initial state: already included in the declared amounts, nothing is created.",
+      "neutral": "Balance carried over from the former account: neutral transfer, neither deposit nor credit."
+    },
+    "create": {
+      "deposit": "Deposit missing from the app: it will be created and verified.",
+      "withdrawal": "Withdrawal missing from the app: it will be created and verified.",
+      "fee": "Fees missing from the app: they will be created and verified.",
+      "capital_repayment": "Missing capital repayment: it will be created (neither deposit nor dividend) and verified.",
+      "compensation": "Missing compensation: it will be created (neither deposit nor dividend) and verified.",
+      "dividend": "Coupon missing from the app: choose the position to add and verify it."
+    },
+    "continuity": {
+      "first": "First known statement.",
+      "account_change": "Account change: the balance of the {{previous}} statement is carried over (neutral transfer).",
+      "gapQuiet": "No statement for {{months}}: the balance carries on, probably months without operations.",
+      "gapMissing": "Missing statement for {{months}}: the balance does not carry on from the {{previous}} statement.",
+      "balance_break": "The opening balance does not match the closing balance of the {{previous}} statement."
+    },
+    "check": {
+      "label": "Cash statement",
+      "verified": "Verified by cash statement",
+      "to_verify": "To verify",
+      "not_found": "Not found on statement",
+      "verifiedTitle": "Verified on {{date}} by cash statement {{reference}}",
+      "to_verifyTitle": "No imported cash statement covers this operation yet.",
+      "not_foundTitle": "This period is covered by imported cash statements, but this operation is not on them: likely a duplicate or an error."
+    },
+    "unverifyTitle": "Operation verified by cash statement",
+    "unverifyWarning": "This operation is verified by a cash statement: editing or deleting it will remove this verification.",
+    "unverifyConfirm": "Edit anyway"
   }
 }

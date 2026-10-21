@@ -46,6 +46,9 @@ Fonctionnalites principales :
   especes comprises (voir [docs/cash-account.md](docs/cash-account.md)) ;
 - certification des dividendes encaisses par les releves de coupons PDF du courtier (import en
   lot dans les Reglages ou depuis la fenetre d'un dividende), sans conserver les PDF ;
+- verification de chaque achat, vente, dividende, versement et autre credit par les releves
+  especes PDF mensuels (import en lot dans les Reglages : creation des versements manquants,
+  signalement des avis d'operes absents et des operations non retrouvees), sans conserver les PDF ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;
 - mode prive pour masquer les montants personnels.

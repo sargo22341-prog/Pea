@@ -11,6 +11,7 @@ import type {
   UserAssetSplit
 } from "@pea/shared";
 import { dedupedRequest, request } from "../api-core";
+import { unverifyQuery } from "../cash/cash-statement-check";
 
 interface PositionTransactionInput {
   tradedAt: string;
@@ -23,6 +24,8 @@ interface PositionTransactionInput {
   funding?: CashFundingInput | undefined;
   /** Enregistre une opération identique à une opération déjà saisie (sinon refus 409). */
   confirmDuplicate?: boolean | undefined;
+  /** Modifie une opération vérifiée par relevé espèces : la vérification est retirée (sinon refus 409). */
+  confirmUnverify?: boolean | undefined;
 }
 
 export const portfolioApi = {
@@ -30,7 +33,7 @@ export const portfolioApi = {
     dedupedRequest<PortfolioFullDto>(`/api/portfolio/full?range=${range}`, signal),
   ensurePosition: (input: { symbol: string; name?: string; currency: string }) =>
     request<PositionWithMarket>("/api/portfolio/positions/ensure", { method: "POST", body: JSON.stringify(input) }),
-  deletePosition: (id: number) => request<undefined>(`/api/portfolio/positions/${id}`, { method: "DELETE" }),
+  deletePosition: (id: number, confirmUnverify?: boolean) => request<undefined>(`/api/portfolio/positions/${id}${unverifyQuery(confirmUnverify)}`, { method: "DELETE" }),
   positionTransactions: (id: number) => request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${id}/transactions`),
   createPositionTransaction: (positionId: number, input: PositionTransactionInput) =>
     request<EditablePortfolioTransaction[]>(`/api/portfolio/positions/${positionId}/transactions`, {
@@ -42,8 +45,8 @@ export const portfolioApi = {
       method: "PUT",
       body: JSON.stringify(input)
     }),
-  deletePositionTransaction: (positionId: number, transactionId: string) =>
-    request<undefined>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}`, { method: "DELETE" }),
+  deletePositionTransaction: (positionId: number, transactionId: string, confirmUnverify?: boolean) =>
+    request<undefined>(`/api/portfolio/positions/${positionId}/transactions/${transactionId}${unverifyQuery(confirmUnverify)}`, { method: "DELETE" }),
   positionsPerformance: (range: RangeKey, signal?: AbortSignal) =>
     dedupedRequest<PositionRangePerformance[]>(`/api/portfolio/positions/performance?range=${range}`, signal),
   positionPerformance: (id: number, range: RangeKey, signal?: AbortSignal) =>

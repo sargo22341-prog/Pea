@@ -6,6 +6,7 @@ import { DividendMovementDialog } from "../../../../components/common/cash/verif
 import { ConfirmDialog } from "../../../../components/common/feedback/ConfirmDialog";
 import { MOTION } from "../../../../components/common/motion";
 import { usePullToRefreshSuspended } from "../../../../hooks/usePullToRefreshSuspended";
+import { isCashVerified } from "../../../../lib/cash/cash-statement-check";
 import { toDateTimeLocalValue } from "../../../../lib/dateTimeInput";
 import type { EditableTransactionFormRow } from "../editTransactionForm";
 import { DividendRow } from "./DividendRow";
@@ -22,10 +23,11 @@ export function EditPositionModal({ position, onClose, onSaved, onDeleted, start
   position: PositionWithMarket;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
-  onDeleted: () => void;
+  /** `confirmUnverify` : la suppression confirmée retire la vérification des opérations vérifiées par relevé espèces. */
+  onDeleted: (confirmUnverify: boolean) => void;
   startWithDraft?: boolean;
 }) {
-  const { t } = useTranslation(["common", "errors", "portfolio"]);
+  const { t } = useTranslation(["common", "errors", "portfolio", "cash"]);
   usePullToRefreshSuspended();
   const transactions = usePositionTransactions(position, startWithDraft, onSaved);
   const positionDividends = usePositionDividends(position.id);
@@ -38,6 +40,8 @@ export function EditPositionModal({ position, onClose, onSaved, onDeleted, start
   const rows = transactions.rows.map((row, index) => ({ row, index })).filter(({ row }) => filter === "all" || (filter !== "dividend" && row.type === filter));
   const dividends = filter === "all" || filter === "dividend" ? positionDividends.dividends : [];
   const error = transactions.error ?? positionDividends.error;
+  const hasVerifiedTrades = transactions.rows.some((row) => isCashVerified(row.cashCheck));
+  const withUnverifyWarning = (description: string, verified: boolean) => verified ? `${description} ${t("cash:cashStatements.unverifyWarning")}` : description;
 
   return (
     <div className={`fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center ${MOTION.overlay}`}>
@@ -106,7 +110,7 @@ export function EditPositionModal({ position, onClose, onSaved, onDeleted, start
         <ConfirmDialog
           danger
           confirmLabel={t("common:actions.delete")}
-          description={t("portfolio:position.deleteTransactionDescription", { type: pendingDelete.type === "sell" ? t("common:states.sell").toLowerCase() : t("common:states.buy").toLowerCase(), date: toDateTimeLocalValue(pendingDelete.tradedAt).replace("T", " ") })}
+          description={withUnverifyWarning(t("portfolio:position.deleteTransactionDescription", { type: pendingDelete.type === "sell" ? t("common:states.sell").toLowerCase() : t("common:states.buy").toLowerCase(), date: toDateTimeLocalValue(pendingDelete.tradedAt).replace("T", " ") }), isCashVerified(pendingDelete.cashCheck))}
           onCancel={() => { setPendingDelete(null); }}
           onConfirm={() => { const row = pendingDelete; setPendingDelete(null); void transactions.remove(row); }}
           title={t("portfolio:position.deleteTransactionTitle")}
@@ -121,15 +125,24 @@ export function EditPositionModal({ position, onClose, onSaved, onDeleted, start
           title={t("portfolio:position.duplicateTitle")}
         />
       ) : null}
+      {transactions.pendingUnverify ? (
+        <ConfirmDialog
+          confirmLabel={t("cash:cashStatements.unverifyConfirm")}
+          description={t("cash:cashStatements.unverifyWarning")}
+          onCancel={() => { transactions.resolveUnverify(false); }}
+          onConfirm={() => { transactions.resolveUnverify(true); }}
+          title={t("cash:cashStatements.unverifyTitle")}
+        />
+      ) : null}
       {transactions.fundingDialog}
       {openedDividend ? <DividendMovementDialog entry={openedDividend} key={`${openedDividend.id}:${String(openedDividend.amount)}:${openedDividend.effectiveAt}`} onChanged={positionDividends.replace} onClose={() => { setOpenedDividendId(null); }} /> : null}
       {confirmPositionDelete ? (
         <ConfirmDialog
           danger
           confirmLabel={t("portfolio:position.deletePositionAction")}
-          description={t("portfolio:position.deletePositionDescription", { symbol: position.symbol })}
+          description={withUnverifyWarning(t("portfolio:position.deletePositionDescription", { symbol: position.symbol }), hasVerifiedTrades)}
           onCancel={() => { setConfirmPositionDelete(false); }}
-          onConfirm={onDeleted}
+          onConfirm={() => { onDeleted(hasVerifiedTrades); }}
           title={t("portfolio:position.deletePositionTitle", { symbol: position.symbol })}
         />
       ) : null}

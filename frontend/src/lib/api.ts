@@ -18,6 +18,7 @@ import { alertsApi } from "./api-clients/alerts-api";
 import { assetApi } from "./api-clients/asset-api";
 import { calendarApi } from "./api-clients/calendar-api";
 import { cashApi } from "./api-clients/cash-api";
+import { cashStatementsApi } from "./api-clients/cash-statements-api";
 import { dividendStatementsApi } from "./api-clients/dividend-statements-api";
 import { marketApi } from "./api-clients/market-api";
 import { marketsApi } from "./api-clients/markets-api";
@@ -121,6 +122,7 @@ export const api = {
   ...portfolioApi,
   ...cashApi,
   ...dividendStatementsApi,
+  ...cashStatementsApi,
   ...objectivesApi,
   ...assetApi,
   ...adminApi,
