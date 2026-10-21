@@ -8,7 +8,7 @@ l'extérieur) des **achats** (argent du PEA converti en titres). Les règles viv
 
 | Table | Rôle |
 |---|---|
-| `transactions` | Achats (`buy`) et ventes (`sell`) existants, avec frais. Nouvelle colonne `import_ref` (référence d'ordre d'un avis PDF, préfixée `pdf:`) pour refuser un second import. |
+| `transactions` | Achats (`buy`) et ventes (`sell`) existants, avec frais. Nouvelle colonne `import_ref` (référence d'ordre d'un avis PDF, préfixée `pdf:`) pour refuser un second import. `traded_at` est toujours un instant ISO UTC (migration 55, voir « Opérations sur titres sans doublon »). |
 | `cash_movements` | Versements (`deposit`), retraits (`withdrawal`), dividendes encaissés (`dividend`), frais indépendants (`fee`). Montant en **centimes entiers** (`amount_cents > 0`), date effective, actif lié éventuel, origine (`manual`, `csv`, `pdf`, `migration`), référence d'import unique par utilisateur. |
 | `cash_accounts` | Une ligne par utilisateur : statut (`pending` / `ready`), état initial (date de référence, solde espèces, versements et retraits cumulés à cette date, en centimes), dividendes déjà perçus confirmés (migration 51), réglage d'ajout automatique des dividendes (migration 49) et date d'ouverture facultative. |
 | `cash_account_revisions` | Trace de chaque confirmation ou correction de l'état initial (avant / après, en JSON). |
@@ -175,6 +175,40 @@ unique** sur le lot : les ventes du lot financent ses achats, une seule popup r�
 manque, et un refus n'écrit aucune ligne. Un retrait ou une suppression n'est jamais financé par
 un versement (`fundable: false`).
 
+## Opérations sur titres sans doublon
+
+Le code vit dans `backend/src/services/portfolio/duplicates/` (règle commune) et
+`backend/src/services/boursorama/avis-trade-linking.ts` (avis d'opéré).
+
+**Opération identique** (`isIdenticalTrade`) : même position, même sens, et même instant
+d'exécution (à la seconde près, `SAME_INSTANT_TOLERANCE_MS`) ou même jour à Paris avec la même
+quantité et le même cours (`PRICE_TOLERANCE`, 4 décimales). Deux références d'ordre différentes
+désignent toujours deux ordres distincts. Création ou modification d'un achat ou d'une vente
+identique à une opération de la position : refus `409`, `details = { code:
+"DUPLICATE_TRANSACTION", transactionId }`, sauf `confirmDuplicate: true` dans la requête ; la
+fenêtre des opérations d'une position demande cette confirmation.
+
+**Avis d'opéré** (`POST /api/import/avis-operes/preview` puis `/confirm`) :
+
+- l'actif est d'abord reconnu par l'ISIN de l'avis (ISIN saisi sur une position de
+  l'utilisateur, sinon lu sur ses avis déjà importés), puis seulement par ticker, nom ou recherche ;
+- l'aperçu propose décochés (`action: "ignore"`) un avis déjà importé (même référence), une
+  opération identique déjà enregistrée, un doublon probable (même jour, quantité et sens) et un
+  avis répété dans le lot ; l'interface conserve ce choix, et cocher un doublon signalé envoie
+  `confirmDuplicate: true` ;
+- la confirmation recalcule tout sur l'état courant : une référence déjà importée est ignorée ; une
+  opération identique unique (importée avant l'enregistrement de la référence, ou saisie à la main)
+  **reçoit la référence d'ordre et l'ISIN de l'avis** sans rien créer (`linked` dans la réponse),
+  même pour une ligne décochée ; plusieurs candidates sans instant commun sont signalées en erreur
+  et rien n'est choisi ; seule une ligne avec `confirmDuplicate` crée une seconde opération ;
+- un même fichier (empreinte SHA-256 du contenu, quel que soit son nom) envoyé deux fois dans un
+  lot est refusé (`400`, `details.code = "DUPLICATE_UPLOAD"`), pour les avis comme pour les relevés.
+
+**Dates** : l'heure imprimée sur un avis (sans fuseau) est lue dans le fuseau de l'application
+(`TZ`, `Europe/Paris` par défaut, heure d'été comprise, `wall-clock.ts`) puis stockée en ISO UTC. La
+migration 55 convertit de la même façon les dates enregistrées sans fuseau par les anciens imports :
+l'instant lu par l'application, les positions, le PRU et la performance sont inchangés.
+
 ## Migration (version 47) et sauvegarde
 
 La migration 52 vide les blocs d'interface en cache (`frontend_block_cache`) : écrits avant le
@@ -183,7 +217,9 @@ masquaient la popup de configuration d'une base tout juste migrée.
 
 - Avant d'appliquer la migration sur une base qui contient des utilisateurs, une copie complète
   est écrite par `VACUUM INTO` dans `backups/` à côté du fichier SQLite
-  (`<base>-avant-migration-47-<horodatage>.sqlite`). En Docker : `/app/data/backups/`.
+  (`<base>-avant-migration-47-<horodatage>.sqlite`). En Docker : `/app/data/backups/`. Les autres
+  migrations sensibles (55) font de même ; une seule copie est écrite par démarrage, avant la
+  première d'entre elles.
 - La migration ne modifie ni ne supprime aucune position, transaction ou donnée existante. Elle
   crée les tables ci-dessus, la colonne `import_ref`, et un compte espèces par utilisateur :
   `pending` s'il possède déjà des transactions, `ready` (solde nul) sinon.

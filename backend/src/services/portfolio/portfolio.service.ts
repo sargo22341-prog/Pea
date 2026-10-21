@@ -15,7 +15,7 @@ import type {
 import { portfolioChartsService } from "./portfolio-charts.service.js";
 import { portfolioPerformanceService } from "./portfolio-performance.service.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
-import { portfolioWriteService } from "./portfolio-write.service.js";
+import { portfolioWriteService, type DuplicateConsent } from "./portfolio-write.service.js";
 import type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
 
 export type { PortfolioMarketDataOptions, TransactionMutationInput } from "./portfolio.types.js";
@@ -60,12 +60,12 @@ export class PortfolioService {
     return portfolioReadService.transactionStats(positionId, totalDividendsReceived, currency, userId);
   }
 
-  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
-    return portfolioWriteService.createTransaction(positionId, input, userId, funding);
+  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent?: DuplicateConsent) {
+    return portfolioWriteService.createTransaction(positionId, input, userId, funding, consent);
   }
 
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
-    return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId, funding);
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent?: DuplicateConsent) {
+    return portfolioWriteService.updateTransaction(positionId, transactionId, input, userId, funding, consent);
   }
 
   deleteTransaction(positionId: number, transactionId: number, userId?: number | string) {

@@ -65,6 +65,26 @@ export interface EditablePortfolioTransaction extends PortfolioTransaction {
   splitFactor?: number | undefined;
 }
 
+/** Code d'erreur (409) d'une opération identique à une opération déjà enregistrée sur la position. */
+export const DUPLICATE_TRANSACTION_CODE = "DUPLICATE_TRANSACTION";
+
+export interface DuplicateTransactionDetails {
+  code: typeof DUPLICATE_TRANSACTION_CODE;
+  /** Opération déjà enregistrée reconnue comme identique. */
+  transactionId: number;
+}
+
+/** Résultat de la confirmation d'un import d'opérations (CSV ou avis d'opéré). */
+export interface TradeImportResult {
+  imported: string[];
+  skipped: string[];
+  /** Avis d'opéré dont l'opération existait déjà : sa référence d'ordre lui a été ajoutée, rien n'a été créé. */
+  linked?: string[] | undefined;
+  errors: { line: number; message: string }[];
+  jobId?: string | undefined;
+  isPreparing?: boolean | undefined;
+}
+
 export interface ParsedAvisOperation {
   id: string;
   dateExecution?: string | undefined;
@@ -91,4 +111,6 @@ export interface ParsedAvisOperation {
   selectedSymbol?: string;
   selectedAssetName?: string;
   action?: "import" | "ignore";
+  /** L'utilisateur confirme vouloir enregistrer une opération reconnue comme doublon. */
+  confirmDuplicate?: boolean | undefined;
 }

@@ -23,7 +23,10 @@
       "dividendLine": "Dividende encaissé",
       "noOperations": "Aucune opération de ce type pour cette position.",
       "filterLabel": "Filtrer les opérations"
-    }
+    },
+    "duplicateTitle": "Operation deja enregistree ?",
+    "duplicateDescription": "Une operation identique (meme sens, meme instant, ou meme jour, quantite et cours) existe deja sur cette position. L'enregistrer creera un doublon.",
+    "duplicateConfirm": "Enregistrer quand meme"
   },
   "compare": {
     "title": "Comparer avec",

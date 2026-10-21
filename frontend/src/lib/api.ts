@@ -9,6 +9,7 @@ import type {
   ParsedAvisOperation,
   RangeKey,
   SortDirection,
+  TradeImportResult,
   User,
   WatchlistSortKey
 } from "@pea/shared";
@@ -94,29 +95,21 @@ const authApi = {
  */
 const importRequestTimeoutMs = 5 * 60_000;
 
-interface ImportResult {
-  imported: string[];
-  skipped: string[];
-  errors: { line: number; message: string }[];
-  isPreparing?: boolean;
-  jobId?: string;
-}
-
 function postImport<T>(path: string, body: string | FormData) {
   return request<T>(path, { method: "POST", body, timeoutMs: importRequestTimeoutMs });
 }
 
 const importApi = {
   previewBoursorama: (content: string) => postImport<BoursoramaImportRow[]>("/api/import/boursorama/preview", JSON.stringify({ content })),
-  confirmBoursorama: (rows: BoursoramaImportRow[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/boursorama/confirm", JSON.stringify({ rows, funding })),
+  confirmBoursorama: (rows: BoursoramaImportRow[], funding?: CashFundingInput) => postImport<TradeImportResult>("/api/import/boursorama/confirm", JSON.stringify({ rows, funding })),
   previewBoursoramaUpdate: (content: string) => postImport<BoursoramaUpdateRow[]>("/api/import/boursorama/update-preview", JSON.stringify({ content })),
-  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/boursorama/update-confirm", JSON.stringify({ rows, funding })),
+  confirmBoursoramaUpdate: (rows: BoursoramaUpdateRow[], funding?: CashFundingInput) => postImport<TradeImportResult>("/api/import/boursorama/update-confirm", JSON.stringify({ rows, funding })),
   previewAvisOperesPdf: (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => { formData.append("files", file); });
     return postImport<ParsedAvisOperation[]>("/api/import/avis-operes/preview", formData);
   },
-  confirmAvisOperesPdf: (rows: ParsedAvisOperation[], funding?: CashFundingInput) => postImport<ImportResult>("/api/import/avis-operes/confirm", JSON.stringify({ rows, funding }))
+  confirmAvisOperesPdf: (rows: ParsedAvisOperation[], funding?: CashFundingInput) => postImport<TradeImportResult>("/api/import/avis-operes/confirm", JSON.stringify({ rows, funding }))
 };
 
 export const api = {

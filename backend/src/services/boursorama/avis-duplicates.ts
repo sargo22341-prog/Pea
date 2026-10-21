@@ -49,13 +49,13 @@ export function withDuplicateWarning(operation: ParsedAvisOperation): ParsedAvis
   return { ...operation, potentialDuplicate: true, warnings: [...operation.warnings, duplicateWarning] };
 }
 
-/** Signale les opérations répétées dans un même lot (le même avis envoyé deux fois). */
+/** Signale les opérations répétées dans un même lot (le même avis envoyé deux fois), décochées par défaut. */
 export function markDuplicatesWithinBatch(operations: ParsedAvisOperation[]) {
   const seen = new Set<string>();
   return operations.map((operation) => {
     const key = batchKey(operation);
     if (!key) return operation;
-    if (seen.has(key)) return withDuplicateWarning(operation);
+    if (seen.has(key)) return { ...withDuplicateWarning(operation), action: "ignore" as const };
     seen.add(key);
     return operation;
   });

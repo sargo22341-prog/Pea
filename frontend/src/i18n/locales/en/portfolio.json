@@ -23,7 +23,10 @@
       "dividendLine": "Cash dividend",
       "noOperations": "No operation of this type for this position.",
       "filterLabel": "Filter operations"
-    }
+    },
+    "duplicateTitle": "Operation already recorded?",
+    "duplicateDescription": "An identical operation (same side, same time, or same day, quantity and price) already exists on this position. Saving it will create a duplicate.",
+    "duplicateConfirm": "Save anyway"
   },
   "compare": {
     "title": "Compare with",

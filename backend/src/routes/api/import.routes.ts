@@ -74,7 +74,8 @@ const schemaAvisOpereLigne = z.object({
   }).optional(),
   selectedSymbol: z.string().optional(),
   selectedAssetName: z.string().optional(),
-  action: z.enum(["import", "ignore"]).optional()
+  action: z.enum(["import", "ignore"]).optional(),
+  confirmDuplicate: z.boolean().optional()
 });
 
 importRouter.post("/import/boursorama/preview", asyncRoute(async (req, res) => {
@@ -129,6 +130,6 @@ importRouter.post("/import/avis-operes/confirm", asyncRoute(async (req, res) => 
   const corps = z.object({ rows: z.array(schemaAvisOpereLigne).max(maxImportRows), funding: cashFundingSchema }).parse(req.body);
   const resultat = await confirmAvisOperesImport(corps.rows, corps.funding);
   const tache = dataConstructionQueue.enqueueFullConstruction(resultat.imported);
-  logger.debug("import", "PDF avis confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, erreurs: resultat.errors.length });
+  logger.debug("import", "PDF avis confirmation", { lignes: corps.rows.length, importees: resultat.imported.length, ignorees: resultat.skipped.length, rapprochees: resultat.linked?.length ?? 0, erreurs: resultat.errors.length });
   res.json({ ...resultat, jobId: tache.id, isPreparing: tache.totalTasks > 0 });
 }));

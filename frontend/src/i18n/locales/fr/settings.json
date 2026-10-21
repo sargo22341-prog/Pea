@@ -112,11 +112,13 @@
     "executionDate": "Date execution",
     "unknown": "Inconnu",
     "course": "Cours",
-    "operationImportedResult": "{{imported}} operation(s) importee(s), {{skipped}} ignoree(s), {{errors}} erreur(s).",
+    "operationImportedResult": "{{imported}} operation(s) importee(s), {{linked}} deja enregistree(s) et completee(s), {{skipped}} ignoree(s), {{errors}} erreur(s).",
     "numberRequired": "{{field}} doit etre un nombre.",
     "confirmPdf": "Valider l'import PDF",
     "pdfExtractError": "Extraction PDF impossible.",
-    "pdfImportError": "Import PDF impossible."
+    "pdfImportError": "Import PDF impossible.",
+    "importRow": "Importer",
+    "importDuplicateRow": "Importer quand meme (doublon)"
   },
   "icons": {
     "title": "Icones des actifs",

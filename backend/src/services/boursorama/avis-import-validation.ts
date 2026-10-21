@@ -48,7 +48,8 @@ export const confirmOperationSchema = z.object({
   rawTextSnippet: z.string().optional(),
   selectedSymbol: z.string().optional(),
   selectedAssetName: z.string().optional(),
-  action: z.enum(["import", "ignore"]).optional()
+  action: z.enum(["import", "ignore"]).optional(),
+  confirmDuplicate: z.boolean().optional()
 });
 
 export function formatValidationError(error: z.ZodError) {

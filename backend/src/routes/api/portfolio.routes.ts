@@ -68,13 +68,15 @@ const transactionBodySchema = z.object({
   totalFees: z.coerce.number().nonnegative().optional(),
   currency: z.string().min(3).max(8).default("EUR"),
   /** Versement confirmé par l'utilisateur quand le solde espèces ne couvre pas l'achat. */
-  funding: cashFundingSchema
+  funding: cashFundingSchema,
+  /** Confirmation explicite d'une opération identique à une opération déjà enregistrée (sinon 409). */
+  confirmDuplicate: z.boolean().optional()
 });
 
 portfolioRouter.post("/portfolio/positions/:id/transactions", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
-  const { funding, ...body } = transactionBodySchema.parse(req.body);
-  res.status(201).json(portfolioService.createTransaction(id, body, undefined, funding));
+  const { funding, confirmDuplicate, ...body } = transactionBodySchema.parse(req.body);
+  res.status(201).json(portfolioService.createTransaction(id, body, undefined, funding, { confirmDuplicate }));
 }));
 
 portfolioRouter.put("/portfolio/positions/:id/isin", asyncRoute((req, res) => {
@@ -86,8 +88,8 @@ portfolioRouter.put("/portfolio/positions/:id/isin", asyncRoute((req, res) => {
 portfolioRouter.put("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params["id"]);
   const transactionId = z.coerce.number().int().positive().parse(req.params["transactionId"]);
-  const { funding, ...body } = transactionBodySchema.parse(req.body);
-  res.json(portfolioService.updateTransaction(id, transactionId, body, undefined, funding));
+  const { funding, confirmDuplicate, ...body } = transactionBodySchema.parse(req.body);
+  res.json(portfolioService.updateTransaction(id, transactionId, body, undefined, funding, { confirmDuplicate }));
 }));
 
 portfolioRouter.delete("/portfolio/positions/:id/transactions/:transactionId", asyncRoute((req, res) => {

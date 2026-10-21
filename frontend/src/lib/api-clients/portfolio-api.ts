@@ -21,6 +21,8 @@ interface PositionTransactionInput {
   currency: string;
   /** Versement confirmé par l'utilisateur quand le solde espèces ne couvre pas l'achat. */
   funding?: CashFundingInput | undefined;
+  /** Enregistre une opération identique à une opération déjà saisie (sinon refus 409). */
+  confirmDuplicate?: boolean | undefined;
 }
 
 export const portfolioApi = {

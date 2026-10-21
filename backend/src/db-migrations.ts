@@ -34,6 +34,8 @@ export function applyMigrations(db: DatabaseAdapter, migrations: Migration[] = a
     (db.prepare("SELECT version FROM _migrations").all() as { version: number }[]).map((r) => r.version)
   );
 
+  // Une seule copie par démarrage : celle d'avant la première migration sensible couvre les suivantes.
+  let backedUp = false;
   for (const migration of migrations) {
     if (appliedVersions.has(migration.version)) continue;
 
@@ -42,7 +44,7 @@ export function applyMigrations(db: DatabaseAdapter, migrations: Migration[] = a
       db.prepare("INSERT INTO _migrations (version, description) VALUES (?, ?)").run(migration.version, migration.description);
     };
     try {
-      if (migration.sauvegardeAvant) backupBeforeMigration(db, migration);
+      if (migration.sauvegardeAvant && !backedUp) backedUp = backupBeforeMigration(db, migration) !== undefined;
       if (migration.transactional === false) apply();
       else db.transaction(apply);
     } catch (error) {

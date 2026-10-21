@@ -37,7 +37,7 @@ export function ImportAvisOperesPdf() {
       </div>
       {pdfImport.message && <p className="p-4 text-sm text-mint">{pdfImport.message}</p>}
       {pdfImport.loading && <p className="p-4 text-slate-400">{t("imports.extracting", { ns: "settings" })}</p>}
-      {pdfImport.rows.length > 0 && <AvisOperesPreview loading={pdfImport.loading} onConfirm={() => void pdfImport.confirm()} onRemoveRow={pdfImport.removeRow} onUpdateRow={pdfImport.updateRow} rows={pdfImport.rows} />}
+      {pdfImport.rows.length > 0 && <AvisOperesPreview loading={pdfImport.loading} onConfirm={() => void pdfImport.confirm()} onRemoveRow={pdfImport.removeRow} onToggleRow={pdfImport.toggleRow} onUpdateRow={pdfImport.updateRow} rows={pdfImport.rows} />}
       {pdfImport.fundingDialog}
     </section>
   );
@@ -47,12 +47,14 @@ function AvisOperesPreview({
   loading,
   onConfirm,
   onRemoveRow,
+  onToggleRow,
   onUpdateRow,
   rows
 }: {
   loading: boolean;
   onConfirm: () => void;
   onRemoveRow: (index: number) => void;
+  onToggleRow: (index: number, selected: boolean) => void;
   onUpdateRow: (index: number, patch: Partial<ParsedAvisOperation>) => void;
   rows: ParsedAvisOperation[];
 }) {
@@ -67,9 +69,13 @@ function AvisOperesPreview({
       </div>
       <div className="space-y-4 p-4 pt-0">
         {rows.map((row, index) => (
-          <div className={`rounded-md border p-4 ${(row.errors?.length ?? 0) > 0 ? "border-coral/70 bg-coral/5" : row.potentialDuplicate ? "border-amber/60 bg-amber/5" : "border-line bg-ink/40"}`} key={`${row.sourceFileName}-${index}`}>
-            <div className="mb-3 text-sm text-slate-300">
-              {t("imports.detectedAsset", { asset: row.resolvedAsset ? `${row.resolvedAsset.symbol} - ${row.resolvedAsset.name} ${Math.round(row.resolvedAsset.confidenceScore * 100)}%` : t("imports.chooseAsset", { ns: "settings" }), ns: "settings" })}
+          <div className={`rounded-md border p-4 ${(row.errors?.length ?? 0) > 0 ? "border-coral/70 bg-coral/5" : row.potentialDuplicate ? "border-amber/60 bg-amber/5" : "border-line bg-ink/40"} ${row.action === "ignore" ? "opacity-70" : ""}`} key={`${row.sourceFileName}-${index}`}>
+            <div className="mb-3 flex flex-col gap-2 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+              <span>{t("imports.detectedAsset", { asset: row.resolvedAsset ? `${row.resolvedAsset.symbol} - ${row.resolvedAsset.name} ${Math.round(row.resolvedAsset.confidenceScore * 100)}%` : t("imports.chooseAsset", { ns: "settings" }), ns: "settings" })}</span>
+              <label className="flex items-center gap-2">
+                <input checked={row.action !== "ignore"} onChange={(event) => { onToggleRow(index, event.target.checked); }} type="checkbox" />
+                {t(row.potentialDuplicate ? "imports.importDuplicateRow" : "imports.importRow", { ns: "settings" })}
+              </label>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-[minmax(210px,1.1fr)_minmax(180px,0.8fr)_minmax(150px,0.7fr)]">

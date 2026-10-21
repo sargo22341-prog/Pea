@@ -65,6 +65,7 @@ export { CASH_MOVEMENT_TYPES, PEA_DEPOSIT_CEILING_EUR, PEA_WITHDRAWAL_MATURITY_Y
 export { DIVIDEND_PROPOSAL_STATUSES, DIVIDEND_RECENT_DAYS } from "./cash-dividends.js";
 export { DIVIDEND_STATEMENT_CASES, DIVIDEND_STATEMENT_CHECK_OUTCOMES, DIVIDEND_VERIFICATIONS } from "./cash-dividend-statements.js";
 export { HIGH_CORRELATION_THRESHOLD } from "./portfolio/analysis.js";
+export { DUPLICATE_TRANSACTION_CODE } from "./portfolio/transactions.js";
 export { DAY_MS, HOUR_MS, parseIsoDateParts, parseTimeParts } from "./date-parts.js";
 export {
   OBJECTIVE_SIMULATION_DEFAULTS,

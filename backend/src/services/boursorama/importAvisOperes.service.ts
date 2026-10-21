@@ -1,21 +1,22 @@
-import type { CashFundingInput, ParsedAvisOperation, SearchResult } from "@pea/shared";
+import type { CashFundingInput, ParsedAvisOperation, TradeImportResult } from "@pea/shared";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { cashRepository } from "../../repositories/cash/cash.repository.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { HttpError } from "../../utils/http-error.js";
 import { currentUserId } from "../auth/user-context.js";
-import { evaluatePeaEligibility, sortAssetsForPea } from "../assets/peaEligibility.js";
 import { portfolioService } from "../portfolio/portfolio.service.js";
-import { marketDataGateway } from "../market/data/market-data-gateway.service.js";
-import { logger } from "../shared/logger.service.js";
 import { parseAvisOperesText } from "./avisOperesParser.service.js";
 import { extractPdfText } from "./pdf-text-extractor.js";
 import { batchFundingDate, withCashGuard } from "../cash/cash-guard.js";
 import { alreadyImportedMessage } from "../portfolio/portfolio-write.service.js";
-
+import { assertDistinctUploads } from "../shared/upload-fingerprint.js";
+import { toUtcIso } from "../timezone/wall-clock.js";
+import { resolveAssetFromOperation } from "./avis-asset-resolution.js";
 import { isDuplicateOfExistingTransaction, markDuplicatesWithinBatch, withDuplicateWarning } from "./avis-duplicates.js";
 import { assertYahooSymbolExists, confirmOperationSchema, formatValidationError } from "./avis-import-validation.js";
+import { alreadyRecordedMessage, ambiguousRecordedMessage, avisImportRef, avisTradeIdentity, completeExistingTrade, findExistingTrade } from "./avis-trade-linking.js";
+
 export interface PdfUpload {
   fileName: string;
   buffer: Buffer;
@@ -25,12 +26,14 @@ export interface PdfUpload {
  * Prépare l’import d’un ou plusieurs avis d’opéré PDF.
  *
  * Extrait le texte, parse les opérations, tente de résoudre l’actif associé,
- * puis ajoute un avertissement si un doublon potentiel est détecté.
+ * puis ajoute un avertissement si un doublon potentiel est détecté. Un même fichier fourni deux
+ * fois dans le lot est refusé.
  */
 export async function previewAvisOperesImport(
   files: PdfUpload[]
 ): Promise<ParsedAvisOperation[]> {
   const rows: ParsedAvisOperation[] = [];
+  assertDistinctUploads(files);
 
   for (const file of files) {
     if (!file.fileName.toLowerCase().endsWith(".pdf")) {
@@ -50,144 +53,87 @@ export async function previewAvisOperesImport(
 }
 
 /**
- * Ajoute un avertissement si l’opération semble déjà exister sur la position de l’actif. Un avis
- * dont la référence d'ordre est déjà importée est en plus proposé à l'ignorance par défaut.
+ * Signale une opération qui semble déjà enregistrée et la propose à l'ignorance par défaut : même
+ * référence d'ordre (déjà importée), opération identique (sa référence sera complétée à la
+ * confirmation) ou doublon probable (même jour, quantité et sens).
  */
 function markDuplicateWarning(operation: ParsedAvisOperation): ParsedAvisOperation {
-  const importRef = avisImportRef(operation.reference);
-  if (importRef && cashRepository.tradeImportRefExists(currentUserId(), importRef)) {
+  const userId = currentUserId();
+  const ignored = (message?: string): ParsedAvisOperation => {
     const duplicate = withDuplicateWarning(operation);
-    return { ...duplicate, action: "ignore", warnings: [...duplicate.warnings, alreadyImportedMessage] };
-  }
+    return { ...duplicate, action: "ignore", warnings: message ? [...duplicate.warnings, message] : duplicate.warnings };
+  };
+  const importRef = avisImportRef(operation.reference);
+  if (importRef && cashRepository.tradeImportRefExists(userId, importRef)) return ignored(alreadyImportedMessage);
   const symbol = operation.selectedSymbol ?? operation.resolvedAsset?.symbol;
-  if (!symbol) return operation;
-  const position = portfolioRepository.findPositionBySymbol(symbol.toUpperCase(), currentUserId());
-  if (!position) return operation;
+  const position = symbol ? portfolioRepository.findPositionBySymbol(symbol.toUpperCase(), userId) : undefined;
+  if (!symbol || !position) return { ...operation, action: "import" };
+  const identity = avisTradeIdentity(operation);
+  const match = identity ? findExistingTrade(userId, symbol, identity) : { kind: "none" as const };
+  if (match.kind === "unique") return ignored(alreadyRecordedMessage);
+  if (match.kind === "ambiguous") return ignored(ambiguousRecordedMessage);
   const existing = portfolioService.listTransactions(position.id);
-  return isDuplicateOfExistingTransaction(operation, existing, config.appTimezone) ? withDuplicateWarning(operation) : operation;
-}
-
-/**
- * Tente d’associer automatiquement une opération à un actif connu.
- *
- * La résolution se fait d’abord via les positions existantes,
- * puis via une recherche Yahoo Finance sur l’ISIN, le ticker ou le nom de valeur.
- */
-export async function resolveAssetFromOperation(
-  operation: ParsedAvisOperation
-): Promise<ParsedAvisOperation> {
-  const existing = findExistingPosition(operation);
-
-  if (existing) {
-    return {
-      ...operation,
-      resolvedAsset: {
-        symbol: existing.symbol,
-        name: existing.name,
-        confidenceScore: existing.score
-      },
-      selectedSymbol: existing.symbol,
-      selectedAssetName: existing.name
-    };
-  }
-
-  const queries = [operation.isin, operation.ticker, operation.nomValeur].filter(
-    (value): value is string => Boolean(value?.trim())
-  );
-
-  for (const query of queries) {
-    try {
-      const result = await marketDataGateway.search(query);
-      const best = bestCandidate(result.data);
-
-      if (best) {
-        return {
-          ...operation,
-          resolvedAsset: {
-            symbol: best.symbol,
-            name: best.name,
-            confidenceScore: best.score
-          },
-          selectedSymbol: best.symbol,
-          selectedAssetName: best.name
-        };
-      }
-    } catch (error) {
-      // La prévisualisation reste utilisable avec une résolution manuelle.
-      logger.debug("import", "asset resolution failed", { query, error: error instanceof Error ? error.message : String(error) });
-    }
-  }
-
-  return {
-    ...operation,
-    warnings: [...operation.warnings, "Aucun actif resolu automatiquement."]
-  };
-}
-
-/**
- * Recherche une position existante pouvant correspondre à l’opération parsée.
- */
-function findExistingPosition(operation: ParsedAvisOperation) {
-  const candidates = [operation.ticker, operation.nomValeur, operation.isin]
-    .filter(Boolean)
-    .map((value) => String(value).toUpperCase());
-
-  const rows = portfolioRepository.listPositions(currentUserId());
-
-  for (const row of rows) {
-    const symbol = row.symbol.toUpperCase();
-    const name = row.name.toUpperCase();
-
-    if (
-      candidates.some(
-        (candidate) =>
-          symbol === candidate ||
-          name.includes(candidate) ||
-          candidate.includes(name)
-      )
-    ) {
-      return {
-        symbol: row.symbol,
-        name: row.name,
-        score: symbol === operation.ticker?.toUpperCase() ? 0.98 : 0.75
-      };
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Sélectionne le meilleur résultat de recherche en privilégiant les actifs compatibles PEA.
- */
-function bestCandidate(items: SearchResult[]) {
-  const sorted = sortAssetsForPea(
-    items.map((item) => ({
-      ...item,
-      peaEligibility: item.peaEligibility ?? evaluatePeaEligibility(item)
-    }))
-  );
-
-  const best = sorted[0];
-  if (!best) return undefined;
-
-  const eligible = ["eligible", "likely_eligible"].includes(
-    best.peaEligibility.status
-  );
-
-  return {
-    symbol: best.symbol.toUpperCase(),
-    name: best.name,
-    score: eligible ? 0.82 : 0.55
-  };
-}
-
-/** Référence d'import d'un avis : préfixée pour ne jamais rencontrer une autre origine. */
-export function avisImportRef(reference: string | undefined) {
-  return reference ? `pdf:${reference}` : undefined;
+  return isDuplicateOfExistingTransaction(operation, existing, config.appTimezone) ? ignored() : { ...operation, action: "import" };
 }
 
 type AvisImportInput = Parameters<typeof portfolioService.importAvisTransaction>[0];
+type ConfirmRow = z.infer<typeof confirmOperationSchema>;
+
+interface ImportOutcome {
+  imported: string[];
+  skipped: string[];
+  linked: string[];
+  errors: { line: number; message: string }[];
+}
+
+function rowLabel(row: ConfirmRow, line: number) {
+  return row.nomValeur ?? row.selectedSymbol ?? `ligne ${line}`;
+}
+
+/**
+ * Rapproche l'avis d'une opération déjà enregistrée : une opération identique unique reçoit la
+ * référence d'ordre et l'ISIN de l'avis, plusieurs candidates sont signalées. Vrai si l'avis est
+ * traité (rien ne doit être créé).
+ */
+function linkToExistingTrade(userId: number, row: ConfirmRow, line: number, outcome: ImportOutcome) {
+  const identity = avisTradeIdentity(row);
+  if (!row.selectedSymbol || !identity) return false;
+  const match = findExistingTrade(userId, row.selectedSymbol, identity);
+  if (match.kind === "none") return false;
+  if (match.kind === "ambiguous") outcome.errors.push({ line, message: ambiguousRecordedMessage });
+  else {
+    completeExistingTrade(match, identity, row.isin);
+    outcome.linked.push(rowLabel(row, line));
+  }
+  return true;
+}
+
+async function prepareRow(row: ConfirmRow): Promise<AvisImportInput> {
+  if (!row.selectedSymbol) throw new Error("Actif non resolu.");
+  if (row.sensOperation === "inconnu") throw new Error("Sens achat/vente requis.");
+  const tradedAt = toUtcIso(row.dateExecution ?? new Date().toISOString(), config.appTimezone);
+  if (!tradedAt) throw new Error("Date de transaction invalide.");
+  const symbol = row.selectedSymbol.toUpperCase();
+  await assertYahooSymbolExists(symbol);
+  const name = row.selectedAssetName || row.nomValeur || symbol;
+  return {
+    symbol,
+    name,
+    currency: row.devise,
+    type: row.sensOperation === "vente" ? "sell" : "buy",
+    quantity: row.quantite,
+    price: row.coursExecute,
+    tradedAt,
+    sourceFileName: row.sourceFileName ?? null,
+    assetName: row.nomValeur ?? name,
+    isin: row.isin ?? null,
+    ticker: symbol,
+    totalFees: row.montantTotalFrais ?? null,
+    rawTextSnippet: row.rawTextSnippet ?? null,
+    importRef: avisImportRef(row.reference) ?? null,
+    confirmDuplicate: row.confirmDuplicate === true
+  };
+}
 
 /**
  * Confirme l’import des opérations prévisualisées.
@@ -195,77 +141,50 @@ type AvisImportInput = Parameters<typeof portfolioService.importAvisTransaction>
  * Les lignes sont d'abord validées (schéma, actif Yahoo), puis toutes écrites dans une seule
  * transaction SQLite, dans l'ordre chronologique, avec un contrôle espèces unique sur le lot : les
  * ventes du lot financent ses achats et un manque de fonds annule tout l'import. Le versement de
- * financement n'est enregistré que s'il a été confirmé (`funding`). Un avis déjà importé (même
- * référence d'ordre) est ignoré.
+ * financement n'est enregistré que s'il a été confirmé (`funding`). Aucun avis ne crée de doublon :
+ * une référence d'ordre déjà importée est ignorée, et une opération identique déjà enregistrée
+ * (importée avant la référence d'ordre, ou saisie à la main) reçoit la référence de l'avis au lieu
+ * d'être recréée, même pour une ligne ignorée. Seul `confirmDuplicate` crée une seconde opération.
  */
-export async function confirmAvisOperesImport(rows: unknown[], funding?: CashFundingInput) {
-  const imported: string[] = [];
-  const skipped: string[] = [];
-  const errors: { line: number; message: string }[] = [];
-  const prepared: { line: number; input: AvisImportInput }[] = [];
+export async function confirmAvisOperesImport(rows: unknown[], funding?: CashFundingInput): Promise<TradeImportResult> {
+  const outcome: ImportOutcome = { imported: [], skipped: [], linked: [], errors: [] };
+  const prepared: { line: number; row: ConfirmRow; input: AvisImportInput }[] = [];
+  const ignored: { line: number; row: ConfirmRow }[] = [];
 
   for (let index = 0; index < rows.length; index += 1) {
+    const line = index + 1;
     try {
       const row = confirmOperationSchema.parse(rows[index]);
-
-      if (row.action === "ignore") {
-        skipped.push(row.nomValeur ?? row.selectedSymbol ?? `ligne ${index + 1}`);
-        continue;
-      }
-
-      if (!row.selectedSymbol) {
-        errors.push({ line: index + 1, message: "Actif non resolu." });
-        continue;
-      }
-
-      if (row.sensOperation === "inconnu") {
-        errors.push({ line: index + 1, message: "Sens achat/vente requis." });
-        continue;
-      }
-
-      const symbol = row.selectedSymbol.toUpperCase();
-      await assertYahooSymbolExists(symbol);
-      const name = row.selectedAssetName || row.nomValeur || symbol;
-      prepared.push({
-        line: index + 1,
-        input: {
-          symbol,
-          name,
-          currency: row.devise,
-          type: row.sensOperation === "vente" ? "sell" : "buy",
-          quantity: row.quantite,
-          price: row.coursExecute,
-          tradedAt: row.dateExecution ?? new Date().toISOString(),
-          sourceFileName: row.sourceFileName ?? null,
-          assetName: row.nomValeur ?? name,
-          isin: row.isin ?? null,
-          ticker: symbol,
-          totalFees: row.montantTotalFrais ?? null,
-          rawTextSnippet: row.rawTextSnippet ?? null,
-          importRef: avisImportRef(row.reference) ?? null
-        }
-      });
+      if (row.action === "ignore") ignored.push({ line, row });
+      else prepared.push({ line, row, input: await prepareRow(row) });
     } catch (error) {
-      errors.push({ line: index + 1, message: importErrorMessage(error) });
+      outcome.errors.push({ line, message: importErrorMessage(error) });
     }
   }
 
   const userId = currentUserId();
-  prepared.sort((a, b) => new Date(a.input.tradedAt).getTime() - new Date(b.input.tradedAt).getTime() || a.line - b.line);
-  const effectiveAt = batchFundingDate(userId, prepared.map(({ input }) => new Date(input.tradedAt).toISOString()));
+  prepared.sort((a, b) => Date.parse(a.input.tradedAt) - Date.parse(b.input.tradedAt) || a.line - b.line);
+  const effectiveAt = batchFundingDate(userId, prepared.map(({ input }) => input.tradedAt));
   withCashGuard(userId, { effectiveAt, fundable: true, funding }, () => {
-    for (const { line, input } of prepared) {
+    for (const { line, row, input } of prepared) {
       try {
+        if (input.importRef && cashRepository.tradeImportRefExists(userId, input.importRef)) throw new HttpError(409, alreadyImportedMessage);
+        if (!input.confirmDuplicate && linkToExistingTrade(userId, row, line, outcome)) continue;
         portfolioService.importAvisTransaction(input);
-        imported.push(input.symbol);
+        outcome.imported.push(input.symbol);
       } catch (error) {
-        if (error instanceof HttpError && error.message === alreadyImportedMessage) skipped.push(`${input.assetName ?? input.symbol} (deja importe)`);
-        else errors.push({ line, message: importErrorMessage(error) });
+        if (error instanceof HttpError && error.message === alreadyImportedMessage) outcome.skipped.push(`${input.assetName ?? input.symbol} (deja importe)`);
+        else outcome.errors.push({ line, message: importErrorMessage(error) });
       }
+    }
+    for (const { line, row } of ignored) {
+      const importRef = avisImportRef(row.reference);
+      const alreadyImported = importRef !== undefined && cashRepository.tradeImportRefExists(userId, importRef);
+      if (alreadyImported || !linkToExistingTrade(userId, row, line, outcome)) outcome.skipped.push(rowLabel(row, line));
     }
   });
 
-  return { imported, skipped, errors };
+  return outcome;
 }
 
 function importErrorMessage(error: unknown) {

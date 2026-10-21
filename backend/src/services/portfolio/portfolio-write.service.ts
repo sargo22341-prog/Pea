@@ -14,6 +14,9 @@ import { splitAdjustedTransactions } from "./splits/applied-splits.js";
 import { withCashGuard } from "../cash/cash-guard.js";
 import { tradeCashCents } from "../cash/cash-ledger.js";
 import { cashRepository } from "../../repositories/cash/cash.repository.js";
+import { config } from "../../config.js";
+import { toUtcIso } from "../timezone/wall-clock.js";
+import { assertNoIdenticalTrade } from "./duplicates/identical-trades.js";
 
 const negativeSaleMessage = "Cette vente rendrait la quantite detenue negative.";
 const negativeDeletionMessage = "Cette suppression rendrait la quantite detenue negative.";
@@ -29,11 +32,19 @@ function tradeGuard(input: Pick<TransactionMutationInput, "tradedAt" | "type" | 
   };
 }
 
-/** Normalise une date de transaction en ISO UTC, comme les saisies manuelles validées par l'API. */
+/**
+ * Normalise une date de transaction en ISO UTC, comme les saisies manuelles validées par l'API.
+ * L'heure imprimée sur un avis d'opéré (sans fuseau) est lue dans le fuseau de l'application.
+ */
 function normalizeTradedAt(value: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) throw new HttpError(400, "Date de transaction invalide.");
-  return date.toISOString();
+  const normalized = toUtcIso(value, config.appTimezone);
+  if (!normalized) throw new HttpError(400, "Date de transaction invalide.");
+  return normalized;
+}
+
+/** Confirmation explicite d'une opération identique à une opération déjà enregistrée. */
+export interface DuplicateConsent {
+  confirmDuplicate?: boolean | undefined;
 }
 
 /**
@@ -68,12 +79,13 @@ export class PortfolioWriteService {
     totalFees?: number | null;
     rawTextSnippet?: string | null;
     importRef?: string | null;
-  }) {
+  } & DuplicateConsent) {
     const userId = currentUserId();
     const tradedAt = normalizeTradedAt(input.tradedAt);
     if (input.importRef && cashRepository.tradeImportRefExists(userId, input.importRef)) throw new HttpError(409, alreadyImportedMessage);
     return withCashGuard(userId, tradeGuard({ ...input, tradedAt, totalFees: input.totalFees ?? 0 }), () => db.transaction(() => {
       const position = this.ensurePosition(input.symbol, input.name, input.currency, userId);
+      assertNoIdenticalTrade(position.id, { ...input, tradedAt }, input);
       this.assertValidTransactionMutation(position.id, {
         tradedAt,
         type: input.type,
@@ -133,11 +145,12 @@ export class PortfolioWriteService {
       return position;
     }));
   }
-  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
+  createTransaction(positionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent: DuplicateConsent = {}) {
     const resolvedUserId = requireUserId(userId);
     const position = portfolioRepository.findPositionById(positionId, resolvedUserId);
     if (!position) throw new HttpError(404, "Position introuvable");
     this.assertValidTransactionMutation(positionId, input);
+    assertNoIdenticalTrade(positionId, input, consent);
     withCashGuard(resolvedUserId, tradeGuard(input, funding), () => {
       portfolioRepository.insertManualTransaction(positionId, input);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);
@@ -145,11 +158,12 @@ export class PortfolioWriteService {
     });
     return portfolioReadService.listTransactions(positionId, resolvedUserId);
   }
-  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput) {
+  updateTransaction(positionId: number, transactionId: number, input: TransactionMutationInput, userId?: number | string, funding?: CashFundingInput, consent: DuplicateConsent = {}) {
     const resolvedUserId = requireUserId(userId);
     if (!portfolioRepository.findPositionById(positionId, resolvedUserId)) throw new HttpError(404, "Position introuvable");
     if (!portfolioRepository.transactionExists(positionId, transactionId)) throw new HttpError(404, "Transaction introuvable");
     this.assertValidTransactionMutation(positionId, input, transactionId);
+    assertNoIdenticalTrade(positionId, input, { ...consent, excludeTransactionId: transactionId });
     withCashGuard(resolvedUserId, tradeGuard(input, funding), () => {
       portfolioRepository.updateManualTransaction(positionId, transactionId, input);
       this.recomputePositionFromAnyTransactions(positionId, resolvedUserId);

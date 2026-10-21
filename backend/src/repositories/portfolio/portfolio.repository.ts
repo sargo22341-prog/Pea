@@ -49,6 +49,17 @@ export interface PortfolioTransactionInsert {
   importRef?: string|null | undefined;
 }
 
+/** Identité d'un achat ou d'une vente enregistré, pour reconnaître une opération déjà saisie. */
+export interface TradeIdentityRow {
+  id: number;
+  type: "buy" | "sell";
+  quantity: number;
+  price: number;
+  traded_at: string;
+  import_ref: string | null;
+  isin: string | null;
+}
+
 export interface UserAssetPositionRow {
   user_id: string;
   symbol: string;
@@ -202,6 +213,18 @@ export class PortfolioRepository {
 
   deleteTransaction(positionId: number, transactionId: number) {
     db.prepare("DELETE FROM transactions WHERE id = ? AND position_id = ?").run(transactionId, positionId);
+  }
+
+  listTradeIdentities(positionId: number) {
+    return db.prepare(
+      "SELECT id, type, quantity, price, traded_at, import_ref, isin FROM transactions WHERE position_id = ? AND type IN ('buy', 'sell') ORDER BY id"
+    ).all(positionId) as TradeIdentityRow[];
+  }
+
+  /** Complète la référence d'ordre et l'ISIN d'une opération enregistrée sans eux (réimport de son avis). */
+  completeTradeImport(positionId: number, transactionId: number, importRef: string | null, isin: string | null) {
+    db.prepare("UPDATE transactions SET import_ref = COALESCE(import_ref, ?), isin = COALESCE(isin, ?) WHERE id = ? AND position_id = ?")
+      .run(importRef, isin, transactionId, positionId);
   }
 
   transactionExists(positionId: number, transactionId: number) {

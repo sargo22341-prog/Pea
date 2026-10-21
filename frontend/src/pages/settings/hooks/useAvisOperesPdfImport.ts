@@ -28,7 +28,8 @@ export function useAvisOperesPdfImport() {
     setLoading(true);
     setMessage(null);
     try {
-      setRows((await api.previewAvisOperesPdf(pdfFiles)).map((row) => ({ ...row, action: "import" })));
+      // L'action proposée par le serveur est conservée : un avis déjà enregistré arrive décoché.
+      setRows((await api.previewAvisOperesPdf(pdfFiles)).map((row) => ({ ...row, action: row.action ?? "import" })));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t("imports.pdfExtractError", { ns: "settings" }));
     } finally {
@@ -43,7 +44,7 @@ export function useAvisOperesPdfImport() {
       await cashFunding.run(async (funding) => {
         const result = await api.confirmAvisOperesPdf(rows, funding);
         if (result.isPreparing && result.jobId) notifyDataConstructionChanged();
-        setMessage(t("imports.operationImportedResult", { errors: result.errors.length, imported: result.imported.length, ns: "settings", skipped: result.skipped.length }));
+        setMessage(t("imports.operationImportedResult", { errors: result.errors.length, imported: result.imported.length, linked: result.linked?.length ?? 0, ns: "settings", skipped: result.skipped.length }));
         setRows((current) => result.errors.length ? rowsWithImportErrors(current, result.errors) : []);
       });
     } finally {
@@ -55,9 +56,16 @@ export function useAvisOperesPdfImport() {
     setRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
   }
 
+  /** Cocher un doublon signalé vaut confirmation explicite de l'enregistrer une seconde fois. */
+  function toggleRow(index: number, selected: boolean) {
+    setRows((current) => current.map((row, rowIndex) => rowIndex === index
+      ? { ...row, action: selected ? "import" : "ignore", confirmDuplicate: selected && row.potentialDuplicate === true }
+      : row));
+  }
+
   function removeRow(index: number) {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
   }
 
-  return { confirm, fundingDialog: cashFunding.dialog, loading, message, preview, removeRow, rows, updateRow };
+  return { confirm, fundingDialog: cashFunding.dialog, loading, message, preview, removeRow, rows, toggleRow, updateRow };
 }

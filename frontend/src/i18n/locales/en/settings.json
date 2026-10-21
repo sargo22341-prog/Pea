@@ -112,11 +112,13 @@
     "executionDate": "Execution date",
     "unknown": "Unknown",
     "course": "Execution price",
-    "operationImportedResult": "{{imported}} operation(s) imported, {{skipped}} skipped, {{errors}} error(s).",
+    "operationImportedResult": "{{imported}} operation(s) imported, {{linked}} already recorded and completed, {{skipped}} skipped, {{errors}} error(s).",
     "numberRequired": "{{field}} must be a number.",
     "confirmPdf": "Confirm PDF import",
     "pdfExtractError": "PDF extraction failed.",
-    "pdfImportError": "PDF import failed."
+    "pdfImportError": "PDF import failed.",
+    "importRow": "Import",
+    "importDuplicateRow": "Import anyway (duplicate)"
   },
   "icons": {
     "title": "Asset icons",

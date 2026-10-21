@@ -64,8 +64,8 @@ test("un import d'avis rejoue ventes et achats dans l'ordre, se finance explicit
   `, { env: { ENABLE_MARKET_LIVE_REFRESH: "false" } }) as PdfImportResult;
 
   assert.equal(result.shortfall.status, 422);
-  // Dates des avis en heure locale. Achat AAA 5 000 € le 15/03 sans espèces ; la vente du 16/03 (5 123,40 €) finance l'achat BBB (9 872,45 €).
-  assert.deepEqual(result.shortfall.details, { code: "INSUFFICIENT_FUNDS", available: 0, required: 14_872.45, shortfall: 9_749.05, effectiveAt: new Date("2026-03-15T10:00:00").toISOString(), fundable: true });
+  // Dates des avis en heure de Paris (fuseau de l'application, UTC+1 en mars). Achat AAA 5 000 € le 15/03 sans espèces ; la vente du 16/03 (5 123,40 €) finance l'achat BBB (9 872,45 €).
+  assert.deepEqual(result.shortfall.details, { code: "INSUFFICIENT_FUNDS", available: 0, required: 14_872.45, shortfall: 9_749.05, effectiveAt: "2026-03-15T09:00:00.000Z", fundable: true });
   assert.equal(result.transactionsAfterShortfall, 0, "un import refusé n'écrit aucune ligne");
   assert.deepEqual(result.funded.imported, ["AAA.PA", "AAA.PA", "BBB.PA"], "lignes rejouées dans l'ordre chronologique");
   assert.deepEqual(result.funded.errors, []);

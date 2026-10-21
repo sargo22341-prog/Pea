@@ -112,6 +112,15 @@ export function EditPositionModal({ position, onClose, onSaved, onDeleted, start
           title={t("portfolio:position.deleteTransactionTitle")}
         />
       ) : null}
+      {transactions.pendingDuplicate ? (
+        <ConfirmDialog
+          confirmLabel={t("portfolio:position.duplicateConfirm")}
+          description={t("portfolio:position.duplicateDescription")}
+          onCancel={() => { transactions.resolveDuplicate(false); }}
+          onConfirm={() => { transactions.resolveDuplicate(true); }}
+          title={t("portfolio:position.duplicateTitle")}
+        />
+      ) : null}
       {transactions.fundingDialog}
       {openedDividend ? <DividendMovementDialog entry={openedDividend} key={`${openedDividend.id}:${String(openedDividend.amount)}:${openedDividend.effectiveAt}`} onChanged={positionDividends.replace} onClose={() => { setOpenedDividendId(null); }} /> : null}
       {confirmPositionDelete ? (
