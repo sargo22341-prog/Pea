@@ -12,6 +12,7 @@ import { CashMovementForm } from "./components/CashMovementForm";
 import { DividendProposalsPanel } from "./components/DividendProposalsPanel";
 import { OpeningDividendsCard } from "./components/OpeningDividendsCard";
 import { LedgerTable } from "./components/LedgerTable";
+import { MonthlyCheckCard } from "./components/monthly-check/MonthlyCheckCard";
 import { PeaOverviewCards } from "./components/PeaOverviewCards";
 import { useCashLedger } from "./hooks/useCashLedger";
 
@@ -57,6 +58,9 @@ export function MyPeaPage() {
     await Promise.all([ledger.reload(), reloadPortfolio()]);
   }
 
+  // Toute écriture du journal (mouvement, vérification) change cette clé : le contrôle mensuel est relu.
+  const checkVersion = `${String(summary.cash)}:${String(ledger.data.entries.length)}:${String(ledger.data.entries.filter((entry) => entry.cashCheck?.status === "verified").length)}`;
+
   const initialState = <InitialStateForm key={settings.updatedAt ?? "initial"} onSaved={initialStateSaved} settings={settings} submitLabel={t("cash:setup.save")} />;
 
   return (
@@ -94,6 +98,8 @@ export function MyPeaPage() {
           <CashMovementForm assets={ledger.assets} onSaved={ledgerChanged} summary={summary} />
         </>
       )}
+
+      {pending ? null : <MonthlyCheckCard version={checkVersion} />}
 
       <LedgerTable ledger={ledger.data} onChanged={ledgerChanged} />
 

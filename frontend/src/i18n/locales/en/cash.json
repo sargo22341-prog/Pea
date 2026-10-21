@@ -366,5 +366,46 @@
     "unverifyTitle": "Operation verified by cash statement",
     "unverifyWarning": "This operation is verified by a cash statement: editing or deleting it will remove this verification.",
     "unverifyConfirm": "Edit anyway"
+  },
+  "monthlyCheck": {
+    "title": "Monthly account check",
+    "hint": "Each month, the closing balance of the cash statement is compared with the balance computed by the app on the same date (a verified operation counts on its booking date on the statement).",
+    "empty": "Import your cash statements in Settings to check the balance of each month.",
+    "counts": "{{ok}} month(s) matching, {{mismatch}} mismatch(es), {{missing}} missing statement(s).",
+    "toReview": "To review",
+    "all": "All months",
+    "nothingToReview": "Nothing to review: every imported statement matches the app.",
+    "month": "Month",
+    "status": "Status",
+    "statementBalance": "Statement balance",
+    "appBalance": "Computed balance",
+    "difference": "Difference",
+    "statuses": {
+      "ok": "Balance matches",
+      "mismatch": "Mismatch",
+      "opening": "Before start date",
+      "quiet": "No statement",
+      "missing": "Missing statement"
+    },
+    "statusTitles": {
+      "ok": "The statement balance and the app balance are equal to the cent.",
+      "mismatch": "The app balance differs from the statement: see the possible causes.",
+      "opening": "Month closed before the start date: summarised by the initial state, it is not compared.",
+      "quiet": "No statement, but the balance carries over and the app has no operation that month: probably a month without operations.",
+      "missing": "Cash statement for this month to import."
+    },
+    "details": "Details",
+    "monthDifference": "Difference arising this month: {{amount}} (the rest comes from previous months).",
+    "missingDocuments": "Missing documents",
+    "missingCashStatement": "Cash statement for the month",
+    "missingTradeNotices": "{{count}} trade notice(s)",
+    "missingCouponStatements": "{{count}} coupon(s) or repayment(s) without a coupon statement",
+    "issues": "Possible causes of the difference",
+    "statementLine": "Statement line {{reference}}, missing from the app",
+    "appEntry": "App operation missing from the statement (likely duplicate or error)",
+    "documents": {
+      "trade_notice": "trade notice missing",
+      "coupon_statement": "coupon statement missing"
+    }
   }
 }

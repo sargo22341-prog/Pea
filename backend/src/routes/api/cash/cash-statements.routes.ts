@@ -5,6 +5,7 @@ import { requireAuthUser } from "../../../middleware/auth.js";
 import { PDF_EXTRACTION_CONCURRENCY } from "../../../services/boursorama/pdf-text-extractor.js";
 import { readCashStatement } from "../../../services/cash/cash-statements/cash-statement-file.js";
 import { cashStatementsService } from "../../../services/cash/cash-statements/cash-statement-import.service.js";
+import { monthlyCheck } from "../../../services/cash/cash-statements/monthly-check/monthly-check.service.js";
 import { MAX_STATEMENT_FILE_BYTES } from "../../../services/cash/dividend-statements/statement-file.js";
 import { assertDistinctUploads } from "../../../services/shared/upload-fingerprint.js";
 import { HttpError } from "../../../utils/http-error.js";
@@ -58,3 +59,8 @@ cashStatementsRouter.post("/cash/cash-statements/confirm", asyncRoute(async (req
   const decisions = parseDecisions(form.fields["decisions"]);
   res.json(cashStatementsService.confirm(userId, await readAll(form.files), decisions));
 }));
+
+/** Contrôle mensuel : nouveau solde de chaque relevé importé contre le solde calculé, documents manquants. */
+cashStatementsRouter.get("/cash/cash-statements/monthly-check", (req, res) => {
+  res.json(monthlyCheck(requireAuthUser(req).id));
+});

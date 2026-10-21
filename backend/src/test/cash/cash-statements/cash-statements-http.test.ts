@@ -18,9 +18,12 @@ interface Result {
   deleteTrade: number;
   deleteMovementRefused: Response;
   deleteMovement: number;
+  aliceCheck: { status: number; oldest: { period: string; status: string; appBalance: number } };
+  bobCheck: { status: number; months: number };
+  anonymousCheck: number;
 }
 
-test("API des relevés espèces : fichiers refusés, aperçu sans écriture, confirmation, isolation et suppression confirmée", () => {
+test("API des relevés espèces : fichiers refusés, aperçu sans écriture, confirmation, contrôle mensuel, isolation et suppression confirmée", () => {
   const result = runBackendScript(`
     process.execArgv = ["--import", "tsx"];
     const { app } = await import("./app.ts");
@@ -57,6 +60,10 @@ test("API des relevés espèces : fichiers refusés, aperçu sans écriture, con
         const response = await fetch(baseUrl + path, { method: "DELETE", headers: { Cookie: user.cookie, Origin: baseUrl } });
         return { status: response.status, body: response.status === 204 ? {} : await response.json() };
       };
+      const get = async (path, user) => {
+        const response = await fetch(baseUrl + path, { headers: user ? { Cookie: user.cookie } : {} });
+        return { status: response.status, body: await response.json() };
+      };
       try {
         const notPdf = await post("/api/cash/cash-statements/preview", alice, [{ content: "texte", type: "text/plain", name: "releve.txt" }]);
         const duplicateUpload = await post("/api/cash/cash-statements/preview", alice, [statementFile, { ...statementFile, name: "copie.pdf" }]);
@@ -67,6 +74,9 @@ test("API des relevés espèces : fichiers refusés, aperçu sans écriture, con
         const lines = preview.body.statements[0].lines.map((line) => ({ key: line.key, apply: true }));
         const confirm = await post("/api/cash/cash-statements/confirm", alice, [statementFile], { decisions: JSON.stringify({ lines }) });
         const bobPreview = await post("/api/cash/cash-statements/preview", bob, [statementFile]);
+        const aliceCheck = await get("/api/cash/cash-statements/monthly-check", alice);
+        const bobCheck = await get("/api/cash/cash-statements/monthly-check", bob);
+        const anonymousCheck = await get("/api/cash/cash-statements/monthly-check");
         const depositId = db.prepare("SELECT id FROM cash_movements WHERE user_id = ? AND type = 'deposit'").get(alice.id).id;
         const tradePath = \`/api/portfolio/positions/\${positionId}/transactions/\${tradeId}\`;
         const deleteTradeRefused = await remove(tradePath, alice);
@@ -79,7 +89,10 @@ test("API des relevés espèces : fichiers refusés, aperçu sans écriture, con
           badDecisions: badDecisions.status, confirm,
           bobPreview: bobPreview.body.statements[0].lines.map((line) => line.case),
           aliceMovements: movements(alice.id), bobMovements: movements(bob.id),
-          deleteTradeRefused, deleteTrade: deleteTrade.status, deleteMovementRefused, deleteMovement: deleteMovement.status
+          deleteTradeRefused, deleteTrade: deleteTrade.status, deleteMovementRefused, deleteMovement: deleteMovement.status,
+          aliceCheck: { status: aliceCheck.status, oldest: aliceCheck.body.months.at(-1) },
+          bobCheck: { status: bobCheck.status, months: bobCheck.body.months.length },
+          anonymousCheck: anonymousCheck.status
         }));
       } finally {
         server.close();
@@ -98,6 +111,10 @@ test("API des relevés espèces : fichiers refusés, aperçu sans écriture, con
   assert.equal(result.confirm.body.verified, 1);
   assert.deepEqual(result.bobPreview, ["create", "missing_trade"], "Bob ne voit ni l'achat ni le versement d'Alice");
   assert.equal(result.bobMovements, 0);
+  assert.equal(result.aliceCheck.status, 200);
+  assert.deepEqual([result.aliceCheck.oldest.period, result.aliceCheck.oldest.status, result.aliceCheck.oldest.appBalance], ["2024-03", "ok", 180], "contrôle mensuel du relevé importé");
+  assert.deepEqual(result.bobCheck, { status: 200, months: 0 }, "Bob ne voit pas le contrôle d'Alice");
+  assert.equal(result.anonymousCheck, 401);
   assert.equal(result.deleteTradeRefused.status, 409);
   assert.equal(result.deleteTradeRefused.body.details?.code, "CASH_STATEMENT_VERIFIED");
   assert.equal(result.deleteTrade, 204);

@@ -1,4 +1,4 @@
-import type { CashStatementsConfirmInput, CashStatementsImportResult, CashStatementsPreviewDto } from "@pea/shared";
+import type { CashAccountCheckDto, CashStatementsConfirmInput, CashStatementsImportResult, CashStatementsPreviewDto } from "@pea/shared";
 import { request } from "../api-core";
 
 /** Plusieurs années de relevés sont lues par le serveur, quelques-unes à la fois : délai d'un import. */
@@ -19,5 +19,6 @@ export const cashStatementsApi = {
   previewCashStatements: (files: readonly File[]) =>
     request<CashStatementsPreviewDto>("/api/cash/cash-statements/preview", { method: "POST", body: statementsForm(files), timeoutMs: statementRequestTimeoutMs }),
   confirmCashStatements: (files: readonly File[], decisions: CashStatementsConfirmInput) =>
-    request<CashStatementsImportResult>("/api/cash/cash-statements/confirm", { method: "POST", body: statementsForm(files, { decisions: JSON.stringify(decisions) }), timeoutMs: statementRequestTimeoutMs })
+    request<CashStatementsImportResult>("/api/cash/cash-statements/confirm", { method: "POST", body: statementsForm(files, { decisions: JSON.stringify(decisions) }), timeoutMs: statementRequestTimeoutMs }),
+  cashMonthlyCheck: (signal?: AbortSignal) => request<CashAccountCheckDto>("/api/cash/cash-statements/monthly-check", { signal: signal ?? null })
 };

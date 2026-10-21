@@ -16,7 +16,8 @@ vi.mock("../../lib/api", () => ({
     dividendProposals: (): Promise<DividendProposalsDto> => Promise.resolve({ pending: [], ignored: [], recent: [], unreadAutoAccepted: 0, cash: 100 }),
     openingDividendsEstimate: () => openingDividendsEstimate(),
     confirmOpeningDividends: (amount: number | null) => confirmOpeningDividends(amount),
-    configureCashAccount: (input: unknown) => configureCashAccount(input)
+    configureCashAccount: (input: unknown) => configureCashAccount(input),
+    cashMonthlyCheck: () => Promise.resolve({ months: [], counts: { ok: 0, mismatch: 0, opening: 0, quiet: 0, missing: 0 } })
   }
 }));
 

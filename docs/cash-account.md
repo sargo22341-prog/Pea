@@ -438,6 +438,37 @@ l'avertissement avant de renvoyer la demande confirmée. La ligne redevient à r
 réimport du relevé la vérifie de nouveau si l'élément y correspond toujours (ou crée l'élément
 manquant). Une correction issue d'un relevé de coupons vaut confirmation.
 
+## Contrôle mensuel du compte
+
+Le code vit dans `backend/src/services/cash/cash-statements/monthly-check/` (règles pures dans
+`monthly-check.ts`) ; `GET /api/cash/cash-statements/monthly-check` renvoie un contrôle par mois,
+du premier relevé espèces importé au dernier mois écoulé (le mois précédant le mois en cours, à
+Paris), affiché dans « Mon PEA » (carte « Contrôle mensuel du compte », mois à traiter d'abord).
+Un compte non configuré n'a aucun mois.
+
+**Solde comparé** : le nouveau solde du relevé contre le solde de l'application à la fin du jour du
+nouveau solde, **en date d'écriture** : une opération rapprochée d'une ligne compte à la date
+d'écriture de cette ligne (`cash_statement_lines.operation_date`, enregistrée avec le
+rapprochement), car l'application date une opération à son exécution et le courtier l'écrit parfois
+quelques jours plus tard ; une opération non rapprochée compte à son propre jour (à Paris). Avec un
+état initial, le solde déclaré sert de base : opérations postérieures écrites jusqu'à ce jour
+ajoutées, opérations résumées mais écrites après ce jour retirées. La reprise de solde d'un
+changement de compte n'est pas une opération : le solde du nouveau compte la contient déjà.
+
+**Statut d'un mois** : `ok` (égal au centime), `mismatch` (écart = application - relevé, avec
+l'écart apparu ce mois-ci par rapport au dernier mois comparé), `opening` (nouveau solde antérieur
+au jour de la date de départ : résumé par l'état initial, non comparé, voir « Limites connues »),
+`quiet` (aucun relevé, mais l'ancien solde du relevé suivant égale le nouveau solde
+du précédent et l'application n'a aucune opération ce mois-là) et `missing` (relevé à importer).
+
+**Causes possibles d'un écart** : lignes du relevé sans opération rapprochée (hors reprise de solde
+et versements, retraits ou frais résumés par l'état initial), avec le document manquant (avis
+d'opéré pour un achat ou une vente, relevé de coupons pour un coupon ou un remboursement), et
+opérations postérieures à la date de départ, non rapprochées, écrites dans la période du relevé
+(depuis le nouveau solde du relevé précédent). **Documents manquants** : relevé espèces du mois,
+nombre d'avis d'opéré (achats et ventes non rapprochés) et nombre de coupons ou remboursements du
+relevé non certifiés par un relevé de coupons. Le contrôle ne fait que lire : rien n'est écrit.
+
 ## Limites connues
 
 - Les versements antérieurs à la refonte ne peuvent pas être reconstitués : la performance
@@ -456,3 +487,6 @@ manquant). Une correction issue d'un relevé de coupons vaut confirmation.
 - Relevés espèces : un relevé par mois (deux comptes le même mois, lors d'un changement de compte,
   ne sont pas distingués) ; une ligne restée sans avis d'opéré ou sans relevé de coupons n'est
   rapprochée qu'au réimport du relevé espèces, après l'import du document manquant.
+- Contrôle mensuel : avec un état initial, les mois clos avant la date de départ ne sont pas
+  comparés (les versements antérieurs ne sont pas enregistrés un par un) ; seuls leurs documents
+  manquants sont signalés.

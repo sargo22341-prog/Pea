@@ -366,5 +366,46 @@
     "unverifyTitle": "Opération vérifiée par relevé espèces",
     "unverifyWarning": "Cette opération est vérifiée par un relevé espèces : la modifier ou la supprimer retirera cette vérification.",
     "unverifyConfirm": "Modifier quand même"
+  },
+  "monthlyCheck": {
+    "title": "Contrôle mensuel du compte",
+    "hint": "Chaque mois, le nouveau solde du relevé espèces est comparé au solde calculé par l'application à la même date (une opération vérifiée compte à sa date d'écriture sur le relevé).",
+    "empty": "Importez vos relevés espèces dans les Réglages pour contrôler le solde de chaque mois.",
+    "counts": "{{ok}} mois juste(s), {{mismatch}} écart(s), {{missing}} relevé(s) manquant(s).",
+    "toReview": "À traiter",
+    "all": "Tous les mois",
+    "nothingToReview": "Aucun mois à traiter : chaque relevé importé correspond à l'application.",
+    "month": "Mois",
+    "status": "Statut",
+    "statementBalance": "Solde du relevé",
+    "appBalance": "Solde calculé",
+    "difference": "Écart",
+    "statuses": {
+      "ok": "Solde juste",
+      "mismatch": "Écart",
+      "opening": "Avant la date de départ",
+      "quiet": "Sans relevé",
+      "missing": "Relevé manquant"
+    },
+    "statusTitles": {
+      "ok": "Le solde du relevé et celui de l'application sont égaux au centime.",
+      "mismatch": "Le solde de l'application diffère de celui du relevé : voir les causes possibles.",
+      "opening": "Mois clos avant la date de départ : résumé par l'état initial, il n'est pas comparé.",
+      "quiet": "Aucun relevé, mais le solde se suit et l'application n'a aucune opération ce mois-là : mois probablement sans opération.",
+      "missing": "Relevé espèces de ce mois à importer."
+    },
+    "details": "Détail",
+    "monthDifference": "Écart apparu ce mois-ci : {{amount}} (le reste vient des mois précédents).",
+    "missingDocuments": "Documents manquants",
+    "missingCashStatement": "Relevé espèces du mois",
+    "missingTradeNotices": "{{count}} avis d'opéré",
+    "missingCouponStatements": "{{count}} coupon(s) ou remboursement(s) sans relevé de coupons",
+    "issues": "Causes possibles de l'écart",
+    "statementLine": "Ligne {{reference}} du relevé, absente de l'application",
+    "appEntry": "Opération de l'application absente du relevé (doublon ou erreur probable)",
+    "documents": {
+      "trade_notice": "avis d'opéré manquant",
+      "coupon_statement": "relevé de coupons manquant"
+    }
   }
 }
