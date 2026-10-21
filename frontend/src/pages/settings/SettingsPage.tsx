@@ -7,6 +7,7 @@ import { CsvImportSection } from "./components/CsvImportSection";
 import { DividendSettingsSection } from "./components/DividendSettingsSection";
 import { DividendStatementsImport } from "./components/DividendStatementsImport";
 import { ImportAvisOperesPdf } from "./components/ImportAvisOperesPdf";
+import { ImportGuideSection } from "./components/import-guide/ImportGuideSection";
 import { Collapsible } from "../../components/common/feedback";
 import { ServerSettingsSection } from "../../components/common/ServerSettings";
 import { UserPreferencesSection } from "./components/UserPreferencesSection";
@@ -40,6 +41,7 @@ export function SettingsPage({ onUserUpdated, user }: { onUserUpdated?: () => Pr
       <DividendSettingsSection onToggle={() => { toggleSection("dividends"); }} open={openSection === "dividends"} />
       {user.role === "admin" && <AssetIconsSettingsSection onToggle={() => { toggleSection("icons"); }} open={openSection === "icons"} />}
       <Collapsible onToggle={() => { toggleSection("imports"); }} open={openSection === "imports"} title={t("settings:imports.boursorama")}>
+        <ImportGuideSection />
         <CsvImportSection />
         <ImportAvisOperesPdf />
         <DividendStatementsImport />

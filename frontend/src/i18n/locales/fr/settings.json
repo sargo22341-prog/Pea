@@ -120,6 +120,186 @@
     "importRow": "Importer",
     "importDuplicateRow": "Importer quand meme (doublon)"
   },
+  "importGuide": {
+    "sectionTitle": "Guide des imports",
+    "sectionHelp": "Quel document importer, dans quel ordre, et ce que chaque import ajoute, vérifie ou certifie.",
+    "open": "Ouvrir le guide",
+    "title": "Guide des imports Boursorama",
+    "close": "Fermer le guide",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "position": "Étape {{index}} sur {{total}}",
+    "importNumber": "Import {{index}} · ",
+    "stepLabel": "Étape {{index}} : {{title}} ({{status}})",
+    "status": {
+      "current": "en cours",
+      "seen": "déjà vue",
+      "upcoming": "à venir"
+    },
+    "progress": {
+      "new": "Nouveau",
+      "partial": "{{seen}}/{{total}} étapes vues",
+      "complete": "Guide lu"
+    },
+    "document": "Document",
+    "prerequisite": "Avant de commencer",
+    "whatItDoes": "Ce que fait cet import",
+    "whatYouGet": "Ce que vous y trouvez",
+    "phasesTitle": "Les 4 phases de chaque import",
+    "legendTitle": "Légende des effets",
+    "phases": {
+      "choose": {
+        "title": "Choisir",
+        "text": "Sélectionnez un ou plusieurs fichiers."
+      },
+      "preview": {
+        "title": "Aperçu",
+        "text": "Les fichiers sont lus : rien n'est encore écrit."
+      },
+      "decide": {
+        "title": "Vos choix",
+        "text": "Cochez, corrigez ou choisissez la position concernée."
+      },
+      "confirm": {
+        "title": "Valider",
+        "text": "Seules les lignes retenues sont écrites, recalculées sur l'état actuel."
+      }
+    },
+    "effects": {
+      "preview": {
+        "label": "Aperçu",
+        "text": "Lecture seule : vous voyez ce qui va se passer avant toute écriture."
+      },
+      "write": {
+        "label": "Ajoute",
+        "text": "Crée ou complète des positions, opérations ou mouvements, après votre validation."
+      },
+      "verify": {
+        "label": "Vérifie",
+        "text": "Badge « Vérifié par relevé espèces » : l'opération est retrouvée au centime sur le relevé."
+      },
+      "certify": {
+        "label": "Certifie",
+        "text": "Badge « Certifié par relevé » : le dividende est confirmé par le relevé de coupons."
+      },
+      "flag": {
+        "label": "Signale",
+        "text": "Doublon, document manquant ou incohérence : rien n'est écrit sans votre accord."
+      }
+    },
+    "steps": {
+      "overview": {
+        "short": "Principe",
+        "title": "Comment fonctionnent les imports",
+        "intro": "Quatre documents Boursorama alimentent votre PEA. Chacun a un rôle précis : les premiers ajoutent vos opérations, les suivants les contrôlent. Importez-les de préférence dans l'ordre : chaque import s'appuie sur les précédents.",
+        "tip": "Les PDF sont lus en mémoire puis oubliés : seules les informations utiles (dates, montants, quantités, ISIN) sont gardées, jamais votre nom ni votre IBAN."
+      },
+      "csv": {
+        "short": "CSV",
+        "title": "Import CSV des positions",
+        "intro": "Le CSV est une photo de votre portefeuille à un instant donné : une ligne par valeur, avec la quantité et le prix de revient. Il sert à démarrer vite ou à resynchroniser les positions.",
+        "document": "Export CSV des positions du PEA.",
+        "prerequisite": "Aucun : c'est le point de départ possible.",
+        "points": {
+          "preview": "L'aperçu affiche l'actif détecté pour chaque ligne ; corrigez le ticker, la quantité ou le PRU signalés en rouge.",
+          "import": "« Importer CSV » ajoute les positions avec leur quantité et leur PRU.",
+          "update": "« Mettre à jour via CSV » compare l'application au fichier : fusionner, remplacer ou ignorer chaque ligne.",
+          "missing": "Une position absente du CSV n'est supprimée qu'après une confirmation explicite."
+        },
+        "tip": "Le CSV ne contient pas l'historique daté des achats. Pour un suivi complet (dates, frais, ISIN), préférez les avis d'opéré."
+      },
+      "avis": {
+        "short": "Avis d'opéré",
+        "title": "Avis d'opéré (PDF)",
+        "intro": "L'avis d'opéré est envoyé après chaque ordre exécuté. Il donne la date et l'heure, le sens, la quantité, le cours, les frais et l'ISIN : c'est la source la plus précise pour vos achats et ventes.",
+        "document": "Un PDF par ordre, plusieurs fichiers à la fois.",
+        "prerequisite": "Aucun. Avec le compte espèces configuré, les fonds disponibles sont contrôlés.",
+        "points": {
+          "preview": "Chaque avis est extrait puis affiché pour relecture : date, actif, sens, quantité, cours et frais sont modifiables.",
+          "create": "Les lignes cochées deviennent des achats ou des ventes, avec la référence d'ordre et l'ISIN.",
+          "link": "Une opération identique déjà saisie à la main reçoit la référence et l'ISIN de l'avis, sans doublon.",
+          "duplicates": "Un avis déjà importé ou un doublon probable est proposé décoché ; le cocher crée une seconde opération.",
+          "funds": "Si les espèces ne suffisent pas, une fenêtre propose d'enregistrer le versement qui a financé l'achat."
+        },
+        "tip": "Réimporter le même avis ne crée rien : sa référence d'ordre est reconnue."
+      },
+      "coupons": {
+        "short": "Coupons",
+        "title": "Relevés de coupons (PDF)",
+        "intro": "Le relevé de coupons mensuel liste les dividendes encaissés : brut, retenue à la source et net, ainsi que les remboursements de capital. Il certifie vos dividendes.",
+        "document": "Un PDF par mois, plusieurs années à la fois.",
+        "prerequisite": "Compte espèces configuré (état initial confirmé) et ISIN connu des positions.",
+        "points": {
+          "certify": "Un dividende déjà enregistré au même montant reçoit le badge « Certifié par relevé ».",
+          "create": "Un coupon sans dividende correspondant crée le dividende, déjà certifié ; une proposition en attente est validée.",
+          "correct": "Un montant différent propose une correction, décochée par défaut.",
+          "opening": "Les coupons antérieurs à l'état initial sont conservés sans être crédités ; « Certifier ce montant » confirme les dividendes déjà perçus.",
+          "refunds": "Les remboursements de capital sont créés ou certifiés, jamais comptés comme dividendes."
+        },
+        "tip": "Un relevé illisible ou dont le total ne boucle pas est refusé en entier : rien n'est importé à moitié."
+      },
+      "cash": {
+        "short": "Espèces",
+        "title": "Relevés espèces (PDF)",
+        "intro": "Le relevé espèces mensuel fait foi pour tous les mouvements d'argent. Il confirme les imports précédents et comble les versements manquants : importez-le en dernier.",
+        "document": "Un PDF par mois, jusqu'à 120 relevés par lot.",
+        "prerequisite": "Compte espèces configuré ; avis d'opéré et relevés de coupons importés si possible.",
+        "points": {
+          "verify": "Chaque achat, vente, dividende ou versement retrouvé au centime reçoit le badge « Vérifié par relevé espèces ».",
+          "deposits": "Les versements, retraits et frais absents de l'application sont créés automatiquement.",
+          "coupons": "Un coupon sans dividende enregistré crée le dividende, sur la position que vous choisissez.",
+          "missing": "Un achat ou une vente sans opération est signalé « Avis d'opéré manquant » : rien n'est créé.",
+          "continuity": "Mois manquant ou rupture de solde entre deux relevés sont signalés."
+        },
+        "tip": "Ancien solde + opérations doit donner le nouveau solde au centime, sinon le relevé est refusé. Une ligne qui correspond à plusieurs opérations vous laisse choisir."
+      },
+      "control": {
+        "short": "Contrôle",
+        "title": "Contrôle et historique complet",
+        "intro": "Une fois les relevés espèces importés, la page « Mon PEA » compare chaque mois le solde du relevé au solde calculé par l'application.",
+        "points": {
+          "monthly": "« Contrôle mensuel du compte » : chaque mois est conforme, en écart, sans opération ou à importer.",
+          "gaps": "Pour un écart, les causes probables et les documents manquants (avis d'opéré, coupons) sont listés.",
+          "fullHistory": "Si les relevés couvrent tout depuis l'ouverture, « Historique complet » remplace l'état initial par les vrais virements et dividendes."
+        },
+        "tip": "Après le passage en historique complet, le rendement annualisé devient calculable. Le contrôle ne fait que lire : rien n'est écrit."
+      }
+    },
+    "illustrations": {
+      "asset": "Valeur",
+      "quantity": "Quantité",
+      "averagePrice": "PRU",
+      "positions": "Positions",
+      "positionsBadge": "Ajoutées",
+      "date": "Date",
+      "side": "Sens",
+      "price": "Cours",
+      "fees": "Frais",
+      "isin": "ISIN",
+      "trade": "Achat / vente",
+      "tradeBadge": "Ajouté",
+      "gross": "Brut",
+      "withholding": "Retenue",
+      "net": "Net",
+      "total": "TOTAL EUR",
+      "dividend": "Dividende",
+      "certifiedBadge": "Certifié",
+      "openingBalance": "Ancien solde",
+      "closingBalance": "Nouveau solde",
+      "operations": "Opérations",
+      "verifiedBadge": "Vérifiées",
+      "unmatched": "Non retrouvée",
+      "missingBadge": "Avis manquant",
+      "myPea": "Mon PEA",
+      "month": {
+        "ok": "Conforme",
+        "quiet": "Sans opération",
+        "mismatch": "Écart",
+        "missing": "À importer"
+      }
+    }
+  },
   "icons": {
     "title": "Icones des actifs",
     "autoFetchFailed": "recuperation auto echouee",

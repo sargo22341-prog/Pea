@@ -120,6 +120,186 @@
     "importRow": "Import",
     "importDuplicateRow": "Import anyway (duplicate)"
   },
+  "importGuide": {
+    "sectionTitle": "Import guide",
+    "sectionHelp": "Which document to import, in which order, and what each import adds, verifies or certifies.",
+    "open": "Open the guide",
+    "title": "Boursorama import guide",
+    "close": "Close the guide",
+    "previous": "Previous",
+    "next": "Next",
+    "finish": "Finish",
+    "position": "Step {{index}} of {{total}}",
+    "importNumber": "Import {{index}} · ",
+    "stepLabel": "Step {{index}}: {{title}} ({{status}})",
+    "status": {
+      "current": "current",
+      "seen": "already viewed",
+      "upcoming": "upcoming"
+    },
+    "progress": {
+      "new": "New",
+      "partial": "{{seen}}/{{total}} steps viewed",
+      "complete": "Guide read"
+    },
+    "document": "Document",
+    "prerequisite": "Before you start",
+    "whatItDoes": "What this import does",
+    "whatYouGet": "What you will find",
+    "phasesTitle": "The 4 phases of every import",
+    "legendTitle": "Effect legend",
+    "phases": {
+      "choose": {
+        "title": "Choose",
+        "text": "Select one or more files."
+      },
+      "preview": {
+        "title": "Preview",
+        "text": "The files are read: nothing is written yet."
+      },
+      "decide": {
+        "title": "Your choices",
+        "text": "Tick, correct or pick the matching position."
+      },
+      "confirm": {
+        "title": "Confirm",
+        "text": "Only the selected lines are written, recomputed on the current state."
+      }
+    },
+    "effects": {
+      "preview": {
+        "label": "Preview",
+        "text": "Read only: you see what will happen before anything is written."
+      },
+      "write": {
+        "label": "Adds",
+        "text": "Creates or completes positions, trades or movements, after you confirm."
+      },
+      "verify": {
+        "label": "Verifies",
+        "text": "\"Verified by cash statement\" badge: the operation is found to the cent on the statement."
+      },
+      "certify": {
+        "label": "Certifies",
+        "text": "\"Certified by statement\" badge: the dividend is confirmed by the coupon statement."
+      },
+      "flag": {
+        "label": "Flags",
+        "text": "Duplicate, missing document or inconsistency: nothing is written without your consent."
+      }
+    },
+    "steps": {
+      "overview": {
+        "short": "Principle",
+        "title": "How imports work",
+        "intro": "Four Boursorama documents feed your PEA. Each has a precise role: the first ones add your operations, the next ones check them. Import them in order when possible: each import relies on the previous ones.",
+        "tip": "PDFs are read in memory then forgotten: only the useful data (dates, amounts, quantities, ISIN) is kept, never your name or IBAN."
+      },
+      "csv": {
+        "short": "CSV",
+        "title": "CSV positions import",
+        "intro": "The CSV is a snapshot of your portfolio at a given time: one line per security, with quantity and cost price. Use it to get started quickly or to resynchronise positions.",
+        "document": "CSV export of the PEA positions.",
+        "prerequisite": "None: it is a possible starting point.",
+        "points": {
+          "preview": "The preview shows the detected asset for each line; fix the ticker, quantity or cost price flagged in red.",
+          "import": "\"Import CSV\" adds the positions with their quantity and cost price.",
+          "update": "\"Update via CSV\" compares the app with the file: merge, replace or ignore each line.",
+          "missing": "A position missing from the CSV is deleted only after explicit confirmation."
+        },
+        "tip": "The CSV has no dated purchase history. For complete tracking (dates, fees, ISIN), prefer trade confirmations."
+      },
+      "avis": {
+        "short": "Trade notices",
+        "title": "Trade confirmations (PDF)",
+        "intro": "A trade confirmation is sent after each executed order. It gives the date and time, side, quantity, price, fees and ISIN: the most accurate source for your buys and sells.",
+        "document": "One PDF per order, several files at once.",
+        "prerequisite": "None. With the cash account set up, available funds are checked.",
+        "points": {
+          "preview": "Each notice is extracted then shown for review: date, asset, side, quantity, price and fees can be edited.",
+          "create": "Ticked lines become buys or sells, with the order reference and ISIN.",
+          "link": "An identical trade already entered by hand receives the notice reference and ISIN, without a duplicate.",
+          "duplicates": "An already imported notice or a likely duplicate is offered unticked; ticking it creates a second trade.",
+          "funds": "If cash is insufficient, a dialog offers to record the deposit that funded the purchase."
+        },
+        "tip": "Re-importing the same notice creates nothing: its order reference is recognised."
+      },
+      "coupons": {
+        "short": "Coupons",
+        "title": "Coupon statements (PDF)",
+        "intro": "The monthly coupon statement lists the dividends received: gross, withholding tax and net, as well as capital repayments. It certifies your dividends.",
+        "document": "One PDF per month, several years at once.",
+        "prerequisite": "Cash account set up (initial state confirmed) and positions with a known ISIN.",
+        "points": {
+          "certify": "A dividend already recorded with the same amount receives the \"Certified by statement\" badge.",
+          "create": "A coupon without a matching dividend creates the dividend, already certified; a pending proposal is accepted.",
+          "correct": "A different amount offers a correction, unticked by default.",
+          "opening": "Coupons before the initial state are kept without being credited; \"Certify this amount\" confirms dividends already received.",
+          "refunds": "Capital repayments are created or certified, never counted as dividends."
+        },
+        "tip": "An unreadable statement or one whose total does not add up is rejected entirely: nothing is half-imported."
+      },
+      "cash": {
+        "short": "Cash",
+        "title": "Cash statements (PDF)",
+        "intro": "The monthly cash statement is authoritative for every money movement. It confirms the previous imports and fills in missing deposits: import it last.",
+        "document": "One PDF per month, up to 120 statements per batch.",
+        "prerequisite": "Cash account set up; trade confirmations and coupon statements imported if possible.",
+        "points": {
+          "verify": "Each buy, sell, dividend or deposit found to the cent receives the \"Verified by cash statement\" badge.",
+          "deposits": "Deposits, withdrawals and fees missing from the app are created automatically.",
+          "coupons": "A coupon without a recorded dividend creates the dividend, on the position you choose.",
+          "missing": "A buy or sell without a trade is flagged \"Missing trade confirmation\": nothing is created.",
+          "continuity": "A missing month or a balance break between two statements is flagged."
+        },
+        "tip": "Opening balance + operations must equal the closing balance to the cent, otherwise the statement is rejected. A line matching several operations lets you choose."
+      },
+      "control": {
+        "short": "Control",
+        "title": "Control and full history",
+        "intro": "Once cash statements are imported, the \"My PEA\" page compares each month the statement balance with the balance computed by the app.",
+        "points": {
+          "monthly": "\"Monthly account check\": each month is matching, mismatched, without operations or to import.",
+          "gaps": "For a mismatch, the likely causes and missing documents (trade confirmations, coupons) are listed.",
+          "fullHistory": "If statements cover everything since opening, \"Full history\" replaces the initial state with the real transfers and dividends."
+        },
+        "tip": "After switching to full history, the annualised return can be computed. The check only reads: nothing is written."
+      }
+    },
+    "illustrations": {
+      "asset": "Security",
+      "quantity": "Quantity",
+      "averagePrice": "Cost",
+      "positions": "Positions",
+      "positionsBadge": "Added",
+      "date": "Date",
+      "side": "Side",
+      "price": "Price",
+      "fees": "Fees",
+      "isin": "ISIN",
+      "trade": "Buy / sell",
+      "tradeBadge": "Added",
+      "gross": "Gross",
+      "withholding": "Tax",
+      "net": "Net",
+      "total": "TOTAL EUR",
+      "dividend": "Dividend",
+      "certifiedBadge": "Certified",
+      "openingBalance": "Opening balance",
+      "closingBalance": "Closing balance",
+      "operations": "Operations",
+      "verifiedBadge": "Verified",
+      "unmatched": "Not found",
+      "missingBadge": "Notice missing",
+      "myPea": "My PEA",
+      "month": {
+        "ok": "Matching",
+        "quiet": "No operation",
+        "mismatch": "Mismatch",
+        "missing": "To import"
+      }
+    }
+  },
   "icons": {
     "title": "Asset icons",
     "autoFetchFailed": "automatic retrieval failed",
