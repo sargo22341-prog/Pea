@@ -81,6 +81,10 @@ export const cashStatementsRepository = {
     return db.prepare("SELECT * FROM cash_statements WHERE user_id = ? ORDER BY period").all(userId) as CashStatementRow[];
   },
 
+  countStatements(userId: number) {
+    return (db.prepare("SELECT COUNT(*) AS n FROM cash_statements WHERE user_id = ?").get(userId) as { n: number }).n;
+  },
+
   insertStatement(userId: number, statement: CashStatementInsert, importedAt: string) {
     return db.prepare(
       `INSERT OR IGNORE INTO cash_statements (user_id, period, format, opening_date, closing_date, opening_cents, closing_cents, fingerprint, imported_at)

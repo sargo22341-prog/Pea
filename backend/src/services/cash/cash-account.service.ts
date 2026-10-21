@@ -1,7 +1,7 @@
 import type { CashAccountSettings, CashAccountSummary, CashLedgerDto, CashLedgerEntry, CashMovementSource, CashMovementType } from "@pea/shared";
 import { PEA_DEPOSIT_CEILING_EUR } from "@pea/shared";
 import { cashRepository, type CashAccountRow, type CashMovementRow, type CashTradeRow } from "../../repositories/cash/cash.repository.js";
-import { loadCashChecks } from "./cash-statements/statement-coverage.js";
+import { hasCashStatements, loadCashChecks } from "./cash-statements/statement-coverage.js";
 import { CASH_STATEMENT_IMPORT_REF_PREFIX } from "./cash-statements/statement-keys.js";
 import { mergeStatementEntries, openingStatementEntries } from "./dividend-statements/opening-statement-lines.js";
 import { verificationInfo } from "./dividends/dividend-verification.js";
@@ -163,7 +163,7 @@ export class CashAccountService {
     const withStatementLines = mergeStatementEntries(entries, openingStatementEntries(userId, loaded.account.reference_at));
     const cashCheck = loadCashChecks(userId);
     const checked = withStatementLines.map((entry) => entry.kind === "opening" ? entry : { ...entry, cashCheck: cashCheck(entry.id, entry.kind, entry.effectiveAt) });
-    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), entries: checked.reverse() };
+    return { summary: this.summarize(loaded, sumGains(gains)), settings: this.settings(loaded.account), cashStatementsImported: hasCashStatements(userId), entries: checked.reverse() };
   }
 }
 

@@ -144,6 +144,11 @@ export interface PeaOverview extends CashAccountSummary {
 export interface CashLedgerDto {
   summary: CashAccountSummary;
   settings: CashAccountSettings;
+  /**
+   * Au moins un relevé espèces importé : contrôle de chaque opération, contrôle mensuel et passage
+   * en historique complet. Sinon le suivi est manuel et aucun contrôle par relevé n'est affiché.
+   */
+  cashStatementsImported: boolean;
   /** Mouvements du plus récent au plus ancien. */
   entries: CashLedgerEntry[];
 }

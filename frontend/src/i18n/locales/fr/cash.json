@@ -370,7 +370,7 @@
   "monthlyCheck": {
     "title": "Contrôle mensuel du compte",
     "hint": "Chaque mois, le nouveau solde du relevé espèces est comparé au solde calculé par l'application à la même date (une opération vérifiée compte à sa date d'écriture sur le relevé).",
-    "empty": "Importez vos relevés espèces dans les Réglages pour contrôler le solde de chaque mois.",
+    "empty": "Aucun mois écoulé à contrôler pour l'instant : chaque mois clos couvert par vos relevés espèces apparaîtra ici.",
     "counts": "{{ok}} mois juste(s), {{mismatch}} écart(s), {{missing}} relevé(s) manquant(s).",
     "toReview": "À traiter",
     "all": "Tous les mois",

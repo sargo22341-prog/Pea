@@ -27,6 +27,7 @@ const entry = (id: string, kind: CashLedgerEntry["kind"], amount: number, extra:
 const ledger: CashLedgerDto = {
   summary,
   settings: { status: "ready", openingCash: 0, openingDeposits: 0, openingWithdrawals: 0 },
+  cashStatementsImported: false,
   entries: [
     entry("movement:3", "compensation", 65.53, { note: "Rompus AIR LIQUIDE" }),
     entry("movement:2", "capital_repayment", 61.25, { symbol: "ENGI.PA", verification: { status: "document", verifiedAt: "2026-10-20T12:00:00.000Z", reference: "2026-05#R1" } }),

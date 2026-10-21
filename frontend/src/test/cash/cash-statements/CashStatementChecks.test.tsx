@@ -27,6 +27,7 @@ const entry = (id: string, cashCheck: CashLedgerEntry["cashCheck"], amount: numb
 const ledger: CashLedgerDto = {
   summary: { status: "ready", cash: 100, deposits: 100, withdrawals: 0, netDeposits: 100, cashDividends: 0, otherCredits: 0, standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_900, realizedGain: 0, historyIncomplete: false },
   settings: { status: "ready", openingCash: 0, openingDeposits: 0, openingWithdrawals: 0 },
+  cashStatementsImported: true,
   entries: [entry("movement:1", verified, 2000), entry("movement:2", { status: "not_found" }, 500), entry("movement:3", { status: "to_verify" }, 300)]
 };
 const position = { id: 1, symbol: "AI.PA", name: "Air Liquide", quantity: 10, averageBuyPrice: 100, currency: "EUR", createdAt: "2026-01-01T00:00:00.000Z" };

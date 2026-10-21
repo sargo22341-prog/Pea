@@ -429,7 +429,10 @@ espèces ; créé par le relevé espèces, il est certifié par le relevé de co
 `verified` (« Vérifié par relevé espèces », référence `AAAA-MM#ligne` et date), `not_found` (« Non
 retrouvé au relevé » : toute la fenêtre où il aurait dû être écrit est couverte par des relevés
 importés, mais aucune ligne ne lui correspond, doublon ou erreur probable) ou `to_verify` (« À
-vérifier »). Un dividende peut porter les deux niveaux : « Certifié par relevé » (coupons) et
+vérifier »). Tant qu'aucun relevé espèces n'est importé, le suivi est **manuel** : aucun contrôle
+n'est renvoyé (pas de badge « À vérifier »), et « Mon PEA » n'affiche ni le contrôle mensuel ni le
+passage en historique complet (`cashStatementsImported: false` dans le journal). Le premier relevé
+importé les active. Un dividende peut porter les deux niveaux : « Certifié par relevé » (coupons) et
 « Vérifié par relevé espèces ».
 
 **Modifier ou supprimer un élément vérifié** (achat, vente, mouvement, position contenant une

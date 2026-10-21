@@ -84,11 +84,11 @@ describe("contrôle mensuel du compte", () => {
     expect(screen.queryByText(/3\s611/)).not.toBeInTheDocument();
   });
 
-  it("invites to import statements when none is imported, in French and English", async () => {
+  it("explains that no elapsed month is checked yet, in French and English", async () => {
     expect(keysOf(enCash.monthlyCheck).sort()).toEqual(keysOf(frCash.monthlyCheck).sort());
     cashMonthlyCheck.mockResolvedValue({ months: [], counts: { ok: 0, mismatch: 0, opening: 0, quiet: 0, missing: 0 } });
     const { unmount } = render(<MonthlyCheckCard version="1" />);
-    expect(await screen.findByText(/Importez vos relevés espèces/)).toBeInTheDocument();
+    expect(await screen.findByText(/Aucun mois écoulé à contrôler/)).toBeInTheDocument();
     unmount();
     await changeAppLanguage("en");
     try {

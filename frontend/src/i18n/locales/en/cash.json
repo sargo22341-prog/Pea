@@ -370,7 +370,7 @@
   "monthlyCheck": {
     "title": "Monthly account check",
     "hint": "Each month, the closing balance of the cash statement is compared with the balance computed by the app on the same date (a verified operation counts on its booking date on the statement).",
-    "empty": "Import your cash statements in Settings to check the balance of each month.",
+    "empty": "No elapsed month to check yet: each closed month covered by your cash statements will appear here.",
     "counts": "{{ok}} month(s) matching, {{mismatch}} mismatch(es), {{missing}} missing statement(s).",
     "toReview": "To review",
     "all": "All months",

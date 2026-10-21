@@ -29,6 +29,7 @@ function ledger(openingDividends: number | undefined, updatedAt: string): CashLe
       standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_300, realizedGain: 0, historyIncomplete: true
     },
     settings: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", openingCash: 100, openingDeposits: 700, openingWithdrawals: 0, openingDividends, updatedAt },
+    cashStatementsImported: false,
     entries: []
   };
 }

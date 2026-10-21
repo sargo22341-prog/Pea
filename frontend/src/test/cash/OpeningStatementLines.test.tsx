@@ -29,6 +29,7 @@ const movement: CashLedgerEntry = { id: "movement:3", kind: "dividend", effectiv
 const ledger: CashLedgerDto = {
   summary: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", cash: 138.25, deposits: 100, withdrawals: 0, netDeposits: 100, cashDividends: 128.0, otherCredits: 0, standaloneFees: 0, depositCeiling: 150_000, remainingCeiling: 149_900, realizedGain: 0, historyIncomplete: true },
   settings: { status: "ready", referenceAt: "2026-03-01T00:00:00.000Z", openingCash: 100, openingDeposits: 100, openingWithdrawals: 0, openingDividends: 89.71 },
+  cashStatementsImported: false,
   entries: [movement, unmatchedLine, statementLine]
 };
 

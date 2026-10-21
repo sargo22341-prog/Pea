@@ -9,11 +9,22 @@ import { lineKey, linkedElementId } from "./statement-keys.js";
  * d'une ligne), non retrouvé (toute la période où il aurait dû être écrit est couverte par des
  * relevés importés, mais aucune ligne ne lui correspond : doublon ou erreur probable) ou à
  * vérifier (aucun relevé importé pour cette période).
+ *
+ * Tant qu'aucun relevé espèces n'est importé, le suivi est manuel : aucun contrôle n'est renvoyé,
+ * pour ne pas marquer « À vérifier » chaque opération d'un utilisateur qui saisit tout à la main.
  */
 
 export type CashCheckLookup = (elementId: string, kind: CashStatementLineKind, effectiveAt: string) => CashStatementCheck | undefined;
 
+const manualTracking: CashCheckLookup = () => undefined;
+
+/** Au moins un relevé espèces importé : les opérations sont contrôlées par les relevés. */
+export function hasCashStatements(userId: number) {
+  return cashStatementsRepository.countStatements(userId) > 0;
+}
+
 export function loadCashChecks(userId: number): CashCheckLookup {
+  if (!hasCashStatements(userId)) return manualTracking;
   const verified = new Map(cashStatementsRepository.listLines(userId).flatMap((row) => {
     const id = linkedElementId(row);
     return id ? [[id, { status: "verified", reference: lineKey(row.period, row.line_no), verifiedAt: row.matched_at ?? undefined } satisfies CashStatementCheck] as const] : [];

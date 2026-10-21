@@ -46,8 +46,10 @@ export function MyPeaPage() {
 
   if (ledger.error) return <div className="card border-coral p-6 text-coral">{ledger.error}</div>;
   if (ledger.loading || !ledger.data) return <div className="p-6 text-slate-400">{t("common:common.loading")}</div>;
-  const { summary, settings } = ledger.data;
+  const { summary, settings, cashStatementsImported } = ledger.data;
   const pending = summary.status === "pending";
+  // Sans relevé espèces importé, le suivi est manuel : ni contrôle mensuel ni historique complet à proposer.
+  const statementChecks = !pending && cashStatementsImported;
 
   // Une écriture renvoie le journal à jour ; la synthèse (valeur, gain) est relue en parallèle.
   function ledgerChanged(next: CashLedgerDto) {
@@ -86,7 +88,7 @@ export function MyPeaPage() {
         />
       ) : null}
 
-      {!pending && settings.referenceAt ? <FullHistoryCard onCompleted={ledgerChanged} version={checkVersion} /> : null}
+      {statementChecks && settings.referenceAt ? <FullHistoryCard onCompleted={ledgerChanged} version={checkVersion} /> : null}
       {settings.fullHistoryAt ? <p className="muted text-sm">{t("cash:fullHistory.done", { date: formatMaybeDate(settings.fullHistoryAt) })}</p> : null}
 
       {pending ? (
@@ -104,7 +106,7 @@ export function MyPeaPage() {
         </>
       )}
 
-      {pending ? null : <MonthlyCheckCard version={checkVersion} />}
+      {statementChecks ? <MonthlyCheckCard version={checkVersion} /> : null}
 
       <LedgerTable ledger={ledger.data} onChanged={ledgerChanged} />
 
