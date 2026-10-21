@@ -38,7 +38,7 @@ searchRouter.get("/search/enriched", asyncRoute(async (req, res) => {
 
   const dbStartedAt = performance.now();
   const watchlistSymbols = new Set(watchlistRepository.symbols(requireAuthUser(req).id));
-  const portfolioSymbols = new Set(portfolioRepository.positionSymbols(requireAuthUser(req).id));
+  const portfolioSymbols = new Set(portfolioRepository.heldPositionSymbols(requireAuthUser(req).id));
   const dbMs = performance.now() - dbStartedAt;
 
   const enriched: EnrichedSearchResult[] = items.map((item) => {

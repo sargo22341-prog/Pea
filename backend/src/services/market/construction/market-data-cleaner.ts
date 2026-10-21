@@ -31,11 +31,12 @@ function nowIso() {
 export class MarketDataCleaner {
   /**
    * Supprime les candles et caches chart d'une range puis planifie sa
-   * reconstruction Yahoo pour tous les assets suivis.
+   * reconstruction Yahoo pour tous les assets suivis ou déjà détenus.
    */
   rebuildMarketData(options: { range: MarketDataRebuildRange }) {
     const ranges = rangesForRebuild(options.range);
-    const symbols = assetRepository.listTrackedSymbols();
+    // Les positions soldées gardent leur historique : il porte leur part passée des courbes.
+    const symbols = assetRepository.listSymbolsWithHistory();
     const deleted = this.deleteRanges(ranges);
     const job = dataConstructionQueue.enqueueMarketDataRebuild(symbols, ranges, { force: true });
     return { ...job, deleted };

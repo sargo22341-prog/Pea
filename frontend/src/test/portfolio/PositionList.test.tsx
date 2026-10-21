@@ -139,6 +139,18 @@ describe("PositionList mini charts", () => {
     expect((await screen.findAllByText(/2.?200/)).length).toBeGreaterThan(0);
   });
 
+  it("explains that every position is closed instead of rendering an empty list", async () => {
+    vi.mocked(api.positionsPerformance).mockResolvedValue([] as never);
+
+    render(
+      <MemoryRouter>
+        <PositionList positions={[]} range="1d" />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Toutes vos positions sont soldées/)).toBeInTheDocument();
+  });
+
   it("shows a discrete placeholder when miniChart has no points", async () => {
     vi.mocked(api.positionsPerformance).mockResolvedValue([{ ...performance(), miniChart: { range: "1d", points: [] } }] as never);
 

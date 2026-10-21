@@ -50,7 +50,8 @@ export function DashboardPage({ user, appTimezone }: { user: User; appTimezone: 
   // Setter React (reference stable) : une range identique n'entraine aucun nouveau rendu.
   const setSelectedRange: DashboardRangeSetter = setSelectedRangeState;
 
-  const portfolioIsEmpty = !portfolioFull.loading && summary?.positions.length === 0;
+  // Un portefeuille dont toutes les positions sont soldées garde son historique (courbe, espèces).
+  const portfolioIsEmpty = !portfolioFull.loading && summary?.positions.length === 0 && summary.closedPositionsCount === 0;
   const portfolioSymbols = useMemo(
     () => new Set(summary?.positions.map((position) => position.symbol.toUpperCase()) ?? []),
     [summary]

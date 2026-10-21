@@ -1,4 +1,4 @@
-import type { DividendEvent, Position, PositionWithMarket } from "@pea/shared";
+import type { DividendEvent, Position } from "@pea/shared";
 import { sqlInList, sqlListParam } from "../../repositories/sql-list.js";
 import { db } from "../../db.js";
 import { dividendsService } from "../market/dividends/dividends.service.js";
@@ -193,11 +193,11 @@ export function dividendsReceivedFor(
 /**
  * Calcule le total des dividendes reçus pour toutes les positions en mémoire.
  *
- * @param positions Liste des positions enrichies avec quote.
+ * @param positions Positions de l'utilisateur, soldées comprises (dividendes déjà perçus).
  * @param txCache Cache de transactions déjà chargé par buildTransactionCache.
  */
 export function computeTotalDividendsReceived(
-  positions: PositionWithMarket[],
+  positions: Position[],
   txCache: Map<number, PositionTransactionCache>
 ): number {
   const now = Date.now();

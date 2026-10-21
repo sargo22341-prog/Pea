@@ -7,6 +7,7 @@ import { marketDataService } from "../market/data/market-data.service.js";
 import { nowMs, toDisplayRange } from "../shared/cache.service.js";
 import { isTransactionVisibleInRange, nearestTimestamp } from "./portfolio.helpers.js";
 import { buildTransactionCache, getQuantityAtTime, positionFromTransactionCache } from "./portfolio-calculations.js";
+import { positionsInRange } from "./holdings/range-positions.js";
 import { appliedSplitsByPosition } from "./splits/applied-splits.js";
 import { splitFactorAt } from "./splits/split-adjustment.js";
 import { portfolioCacheTtlMs } from "./portfolio-cache-ttl.js";
@@ -57,7 +58,7 @@ export class PortfolioChartsService {
     }
 
     const points = await portfolioPerformanceService.performance(range, cachedOptions, resolvedUserId);
-    const positions = portfolioReadService.listPositions(resolvedUserId);
+    const positions = portfolioReadService.listHeldPositions(resolvedUserId);
     const totalInvested = positions.reduce((sum, position) => sum + position.quantity * position.averageBuyPrice, 0);
     const timestamps: number[] = [];
     const value: number[] = [];
@@ -184,10 +185,11 @@ export class PortfolioChartsService {
   }
 
   private async portfolioIntradayBaseline(userId: number, options: PortfolioMarketDataOptions = {}): Promise<{ price: number; datetime?: string | undefined } | undefined> {
-    const positions = portfolioReadService.listPositions(userId);
+    const allPositions = portfolioReadService.listPositions(userId);
+    const txCache = buildTransactionCache(allPositions.map((p) => p.id));
+    const positions = positionsInRange(allPositions, txCache, "1d", options.intradayNow?.getTime());
     if (!positions.length) return undefined;
 
-    const txCache = buildTransactionCache(positions.map((p) => p.id));
     let price = 0;
     const datetimes: string[] = [];
     for (const position of positions) {
@@ -215,7 +217,9 @@ export class PortfolioChartsService {
   private async portfolioPreparationState(range: RangeKey, userId: number, options: PortfolioMarketDataOptions = {}): Promise<Pick<PortfolioChartDto, "isPreparing" | "missingAssets" | "missingRanges" | "jobId">> {
     const missingAssets: string[] = [];
     const jobIds: string[] = [];
-    for (const position of portfolioReadService.listPositions(userId)) {
+    const allPositions = portfolioReadService.listPositions(userId);
+    const txCache = buildTransactionCache(allPositions.map((p) => p.id));
+    for (const position of positionsInRange(allPositions, txCache, range, options.intradayNow?.getTime())) {
       const chart = await this.getChartData(position.symbol, range, options);
       if (chart.isPreparing) {
         missingAssets.push(position.symbol);

@@ -14,6 +14,7 @@ const summary: PortfolioSummary = {
   totalPerformancePercent: 20,
   positionsCount: 10,
   assetsCount: 2,
+  closedPositionsCount: 0,
   currency: "EUR",
   positions: [],
   yieldOnCost: 0.034

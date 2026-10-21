@@ -77,7 +77,7 @@ export class ChartRefreshService {
 
   requestPortfolioRefresh(input: { userId: string | number; range: RangeKey; force?: boolean }) {
     if (input.range !== "1d") return { status: "unsupported-range" as RefreshStatus, symbols: [] };
-    const assets = portfolioRepository.positionSymbols(input.userId).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
+    const assets = portfolioRepository.heldPositionSymbols(input.userId).map((symbol) => assetRepository.findBySymbol(symbol)).filter((asset): asset is AssetRow => Boolean(asset));
     const eligibleAssets = this.filterRefreshableAssets(assets, { force: Boolean(input.force) });
     const results = eligibleAssets.map((asset) => this.startRefresh({ userId: input.userId, asset, range: input.range, scope: "portfolio", force: input.force }));
     return {

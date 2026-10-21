@@ -125,7 +125,10 @@ export interface PortfolioSummary {
   totalPerformancePercent: number;
   positionsCount: number;
   assetsCount: number;
+  /** Positions entièrement vendues : absentes de `positions`, conservées pour l'historique. */
+  closedPositionsCount: number;
   currency: CurrencyCode;
+  /** Positions détenues (quantité positive) uniquement. */
   positions: PositionWithMarket[];
   /** Dividendes annuels attendus rapportés au coût total du portefeuille (fraction). */
   yieldOnCost?: number | undefined;

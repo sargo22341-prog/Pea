@@ -1,4 +1,5 @@
 import type { PortfolioPerformancePoint, Position, RangeKey } from "@pea/shared";
+import { isHeldQuantity } from "../../repositories/portfolio/held-positions.sql.js";
 import { requireUserId } from "../auth/user-context.js";
 import { logger } from "../shared/logger.service.js";
 import {
@@ -10,6 +11,7 @@ import {
   positionFromTransactionCache,
   type PositionTransactionCache
 } from "./portfolio-calculations.js";
+import { positionsInRange } from "./holdings/range-positions.js";
 import { lastSeriesTime, TransactionReplayCursor, type PriceSeries } from "./portfolio-series.js";
 import { portfolioReadService } from "./portfolio-read.service.js";
 import type { PortfolioMarketDataOptions } from "./portfolio.types.js";
@@ -34,20 +36,22 @@ function transactionInstants(entry: PositionTransactionCache | undefined) {
 export class PortfolioPerformanceService {
   async performance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PortfolioPerformancePoint[]> {
     const resolvedUserId = requireUserId(userId);
-    const positions = portfolioReadService.listPositions(resolvedUserId);
+    const allPositions = portfolioReadService.listPositions(resolvedUserId);
+    const txCache = buildTransactionCache(allPositions.map((p) => p.id));
+    const now = options.intradayNow?.getTime() ?? Date.now();
+    const positions = positionsInRange(allPositions, txCache, range, now);
     if (!positions.length) return [];
     logger.debug("portfolio", "performance calculation", { range, positions: positions.length });
 
-    const txCache = buildTransactionCache(positions.map((p) => p.id));
     const items: PositionSeries[] = await Promise.all(
       positions.map(async (position) => {
         const series = await positionPerformanceService.safeSeries(position.symbol, range, options);
-        const fallbackPrice = await positionPerformanceService.safeCurrentPrice(position);
+        // Une position soldée vaut zéro aujourd'hui : son dernier cours connu suffit, sans cotation Yahoo.
+        const fallbackPrice = isHeldQuantity(position.quantity) ? await positionPerformanceService.safeCurrentPrice(position) : series.closes.at(-1) ?? 0;
         const entry = txCache.get(position.id);
         return { position, series, fallbackPrice, entry, lastHistoryTime: lastSeriesTime(series), latestTransactionTime: latestTransactionTime(entry) };
       })
     );
-    const now = options.intradayNow?.getTime() ?? Date.now();
     const timeline = this.timeline(range, items, now);
 
     if (timeline.times.length < 2) {

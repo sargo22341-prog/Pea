@@ -1,6 +1,7 @@
 import type { CalendarEvent, CalendarEventType, CalendarScope } from "@pea/shared";
 import { sqlInList, sqlListParam } from "../sql-list.js";
 import { db } from "../../db.js";
+import { heldPositionSql } from "../portfolio/held-positions.sql.js";
 
 export interface CalendarEventInsert {
   symbol: string;
@@ -92,7 +93,7 @@ export function readCalendarEventsBySymbol(symbol: string) {
 }
 
 export function readCalendarEventsForPortfolio(userId: number) {
-  const scope = "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ?)";
+  const scope = `ace.symbol IN (SELECT symbol FROM positions WHERE user_id = ? AND ${heldPositionSql()})`;
   return db.prepare(eventsQuery(scope, PORTFOLIO_PAST_LIMIT, FUTURE_LIMIT)).all(userId, userId) as RawEventRow[];
 }
 
@@ -100,9 +101,9 @@ export function readCalendarEventsForPortfolio(userId: number) {
 const CALENDAR_RANGE_MAX_EVENTS = 2000;
 
 const SCOPE_CLAUSES: Record<CalendarScope, string> = {
-  portfolio: "ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId)",
+  portfolio: `ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId AND ${heldPositionSql()})`,
   watchlist: "ace.symbol IN (SELECT symbol FROM watchlist WHERE user_id = @userId)",
-  all: "(ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId) OR ace.symbol IN (SELECT symbol FROM watchlist WHERE user_id = @userId))"
+  all: `(ace.symbol IN (SELECT symbol FROM positions WHERE user_id = @userId AND ${heldPositionSql()}) OR ace.symbol IN (SELECT symbol FROM watchlist WHERE user_id = @userId))`
 };
 
 /**

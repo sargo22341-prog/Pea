@@ -1,4 +1,5 @@
 import { db } from "../../db.js";
+import { refreshedPositionSql } from "../portfolio/held-positions.sql.js";
 
 /** Liste JSON des symboles normalisés (majuscules, sans doublon) pour `json_each`. */
 function symbolsParameter(symbols: string[]) {
@@ -16,12 +17,12 @@ export interface UserSymbolImpact {
  * seul paramètre JSON (`json_each`) : une unique requête préparée quelle que soit leur taille.
  */
 export class LiveRefreshRepository {
-  /** Utilisateurs (clé texte) détenant ou suivant au moins un des symboles. */
+  /** Utilisateurs (clé texte) détenant ou suivant au moins un des symboles (positions soldées depuis longtemps exclues). */
   userImpactsForSymbols(symbols: string[]): Map<string, UserSymbolImpact> {
     const result = new Map<string, UserSymbolImpact>();
     if (!symbols.length) return result;
     const rows = db.prepare(
-      `SELECT user_id, 'portfolio' AS source FROM positions WHERE symbol IN (SELECT value FROM json_each(?))
+      `SELECT user_id, 'portfolio' AS source FROM positions WHERE symbol IN (SELECT value FROM json_each(?)) AND ${refreshedPositionSql()}
        UNION
        SELECT user_id, 'watchlist' AS source FROM watchlist WHERE symbol IN (SELECT value FROM json_each(?))`
     ).all(symbolsParameter(symbols), symbolsParameter(symbols)) as { user_id: number; source: "portfolio" | "watchlist" }[];
@@ -36,7 +37,7 @@ export class LiveRefreshRepository {
 
   portfolioSymbolsForSymbols(symbols: string[]): string[] {
     if (!symbols.length) return [];
-    const rows = db.prepare("SELECT DISTINCT symbol FROM positions WHERE symbol IN (SELECT value FROM json_each(?))").all(symbolsParameter(symbols)) as { symbol: string }[];
+    const rows = db.prepare(`SELECT DISTINCT symbol FROM positions WHERE symbol IN (SELECT value FROM json_each(?)) AND ${refreshedPositionSql()}`).all(symbolsParameter(symbols)) as { symbol: string }[];
     return rows.map((row) => row.symbol.toUpperCase());
   }
 }

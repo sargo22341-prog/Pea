@@ -56,6 +56,7 @@ import { transactionTradedAtUtcMigration } from "./portfolio/055-transaction-tra
 import { cashOtherCreditsMigration } from "./cash/056-cash-other-credits.js";
 import { cashStatementsMigration } from "./cash/057-cash-statements.js";
 import { fullHistoryMigration } from "./cash/058-full-history.js";
+import { purgeClosedPositionCachesMigration } from "./cache/059-purge-closed-position-caches.js";
 import type { Migration } from "./types.js";
 
 export const migrations: Migration[] = [
@@ -116,5 +117,6 @@ export const migrations: Migration[] = [
   transactionTradedAtUtcMigration,
   cashOtherCreditsMigration,
   cashStatementsMigration,
-  fullHistoryMigration
+  fullHistoryMigration,
+  purgeClosedPositionCachesMigration
 ];

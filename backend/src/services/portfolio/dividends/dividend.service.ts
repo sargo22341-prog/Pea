@@ -9,6 +9,7 @@ import { logger } from "../../shared/logger.service.js";
 import { readCachedFundamentalsSummary } from "../../yahoo/fundamentals/fundamentals.job.js";
 import { marketInfoFromSummary } from "../../yahoo/fundamentals/mappers/market-info.mapper.js";
 import { buildTransactionCache, getQuantityAtTime } from "../portfolio-calculations.js";
+import { portfolioReadService } from "../portfolio-read.service.js";
 import { portfolioService } from "../portfolio.service.js";
 import { dividendMetrics, realDividendEvents, upcomingDividendEvents } from "./dividend-events.js";
 
@@ -41,11 +42,19 @@ export class DividendService {
     const currentYear = now.getFullYear();
     let stale = summary.positions.some((position) => position.quote?.stale);
 
+    // Le résumé ne contient que les positions détenues : les positions soldées gardent leurs
+    // dividendes passés, sans cotation (aucun appel Yahoo) ni versement à venir.
+    const heldIds = new Set(summary.positions.map((position) => position.id));
+    const closedPositions = portfolioReadService.listPositions(resolvedUserId).filter((position) => !heldIds.has(position.id));
     // Charge toutes les transactions en une passe pour éviter N×M requêtes DB
     // (hasDatedTransactions + getQuantityHeldAtDate pour chaque position × dividende).
-    const txCache = buildTransactionCache(summary.positions.map((p) => p.id));
+    const txCache = buildTransactionCache([...heldIds, ...closedPositions.map((position) => position.id)]);
+    const positions = [
+      ...summary.positions,
+      ...closedPositions.map((position) => portfolioReadService.enrichPositionWithQuote(position, undefined, txCache))
+    ];
 
-    for (const position of summary.positions) {
+    for (const position of positions) {
       const { dividends, failed } = readPositionDividends(position);
       stale ||= failed;
       const entry = txCache.get(position.id);
@@ -58,7 +67,7 @@ export class DividendService {
         nextExDividendDate: readNextEventDate(position.symbol, "ex_dividend", now.toISOString())
       };
       past.push(...realDividendEvents(input));
-      upcoming.push(...upcomingDividendEvents(input));
+      if (heldIds.has(position.id)) upcoming.push(...upcomingDividendEvents(input));
     }
 
     const nextEvents = upcoming

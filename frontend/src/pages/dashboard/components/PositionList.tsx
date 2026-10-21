@@ -132,7 +132,11 @@ export function PositionList({
         </h2>
       }
     >
-      <PositionRows error={performanceError} pendingSplitSymbols={pendingSplitSymbols} performanceById={performanceById} positions={sortedPositions} prive={prive} rangeLabel={rangeLabel} />
+      {sortedPositions.length ? (
+        <PositionRows error={performanceError} pendingSplitSymbols={pendingSplitSymbols} performanceById={performanceById} positions={sortedPositions} prive={prive} rangeLabel={rangeLabel} />
+      ) : (
+        <p className="p-4 text-sm text-slate-400">{t("positionRows.allClosed", { ns: "dashboard" })}</p>
+      )}
     </SortableSection>
   );
 }

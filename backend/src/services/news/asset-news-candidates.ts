@@ -50,9 +50,9 @@ export function companyNewsQuery(name: string | undefined, symbol: string) {
     .trim();
 }
 
-/** Positions de l'utilisateur, lues en base sans enrichissement Yahoo. */
+/** Positions détenues par l'utilisateur, lues en base sans enrichissement Yahoo (positions soldées exclues). */
 export function listAssetNewsPositions(userId: number): AssetNewsPositionRow[] {
-  return portfolioRepository.listPositions(userId);
+  return portfolioRepository.listHeldPositions(userId);
 }
 
 /**

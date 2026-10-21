@@ -39,7 +39,7 @@ export class PositionPerformanceService {
   async positionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
     const resolvedUserId = requireUserId(userId);
     if (!options.forceIntradayOpen && !options.intradayNow) {
-      const positions = portfolioReadService.listPositions(resolvedUserId);
+      const positions = portfolioReadService.listHeldPositions(resolvedUserId);
       return portfolioPerformanceCache.getOrCompute({
         userId: resolvedUserId,
         range,
@@ -59,7 +59,8 @@ export class PositionPerformanceService {
   }
 
   private async calculatePositionsPerformance(range: RangeKey, options: PortfolioMarketDataOptions = {}, userId?: number | string): Promise<PositionRangePerformance[]> {
-    const positions = portfolioReadService.listPositions(userId);
+    // Liste du tableau de bord : seules les positions détenues sont affichées (et cotées).
+    const positions = portfolioReadService.listHeldPositions(userId);
     logger.debug("portfolio", "positions performance calculation", { range, positions: positions.length });
     const txCache = buildTransactionCache(positions.map((p) => p.id));
     return Promise.all(positions.map((position) => this.positionRangePerformance(position, range, options, txCache)));

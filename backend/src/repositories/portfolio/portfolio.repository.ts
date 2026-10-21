@@ -1,5 +1,6 @@
 import type { Position } from "@pea/shared";
 import { db } from "../../db.js";
+import { heldPositionSql } from "./held-positions.sql.js";
 
 export interface PositionRow {
   id: number;
@@ -116,6 +117,11 @@ function ensureUserId(userId: number | string): number {
 export class PortfolioRepository {
   listPositions(userId: number | string): PositionRow[] {
     return db.prepare("SELECT * FROM positions WHERE user_id = ? ORDER BY symbol ASC").all(ensureUserId(userId)) as PositionRow[];
+  }
+
+  /** Positions encore détenues : une position soldée reste en base pour son historique. */
+  listHeldPositions(userId: number | string): PositionRow[] {
+    return db.prepare(`SELECT * FROM positions WHERE user_id = ? AND ${heldPositionSql()} ORDER BY symbol ASC`).all(ensureUserId(userId)) as PositionRow[];
   }
 
   findPositionBySymbol(symbol: string, userId: number | string): PositionRow | undefined {
@@ -248,8 +254,8 @@ export class PortfolioRepository {
     ).run(input.user_id, input.symbol, input.quantity, input.average_price, input.transaction_count, input.total_fees, input.invested_amount, input.updatedAt);
   }
 
-  positionSymbols(userId: number | string) {
-    return this.listPositions(userId).map((row) => row.symbol.toUpperCase());
+  heldPositionSymbols(userId: number | string) {
+    return this.listHeldPositions(userId).map((row) => row.symbol.toUpperCase());
   }
 }
 

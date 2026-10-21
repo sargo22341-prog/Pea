@@ -80,7 +80,7 @@ export class LocalPeaSearchService {
 
     const resolvedUserId = requireUserId(userId);
     const watchlistSymbols = new Set(watchlistRepository.symbols(resolvedUserId));
-    const portfolioSymbols = new Set(portfolioRepository.positionSymbols(resolvedUserId));
+    const portfolioSymbols = new Set(portfolioRepository.heldPositionSymbols(resolvedUserId));
 
     return assets
       .filter((item) => item.searchText.includes(normalizedQuery))

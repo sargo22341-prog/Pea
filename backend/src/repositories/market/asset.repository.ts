@@ -2,6 +2,7 @@ import { db } from "../../db.js";
 import type { YahooAssetProfilePayload } from "../../services/yahoo/yahoo.api.js";
 import type { YahooSnapshotPayload } from "../../services/yahoo/yahoo.mapper.js";
 import { requirePresent } from "../../utils/invariant.js";
+import { refreshedPositionSql } from "../portfolio/held-positions.sql.js";
 
 export interface AssetRow {
   id: number;
@@ -55,12 +56,16 @@ export class AssetRepository {
     return db.prepare("SELECT country, sector FROM asset_profiles WHERE asset_id = ?").get(assetId) as AssetProfileRow | undefined;
   }
 
+  /**
+   * Actifs rafraîchis par les tâches planifiées : positions détenues (ou soldées depuis peu,
+   * voir `refreshedPositionSql`) et watchlist. Une position soldée ne coûte plus d'appel Yahoo.
+   */
   listTrackedAssets(): AssetRow[] {
     const rows = db
       .prepare(
         `SELECT DISTINCT a.*
          FROM assets a
-         WHERE a.symbol IN (SELECT symbol FROM positions)
+         WHERE a.symbol IN (SELECT symbol FROM positions WHERE ${refreshedPositionSql()})
             OR a.symbol IN (SELECT symbol FROM watchlist)
          ORDER BY a.symbol ASC`
       )
@@ -69,6 +74,22 @@ export class AssetRepository {
   }
 
   listTrackedSymbols(): string[] {
+    const rows = db
+      .prepare(
+        `SELECT symbol FROM positions WHERE ${refreshedPositionSql()}
+         UNION
+         SELECT symbol FROM watchlist
+         ORDER BY symbol ASC`
+      )
+      .all() as { symbol: string }[];
+    return rows.map((row) => row.symbol.toUpperCase());
+  }
+
+  /**
+   * Symboles dont l'historique de cours sert encore aux courbes : toutes les positions, soldées
+   * comprises (leur valeur passée entre dans l'évolution du portefeuille), et la watchlist.
+   */
+  listSymbolsWithHistory(): string[] {
     const rows = db
       .prepare(
         `SELECT symbol FROM positions

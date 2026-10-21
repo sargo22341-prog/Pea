@@ -32,7 +32,8 @@
     "performanceUnavailable": "Performances indisponibles",
     "miniGraphUnavailable": "Mini-graph indisponible",
     "miniGraph": "Mini-graph {{range}}",
-    "partial": "partiel"
+    "partial": "partiel",
+    "allClosed": "Toutes vos positions sont soldées. Elles réapparaîtront au prochain achat."
   },
   "positionSignals": {
     "yieldOnCost": "Rdt/cout {{value}}",

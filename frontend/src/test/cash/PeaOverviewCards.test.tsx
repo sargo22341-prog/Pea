@@ -33,6 +33,7 @@ const summary: PortfolioSummary = {
   totalPerformancePercent: 0,
   positionsCount: 9,
   assetsCount: 1,
+  closedPositionsCount: 0,
   currency: "EUR",
   positions: [],
   pea

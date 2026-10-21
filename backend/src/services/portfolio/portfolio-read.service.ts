@@ -1,6 +1,7 @@
 import type { PortfolioSummary, Position, PositionTransactionStats, PositionWithMarket, Quote, RangeKey, UserAssetPositionDto } from "@pea/shared";
 import { config } from "../../config.js";
 import { mapPosition, portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
+import { isHeldQuantity } from "../../repositories/portfolio/held-positions.sql.js";
 import { requireUserId } from "../auth/user-context.js";
 import { marketSnapshotService } from "../market/snapshots/market-snapshot.service.js";
 import { frontendBlockCache } from "../shared/frontend-block-cache.service.js";
@@ -34,6 +35,11 @@ export class PortfolioReadService {
     const resolved = requireUserId(userId);
     const rows = portfolioRepository.listPositions(resolved);
     return rows.map(mapPosition);
+  }
+
+  /** Positions encore détenues (quantité positive) ; les positions soldées restent en base pour l'historique. */
+  listHeldPositions(userId?: number | string): Position[] {
+    return portfolioRepository.listHeldPositions(requireUserId(userId)).map(mapPosition);
   }
 
   /**
@@ -101,13 +107,15 @@ export class PortfolioReadService {
       const cached = frontendBlockCache.read(cacheUserId, "portfolio-summary", range) as PortfolioSummary | undefined;
       if (cached) return cached;
     }
-    const basePositions = this.listPositions(resolvedUserId);
+    // Une position soldée n'est ni affichée ni cotée ; ses dividendes passés restent comptés.
+    const allPositions = this.listPositions(resolvedUserId);
+    const basePositions = allPositions.filter((position) => isHeldQuantity(position.quantity));
     const { quotes: quotesBySymbol, complete: quotesComplete } = await this.quotesForPositions(basePositions, resolvedUserId);
-    const txCache = buildTransactionCache(basePositions.map((p) => p.id));
+    const txCache = buildTransactionCache(allPositions.map((p) => p.id));
     const positions = withPositionSignals(basePositions.map((position) => this.enrichPositionWithQuote(position, quotesBySymbol.get(position.symbol.toUpperCase()), txCache)));
     const totalValue = positions.reduce((sum, position) => sum + position.marketValue, 0);
     const totalCost = positions.reduce((sum, position) => sum + position.costBasis, 0);
-    const totalDividendsReceived = computeTotalDividendsReceived(positions, txCache);
+    const totalDividendsReceived = computeTotalDividendsReceived(allPositions, txCache);
     const totalFees = portfolioRepository.sumTransactionFees(resolvedUserId);
     const totalPerformance = totalValue - totalCost;
 
@@ -120,6 +128,7 @@ export class PortfolioReadService {
       totalPerformancePercent: totalCost ? (totalPerformance / totalCost) * 100 : 0,
       positionsCount: positions.reduce((sum, position) => sum + position.quantity, 0),
       assetsCount: positions.length,
+      closedPositionsCount: allPositions.length - basePositions.length,
       currency: "EUR",
       positions,
       yieldOnCost: portfolioYieldOnCost(positions),

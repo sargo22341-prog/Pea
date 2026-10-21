@@ -32,7 +32,8 @@
     "performanceUnavailable": "Performance unavailable",
     "miniGraphUnavailable": "Mini chart unavailable",
     "miniGraph": "Mini chart {{range}}",
-    "partial": "partial"
+    "partial": "partial",
+    "allClosed": "All your positions are closed. They will reappear with your next purchase."
   },
   "positionSignals": {
     "yieldOnCost": "YoC {{value}}",
