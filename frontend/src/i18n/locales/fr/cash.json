@@ -281,7 +281,7 @@
     "possibleDuplicate": "Un dividende saisi sans actif, du même montant, existe à une date proche : vérifiez qu'il ne s'agit pas du même avant d'appliquer.",
     "withholdingGap": "Retenue réelle de {{actual}} %, estimée à {{estimated}} %.",
     "openingTitle": "Dividendes déjà perçus",
-    "openingText": "Lignes antérieures au {{date}} : {{amount}} au total. Montant confirmé : {{declared}} (écart {{gap}}).",
+    "openingText": "Lignes antérieures au {{date}} : {{amount}} au total. Montant confirmé : {{declared}} (écart {{gap}}). Ces lignes sont conservées dans tous les cas pour le rapprochement des relevés espèces ; cochez la case pour que leur total remplace le montant confirmé.",
     "openingNone": "aucun",
     "openingCertify": "Certifier ce montant comme dividendes déjà perçus",
     "confirm": "Confirmer",
@@ -335,7 +335,7 @@
       "verify": "Retrouvé dans l'application : il sera vérifié.",
       "ambiguous": "Plusieurs opérations correspondent : choisissez celle qui figure sur cette ligne.",
       "missing_trade": "Avis d'opéré manquant : importez-le, puis réimportez ce relevé. Rien n'est créé.",
-      "missing_dividend": "Relevé de coupons manquant pour ce dividende antérieur à l'état initial : importez-le, puis réimportez ce relevé.",
+      "missing_dividend": "Aucune ligne de relevé de coupons pour ce dividende antérieur à l'état initial : importez (ou réimportez) le relevé de coupons du mois, puis réimportez ce relevé.",
       "opening": "Antérieur à l'état initial : déjà compris dans les montants déclarés, rien n'est créé.",
       "neutral": "Reprise du solde de l'ancien compte : transfert neutre, ni versement ni crédit."
     },

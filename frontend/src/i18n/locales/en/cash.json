@@ -281,7 +281,7 @@
     "possibleDuplicate": "A dividend entered without an asset, with the same amount, exists at a close date: check it is not the same one before applying.",
     "withholdingGap": "Actual withholding {{actual}}%, estimated at {{estimated}}%.",
     "openingTitle": "Dividends already received",
-    "openingText": "Lines before {{date}}: {{amount}} in total. Confirmed amount: {{declared}} (gap {{gap}}).",
+    "openingText": "Lines before {{date}}: {{amount}} in total. Confirmed amount: {{declared}} (gap {{gap}}). These lines are always kept to reconcile cash statements; tick the box to replace the confirmed amount with their total.",
     "openingNone": "none",
     "openingCertify": "Certify this amount as dividends already received",
     "confirm": "Confirm",
@@ -335,7 +335,7 @@
       "verify": "Found in the app: it will be verified.",
       "ambiguous": "Several operations match: choose the one on this line.",
       "missing_trade": "Missing trade confirmation: import it, then import this statement again. Nothing is created.",
-      "missing_dividend": "Missing coupon statement for this dividend before the initial state: import it, then import this statement again.",
+      "missing_dividend": "No coupon statement line for this dividend before the initial state: import (or import again) the coupon statement for that month, then import this statement again.",
       "opening": "Before the initial state: already included in the declared amounts, nothing is created.",
       "neutral": "Balance carried over from the former account: neutral transfer, neither deposit nor credit."
     },

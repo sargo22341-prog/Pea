@@ -60,24 +60,33 @@ function openingCertification(context: StatementContext, statements: readonly Va
 }
 
 /**
- * Certifie les dividendes déjà perçus : les lignes antérieures à l'état initial sont conservées
- * (mois, ligne, ISIN, montants) et leur total devient le montant confirmé, tracé comme une
- * correction de l'état initial. Rien n'est crédité : ces dividendes sont dans le solde déclaré.
+ * Conserve les lignes antérieures à l'état initial (mois, ligne, ISIN, montants) dès l'import,
+ * certification ou non : le relevé de coupons fait foi pour chacune, et le relevé espèces les
+ * rapproche ensuite. Rien n'est crédité : ces dividendes sont dans le solde déclaré.
  */
-function certifyOpening(userId: number, context: StatementContext, statements: readonly ValidStatement[]) {
+function keepOpeningLines(userId: number, context: StatementContext, statements: readonly ValidStatement[]) {
   db.transaction(() => {
     const certifiedAt = context.now.toISOString();
     for (const { period, line } of newOpeningLines(context, statements)) {
       dividendVerificationRepository.insertStatementLine(userId, { period, lineNo: line.lineNo, isin: line.isin, name: line.name, paymentDate: line.paymentDate, netCents: line.netCents, withholdingCents: line.withholdingCents, certifiedAt });
     }
-    const after = loadStatementContext(userId, context.now);
-    const certification = openingCertification(after, []);
-    if (!certification) return;
+  });
+}
+
+/**
+ * Certifie les dividendes déjà perçus : le total des lignes conservées devient le montant
+ * confirmé, tracé comme une correction de l'état initial. Sans effet si déjà certifié à l'identique.
+ */
+function certifyOpening(userId: number, now: Date) {
+  const certification = openingCertification(loadStatementContext(userId, now), []);
+  if (!certification || (certification.certifiedAt !== undefined && certification.declared === certification.certifiable)) return false;
+  db.transaction(() => {
     const previous = cashAccountService.ensureAccount(userId);
     cashRepository.setOpeningDividends(userId, Math.round(certification.certifiable * 100));
-    dividendVerificationRepository.setOpeningDividendsCertified(userId, certifiedAt);
+    dividendVerificationRepository.setOpeningDividendsCertified(userId, now.toISOString());
     cashRepository.insertRevision(userId, cashAccountService.settings(previous), cashAccountService.settings(cashAccountService.ensureAccount(userId)));
   });
+  return true;
 }
 
 /** Réimport : complète le nom des lignes déjà certifiées avant l'état initial (aucun doublon). */
@@ -133,7 +142,7 @@ export const dividendStatementsService = {
     for (const { fileName, statement } of valid) {
       for (const line of statement.lines) {
         const decision = decisions.get(lineKey(statement.period, line.lineNo));
-        // Les lignes antérieures à l'état initial relèvent de la certification des dividendes déjà perçus.
+        // Les lignes antérieures à l'état initial ne sont jamais créditées : elles sont conservées à part (keepOpeningLines).
         const current = classifyLine(loadStatementContext(userId, now), statement.period, line).case;
         if (current === "opening") continue;
         if (!decision?.apply) {
@@ -152,16 +161,8 @@ export const dividendStatementsService = {
       }
       applyRefunds(userId, statement, decisions, result, now);
     }
-    if (input.certifyOpening) {
-      const context = loadStatementContext(userId, now);
-      const certification = openingCertification(context, valid);
-      // Déjà certifié à l'identique : un réimport ne change rien.
-      const unchanged = certification?.certifiedAt !== undefined && certification.declared === certification.certifiable && !newOpeningLines(context, valid).length;
-      if (certification && !unchanged) {
-        certifyOpening(userId, context, valid);
-        result.openingCertified = true;
-      }
-    }
+    keepOpeningLines(userId, loadStatementContext(userId, now), valid);
+    if (input.certifyOpening) result.openingCertified = certifyOpening(userId, now);
     invalidateCashViews(userId);
     return result;
   }

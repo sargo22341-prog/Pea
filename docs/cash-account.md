@@ -329,10 +329,12 @@ une seconde création, quel que soit l'ordre des imports.
 **Import en lot** (Réglages, `POST /api/cash/dividend-statements/preview` puis `/confirm`) :
 l'aperçu n'écrit rien ; la confirmation renvoie les mêmes fichiers avec les choix (`decisions`),
 le serveur relit les relevés et recalcule chaque cas sur l'état courant, ligne par ligne dans une
-transaction. Les lignes antérieures à l'état initial peuvent être certifiées comme dividendes déjà
-perçus : elles sont conservées dans `cash_dividend_statement_lines` et leur total devient le
-montant confirmé (tracé dans `cash_account_revisions`) ; une modification manuelle de ce montant
-retire la certification. Réimporter un relevé ne crée rien et l'indique « déjà certifié ».
+transaction. Les lignes antérieures à l'état initial sont toujours conservées dans
+`cash_dividend_statement_lines` (jamais créditées), afin que les relevés espèces rapprochent leurs
+coupons ; elles peuvent en plus être certifiées comme dividendes déjà perçus (case « Certifier ce
+montant », décochée par défaut) : leur total devient alors le montant confirmé (tracé dans
+`cash_account_revisions`) ; une modification manuelle de ce montant retire la certification.
+Réimporter un relevé ne crée rien et l'indique « déjà certifié ».
 
 **Un seul dividende** (fenêtre du dividende, `POST /api/cash/movements/:id/statement-check` puis
 `/statement-certify`) : le relevé du mois suffit. Sans correspondance exacte, un avertissement
