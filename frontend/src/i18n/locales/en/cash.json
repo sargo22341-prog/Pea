@@ -14,6 +14,39 @@
     "yieldOnCost": "Yield on cost",
     "fees": "Fees"
   },
+  "returns": {
+    "title": "Yearly returns",
+    "description": "Every buy and sell counts at its actual date: a share bought last month does not inflate the return of your first years. Securities only, estimated dividends included, cash excluded.",
+    "annualized": "Annualized return (IRR)",
+    "annualizedValue": "{{value}} per year",
+    "annualizedMissing": "Less than 90 days of history",
+    "since": "since {{date}}",
+    "totalGain": "Total securities gain",
+    "totalInvested": "Total invested",
+    "loading": "Computing returns…",
+    "empty": "No dated purchase: yearly returns will appear after your first purchase.",
+    "preparing": "Price history is being downloaded: year-end values are provisional.",
+    "missingPrices": "No price history, valued at the last transaction price: {{symbols}}.",
+    "undated": "Positions without a purchase date, excluded: {{symbols}}.",
+    "partial": "Partial year",
+    "partialMark": "{{year}}*",
+    "partialNote": "* Partial year: since the first purchase or up to today. Returns are not annualized.",
+    "tooltipGain": "Gain: {{value}}",
+    "columns": {
+      "year": "Year",
+      "startValue": "Value on Jan 1",
+      "netInvested": "Buys - sells",
+      "capitalGain": "Capital gains",
+      "dividends": "Dividends",
+      "endValue": "End value",
+      "return": "Return"
+    },
+    "hints": {
+      "annualized": "Internal rate of return: the single yearly rate which, applied to each purchase from its date, gives the current value of the securities, sales and dividends included. A recent purchase weighs little, an old one a lot.",
+      "totalGain": "Current securities value + sale proceeds + estimated dividends - purchases (fees included).",
+      "year": "Return of the year using the modified Dietz method: the gain (unrealized and realized capital gains + dividends) divided by the capital invested on average during the year. A December purchase barely counts."
+    }
+  },
   "kinds": {
     "deposit": "Deposit",
     "withdrawal": "Withdrawal",

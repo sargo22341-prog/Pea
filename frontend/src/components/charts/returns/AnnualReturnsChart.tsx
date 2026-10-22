@@ -1,20 +1,28 @@
-import type { AssetFundAnnualReturn } from "@pea/shared";
 import { memo } from "react";
 import { Bar, BarChart, Rectangle, ReferenceLine, Tooltip, XAxis, YAxis, type BarShapeProps } from "recharts";
-import { SafeResponsiveContainer } from "../../../../components/charts/SafeResponsiveContainer";
-import { CHART_ANIMATION_MS } from "../../../../components/charts/chartFormat";
-import { formatFractionPercent } from "../../../../lib/format-metrics";
+import { SafeResponsiveContainer } from "../SafeResponsiveContainer";
+import { CHART_ANIMATION_MS } from "../chartFormat";
+import { formatFractionPercent } from "../../../lib/format-metrics";
 
 const POSITIVE_COLOR = "#4ade80";
 const NEGATIVE_COLOR = "#fb7185";
 
-function AnnualReturnTooltip({ active, payload }: { active?: boolean; payload?: { payload?: AssetFundAnnualReturn }[] }) {
+/** Rendement d'une année civile, en fraction (0,12 = +12 %). */
+export interface AnnualReturn {
+  year: number;
+  value: number;
+  /** Précisions affichées dans l'infobulle (gain, année partielle...). */
+  details?: string[] | undefined;
+}
+
+function AnnualReturnTooltip({ active, payload }: { active?: boolean; payload?: { payload?: AnnualReturn }[] }) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (
     <div className="rounded-lg bg-ink/95 p-2.5 text-xs shadow-glow ring-1 ring-line">
       <p className="font-semibold text-white">{row.year}</p>
       <p className={row.value >= 0 ? "text-mint" : "text-coral"}>{formatFractionPercent(row.value, { signed: true })}</p>
+      {row.details?.map((detail) => <p className="text-slate-400" key={detail}>{detail}</p>)}
     </div>
   );
 }
@@ -26,7 +34,7 @@ function AnnualReturnBar(props: BarShapeProps) {
 }
 
 /** Rendement de chaque année civile, en barres vertes ou rouges autour de zéro. */
-export const EtfAnnualReturnsChart = memo(function EtfAnnualReturnsChart({ data }: { data: AssetFundAnnualReturn[] }) {
+export const AnnualReturnsChart = memo(function AnnualReturnsChart({ data }: { data: AnnualReturn[] }) {
   return (
     <div className="h-56 w-full">
       <SafeResponsiveContainer>

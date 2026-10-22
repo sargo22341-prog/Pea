@@ -12,6 +12,7 @@ vi.mock("../../../lib/api", () => ({
   api: {
     cashLedger: () => cashLedger(),
     portfolioFull: () => new Promise(() => undefined),
+    portfolioReturns: () => new Promise(() => undefined),
     dividendProposals: (): Promise<DividendProposalsDto> => Promise.resolve({ pending: [], ignored: [], recent: [], unreadAutoAccepted: 0, cash: 100 }),
     cashMonthlyCheck: () => cashMonthlyCheck(),
     fullHistoryPreview: () => fullHistoryPreview()

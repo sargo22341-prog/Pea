@@ -16,6 +16,7 @@ import { OpeningDividendsCard } from "./components/OpeningDividendsCard";
 import { LedgerTable } from "./components/LedgerTable";
 import { MonthlyCheckCard } from "./components/monthly-check/MonthlyCheckCard";
 import { PeaOverviewCards } from "./components/PeaOverviewCards";
+import { PortfolioReturnsCard } from "./components/returns/PortfolioReturnsCard";
 import { useCashLedger } from "./hooks/useCashLedger";
 
 /** Plage de la synthèse : seule la valorisation courante est utile ici (même cache que l'accueil en 1j). */
@@ -75,6 +76,7 @@ export function MyPeaPage() {
       </div>
 
       {portfolio.data ? <PeaOverviewCards summary={portfolio.data.summary} /> : null}
+      <PortfolioReturnsCard />
 
       {!pending && settings.referenceAt ? (
         <OpeningDividendsCard

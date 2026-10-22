@@ -56,6 +56,9 @@ Fonctionnalites principales :
 - passage en historique complet quand les releves especes couvrent tout depuis l'ouverture :
   l'etat initial est remplace par les virements et dividendes reels, et le rendement annualise
   devient calculable ;
+- rendement des titres par annee dans « Mon PEA » : TRI annualise qui tient compte de la date de
+  chaque achat et vente, graphique et tableau du rendement de chaque annee civile, calcules sans
+  releves especes ;
 - objectifs financiers et projections patrimoniales via la page technique `/objectives`,
   avec quatre formes de courbe : lisse, stochastique, chocs aleatoires ou Monte-Carlo ;
 - mode prive pour masquer les montants personnels.

@@ -51,6 +51,16 @@ Les montants sont arrondis au centime puis additionnés en entiers : aucune dér
 - **Rendement** : le gain global rapporté aux versements nets est affiché à titre indicatif. Le
   taux annualisé (XIRR des seuls flux externes) n'est calculé que si le journal est complet depuis
   l'ouverture (sans état initial) et couvre au moins 90 jours.
+- **Rendement par année** (section dédiée de « Mon PEA », `GET /api/portfolio/returns`) : mesure
+  les seuls titres, sans relevé espèces ni état initial. Les flux sont les achats (frais inclus),
+  les ventes (frais déduits) et les dividendes estimés (cours Yahoo × quantité détenue au
+  détachement), chacun à sa date. Le TRI annualisé des titres clôt ces flux par la valeur actuelle
+  des positions (au moins 90 jours d'historique). Chaque année civile est valorisée au 31 décembre
+  (dernière clôture connue, à défaut dernier prix de transaction) et son rendement suit la méthode
+  de Dietz modifiée : le gain de l'année (plus-values latentes et réalisées + dividendes) rapporté
+  au capital engagé en moyenne, chaque apport comptant au prorata du temps investi. La première
+  année (depuis le premier achat) et l'année en cours sont partielles et non annualisées. Les
+  positions sans transaction datée sont exclues et signalées.
 
 Les dividendes « estimés » du tableau de bord (données de marché × quantité détenue) restent
 distincts des dividendes **encaissés**, enregistrés dans le journal espèces (saisis à la main ou

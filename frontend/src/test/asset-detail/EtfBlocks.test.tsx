@@ -8,8 +8,8 @@ vi.mock("../../components/charts/allocation/SectorAllocationChart", () => ({
   SectorAllocationChart: ({ data }: { data: { name: string }[] }) => <div>chart:{data.map((item) => item.name).join(",")}</div>
 }));
 
-vi.mock("../../pages/asset-detail/components/etf/EtfAnnualReturnsChart", () => ({
-  EtfAnnualReturnsChart: ({ data }: { data: { year: number }[] }) => <div>annual:{data.map((row) => row.year).join(",")}</div>
+vi.mock("../../components/charts/returns/AnnualReturnsChart", () => ({
+  AnnualReturnsChart: ({ data }: { data: { year: number }[] }) => <div>annual:{data.map((row) => row.year).join(",")}</div>
 }));
 
 afterEach(() => {

@@ -7,7 +7,7 @@ import type { MetricItem } from "../../../../components/common/metrics/metric-it
 import { formatMaybeDate } from "../../../../lib/format";
 import { formatFractionPercent, formatRatio } from "../../../../lib/format-metrics";
 import { toneFromNumber } from "../../../../utils/assetTone";
-import { EtfAnnualReturnsChart } from "./EtfAnnualReturnsChart";
+import { AnnualReturnsChart } from "../../../../components/charts/returns/AnnualReturnsChart";
 
 const RETURN_PERIODS = ["ytd", "oneYear", "threeYear", "fiveYear", "tenYear"] as const satisfies readonly (keyof AssetFundTrailingReturns)[];
 
@@ -43,7 +43,7 @@ export function EtfPerformance({ data }: { data: AssetFundDetails }) {
       <MetricGrid columnsClassName="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" items={returnItems} minVisible={1} />
       {data.annualReturns?.length ? (
         <DetailsToggle label={t("etf.returns.byYear")} storageKey="etf-annual-returns">
-          <EtfAnnualReturnsChart data={data.annualReturns} />
+          <AnnualReturnsChart data={data.annualReturns} />
         </DetailsToggle>
       ) : null}
       {risk ? (

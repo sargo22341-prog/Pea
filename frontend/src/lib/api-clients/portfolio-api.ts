@@ -4,6 +4,7 @@ import type {
   PortfolioAnalysis,
   PortfolioDividends,
   PortfolioFullDto,
+  PortfolioReturnsDto,
   PositionWithMarket,
   PositionRangePerformance,
   RangeKey,
@@ -53,6 +54,7 @@ export const portfolioApi = {
     request<PositionRangePerformance>(`/api/portfolio/positions/${id}/performance?range=${range}`, { signal: signal ?? null }),
   portfolioDividends: () => request<PortfolioDividends>("/api/portfolio/dividends"),
   portfolioAnalysis: (signal?: AbortSignal) => dedupedRequest<PortfolioAnalysis>("/api/portfolio/analysis", signal),
+  portfolioReturns: (signal?: AbortSignal) => dedupedRequest<PortfolioReturnsDto>("/api/portfolio/returns", signal),
   splits: (symbol?: string, signal?: AbortSignal) =>
     request<UserAssetSplit[]>(`/api/splits${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ""}`, { signal: signal ?? null }),
   decideSplit: (id: number, decision: SplitDecision) =>

@@ -14,6 +14,39 @@
     "yieldOnCost": "Rendement sur coût",
     "fees": "Frais"
   },
+  "returns": {
+    "title": "Rendement par année",
+    "description": "Chaque achat et chaque vente compte à sa date réelle : un titre acheté le mois dernier ne gonfle pas le rendement de vos premières années. Titres seuls, dividendes estimés compris, hors espèces.",
+    "annualized": "Rendement annualisé (TRI)",
+    "annualizedValue": "{{value}} par an",
+    "annualizedMissing": "Moins de 90 jours d'historique",
+    "since": "depuis le {{date}}",
+    "totalGain": "Gain total des titres",
+    "totalInvested": "Total investi",
+    "loading": "Calcul du rendement…",
+    "empty": "Aucun achat daté : le rendement par année apparaîtra après votre premier achat.",
+    "preparing": "Historique des cours en cours de téléchargement : les valeurs de fin d'année sont provisoires.",
+    "missingPrices": "Sans historique de cours, valorisés au dernier prix de transaction : {{symbols}}.",
+    "undated": "Positions sans date d'achat, exclues du calcul : {{symbols}}.",
+    "partial": "Année partielle",
+    "partialMark": "{{year}}*",
+    "partialNote": "* Année partielle : depuis le premier achat ou jusqu'à aujourd'hui. Rendements non annualisés.",
+    "tooltipGain": "Gain : {{value}}",
+    "columns": {
+      "year": "Année",
+      "startValue": "Valeur au 1er janv.",
+      "netInvested": "Achats - ventes",
+      "capitalGain": "Plus-values",
+      "dividends": "Dividendes",
+      "endValue": "Valeur fin",
+      "return": "Rendement"
+    },
+    "hints": {
+      "annualized": "Taux de rendement interne : le taux annuel unique qui, appliqué à chaque achat depuis sa date, donne la valeur actuelle des titres, ventes et dividendes compris. Un achat récent compte peu, un achat ancien beaucoup.",
+      "totalGain": "Valeur actuelle des titres + produit des ventes + dividendes estimés - achats (frais inclus).",
+      "year": "Rendement de l'année selon la méthode de Dietz modifiée : le gain (plus-values latentes et réalisées + dividendes) rapporté au capital investi en moyenne pendant l'année. Un achat de décembre ne pèse presque rien."
+    }
+  },
   "kinds": {
     "deposit": "Versement",
     "withdrawal": "Retrait",

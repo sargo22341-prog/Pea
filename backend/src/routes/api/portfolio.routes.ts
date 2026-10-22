@@ -4,6 +4,7 @@ import { dividendService } from "../../services/portfolio/dividends/dividend.ser
 import { portfolioAnalysisService } from "../../services/portfolio/analysis/portfolio-analysis.service.js";
 import { positionIsinService } from "../../services/portfolio/holdings/position-isin.service.js";
 import { portfolioService } from "../../services/portfolio/portfolio.service.js";
+import { portfolioReturnsService } from "../../services/portfolio/returns/portfolio-returns.service.js";
 import { logger } from "../../services/shared/logger.service.js";
 import { intradayDebugClock } from "../../utils/debug-clock.js";
 import { HttpError } from "../../utils/http-error.js";
@@ -33,6 +34,11 @@ portfolioRouter.get("/portfolio/full", asyncRoute(async (req, res) => {
 portfolioRouter.get("/portfolio/analysis", asyncRoute(async (req, res) => {
   logger.debug("portfolio", "analysis requested", { userId: requireAuthUser(req).id });
   res.json(await portfolioAnalysisService.analysis());
+}));
+
+/** Rendement des titres pondéré par les dates d'achat : TRI annualisé et détail par année civile. */
+portfolioRouter.get("/portfolio/returns", asyncRoute(async (req, res) => {
+  res.json(await portfolioReturnsService.returns(requireAuthUser(req).id));
 }));
 
 portfolioRouter.post("/portfolio/positions/ensure", asyncRoute((req, res) => {
