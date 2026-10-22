@@ -6,4 +6,3 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
-- Mon PEA : nouvelle section « Rendement par année » avec le rendement annualisé (TRI) qui tient compte de la date de chaque achat et vente, un graphique et un tableau du rendement de chaque année civile (plus-values, dividendes estimés, apports).
