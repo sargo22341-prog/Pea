@@ -19,6 +19,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     pool: "vmThreads",
+    // Bound CPU contention so async UI assertions keep their existing five-second deadline.
+    maxWorkers: 2,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"]
   }
