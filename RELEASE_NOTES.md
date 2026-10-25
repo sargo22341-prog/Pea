@@ -6,6 +6,3 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
-
-- Actualiser les bibliothèques de configuration et de traduction pour bénéficier de leurs derniers correctifs.
-- Conserver la CLI Android Capacitor 8.4.3 pour éviter la dépendance Xcode vulnérable des versions 8.5 actuelles.
