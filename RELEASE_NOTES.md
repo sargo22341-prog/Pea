@@ -6,5 +6,3 @@ description de la GitHub Release, puis vide la liste dans le commit `chore: bump
 Sans notes, GitHub génère la liste des commits. Détails : [docs/release.md](docs/release.md).
 
 <!-- notes -->
-- Mettre à jour la liste json d’ETF et d’actions éligible au PEA.
-- Mettre à jour les dépendances compatibles de l’application et du client Android.
