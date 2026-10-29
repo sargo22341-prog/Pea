@@ -6,7 +6,7 @@ import type {
   Quote,
   SearchResult
 } from "@pea/shared";
-import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
+import { findPeaAsset } from "./pea-catalog/catalog.js";
 
 export type SearchAsset = Pick<SearchResult, "symbol" | "name" | "exchange" | "quoteType" | "currency"> & {
   country?: string;
@@ -70,14 +70,7 @@ const ETF_NAME_HINTS = ["ETF", "UCITS", "MSCI", "S&P", "STOXX", "NASDAQ", "AMUND
 const EXCLUDED_NAME_HINTS = ["WARRANT", "CERTIFICATE", "ETN", "ETC", "PREFERRED", "PREF"];
 const ADR_HINTS = [" ADR", "SPONSORED ADR", "ADS"];
 
-export const PEA_STOCK_WHITELIST = new Set(["TTE.PA", "AI.PA", "MC.PA", "OR.PA", "ASML.AS"]);
-export const PEA_ETF_WHITELIST = new Set(["CW8.PA", "EWLD.PA", "PAEEM.PA", "PSP5.PA"]);
 export const PEA_BLACKLIST = new Set(["AAPL", "AMZN", "MSFT", "GOOGL", "META", "NVDA", "TTE"]);
-
-interface RawPeaAsset {
-  code?: string | null;
-  symbol?: string | null;
-}
 
 export function safeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -86,12 +79,6 @@ export function safeString(value: unknown): string {
 export function normalizeYahooSymbol(symbol: string): string {
   return safeString(symbol).toUpperCase().replace(/\s+/g, "");
 }
-
-const LOCAL_PEA_SYMBOLS = new Set(
-  Object.entries(peaAssets as unknown as Record<string, RawPeaAsset>).flatMap(([code, item]) =>
-    [code, item.code, item.symbol].map((value) => normalizeYahooSymbol(value ?? "")).filter(Boolean)
-  )
-);
 
 export function rankAssetForPea(asset: SearchAsset | QuoteAsset): PeaRankingResult {
   const eligibility = evaluatePeaEligibility(asset);
@@ -144,13 +131,8 @@ export function evaluatePeaEligibility(asset: SearchAsset | QuoteAsset): PeaElig
     source: "yahoo-finance2-plus-local-rules" as const
   };
 
-  if (LOCAL_PEA_SYMBOLS.has(symbol)) {
+  if (findPeaAsset(symbol)) {
     reasons.push("Present dans le catalogue PEA local");
-    return { ...base, status: "eligible", confidence: "high" };
-  }
-
-  if (PEA_STOCK_WHITELIST.has(symbol) || PEA_ETF_WHITELIST.has(symbol)) {
-    reasons.push("Présent dans la whitelist PEA locale");
     return { ...base, status: "eligible", confidence: "high" };
   }
 

@@ -1,3 +1,4 @@
+import { findPeaAsset, findPeaLogo } from "./pea-catalog/catalog.js";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../config.js";
@@ -29,7 +30,7 @@ export class IconService {
       logger.debug("icons", "icon cache hit", { symbol: key, source: icon.source, mimeType: icon.mimeType, size: icon.size });
       return icon;
     }
-    if (this.isEtf(key)) {
+    if (this.isEtf(key) && !findPeaLogo(key)) {
       logger.debug("icons", "icon fetch skipped ETF", { symbol: key });
       return icon;
     }
@@ -65,7 +66,7 @@ export class IconService {
   /** Vrai si obtenir l'icône impose des appels distants (Yahoo, logo.dev, favicon). */
   needsRemoteFetch(symbol: string) {
     const key = normalizeSymbol(symbol);
-    return Boolean(key) && !this.getIconFile(key) && !this.isEtf(key) && !this.hasRecentFailure(key) && !this.hasRecentPending(key);
+    return Boolean(key) && !this.getIconFile(key) && (!this.isEtf(key) || Boolean(findPeaLogo(key))) && !this.hasRecentFailure(key) && !this.hasRecentPending(key);
   }
 
   async fetchAndStoreIcon(symbol: string): Promise<AssetIcon | undefined> {
@@ -84,7 +85,10 @@ export class IconService {
       }
 
       if (!website) logger.debug("icons", "website lookup via Yahoo assetProfile", { symbol: key });
-      website = website ?? (await this.getWebsiteFromYahooAssetProfile(key));
+      website = website ?? (await this.getWebsiteFromYahooAssetProfile(key).catch((error: unknown) => {
+        logger.debug("icons", "Yahoo profile unavailable", { symbol: key, error: String(error) });
+        return undefined;
+      }));
       logger.debug("icons", "website lookup result", { symbol: key, domain: domainFromWebsite(website), found: Boolean(website) });
       if (config.logoDevApiKey) {
         const domainCandidates = this.buildLogoDevDomainCandidates(website);
@@ -96,6 +100,10 @@ export class IconService {
       const candidates = this.buildFaviconCandidates(website);
       const favicon = await this.fetchFirstAllowedImage(key, candidates);
       if (favicon) return this.saveIconFromBuffer(key, favicon, "auto");
+      const brokerLogo = findPeaLogo(key);
+      const backup = await this.fetchFirstAllowedImage(key, brokerLogo
+        ? [{ url: brokerLogo, source: "boursedirect", label: key }] : []);
+      if (backup) return this.saveIconFromBuffer(key, backup, "auto");
       logger.debug("icons", "icon fetch failed", { symbol: key, reason: "no candidate succeeded" });
       this.markIconAsFailed(key);
     } catch (error) {
@@ -151,9 +159,10 @@ export class IconService {
     const key = normalizeSymbol(symbol);
     const known = assetIconRepository.findKnownAsset(key, currentUserId());
     const quote = readCachedQuote(key);
+    const local = findPeaAsset(key);
     return {
-      name: quote?.name ?? known?.name,
-      quoteType: quote?.quoteType,
+      name: quote?.name ?? known?.name ?? local?.name,
+      quoteType: quote?.quoteType ?? local?.quoteType,
       website: quote?.website
     };
   }
@@ -215,7 +224,7 @@ export class IconService {
   private async fetchFirstAllowedImage(symbol: string, candidates: LogoCandidate[]) {
     for (const candidate of candidates) {
       logger.debug("icons", "icon fetch attempt", { symbol, source: candidate.source, label: candidate.label });
-      const response = await fetchWithTimeout(candidate.url).catch((error: unknown) => {
+      const response = await fetchWithTimeout(candidate.url, candidate.source === "boursedirect" ? "error" : "follow").catch((error: unknown) => {
         logger.debug("icons", "icon fetch failed", { symbol, source: candidate.source, label: candidate.label, error: error instanceof Error ? error.message : "requete impossible" });
         return undefined;
       });

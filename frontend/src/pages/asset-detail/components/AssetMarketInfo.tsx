@@ -1,5 +1,5 @@
 import type { AssetDetails, Quote } from "@pea/shared";
-import { ArrowDownRight, ArrowUpRight, BadgeEuro, BarChart3, CalendarDays, CircleDollarSign, Database, Gauge, Landmark, Percent, Timer, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Coins, BarChart3, CalendarDays, CircleDollarSign, Database, Gauge, Landmark, Percent, Timer, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MOTION } from "../../../components/common/motion";
 import { formatChange, formatMaybeDate, formatMaybeInteger, formatMaybeMoney, formatMaybePercentYield, money } from "../../../lib/format";
@@ -29,7 +29,7 @@ export function AssetMarketInfo({
   return (
     <div className="grid grid-cols-2 overflow-hidden rounded-[16px] border border-white/[0.05] bg-slate-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] xl:grid-cols-3">
       <AssetInfoTile icon={<Gauge size={18} />} iconTone="amber" label={t("market.state", { ns: "asset" })} tone={marketStateTone(info.marketState ?? quote.marketState)} value={info.marketState ?? quote.marketState ?? "n/a"} variant="market" />
-      <AssetInfoTile icon={<BadgeEuro size={18} />} iconTone="green" label={t("market.lastPrice", { ns: "asset" })} value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
+      <AssetInfoTile icon={<Coins size={18} />} iconTone="green" label={t("market.lastPrice", { ns: "asset" })} value={formatMaybeMoney(info.regularMarketPrice ?? quote.price, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<DayTrendIcon size={18} />} iconTone={dayTone === "negative" ? "red" : "green"} label={t("market.dayChange", { ns: "asset" })} tone={dayTone} value={formatChange(dayChange, dayChangePercent, displayCurrency)} variant="market" />
       <AssetInfoTile icon={<Landmark size={18} />} iconTone="slate" label={t("market.exchange", { ns: "asset" })} value={info.exchangeName ?? quote.exchange ?? "n/a"} variant="market" />
       <AssetInfoTile icon={<CircleDollarSign size={18} />} iconTone="cyan" label={t("market.currency", { ns: "asset" })} value={info.currency ?? quote.currency} variant="market" />

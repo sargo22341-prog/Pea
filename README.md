@@ -163,6 +163,8 @@ version : [docs/release.md](docs/release.md).
 | `LOGO_DEV_API_KEY` | vide | Backend | Cle optionnelle pour recuperer automatiquement des logos d'actifs. |
 
 
+La maintenance des listes locales actions et ETF est décrite dans [docs/pea-catalog.md](docs/pea-catalog.md).
+
 ## Developpement local
 
 Prerequis : Node.js 26+ et npm 10+.

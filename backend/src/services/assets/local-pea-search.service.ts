@@ -1,32 +1,9 @@
 import type { EnrichedSearchResult } from "@pea/shared";
-import peaAssets from "../../data/pea-actio-etf.json" with { type: "json" };
+import { peaCatalog } from "./pea-catalog/catalog.js";
 import { watchlistRepository } from "../../repositories/assets/watchlist.repository.js";
 import { portfolioRepository } from "../../repositories/portfolio/portfolio.repository.js";
 import { requireUserId } from "../auth/user-context.js";
 import { primitiveText } from "../../utils/text.js";
-
-interface RawPeaAsset {
-  code?: string | null;
-  name?: string | null;
-  etf?: boolean;
-  yahoo?: boolean;
-  currency?: string | null;
-  symbol?: string | null;
-  exchangeName?: string | null;
-  fullExchangeName?: string | null;
-  instrumentType?: string | null;
-  longName?: string | null;
-  shortName?: string | null;
-}
-
-interface LocalPeaAsset {
-  symbol: string;
-  name: string;
-  currency?: string | undefined;
-  exchange?: string | undefined;
-  quoteType?: string | undefined;
-  searchText: string;
-}
 
 const maxResults = 20;
 
@@ -38,40 +15,9 @@ function normalize(value: unknown) {
     .trim();
 }
 
-function cleanString(value: unknown) {
-  const text = primitiveText(value).trim();
-  return text || undefined;
-}
-
-function normalizeInstrumentType(item: RawPeaAsset) {
-  if (item.instrumentType) return item.instrumentType.toUpperCase();
-  if (item.etf === true) return "ETF";
-  if (item.etf === false) return "EQUITY";
-  return undefined;
-}
-
-function mapAsset(code: string, item: RawPeaAsset): LocalPeaAsset | undefined {
-  if (item.yahoo === false) return undefined;
-
-  const symbol = cleanString(item.symbol) ?? cleanString(item.code) ?? cleanString(code);
-  if (!symbol) return undefined;
-
-  const name = cleanString(item.longName) ?? cleanString(item.shortName) ?? cleanString(item.name) ?? symbol;
-  const searchText = normalize([code, item.code, item.symbol, item.longName, item.shortName, item.name].filter(Boolean).join(" "));
-
-  return {
-    symbol: symbol.toUpperCase(),
-    name,
-    currency: cleanString(item.currency),
-    exchange: cleanString(item.fullExchangeName) ?? cleanString(item.exchangeName),
-    quoteType: normalizeInstrumentType(item),
-    searchText
-  };
-}
-
-const assets: LocalPeaAsset[] = Object.entries(peaAssets as unknown as Record<string, RawPeaAsset>)
-  .map(([code, item]) => mapAsset(code, item))
-  .filter((item): item is LocalPeaAsset => Boolean(item));
+const assets = peaCatalog.map((item) => ({ ...item,
+  searchText: normalize([item.symbol, item.ticker, item.isin, item.name].join(" "))
+}));
 
 export class LocalPeaSearchService {
   search(query: string, userId?: number | string): EnrichedSearchResult[] {

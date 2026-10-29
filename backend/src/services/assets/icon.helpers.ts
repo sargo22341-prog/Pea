@@ -23,7 +23,7 @@ export const failureCooldownMs = 24 * 60 * 60 * 1000;
 const etfNamePattern = /\b(ETF|UCITS|MSCI|S&P|STOXX|ISHARES|AMUNDI|LYXOR|VANGUARD|XTRACKERS)\b/i;
 export interface LogoCandidate {
   url: string;
-  source: "logo.dev ticker" | "logo.dev name" | "logo.dev website" | "favicon";
+  source: "logo.dev ticker" | "logo.dev name" | "logo.dev website" | "favicon" | "boursedirect";
   label: string;
 }
 
@@ -89,8 +89,8 @@ export function placeholderSvg(symbol: string) {
  * Requête d'icône bornée dans le temps, corps compris : le signal reste actif pendant la lecture
  * (un serveur qui envoie lentement un gros fichier est interrompu).
  */
-export function fetchWithTimeout(url: string) {
-  return fetch(url, { signal: AbortSignal.timeout(maxAutoFetchMs), headers: { "user-agent": "PEA Portfolio" } });
+export function fetchWithTimeout(url: string, redirect: RequestRedirect = "follow") {
+  return fetch(url, { redirect, signal: AbortSignal.timeout(maxAutoFetchMs), headers: { "user-agent": "PEA Portfolio" } });
 }
 
 /**
